@@ -36,6 +36,15 @@ export interface GlkOteDisplay {
   warning(msg: string): void
   error(msg: string): void
   extevent?(val: unknown): void
+  /**
+   * Capture display-layer state for ifvms's native autosave (glkapi's
+   * save_allstate() stores our return value as `snapshot.glk.glkote`). Must be
+   * JSON-serializable. We rebuild the React view from the post-restore update(),
+   * so only the metrics need to round-trip.
+   */
+  save_allstate(): unknown
+  /** Accept the state produced by save_allstate() during native autorestore. */
+  restore_allstate(state: unknown): void
 }
 
 /** glkapi passes this to GlkOte.init; `accept` receives player events. */

@@ -37,28 +37,36 @@ declare global {
 }
 
 /**
- * Returns the ready-to-init Glk singleton from the vendored glkapi.js.
+ * Returns a FRESH Glk instance from the vendored glkapi.js.
  *
- * glkapi.js creates `var Glk = new GlkClass()` at module scope and exports it
- * as a CJS-style export. The singleton is pre-constructed; callers must call
- * `Glk.init(vm_options)` to start the VM, passing (at minimum):
+ * glkapi.js keeps all its mutable library state — `event_generation`,
+ * `gli_windowlist`, `has_exited`, the autosave flags, etc. — as `var`s inside
+ * the `GlkClass` function closure, so each `new GlkClass()` is fully isolated.
+ * The module-level `Glk = new GlkClass()` singleton it exports is therefore
+ * SINGLE-USE: once a game has run through it, `event_generation` is non-zero and
+ * `gli_windowlist` is populated, so a second `Glk.init()` on the same instance
+ * fails (autorestore even throws "module has already been launched", and input
+ * events are rejected with "wrong generation number").
+ *
+ * Because the engine may boot more than once in a single JS context (the
+ * autosave/resume tests boot two engines; navigating landing⇄terminal without a
+ * page reload would too), we construct a fresh GlkClass per call so each
+ * ZMachine gets a clean Glk. Callers then call `Glk.init(vm_options)` with:
  *   - vm_options.vm       — the ZVM instance
  *   - vm_options.GlkOte   — our GlkOte bridge (the React display implementation)
  *   - vm_options.GiDispa  — the ifvms ZVMDispatch instance (or window.GiDispa)
  *
- * Fallback branches (window.Glk / new window.GlkClass()) are safety valves
- * for environments where the CJS named import resolution fails; in normal
- * Vite/esbuild builds the `GlkSingleton` branch is always taken.
+ * The singleton / window fallbacks remain only for unusual bundler configs where
+ * the constructor import fails to resolve.
  */
 export function getGlk(): any {
-  // Primary path: CJS named import resolved by esbuild/Rollup.
-  if (GlkSingleton) return GlkSingleton
-  // Safety valve: constructor import worked but singleton didn't (shouldn't happen).
+  // Primary path: a fresh, isolated instance via the constructor.
   if (GlkCtor) return new GlkCtor()
-  // Last resort: check window (glkapi.js does not set these, so this catches
-  // only unusual bundler configurations that re-attach the globals manually).
+  // Fallback: window-attached constructor (unusual bundler configs).
   const g = window as any
-  if (g.Glk) return g.Glk
   if (g.GlkClass) return new g.GlkClass()
+  // Last resort: the pre-constructed singleton (single-use; see above).
+  if (GlkSingleton) return GlkSingleton
+  if (g.Glk) return g.Glk
   throw new Error('glkapi.js did not expose Glk/GlkClass — check bundler CJS interop')
 }

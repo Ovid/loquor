@@ -15,11 +15,18 @@ async function tx<T>(
   fn: (s: IDBObjectStore) => IDBRequest,
 ): Promise<T> {
   const db = await open()
-  return new Promise<T>((resolve, reject) => {
-    const req = fn(db.transaction(STORE, mode).objectStore(STORE))
-    req.onsuccess = () => resolve(req.result as T)
-    req.onerror = () => reject(req.error)
-  })
+  try {
+    return await new Promise<T>((resolve, reject) => {
+      const req = fn(db.transaction(STORE, mode).objectStore(STORE))
+      req.onsuccess = () => resolve(req.result as T)
+      req.onerror = () => reject(req.error)
+    })
+  } finally {
+    // Close the connection once the operation settles. Each call opens its own
+    // connection; leaving them open would block indexedDB.deleteDatabase() (used
+    // to reset state between tests) since there is no onblocked handler.
+    db.close()
+  }
 }
 
 export const idbGet = <T>(k: string) => tx<T>('readonly', s => s.get(k))

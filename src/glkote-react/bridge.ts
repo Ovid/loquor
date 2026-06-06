@@ -33,6 +33,24 @@ export class GlkOteBridge implements GlkOteDisplay {
   private charIsMore = false
   /** Set by the engine; called when the VM quits. */
   onEnd?: () => void
+  /**
+   * Documented turn-boundary seam. Fired from update() whenever the VM issues a
+   * LINE input request — i.e. a turn has completed and the game is waiting for
+   * the next command. This is the canonical "a turn happened" point and the spot
+   * where the future LLM layer will intercept input.
+   *
+   * NOTE: it does NOT itself perform the autosave. The save is done natively by
+   * ifvms+glkapi (do_vm_autosave: true → glkapi.update() → check_autosave() →
+   * VM.do_autosave(eventarg)), which fires at this exact same boundary. Having
+   * onTurn call do_autosave here too would double-save (and with different arg
+   * semantics). So onTurn is purely the observable seam. See engine.ts boot().
+   */
+  onTurn?: () => void
+  /**
+   * The Dialog glkapi asks for via getlibrary('Dialog') during save_allstate
+   * (it reads Dialog.streaming for any open File streams). Set by the engine.
+   */
+  dialog?: unknown
   private onState: (v: ViewState) => void
 
   constructor(onState: (v: ViewState) => void) {
@@ -51,10 +69,26 @@ export class GlkOteBridge implements GlkOteDisplay {
     this.charIsMore = (req as any)?.type === 'char' && isMorePrompt(arg)
     this.view = reduce(this.view, arg)
     this.onState(this.view)
+    // Turn boundary: the VM is now waiting for a line of input. Fire the seam
+    // AFTER onState so observers see the settled post-turn view. The native
+    // autosave (glkapi do_vm_autosave) fires at this same point independently.
+    if ((req as any)?.type === 'line') this.onTurn?.()
     if (this.view.ended) this.onEnd?.()
   }
 
-  getlibrary(_name: string): unknown { return null }
+  getlibrary(name: string): unknown { return name === 'Dialog' ? (this.dialog ?? null) : null }
+
+  /**
+   * Native-autosave display state. glkapi's save_allstate() embeds this as
+   * snapshot.glk.glkote; on restore glkapi stashes it and passes it back to our
+   * update() (second arg) for the first post-restore frame. We rebuild the React
+   * ViewState from that update()'s content, so only the metrics need to survive
+   * the round-trip. Must be JSON-serializable. See engine.ts boot() for the full
+   * autosave mechanism description.
+   */
+  save_allstate(): unknown { return { metrics: METRICS } }
+  restore_allstate(_state: unknown): void { /* metrics are fixed; nothing to apply */ }
+
   log(_msg: string) {}
   warning(_msg: string) {}
   error(msg: string) { console.error('[glk]', msg) }

@@ -1,6 +1,18 @@
 /* Folio presentational components — extracted from lamplit-folio-v3.html */
 /* Excludes: theme tokens (theme.css), body/html, landing/plate rules (Task 4.2) */
 
+/* ---------- Terminal shell ---------- */
+/* `.screen` (landing.css) is a fixed full-viewport flexbox that centers a single
+   child — correct for the landing plate. The terminal reuses `.screen` but stacks
+   StatusBar / Scrollback / CommandInput top-to-bottom, so `.term` overrides it to
+   a stretched column (mockup: `.term{flex-direction:column;align-items:stretch}`).
+   Without this, the three children lay out as a centered row and the scrollback
+   collapses to a one-word-per-line column. */
+.screen.term {
+  flex-direction: column;
+  align-items: stretch;
+}
+
 /* ---------- Theme toggle button ---------- */
 /* shared small theme control — used inside the plate and the status bar, never floating */
 .themebtn {

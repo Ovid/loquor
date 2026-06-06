@@ -8,3 +8,6 @@
 /zork1
 /zork2
 /zork3
+
+# development
+.devcontainer

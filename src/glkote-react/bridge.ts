@@ -48,6 +48,8 @@ export class GlkOteBridge implements GlkOteDisplay {
   private charIsMore = false
   /** Latches once onEnd has fired so a trailing update can't re-fire it. */
   private endedFired = false
+  /** Once disposed (e.g. a StrictMode throwaway engine), ignore VM updates. */
+  private disposed = false
   /** Set by the engine; called when the VM quits. */
   onEnd?: () => void
   /**
@@ -79,7 +81,13 @@ export class GlkOteBridge implements GlkOteDisplay {
     this.accept({ type: 'init', gen: 0, metrics: METRICS })
   }
 
+  /** Stop responding to VM updates. Used to silence a throwaway engine. */
+  dispose() {
+    this.disposed = true
+  }
+
   update(arg: GlkOteUpdate) {
+    if (this.disposed) return
     if (typeof arg.gen === 'number') this.gen = arg.gen
     const req = (arg.input ?? []).find(
       (i: any) => i.type === 'line' || i.type === 'char',

@@ -42,6 +42,22 @@ describe('GlkOteBridge', () => {
     expect(onEnd).toHaveBeenCalledTimes(1)
   })
 
+  it('dispose() stops emitting state (a StrictMode throwaway goes quiet)', () => {
+    const onState = vi.fn()
+    const bridge = new GlkOteBridge(onState)
+    bridge.init({ accept: vi.fn() })
+    onState.mockClear()
+    bridge.dispose()
+    bridge.update({
+      type: 'update',
+      gen: 1,
+      windows: [{ id: 7, type: 'buffer' }],
+      content: [{ id: 7, text: [{ content: ['normal', 'noise'] }] }],
+      input: [{ type: 'line', id: 7, gen: 1 }],
+    } as any)
+    expect(onState).not.toHaveBeenCalled()
+  })
+
   it('auto-acks a MORE prompt but routes a genuine key prompt to sendChar', () => {
     const bridge = new GlkOteBridge(vi.fn())
     const accept = vi.fn()

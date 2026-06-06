@@ -37,6 +37,14 @@ describe('IdbDialog autosave', () => {
     expect(await d.hasSave('SIG3')).toBe(true)
   })
 
+  it('dispose() stops further autosave writes (StrictMode throwaway engine)', async () => {
+    const d = new IdbDialog()
+    d.dispose()
+    d.autosave_write('GONE', { v: 1 })
+    await d.flushWrites()
+    expect(await d.autosave_read_async('GONE')).toBeNull()
+  })
+
   it('serializes rapid fire-and-forget writes so the last turn wins', async () => {
     // Each idb write opens its own connection; without a serial chain two
     // same-key writes from consecutive turns have no ordering guarantee and a

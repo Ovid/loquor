@@ -68,9 +68,21 @@ export class IdbDialog {
    * never wedges.
    */
   private writeChain: Promise<unknown> = Promise.resolve()
+  /**
+   * Once disposed, drop all writes. A StrictMode throwaway engine shares the
+   * same IndexedDB key as the live one; silencing its Dialog stops it from
+   * persisting stale snapshots behind the live engine's back.
+   */
+  private disposed = false
+
+  /** Stop persisting (used when the owning engine is torn down). */
+  dispose(): void {
+    this.disposed = true
+  }
 
   /** Enqueue an IndexedDB write so it runs after all prior writes settle. */
   private enqueue(op: () => Promise<unknown>): Promise<unknown> {
+    if (this.disposed) return Promise.resolve()
     const run = this.writeChain.then(op, op)
     // Keep the chain alive past rejections (callers handle/log their own errors).
     this.writeChain = run.catch(() => {})

@@ -33,6 +33,7 @@ export function Terminal({
     })
     return () => {
       cancelled = true
+      engine.dispose()
       if (engineRef.current === engine) engineRef.current = null
     }
   }, [storyBytes])

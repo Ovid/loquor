@@ -159,6 +159,18 @@ export class ZMachine {
     }
   }
 
+  /**
+   * Tear down this engine: stop the bridge responding to VM updates and stop
+   * the Dialog persisting. Under React StrictMode the boot effect runs twice on
+   * one shared buffer; disposing the throwaway engine in cleanup keeps it from
+   * emitting state or autosaving the same IDB key behind the live engine.
+   */
+  dispose() {
+    this.bridge.dispose()
+    const dialog: any = this.opts.dialog
+    if (typeof dialog.dispose === 'function') dialog.dispose()
+  }
+
   sendLine(text: string) {
     this.bridge.sendLine(text)
   }

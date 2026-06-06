@@ -41,6 +41,17 @@ These upstream projects are vendored locally for reference (and are
 git-ignored — we never modify them); the application consumes `ifvms.js` and
 WebLLM from npm.
 
+## Running locally
+
+    make install     # install dependencies
+    make dev         # start the dev server
+    make test        # run the test suite
+    make all         # lint + format + typecheck + test
+    make build       # production build
+
+The three Zork story files live in `public/games/` and the Glk layer is vendored
+under `vendor/glkote/` (pinned by commit SHA in `vendor/glkote/PINNED.md`).
+
 ## Status
 
 First pass — in active development on the `ovid/first-pass` branch. See the design

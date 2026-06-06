@@ -8,6 +8,7 @@ import ZVMDispatch from 'ifvms/src/zvm/dispatch.js'
 import { getGlk } from './glk'
 import { GlkOteBridge } from '../glkote-react/bridge'
 import type { ViewState } from '../glkote-react/types'
+import { signature } from './signature'
 
 /**
  * ZVM's native autosave Dialog contract (subset we use). Task 2.3 wires the
@@ -30,20 +31,6 @@ export interface ZMachineOptions {
    * autosave itself is performed natively (see boot); this is just the seam.
    */
   onTurn?: () => void
-}
-
-/**
- * ZVM keys autosaves by the first 0x1E bytes of the story, hex-encoded. This
- * MUST match the signature ZVM computes internally in start() (zvm.js):
- * `signature += (origram[i] < 0x10 ? '0' : '') + origram[i].toString(16)` over
- * i in [0, 0x1E). That zero-padding is identical to padStart(2, '0'), so the
- * key we preload with agrees with the key ZVM reads/writes — otherwise restore
- * would not find the snapshot.
- */
-function computeSignature(story: Uint8Array): string {
-  let sig = ''
-  for (let i = 0; i < 0x1e; i++) sig += story[i].toString(16).padStart(2, '0')
-  return sig
 }
 
 /**
@@ -91,7 +78,7 @@ export class ZMachine {
   async boot(storyBytes: Uint8Array): Promise<string> {
     const Glk = getGlk()
     this.vm = new ZVM()
-    this.signature = computeSignature(storyBytes)
+    this.signature = signature(storyBytes)
 
     // Warm the Dialog's sync cache before booting: ZVM.start() reads the
     // autosave synchronously, so the snapshot must already be cached.

@@ -58,6 +58,29 @@ export class IdbDialog {
   private cache = new Map<string, unknown>()
   /** Sync cache for explicit SAVE/RESTORE slots (glkapi reads file_* synchronously). */
   private fileCache = new Map<string, number[]>()
+  /**
+   * Serial chain for all IndexedDB writes. Each idb* call opens its OWN
+   * connection+transaction, and IndexedDB only guarantees commit ordering for
+   * transactions on the SAME connection — so two same-key writes from
+   * consecutive turns could otherwise be reordered, persisting a stale snapshot
+   * ("resume a turn behind"). Funnelling every write through one promise chain
+   * makes them strictly sequential. A failed link is isolated so the chain
+   * never wedges.
+   */
+  private writeChain: Promise<unknown> = Promise.resolve()
+
+  /** Enqueue an IndexedDB write so it runs after all prior writes settle. */
+  private enqueue(op: () => Promise<unknown>): Promise<unknown> {
+    const run = this.writeChain.then(op, op)
+    // Keep the chain alive past rejections (callers handle/log their own errors).
+    this.writeChain = run.catch(() => {})
+    return run
+  }
+
+  /** Await all pending writes (tests / explicit flush). */
+  async flushWrites(): Promise<void> {
+    await this.writeChain
+  }
 
   /** Load a signature's snapshot into the sync cache before booting. */
   async preload(sig: string): Promise<void> {
@@ -87,7 +110,9 @@ export class IdbDialog {
     // swallowed write failures — so a save that never reached IndexedDB looked
     // exactly like "starts over on return". Surface failures instead, and point
     // at the offending field if the browser's structured clone rejected it.
-    const op = snapshot == null ? idbDel(key(sig)) : idbSet(key(sig), snapshot)
+    const op = this.enqueue(() =>
+      snapshot == null ? idbDel(key(sig)) : idbSet(key(sig), snapshot),
+    )
     alog('autosave_write', key(sig), snapshot == null ? 'CLEAR' : 'save')
     op.catch((err: unknown) => {
       const e = err as { name?: string; message?: string }
@@ -108,9 +133,10 @@ export class IdbDialog {
     return (await idbGet<unknown>(key(sig))) ?? null
   }
   async autosave_write_async(sig: string, snapshot: unknown): Promise<void> {
-    if (snapshot == null) await idbDel(key(sig))
-    else await idbSet(key(sig), snapshot)
     this.cache.set(sig, snapshot)
+    await this.enqueue(() =>
+      snapshot == null ? idbDel(key(sig)) : idbSet(key(sig), snapshot),
+    )
   }
   async hasSave(sig: string): Promise<boolean> {
     return (await idbGet<unknown>(key(sig))) != null
@@ -154,7 +180,7 @@ export class IdbDialog {
 
   file_remove_ref(ref: FileRef): void {
     this.fileCache.delete(fileKey(ref))
-    void idbDel(fileKey(ref))
+    void this.enqueue(() => idbDel(fileKey(ref)))
   }
 
   /** Return the stored byte array, or null if the slot does not exist. */
@@ -168,7 +194,7 @@ export class IdbDialog {
     const k = fileKey(ref)
     const bytes = israw || typeof data === 'string' ? [] : Array.from(data)
     this.fileCache.set(k, bytes)
-    void idbSet(k, bytes)
+    void this.enqueue(() => idbSet(k, bytes))
   }
 
   /** Load a slot into the sync fileCache before a synchronous restore. */

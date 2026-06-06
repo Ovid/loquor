@@ -36,4 +36,14 @@ describe('IdbDialog autosave', () => {
     await d.autosave_write_async('SIG3', { v: 1 })
     expect(await d.hasSave('SIG3')).toBe(true)
   })
+
+  it('serializes rapid fire-and-forget writes so the last turn wins', async () => {
+    // Each idb write opens its own connection; without a serial chain two
+    // same-key writes from consecutive turns have no ordering guarantee and a
+    // stale snapshot can overtake a newer one ("resume a turn behind").
+    const d = new IdbDialog()
+    for (let i = 1; i <= 25; i++) d.autosave_write('RACE', { turn: i })
+    await d.flushWrites()
+    expect(await d.autosave_read_async('RACE')).toEqual({ turn: 25 })
+  })
 })

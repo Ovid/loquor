@@ -65,6 +65,7 @@ describe('IdbDialog fileref (explicit SAVE/RESTORE)', () => {
     const d = new IdbDialog()
     const ref = d.file_construct_ref('persisted', 'save', 'GID')
     d.file_write(ref, [4, 5, 6])
+    await d.flushWrites() // writes are serialized + async; wait for the put
 
     const fresh = new IdbDialog()
     const sameRef = fresh.file_construct_ref('persisted', 'save', 'GID')

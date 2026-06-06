@@ -10,7 +10,8 @@ export interface FileRef {
 }
 
 /** IndexedDB key for an explicit (non-autosave) save slot. */
-const fileKey = (ref: FileRef) => `file:${ref.usage}:${ref.gameid}:${ref.filename}`
+const fileKey = (ref: FileRef) =>
+  `file:${ref.usage}:${ref.gameid}:${ref.filename}`
 
 /**
  * IndexedDB-backed implementation of ifvms's native autosave `Dialog`.
@@ -67,10 +68,18 @@ export class IdbDialog {
   // tests/fixtures/PROTOCOL-NOTES.md "Dialog fileref contract".
 
   /** Build a fileref. `gameid` is the per-game signature for SavedGame usage. */
-  file_construct_ref(filename: string, usage: string, gameid?: string): FileRef {
+  file_construct_ref(
+    filename: string,
+    usage: string,
+    gameid?: string,
+  ): FileRef {
     // Headless default: if the game prompts with no filename, derive a fixed
     // slot from usage so SAVE/RESTORE still round-trip without a UI dialog.
-    return { filename: filename || `default-${usage}`, usage: usage || 'data', gameid: gameid || '' }
+    return {
+      filename: filename || `default-${usage}`,
+      usage: usage || 'data',
+      gameid: gameid || '',
+    }
   }
 
   /** Temp files: a single reusable per-usage slot is enough to not crash. */

@@ -1,12 +1,27 @@
 import { reduce } from './reduce'
 import { emptyView } from './types'
-import type { GlkOteDisplay, GlkOteInitIface, GlkOteUpdate, ViewState } from './types'
+import type {
+  GlkOteDisplay,
+  GlkOteInitIface,
+  GlkOteUpdate,
+  ViewState,
+} from './types'
 
 const METRICS = {
-  width: 80, height: 50, gridcharwidth: 1, gridcharheight: 1,
-  buffercharwidth: 1, buffercharheight: 1, outspacingx: 0, outspacingy: 0,
-  inspacingx: 0, inspacingy: 0, gridmarginx: 0, gridmarginy: 0,
-  buffermarginx: 0, buffermarginy: 0,
+  width: 80,
+  height: 50,
+  gridcharwidth: 1,
+  gridcharheight: 1,
+  buffercharwidth: 1,
+  buffercharheight: 1,
+  outspacingx: 0,
+  outspacingy: 0,
+  inspacingx: 0,
+  inspacingy: 0,
+  gridmarginx: 0,
+  gridmarginy: 0,
+  buffermarginx: 0,
+  buffermarginy: 0,
 }
 
 export class GlkOteBridge implements GlkOteDisplay {
@@ -64,7 +79,9 @@ export class GlkOteBridge implements GlkOteDisplay {
 
   update(arg: GlkOteUpdate) {
     if (typeof arg.gen === 'number') this.gen = arg.gen
-    const req = (arg.input ?? []).find((i: any) => i.type === 'line' || i.type === 'char')
+    const req = (arg.input ?? []).find(
+      (i: any) => i.type === 'line' || i.type === 'char',
+    )
     if (req) this.mainWindow = (req as any).id as number
     this.charIsMore = (req as any)?.type === 'char' && isMorePrompt(arg)
     this.view = reduce(this.view, arg)
@@ -76,7 +93,9 @@ export class GlkOteBridge implements GlkOteDisplay {
     if (this.view.ended) this.onEnd?.()
   }
 
-  getlibrary(name: string): unknown { return name === 'Dialog' ? (this.dialog ?? null) : null }
+  getlibrary(name: string): unknown {
+    return name === 'Dialog' ? (this.dialog ?? null) : null
+  }
 
   /**
    * Native-autosave display state. glkapi's save_allstate() embeds this as
@@ -86,15 +105,26 @@ export class GlkOteBridge implements GlkOteDisplay {
    * the round-trip. Must be JSON-serializable. See engine.ts boot() for the full
    * autosave mechanism description.
    */
-  save_allstate(): unknown { return { metrics: METRICS } }
-  restore_allstate(_state: unknown): void { /* metrics are fixed; nothing to apply */ }
+  save_allstate(): unknown {
+    return { metrics: METRICS }
+  }
+  restore_allstate(_state: unknown): void {
+    /* metrics are fixed; nothing to apply */
+  }
 
   log(_msg: string) {}
   warning(_msg: string) {}
-  error(msg: string) { console.error('[glk]', msg) }
+  error(msg: string) {
+    console.error('[glk]', msg)
+  }
 
   sendLine(text: string) {
-    this.accept?.({ type: 'line', gen: this.gen, window: this.mainWindow, value: text })
+    this.accept?.({
+      type: 'line',
+      gen: this.gen,
+      window: this.mainWindow,
+      value: text,
+    })
   }
 
   /**
@@ -102,7 +132,12 @@ export class GlkOteBridge implements GlkOteDisplay {
    * genuine keystroke. See charIsMore for the discrimination logic.
    */
   sendChar(key: string) {
-    this.accept?.({ type: 'char', gen: this.gen, window: this.mainWindow, value: key })
+    this.accept?.({
+      type: 'char',
+      gen: this.gen,
+      window: this.mainWindow,
+      value: key,
+    })
   }
 
   /**

@@ -14,14 +14,14 @@
 //    GlkOte.init(vm_options); our init grabs iface.accept and immediately
 //    accepts an {type:'init'} event with metrics to start the VM.
 
-import { createRequire, Module } from "node:module";
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
+import { createRequire, Module } from 'node:module'
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, resolve } from 'node:path'
 
-const require = createRequire(import.meta.url);
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const repoRoot = resolve(__dirname, "..");
+const require = createRequire(import.meta.url)
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const repoRoot = resolve(__dirname, '..')
 
 // glkapi.js is a bare CommonJS script (`var Glk = new GlkClass()` +
 // `try { exports.Glk = Glk } catch {}`). The repo package.json has
@@ -30,16 +30,16 @@ const repoRoot = resolve(__dirname, "..");
 // catch swallows it, leaving empty exports. We compile the source explicitly as
 // CommonJS to get the real `Glk` singleton. (We do NOT edit the vendored file.)
 function requireAsCjs(filePath) {
-  const src = readFileSync(filePath, "utf8");
-  const mod = new Module(filePath, null);
-  mod.filename = filePath;
-  mod.paths = Module._nodeModulePaths(dirname(filePath));
-  mod._compile(src, filePath);
-  return mod.exports;
+  const src = readFileSync(filePath, 'utf8')
+  const mod = new Module(filePath, null)
+  mod.filename = filePath
+  mod.paths = Module._nodeModulePaths(dirname(filePath))
+  mod._compile(src, filePath)
+  return mod.exports
 }
 
 // --- DOM/window stubs (glkapi.init references these unconditionally) --------
-globalThis.window = globalThis;
+globalThis.window = globalThis
 globalThis.document = {
   createElement: () => ({
     getContext: () => null,
@@ -50,33 +50,33 @@ globalThis.document = {
   getElementById: () => null,
   addEventListener() {},
   removeEventListener() {},
-};
+}
 
 // --- CommonJS deps (must come AFTER stubs; glkapi reads window at load) -----
-const { ZVM } = require("ifvms");
-const ZVMDispatch = require("ifvms/src/zvm/dispatch.js");
-const { Glk } = requireAsCjs(resolve(repoRoot, "vendor/glkote/glkapi.js"));
+const { ZVM } = require('ifvms')
+const ZVMDispatch = require('ifvms/src/zvm/dispatch.js')
+const { Glk } = requireAsCjs(resolve(repoRoot, 'vendor/glkote/glkapi.js'))
 
 // --- Capture state ---------------------------------------------------------
-const captured = { init: null, updates: [] };
-let acceptFn = null;
+const captured = { init: null, updates: [] }
+let acceptFn = null
 
 // Circular-safe deep clone: functions become '[fn]', and any object already
 // seen on the current path becomes '[circular]'. The `iface` passed to
 // GlkOte.init is the whole vm_options (it contains `vm`, whose `.options`
 // points back to vm_options), so a plain JSON.stringify would throw.
 function sanitize(o) {
-  const seen = new WeakSet();
+  const seen = new WeakSet()
   return JSON.parse(
     JSON.stringify(o, (_k, v) => {
-      if (typeof v === "function") return "[fn]";
-      if (v && typeof v === "object") {
-        if (seen.has(v)) return "[circular]";
-        seen.add(v);
+      if (typeof v === 'function') return '[fn]'
+      if (v && typeof v === 'object') {
+        if (seen.has(v)) return '[circular]'
+        seen.add(v)
       }
-      return v;
+      return v
     }),
-  );
+  )
 }
 
 function fakeMetrics() {
@@ -95,39 +95,39 @@ function fakeMetrics() {
     gridmarginy: 0,
     buffermarginx: 0,
     buffermarginy: 0,
-  };
+  }
 }
 
 const LoggingGlkOte = {
   init(iface) {
-    captured.init = sanitize(iface);
-    acceptFn = iface.accept;
-    acceptFn({ type: "init", gen: 0, metrics: fakeMetrics() });
+    captured.init = sanitize(iface)
+    acceptFn = iface.accept
+    acceptFn({ type: 'init', gen: 0, metrics: fakeMetrics() })
   },
   update(arg) {
-    captured.updates.push(sanitize(arg));
+    captured.updates.push(sanitize(arg))
   },
   // glkapi calls getlibrary('Dialog'); null = no Dialog (autosave is off).
   getlibrary() {
-    return null;
+    return null
   },
   // glkapi may save its own state; provide a benign value.
   save_allstate() {
-    return {};
+    return {}
   },
   log() {},
   warning() {},
   error(m) {
-    console.error("GlkOte.error", m);
+    console.error('GlkOte.error', m)
   },
-};
+}
 
 // --- Boot ------------------------------------------------------------------
 const storyBytes = new Uint8Array(
-  readFileSync(resolve(repoRoot, "public/games/zork1.z3")),
-);
+  readFileSync(resolve(repoRoot, 'public/games/zork1.z3')),
+)
 
-const vm = new ZVM();
+const vm = new ZVM()
 
 // --- GiDispa version-bridge ------------------------------------------------
 // The pinned vendored glkapi.js (erkyrath/glkote@366c8271) calls
@@ -138,9 +138,9 @@ const vm = new ZVM();
 // init() that forwards to set_vm(). This is an upstream version skew worked
 // around in the harness (NOT by editing the vendored file). The engine façade
 // (Task 1.7) must apply the same shim.
-const GiDispa = new ZVMDispatch();
-if (typeof GiDispa.init !== "function") {
-  GiDispa.init = (opts) => GiDispa.set_vm(opts.vm);
+const GiDispa = new ZVMDispatch()
+if (typeof GiDispa.init !== 'function') {
+  GiDispa.init = opts => GiDispa.set_vm(opts.vm)
 }
 
 const vm_options = {
@@ -150,31 +150,31 @@ const vm_options = {
   GiDispa,
   Dialog: null,
   // autosave OFF for this capture harness
-};
+}
 
-vm.prepare(storyBytes, vm_options);
-Glk.init(vm_options);
+vm.prepare(storyBytes, vm_options)
+Glk.init(vm_options)
 
 // --- Session driver --------------------------------------------------------
 // Use the LAST update's pending input request so we never invent gen/window.
 function lastUpdate() {
-  return captured.updates.at(-1) ?? {};
+  return captured.updates.at(-1) ?? {}
 }
 function pending() {
-  const u = lastUpdate();
-  return (u.input ?? []).find((i) => i.type === "line" || i.type === "char");
+  const u = lastUpdate()
+  return (u.input ?? []).find(i => i.type === 'line' || i.type === 'char')
 }
 function send(value) {
-  const req = pending();
-  if (!req) return false;
+  const req = pending()
+  if (!req) return false
   acceptFn({
     type: req.type,
     // glkote 'char'/'line' events use `window` for the target window id.
     window: req.id,
     value,
     gen: req.gen ?? lastUpdate().gen ?? 0,
-  });
-  return true;
+  })
+  return true
 }
 
 // 1. Drive several line commands (large verbose output included). NOTE: the
@@ -184,42 +184,42 @@ function send(value) {
 //    glk_request_char_event. Zork I (a v3 game) uses line input exclusively and
 //    never requests a char, so no [MORE]/char prompt can be captured here. We
 //    still probe for one (and report its absence) so the finding is recorded.
-const moreStart = captured.updates.length;
-send("verbose");
-send("look");
-send("diagnose");
-send("inventory");
+const moreStart = captured.updates.length
+send('verbose')
+send('look')
+send('diagnose')
+send('inventory')
 
 const charReq = captured.updates
   .slice(moreStart)
-  .flatMap((u) => u.input ?? [])
-  .find((i) => i.type === "char");
+  .flatMap(u => u.input ?? [])
+  .find(i => i.type === 'char')
 
 // Defensive: if a char request ever did appear, ack it so the game advances.
-let guard = 0;
-while (pending()?.type === "char" && guard++ < 50) {
-  send(" ");
+let guard = 0
+while (pending()?.type === 'char' && guard++ < 50) {
+  send(' ')
 }
 
 // 2. Quit cleanly to capture the end-of-game update shape. Zork I's quit
 //    confirmation ("Do you wish to leave the game? (Y is affirmative):") is a
 //    LINE request, not a char request, so we answer with "yes".
-const quitStart = captured.updates.length;
-send("quit");
-guard = 0;
+const quitStart = captured.updates.length
+send('quit')
+guard = 0
 while (pending() && guard++ < 10) {
-  const req = pending();
-  send(req.type === "char" ? "y" : "yes");
+  const req = pending()
+  send(req.type === 'char' ? 'y' : 'yes')
 }
 
 // --- Write fixtures --------------------------------------------------------
-mkdirSync(resolve(repoRoot, "tests/fixtures"), { recursive: true });
+mkdirSync(resolve(repoRoot, 'tests/fixtures'), { recursive: true })
 writeFileSync(
-  resolve(repoRoot, "tests/fixtures/glkote-zork1-boot.json"),
+  resolve(repoRoot, 'tests/fixtures/glkote-zork1-boot.json'),
   JSON.stringify(captured, null, 2),
-);
+)
 writeFileSync(
-  resolve(repoRoot, "tests/fixtures/glkote-zork1-end.json"),
+  resolve(repoRoot, 'tests/fixtures/glkote-zork1-end.json'),
   JSON.stringify(
     {
       charReq: charReq ?? null,
@@ -228,14 +228,14 @@ writeFileSync(
     null,
     2,
   ),
-);
+)
 
-const bootText = JSON.stringify(captured.updates);
+const bootText = JSON.stringify(captured.updates)
 console.log(
-  "Captured",
+  'Captured',
   captured.updates.length,
-  "updates; init keys:",
+  'updates; init keys:',
   Object.keys(captured.init ?? {}),
-);
-console.log("char-input request seen:", !!charReq);
-console.log('contains "West of House":', bootText.includes("West of House"));
+)
+console.log('char-input request seen:', !!charReq)
+console.log('contains "West of House":', bootText.includes('West of House'))

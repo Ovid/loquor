@@ -142,7 +142,7 @@ export class ZMachine {
     if (typeof dialog.hasSave !== 'function') return
     for (let i = 0; i < 100; i++) {
       if (await dialog.hasSave(this.signature)) return
-      await new Promise((r) => setTimeout(r, 5))
+      await new Promise(r => setTimeout(r, 5))
     }
   }
 

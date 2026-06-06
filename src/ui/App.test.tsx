@@ -6,7 +6,10 @@ import App from './App'
 
 beforeEach(() => {
   const bytes = readFileSync('public/games/zork1.z3')
-  vi.stubGlobal('fetch', vi.fn(async () => ({ arrayBuffer: async () => bytes.buffer })))
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => ({ arrayBuffer: async () => bytes.buffer })),
+  )
 })
 
 describe('App', () => {

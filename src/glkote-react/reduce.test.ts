@@ -20,7 +20,10 @@ describe('reduce', () => {
 
   it('flags game end from the quit fixture so clear-on-quit can fire', () => {
     let view = emptyView
-    for (const update of [...(fixture as any).updates, ...(endFixture as any).quit])
+    for (const update of [
+      ...(fixture as any).updates,
+      ...(endFixture as any).quit,
+    ])
       view = reduce(view, update as any)
     expect(view.ended).toBe(true)
     expect(view.inputRequest).toBeNull()
@@ -39,9 +42,7 @@ describe('reduce', () => {
       content: [
         {
           id: 102,
-          text: [
-            { content: ['normal', 'Hello ', 'emphasized', 'World'] },
-          ],
+          text: [{ content: ['normal', 'Hello ', 'emphasized', 'World'] }],
         },
       ],
       input: [],

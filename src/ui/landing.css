@@ -10,7 +10,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity .8s ease;
+  transition: opacity 0.8s ease;
   z-index: 10;
 }
 .hidden {
@@ -25,18 +25,20 @@
   border-radius: 10px;
   background: var(--plate-grad);
   border: 1px solid var(--rule);
-  box-shadow: 0 0 0 1px rgba(232, 163, 61, .05) inset, 0 30px 80px rgba(0, 0, 0, .45);
+  box-shadow:
+    0 0 0 1px rgba(232, 163, 61, 0.05) inset,
+    0 30px 80px rgba(0, 0, 0, 0.45);
   position: relative;
-  transition: background .5s;
+  transition: background 0.5s;
 }
 .plate::before,
 .plate::after {
-  content: "";
+  content: '';
   position: absolute;
   width: 18px;
   height: 18px;
   border: 1px solid var(--brass-soft);
-  opacity: .5;
+  opacity: 0.5;
 }
 .plate::before {
   top: 14px;
@@ -60,9 +62,9 @@
 
 /* ---------- Title ---------- */
 .title {
-  font-family: "IM Fell English SC", serif;
+  font-family: 'IM Fell English SC', serif;
   font-size: 64px;
-  line-height: .95;
+  line-height: 0.95;
   letter-spacing: 2px;
   color: var(--brass);
   margin: 0 0 2px;
@@ -72,20 +74,38 @@
 }
 
 @keyframes flicker {
-  0%   { opacity: 0; }
-  8%   { opacity: .4; }
-  10%  { opacity: .1; }
-  13%  { opacity: .7; }
-  16%  { opacity: .2; }
-  20%  { opacity: 1; }
-  24%  { opacity: .5; }
-  27%  { opacity: 1; }
-  100% { opacity: 1; }
+  0% {
+    opacity: 0;
+  }
+  8% {
+    opacity: 0.4;
+  }
+  10% {
+    opacity: 0.1;
+  }
+  13% {
+    opacity: 0.7;
+  }
+  16% {
+    opacity: 0.2;
+  }
+  20% {
+    opacity: 1;
+  }
+  24% {
+    opacity: 0.5;
+  }
+  27% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 /* ---------- Tagline ---------- */
 .tagline {
-  font-family: "IM Fell English", serif;
+  font-family: 'IM Fell English', serif;
   font-style: italic;
   font-size: 18px;
   color: var(--brass-soft);
@@ -113,7 +133,7 @@
 
 /* ---------- Section label ---------- */
 .label {
-  font-family: "IM Fell English", serif;
+  font-family: 'IM Fell English', serif;
   font-style: italic;
   font-size: 15px;
   color: var(--brass-soft);
@@ -135,15 +155,15 @@
   padding: 18px 12px 16px;
   text-align: center;
   background: var(--vol-bg);
-  transition: all .25s ease;
+  transition: all 0.25s ease;
 }
 .vol .num {
-  font-family: "IM Fell English SC", serif;
+  font-family: 'IM Fell English SC', serif;
   color: var(--brass);
   font-size: 26px;
 }
 .vol .nm {
-  font-family: "IM Fell English", serif;
+  font-family: 'IM Fell English', serif;
   font-style: italic;
   font-size: 12px;
   color: var(--text-dim);
@@ -157,14 +177,14 @@
 }
 .vol.sel {
   border-color: var(--brass);
-  box-shadow: 0 0 26px rgba(232, 163, 61, .18);
+  box-shadow: 0 0 26px rgba(232, 163, 61, 0.18);
 }
 
 /* ---------- Enter button ---------- */
 .enter {
   display: block;
   margin: 26px auto 0;
-  font-family: "IM Fell English", serif;
+  font-family: 'IM Fell English', serif;
   font-size: 17px;
   letter-spacing: 1px;
   color: var(--enter-text);
@@ -173,11 +193,11 @@
   border-radius: 5px;
   padding: 11px 30px;
   cursor: pointer;
-  transition: all .2s;
+  transition: all 0.2s;
 }
 .enter:hover {
   filter: brightness(1.1);
-  box-shadow: 0 0 30px rgba(232, 163, 61, .4);
+  box-shadow: 0 0 30px rgba(232, 163, 61, 0.4);
 }
 
 /* ---------- Resume hint ---------- */
@@ -187,5 +207,5 @@
   font-size: 11px;
   color: var(--text-dim);
   font-style: italic;
-  font-family: "IM Fell English", serif;
+  font-family: 'IM Fell English', serif;
 }

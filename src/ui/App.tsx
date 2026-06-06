@@ -16,11 +16,13 @@ export default function App() {
   // Discover which games have a saved session (for the resume hint).
   useEffect(() => {
     const dialog = new IdbDialog()
-    Promise.all(GAMES.map(async g => {
-      const r = await fetch(g.file)
-      const sig = signature(new Uint8Array(await r.arrayBuffer()))
-      return (await dialog.hasSave(sig)) ? g.slug : null
-    })).then(found => setSavedSlugs(new Set(found.filter(Boolean) as string[])))
+    Promise.all(
+      GAMES.map(async g => {
+        const r = await fetch(g.file)
+        const sig = signature(new Uint8Array(await r.arrayBuffer()))
+        return (await dialog.hasSave(sig)) ? g.slug : null
+      }),
+    ).then(found => setSavedSlugs(new Set(found.filter(Boolean) as string[])))
   }, [])
 
   const enter = async (s: Game['slug']) => {
@@ -32,8 +34,18 @@ export default function App() {
 
   const toggleEl = <ThemeToggle onToggle={toggle} />
   if (slug && bytes) {
-    return <Terminal storyBytes={bytes} themeToggle={toggleEl}
-      onChangeVolume={() => { setSlug(null); setBytes(null) }} />
+    return (
+      <Terminal
+        storyBytes={bytes}
+        themeToggle={toggleEl}
+        onChangeVolume={() => {
+          setSlug(null)
+          setBytes(null)
+        }}
+      />
+    )
   }
-  return <Landing onEnter={enter} savedSlugs={savedSlugs} themeToggle={toggleEl} />
+  return (
+    <Landing onEnter={enter} savedSlugs={savedSlugs} themeToggle={toggleEl} />
+  )
 }

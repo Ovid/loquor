@@ -2,7 +2,10 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useTheme } from './useTheme'
 
-beforeEach(() => { localStorage.clear(); document.documentElement.removeAttribute('data-theme') })
+beforeEach(() => {
+  localStorage.clear()
+  document.documentElement.removeAttribute('data-theme')
+})
 
 describe('useTheme', () => {
   it('defaults to dark and toggles to light, persisting the choice', () => {

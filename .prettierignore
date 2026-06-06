@@ -12,6 +12,12 @@ zork3/
 scratch/
 .superpowers/
 
+# Vendored Glk layer — pinned verbatim to an upstream SHA; never reformat it.
+vendor/
+
+# Captured protocol fixtures (generated output) + their notes — leave as-is.
+tests/fixtures/
+
 # Build output and deps.
 dist/
 node_modules/

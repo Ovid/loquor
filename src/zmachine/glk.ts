@@ -26,13 +26,16 @@ import './glkapi-shim' // ensure window exists before glkapi.js runs
 // glkapi.d.ts (sibling) provides the ambient module declaration that satisfies
 // TypeScript. esbuild/Rollup detect the CJS export pattern in glkapi.js and
 // make `Glk` (singleton) and `GlkClass` (constructor) available as named imports.
-import { Glk as GlkSingleton, GlkClass as GlkCtor } from '../../vendor/glkote/glkapi.js'
+import {
+  Glk as GlkSingleton,
+  GlkClass as GlkCtor,
+} from '../../vendor/glkote/glkapi.js'
 
 declare global {
   interface Window {
-    Glk?: any      // not set by glkapi.js, but checked as fallback
+    Glk?: any // not set by glkapi.js, but checked as fallback
     GlkClass?: any // not set by glkapi.js, but checked as fallback
-    GiDispa?: any  // set by ifvms dispatch.js when the VM module is imported
+    GiDispa?: any // set by ifvms dispatch.js when the VM module is imported
   }
 }
 
@@ -68,5 +71,7 @@ export function getGlk(): any {
   // Last resort: the pre-constructed singleton (single-use; see above).
   if (GlkSingleton) return GlkSingleton
   if (g.Glk) return g.Glk
-  throw new Error('glkapi.js did not expose Glk/GlkClass — check bundler CJS interop')
+  throw new Error(
+    'glkapi.js did not expose Glk/GlkClass — check bundler CJS interop',
+  )
 }

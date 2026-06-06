@@ -5,7 +5,8 @@ const KEY = 'naitfol-theme'
 
 export function useTheme() {
   const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem(KEY) as Theme) ?? 'dark')
+    () => (localStorage.getItem(KEY) as Theme) ?? 'dark',
+  )
 
   useEffect(() => {
     if (theme === 'light') document.body.dataset.theme = 'light'
@@ -13,6 +14,9 @@ export function useTheme() {
     localStorage.setItem(KEY, theme)
   }, [theme])
 
-  const toggle = useCallback(() => setTheme(t => (t === 'light' ? 'dark' : 'light')), [])
+  const toggle = useCallback(
+    () => setTheme(t => (t === 'light' ? 'dark' : 'light')),
+    [],
+  )
   return { theme, toggle }
 }

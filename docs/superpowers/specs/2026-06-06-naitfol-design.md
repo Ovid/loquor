@@ -104,6 +104,11 @@ Our `Dialog` implementation backed by IndexedDB.
 - **Terminal screen:** brass status bar (location · score · moves · change-volume),
   line-by-line fading scrollback, and a command input pinned to the bottom.
 - **Theme toggle** (dark/light), persisted as a user preference (localStorage).
+  It is an **in-layout element** — placed in the corner of the landing plate and
+  as an item inside the terminal status bar (after "change volume", separated by
+  rules). It is **never** a free-floating `position:fixed` overlay, which would
+  collide with the status-bar chrome. The status-bar location text truncates with
+  ellipsis so a long room name never crowds the score/moves/toggle cluster.
 
 ## Game files
 

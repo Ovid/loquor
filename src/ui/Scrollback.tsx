@@ -3,7 +3,7 @@ import type { BufferLine } from '../glkote-react/types'
 
 export function Scrollback({ lines }: { lines: BufferLine[] }) {
   const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => { ref.current?.scrollTo(0, ref.current.scrollHeight) }, [lines])
+  useEffect(() => { ref.current?.scrollTo?.(0, ref.current.scrollHeight) }, [lines])
   return (
     <div className="scroll" ref={ref}>
       {lines.map(l => (

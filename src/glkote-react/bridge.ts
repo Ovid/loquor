@@ -33,8 +33,11 @@ export class GlkOteBridge implements GlkOteDisplay {
   private charIsMore = false
   /** Set by the engine; called when the VM quits. */
   onEnd?: () => void
+  private onState: (v: ViewState) => void
 
-  constructor(private onState: (v: ViewState) => void) {}
+  constructor(onState: (v: ViewState) => void) {
+    this.onState = onState
+  }
 
   init(iface: GlkOteInitIface) {
     this.accept = iface.accept as (e: any) => void

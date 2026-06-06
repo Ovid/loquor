@@ -38,8 +38,10 @@ export interface ZMachineOptions {
 export class ZMachine {
   private vm: any
   private bridge: GlkOteBridge
+  private opts: ZMachineOptions
 
-  constructor(private opts: ZMachineOptions) {
+  constructor(opts: ZMachineOptions) {
+    this.opts = opts
     this.bridge = new GlkOteBridge(opts.onState)
     this.bridge.onEnd = opts.onEnd
   }

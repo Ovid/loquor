@@ -205,3 +205,64 @@ This is a key finding for Task 1.6:
 4. **`metrics` is caller-supplied.** glkapi does not provide metrics; our
    display sends them in the `{type:'init'}` accept call. Must include the full
    grid/buffer char + margin/spacing field set.
+
+## Dialog fileref contract (SAVE/RESTORE)
+
+Observed from `ifvms.js/src/zvm/io.js` + `runtime.js` and the vendored
+`vendor/glkote/glkapi.js` (pinned SHA). For the game's OWN explicit `SAVE` /
+`RESTORE` commands, ifvms drives the **streaming Glk file API**, not the
+autosave path:
+
+1. The VM calls `glk_fileref_create_by_prompt(usage, mode, rock)`
+   (`io.js:fileref_create_by_prompt`, usage `0x101` = SavedGame for save/restore).
+2. It then opens a stream with `glk_stream_open_file(fref, mode, rock)` and
+   reads/writes the whole save buffer, then `glk_stream_close`
+   (`runtime.js:save_restore_handler`, `save_file`, `restore_file`).
+
+### What glkapi calls on `Dialog` (our `IdbDialog`)
+
+Because we set `streaming = false`, glkapi uses the **whole-buffer** path
+(NOT `file_fopen`). The methods glkapi invokes on `getlibrary('Dialog')`:
+
+- `file_construct_ref(filename, filetypename, gameid)` → a **fileref object**.
+  Called by `gli_new_fileref` (glkapi.js:3541). `filetypename` comes from
+  `FileTypeMap` = {0:'data',1:'save',2:'transcript',3:'command'}; for saves it
+  is `'save'`. `gameid` is `VM.get_signature()`. Must return an object we later
+  receive back in the file_* calls; we use `{ filename, usage: filetypename, gameid }`.
+- `file_construct_temp_ref(filetypename)` → fileref object (temp files).
+- `file_clean_fixed_name(filename, filetype)` → sanitized string filename
+  (used by `glk_fileref_create_by_name`; not on the prompt path but cheap).
+- `file_ref_exists(ref)` → **boolean**. glkapi calls this in
+  `glk_stream_open_file` (4843): in Read mode, returns `null` (open fails) if
+  the file doesn't exist; also `glk_fileref_does_file_exist`.
+- `file_read(ref)` → **Array of byte numbers (0-255)** or `null`. For a binary
+  save stream `str.unicode=false, str.isbinary=true`, glkapi treats `str.buf`
+  as a plain JS array of byte values (glkapi.js:3713-3729, 4880-4885). Must
+  have a `.length`. `null` means "no such file" (glkapi then starts empty).
+- `file_write(ref, buf, israw?)` → void. `buf` is the same Array of byte
+  numbers. Called at `glk_stream_close` (5021) and `gli_stream_flush_file`.
+  When `israw===true` (glkapi.js:4857) the second arg is `''` (empty truncate);
+  we coerce to an empty byte array.
+- `file_remove_ref(ref)` → void (`glk_fileref_delete_file`).
+
+### create-by-prompt is a UI concern, not a Dialog method
+
+`glk_fileref_create_by_prompt` returns `DidNotReturn` and emits a
+`{type:'fileref_prompt', filetype, filemode, gameid}` **special input** to the
+GlkOte display; the player UI must answer via
+`gli_fileref_create_by_prompt_callback({value: ref})` where `ref` is EITHER a
+Dialog fileref object (from `file_construct_ref`) OR a plain string filename
+(glkapi.js:5151-5174). So the "ask the player for a filename" step lives in the
+GlkOte bridge / React UI, **not** in `IdbDialog`. For the minimal headless
+floor, `IdbDialog` only needs the `file_*` whole-buffer methods above; a future
+UI task wires the `fileref_prompt` special input. To make slots work headlessly
+we derive a fixed slot name from usage+gameid when no filename is supplied.
+
+### Sync vs async
+
+`file_read`/`file_write`/`file_ref_exists` are called **synchronously** by
+glkapi (mid-`glk_stream_open_file`/`glk_stream_close`). IndexedDB is async, so —
+exactly like the autosave sync cache — `IdbDialog` keeps an in-memory `Map`
+under `file:<usage>:<gameid>:<filename>` keys that serves sync reads, and
+mirrors writes to IndexedDB fire-and-forget. Bytes are stored as a plain
+number[] (structured-clonable, faithful round-trip).

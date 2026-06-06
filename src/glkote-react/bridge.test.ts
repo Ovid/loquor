@@ -30,6 +30,18 @@ describe('GlkOteBridge', () => {
     )
   })
 
+  it('fires onEnd exactly once even though `ended` latches across later updates', () => {
+    const onEnd = vi.fn()
+    const bridge = new GlkOteBridge(vi.fn())
+    bridge.onEnd = onEnd
+    bridge.init({ accept: vi.fn() })
+
+    bridge.update({ type: 'update', gen: 1, exit: true } as any)
+    // A spurious trailing update must not re-fire onEnd (ended stays true).
+    bridge.update({ type: 'update', gen: 2 } as any)
+    expect(onEnd).toHaveBeenCalledTimes(1)
+  })
+
   it('auto-acks a MORE prompt but routes a genuine key prompt to sendChar', () => {
     const bridge = new GlkOteBridge(vi.fn())
     const accept = vi.fn()

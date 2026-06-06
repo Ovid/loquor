@@ -52,6 +52,6 @@ describe('shared story buffer (the real browser/StrictMode condition)', () => {
       onState: v => (vResume = v),
     })
     await eResume.boot(story('zork1'))
-    expect(vResume.status?.location).toMatch(/North of House/i) // currently MISSES
+    expect(vResume.status?.location).toMatch(/North of House/i)
   })
 })

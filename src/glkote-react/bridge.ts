@@ -46,6 +46,8 @@ export class GlkOteBridge implements GlkOteDisplay {
    * for a future display-injected [MORE] marker if the UI ever needs it.
    */
   private charIsMore = false
+  /** Latches once onEnd has fired so a trailing update can't re-fire it. */
+  private endedFired = false
   /** Set by the engine; called when the VM quits. */
   onEnd?: () => void
   /**
@@ -90,7 +92,12 @@ export class GlkOteBridge implements GlkOteDisplay {
     // AFTER onState so observers see the settled post-turn view. The native
     // autosave (glkapi do_vm_autosave) fires at this same point independently.
     if ((req as any)?.type === 'line') this.onTurn?.()
-    if (this.view.ended) this.onEnd?.()
+    // `ended` latches true in the reducer, so guard against re-firing onEnd on
+    // every subsequent update.
+    if (this.view.ended && !this.endedFired) {
+      this.endedFired = true
+      this.onEnd?.()
+    }
   }
 
   getlibrary(name: string): unknown {

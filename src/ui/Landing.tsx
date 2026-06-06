@@ -5,10 +5,13 @@ export function Landing({
   onEnter,
   savedSlugs,
   themeToggle,
+  loadError,
 }: {
   onEnter: (slug: Game['slug']) => void
   savedSlugs: Set<string>
   themeToggle: ReactNode
+  /** A story-load failure to surface (e.g. a missing/404'd game file). */
+  loadError?: string | null
 }) {
   const [selected, setSelected] = useState<Game['slug']>('zork1')
   return (
@@ -49,6 +52,11 @@ export function Landing({
         {savedSlugs.has(selected) && (
           <div className="resume">
             ↩ a saved descent awaits — you will resume where you left off
+          </div>
+        )}
+        {loadError && (
+          <div className="loaderr" role="alert">
+            {loadError}
           </div>
         )}
       </div>

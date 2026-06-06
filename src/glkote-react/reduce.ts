@@ -1,7 +1,5 @@
 import type { BufferLine, GlkOteUpdate, StatusLine, ViewState } from './types'
 
-let nextId = 1
-
 // --- Helpers -----------------------------------------------------------------
 
 /**
@@ -144,7 +142,7 @@ function isEndOfGame(update: GlkOteUpdate): boolean {
  *     - entry has `text[]`  → buffer (main transcript) window
  */
 export function reduce(prev: ViewState, update: GlkOteUpdate): ViewState {
-  let { status, inputRequest, ended } = prev
+  let { status, inputRequest, ended, nextId } = prev
   const { lines } = prev
 
   // Seed the accumulator from the previous lines, carrying each line's identity
@@ -201,5 +199,5 @@ export function reduce(prev: ViewState, update: GlkOteUpdate): ViewState {
     ended = true
   }
 
-  return { status, lines: newLines, inputRequest, ended }
+  return { status, lines: newLines, inputRequest, ended, nextId }
 }

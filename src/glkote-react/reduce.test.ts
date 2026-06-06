@@ -190,6 +190,21 @@ describe('reduce', () => {
     expect(view.inputRequest).toBeNull()
   })
 
+  it('assigns ids per stream, not from a shared global', () => {
+    // Two independent reducer streams (StrictMode / two engines) must each
+    // start their ids at 1 rather than sharing a module-global counter.
+    const mk = (t: string) =>
+      ({
+        type: 'update',
+        gen: 1,
+        content: [{ id: 102, text: [{ content: ['normal', t] }] }],
+        input: [],
+      }) as any
+    const a = reduce(emptyView, mk('alpha'))
+    const b = reduce(emptyView, mk('beta'))
+    expect(a.lines[0].id).toBe(b.lines[0].id) // both start at 1, independent
+  })
+
   it('classifies short title-case room headings as "room" kind', () => {
     const update = {
       type: 'update',

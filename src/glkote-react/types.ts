@@ -18,6 +18,12 @@ export interface ViewState {
   /** What input the VM is currently waiting for, or null if running/ended. */
   inputRequest: 'line' | 'char' | null
   ended: boolean
+  /**
+   * Monotonic counter for the next BufferLine id, carried per stream so two
+   * concurrent reducers (StrictMode / two engines) don't share a global and
+   * produce coupled, non-deterministic React keys.
+   */
+  nextId: number
 }
 
 export const emptyView: ViewState = {
@@ -25,6 +31,7 @@ export const emptyView: ViewState = {
   lines: [],
   inputRequest: null,
   ended: false,
+  nextId: 1,
 }
 
 /** The GlkOte display contract our bridge implements (subset glkapi calls). */

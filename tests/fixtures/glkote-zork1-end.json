@@ -1,0 +1,86 @@
+{
+  "charReq": null,
+  "quit": [
+    {
+      "type": "update",
+      "gen": 6,
+      "windows": null,
+      "content": [
+        {
+          "id": 104,
+          "lines": [
+            {
+              "line": 0,
+              "content": [
+                "normal",
+                " West of House                                               Score: 0  Turns: 3 "
+              ]
+            }
+          ]
+        },
+        {
+          "id": 102,
+          "text": [
+            {
+              "content": [
+                "input",
+                "quit"
+              ],
+              "append": true
+            },
+            {
+              "content": [
+                "normal",
+                "Your score is 0 (total of 350 points), in 3 moves."
+              ]
+            },
+            {
+              "content": [
+                "normal",
+                "This gives you the rank of Beginner."
+              ]
+            },
+            {
+              "content": [
+                "normal",
+                "Do you wish to leave the game? (Y is affirmative): >"
+              ]
+            }
+          ]
+        }
+      ],
+      "input": [
+        {
+          "id": 102,
+          "type": "line",
+          "gen": 6,
+          "maxlen": 119,
+          "initial": ""
+        }
+      ]
+    },
+    {
+      "type": "update",
+      "gen": 7,
+      "windows": null,
+      "content": [
+        {
+          "id": 102,
+          "text": [
+            {
+              "content": [
+                "input",
+                "yes"
+              ],
+              "append": true
+            },
+            {}
+          ]
+        }
+      ],
+      "input": [],
+      "disable": true,
+      "exit": true
+    }
+  ]
+}

@@ -6,7 +6,8 @@ import { IdbDialog } from '../storage/dialog'
 import { signature } from './signature'
 import { emptyView, type ViewState } from '../glkote-react/types'
 
-const story = (g: string) => new Uint8Array(readFileSync(`public/games/${g}.z3`))
+const story = (g: string) =>
+  new Uint8Array(readFileSync(`public/games/${g}.z3`))
 const resetDb = () =>
   new Promise<void>(r => {
     const req = indexedDB.deleteDatabase('naitfol')
@@ -23,7 +24,10 @@ describe('shared story buffer (the real browser/StrictMode condition)', () => {
     const buf = story('zork1')
     const sigBefore = signature(buf)
 
-    const e = new ZMachine({ dialog: new IdbDialog() as any, onState: () => {} })
+    const e = new ZMachine({
+      dialog: new IdbDialog() as any,
+      onState: () => {},
+    })
     await e.boot(buf)
 
     expect(signature(buf)).toBe(sigBefore)
@@ -33,7 +37,10 @@ describe('shared story buffer (the real browser/StrictMode condition)', () => {
     // Browser: App fetches once → ONE Uint8Array → StrictMode boots TWO engines.
     const shared = story('zork1')
     let vB: ViewState = emptyView
-    const eA = new ZMachine({ dialog: new IdbDialog() as any, onState: () => {} })
+    const eA = new ZMachine({
+      dialog: new IdbDialog() as any,
+      onState: () => {},
+    })
     const eB = new ZMachine({
       dialog: new IdbDialog() as any,
       onState: v => (vB = v),

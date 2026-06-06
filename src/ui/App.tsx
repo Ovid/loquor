@@ -43,8 +43,7 @@ export default function App() {
         }
       }),
     ).then(found => {
-      if (!cancelled)
-        setSavedSlugs(new Set(found.filter(Boolean) as string[]))
+      if (!cancelled) setSavedSlugs(new Set(found.filter(Boolean) as string[]))
     })
     return () => {
       cancelled = true

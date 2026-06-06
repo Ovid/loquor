@@ -80,7 +80,18 @@ export class ZMachine {
   async boot(storyBytes: Uint8Array): Promise<string> {
     const Glk = getGlk()
     this.vm = new ZVM()
-    this.signature = signature(storyBytes)
+    // ifvms uses the story bytes as the VM's LIVE, mutable Z-machine memory
+    // (file.identify → MemoryView wraps the same ArrayBuffer; it does not copy),
+    // and start()/restart() writes interpreter bits into the header — including
+    // Flags 1 at byte 0x01, which is inside the 0x1E-byte autosave signature.
+    // The app fetches each story once and passes ONE Uint8Array to Terminal, so
+    // under React StrictMode (and any re-boot on the same buffer) a second engine
+    // would read a header already dirtied by the first, derive a DIFFERENT
+    // signature, and autosave under a key no clean-boot session ever looks up —
+    // i.e. "autosave silently never resumes". Boot on a PRIVATE copy so each
+    // engine mutates only its own memory and the signature stays stable.
+    const bytes = storyBytes.slice()
+    this.signature = signature(bytes)
 
     // Warm the Dialog's sync cache before booting: ZVM.start() reads the
     // autosave synchronously, so the snapshot must already be cached.
@@ -124,7 +135,7 @@ export class ZMachine {
       do_vm_autosave: true,
     }
 
-    this.vm.prepare(storyBytes, options)
+    this.vm.prepare(bytes, options)
     // bridge.init (called by Glk.init) fires the startup {type:'init'} event,
     // which runs the VM and flushes the first update(s) through onState.
     Glk.init(options)

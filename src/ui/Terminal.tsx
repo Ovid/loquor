@@ -21,7 +21,7 @@ export function Terminal({
   useEffect(() => {
     let cancelled = false
     const engine = new ZMachine({
-      dialog: new IdbDialog() as any,
+      dialog: new IdbDialog(),
       onState: v => {
         if (!cancelled) setView(v)
       },

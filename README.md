@@ -52,6 +52,19 @@ WebLLM from npm.
 The three Zork story files live in `public/games/` and the Glk layer is vendored
 under `vendor/glkote/` (pinned by commit SHA in `vendor/glkote/PINNED.md`).
 
+`make install` runs `npm ci` (a clean, lockfile-exact install). Use it rather
+than a bare `npm install` so the platform-specific native bundler binding (Vite 8
+uses Rolldown, which ships per-OS/arch `@rolldown/binding-*` packages) installs
+correctly. If you ever see `Error: Cannot find native binding` /
+`Cannot find module '@rolldown/binding-...'` — an [npm optional-dependency
+bug](https://github.com/npm/cli/issues/4828) that can leave a partial
+`node_modules` — fix it with a clean reinstall:
+
+    rm -rf node_modules && npm ci   # (or: make install)
+
+The committed `package-lock.json` already lists every platform's binding, so a
+clean `npm ci` resolves the correct one for your machine (macOS, Linux, Windows).
+
 ## Status
 
 First pass — in active development on the `ovid/first-pass` branch. See the design

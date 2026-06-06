@@ -1,20 +1,15 @@
 # Naitfol — project tasks
 #
-# NOTE: the application is not scaffolded yet (no package.json / Vite app).
-# These targets assume the planned stack from the design spec
-# (docs/superpowers/specs/2026-06-06-naitfol-design.md):
-#   Vite + React + TypeScript, Vitest (test/coverage), ESLint (lint),
-#   Prettier (format). Targets call tools via `npx`, so they work as soon as
-#   `make install` has run against the scaffolded app. Until then they are the
-#   documented contract for what each task will do.
+# Stack: Vite + React + TypeScript, Vitest (test/coverage), ESLint (lint),
+# Prettier (format). Targets call tools via `npx`. Run `make install` first.
 
 .DEFAULT_GOAL := help
 .PHONY: all install dev build preview typecheck test cover lint format help
 
 all: lint format typecheck test ## Full CI pass: lint, format, typecheck, test
 
-install: ## Install dependencies
-	npm install
+install: ## Install dependencies (clean, lockfile-exact)
+	npm ci
 
 dev: ## Run the dev server (Vite)
 	npx vite

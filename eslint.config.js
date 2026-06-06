@@ -27,11 +27,6 @@ export default defineConfig([
       globals: globals.browser,
     },
     rules: {
-      // The VM/Glk boundary (ifvms + the vendored glkapi.js) is untyped
-      // CommonJS, so `any` is unavoidable where protocol objects cross into our
-      // code (engine, glk wrapper, bridge) and in the fixture-driven tests.
-      // Keep it visible as a warning rather than a hard error.
-      '@typescript-eslint/no-explicit-any': 'warn',
       // Allow intentionally-unused params/vars when prefixed with `_`
       // (e.g. interface methods we must declare but don't use).
       '@typescript-eslint/no-unused-vars': [
@@ -42,6 +37,21 @@ export default defineConfig([
           caughtErrorsIgnorePattern: '^_',
         },
       ],
+    },
+  },
+  {
+    // `no-explicit-any` stays an ERROR for ordinary app code (catches stray
+    // `any` in pure logic/UI), but is turned OFF only where `any` is genuinely
+    // unavoidable: the untyped VM/Glk boundary (ifvms + the vendored glkapi.js,
+    // which have no usable types) and the fixture-driven tests that cast the
+    // captured GlkOte protocol JSON. See tests/fixtures/PROTOCOL-NOTES.md.
+    files: [
+      'src/zmachine/**/*.{ts,tsx}',
+      'src/glkote-react/bridge.ts',
+      '**/*.test.{ts,tsx}',
+    ],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
 ])

@@ -19,7 +19,9 @@ export interface Dialog {
   streaming: boolean
   autosave_read(signature: string): unknown
   autosave_write(signature: string, snapshot: unknown): void
-  [k: string]: unknown
+  // Extended methods (preload/hasSave/file_*) are accessed via a local cast in
+  // boot()/flushAutosave(); no index signature here, so concrete Dialogs like
+  // IdbDialog remain assignable without a cast.
 }
 
 export interface ZMachineOptions {

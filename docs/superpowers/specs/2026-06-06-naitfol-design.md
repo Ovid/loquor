@@ -38,14 +38,17 @@ The natural-language / LLM layer that the project is ultimately named for
 - **Vite + React + TypeScript.**
 - **Z-machine:** `ifvms.js` (ZVM), consumed from npm rather than the gitignored
   local checkout, so we never modify vendored source.
-- **Glk layer:** reuse a published `glkapi` Glk implementation (the layer ZVM
-  calls into). **The exact package and version are not yet pinned** — there is no
-  `glkapi`/`glkote` vendored in this repo, and the candidate browser
-  implementations (erkyrath's `glkote`, the GlkApi bundled in Parchment,
-  `@curiousdannii/*`) differ in whether they expose a standalone `Glk` object that
-  can be driven by a *custom* display. Resolving this is the first task of the
-  pre-planning spike (see *Risks & first milestone*).
-- **GlkOte display + Dialog:** **ours** — these are the React/storage seams.
+- **Glk layer:** **vendor `glkapi.js`** from
+  [erkyrath/glkote](https://github.com/erkyrath/glkote) (MIT), pinned by upstream
+  commit SHA, under `vendor/glkote/` with a thin ESM wrapper. This is the
+  classic Glk layer already paired with ifvms in Parchment, and it **injects
+  GlkOte as a swappable dependency** (`vm_options.GlkOte`) — exactly our seam. It
+  is *not* an npm install: the spike confirmed no clean browser-Glk package exists
+  on npm (`asyncglk` is GitHub-only/v0.1.0/Svelte; `parchment` on npm is an
+  unrelated Quill package). See the spike:
+  [`docs/spikes/2026-06-06-glk-vite-spike.md`](../../spikes/2026-06-06-glk-vite-spike.md).
+- **GlkOte display + Dialog:** **ours**, injected into the vendored Glk via
+  options — these are the React/storage seams.
 
 ## Architecture
 
@@ -211,16 +214,18 @@ theme toggle in-layout; supersedes v1/v2).
 The load-bearing risk is getting **ZVM + Glk + our custom GlkOte display** to run
 standalone under Vite. It is addressed in two steps:
 
-### Pre-planning spike (do this before writing the implementation plan)
+### Pre-planning spike — **DONE (2026-06-06)**
 
-1. **Pin the Glk layer.** Identify the exact npm package + version that exposes a
-   standalone `Glk` object, and confirm it can be driven by a *custom* GlkOte
-   display (not fused to its own DOM display). This unblocks the whole
-   architecture.
-2. **Confirm Vite ↔ CommonJS interop.** `ifvms` is CommonJS (`module.exports =
-   VM`); the app is ESM. Verify `import` resolves through Vite's esbuild
-   dependency pre-bundling. Expected to work; flagged so it's a checkbox, not a
-   mid-build surprise.
+Both questions resolved; see
+[`docs/spikes/2026-06-06-glk-vite-spike.md`](../../spikes/2026-06-06-glk-vite-spike.md).
+
+1. **Glk layer — pinned.** Vendor `glkapi.js` (erkyrath/glkote, MIT) by commit
+   SHA; it injects a swappable GlkOte, so the custom-display architecture holds.
+   No clean npm browser-Glk package exists, so this is vendored, not installed.
+2. **Vite ↔ CommonJS — confirmed.** `ifvms@1.1.6` loads and instantiates as CJS;
+   esbuild pre-bundling handles the interop.
+
+**Outcome: GO** on the custom-GlkOte-bridge path.
 
 ### Walking skeleton + go/no-go gate
 

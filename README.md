@@ -65,6 +65,13 @@ bug](https://github.com/npm/cli/issues/4828) that can leave a partial
 The committed `package-lock.json` already lists every platform's binding, so a
 clean `npm ci` resolves the correct one for your machine (macOS, Linux, Windows).
 
+As a safety net, `make dev`, `make build`, and `make preview` run an `ensure-deps`
+guard first: if `node_modules` is missing, is older than the lockfile, or can't
+load Rolldown's native binding for your platform, they run `npm ci` for you before
+starting Vite — so a stale or partial install can't silently crash the dev server.
+The binding check asks Node to load Rolldown, so it picks the correct OS/arch/libc
+binding automatically (no platform table) and is a silent ~0.1s no-op when healthy.
+
 ## Status
 
 First pass — in active development on the `ovid/first-pass` branch. See the design

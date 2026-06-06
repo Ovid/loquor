@@ -2,7 +2,8 @@
 
 **Date:** 2026-06-06
 **Branch:** `ovid/first-pass`
-**Status:** Approved (design); ready for implementation planning.
+**Status:** Approved (design); pushback review applied (2026-06-06). Ready for the
+pre-planning spike, then implementation planning.
 
 ## Summary
 
@@ -37,8 +38,13 @@ The natural-language / LLM layer that the project is ultimately named for
 - **Vite + React + TypeScript.**
 - **Z-machine:** `ifvms.js` (ZVM), consumed from npm rather than the gitignored
   local checkout, so we never modify vendored source.
-- **Glk layer:** reuse the published `glkapi` Glk implementation (the layer
-  ZVM calls into), distributed with the Parchment/`glkote` packages.
+- **Glk layer:** reuse a published `glkapi` Glk implementation (the layer ZVM
+  calls into). **The exact package and version are not yet pinned** — there is no
+  `glkapi`/`glkote` vendored in this repo, and the candidate browser
+  implementations (erkyrath's `glkote`, the GlkApi bundled in Parchment,
+  `@curiousdannii/*`) differ in whether they expose a standalone `Glk` object that
+  can be driven by a *custom* display. Resolving this is the first task of the
+  pre-planning spike (see *Risks & first milestone*).
 - **GlkOte display + Dialog:** **ours** — these are the React/storage seams.
 
 ## Architecture
@@ -78,6 +84,18 @@ Our implementation of the GlkOte display contract that Glk drives.
 - Sends the player's submitted line back to Glk as a line-input event.
 - Window identification follows ZVM's rocks: `201` = main buffer, `202` =
   status, `203` = upper window.
+- **Handles non-line-input interactions** (not just the happy-path line loop):
+  - **`[MORE]` paging:** the VM issues a char-input request when output overflows.
+    In an infinitely-scrolling web UI this would silently stall the game, so the
+    bridge **auto-acknowledges** MORE prompts — all text flows into the scrollback
+    continuously.
+  - **Char-input / "press any key":** intro screens and some prompts request a
+    single key rather than a line. The bridge satisfies a pending char-input
+    request from **any keypress** in the input box (rather than requiring Enter).
+  - **Turn boundary / autosave trigger:** the precise moment to autosave is when
+    the bridge receives a **line-input request** (the VM has finished the previous
+    command and is asking for the next line). The bridge calls
+    `engine.do_autosave()` at that single, well-defined point.
 
 **This is the future LLM interception seam:** raw player text enters here before
 becoming a Glk event, and room/status text is observable here. The later
@@ -92,9 +110,12 @@ Our `Dialog` implementation backed by IndexedDB.
 - Minimal fileref handling so explicit in-game `SAVE` / `RESTORE` map to named
   slots in the same store and do not crash. (Named saves are a thin extra on top
   of autosave, not the headline feature.)
-- We call `engine.do_autosave()` after each completed turn (each time the VM
-  blocks for line input), so a tab close never loses more than the current
-  unsubmitted line.
+- We call `engine.do_autosave()` at each turn boundary (when the GlkOte bridge
+  receives a line-input request — see unit 2), so a tab close never loses more
+  than the current unsubmitted line.
+- **On clean game end** (the VM reaches `quit`, e.g. death or victory followed by
+  `QUIT`), the autosave slot for that game is **cleared** — so reopening the game
+  starts a fresh session rather than auto-resuming into a "You have died" screen.
 
 ### 4. UI — `ui/`
 
@@ -103,6 +124,10 @@ Our `Dialog` implementation backed by IndexedDB.
   a saved game exists for the selected volume.
 - **Terminal screen:** brass status bar (location · score · moves · change-volume),
   line-by-line fading scrollback, and a command input pinned to the bottom.
+- **Game-end behavior:** when the VM quits/ends, the command input **stays live**
+  so the player can still type `RESTART` / `RESTORE` (the game's own end prompt).
+  The autosave slot is cleared on clean quit (see *storage*), so leaving and
+  returning begins anew.
 - **Theme toggle** (dark/light), persisted as a user preference (localStorage).
   It is an **in-layout element** — placed in the corner of the landing plate and
   as an item inside the terminal status bar (after "change volume", separated by
@@ -139,6 +164,14 @@ game text **JetBrains Mono**. Shared motifs: paper-grain overlay, radial
 light/vignette, brass accent, glowing `>` caret, one-time lantern-flicker on the
 title at load, line-by-line fade-in of room text.
 
+**Fonts are self-hosted, not loaded from a CDN.** Both faces are SIL Open Font
+License (IM Fell English: OFL; JetBrains Mono: OFL 1.1), which permits bundling
+them unmodified. We ship the `woff2` files as app assets referenced via local
+`@font-face`, and include each font's `OFL.txt` alongside them (the license's only
+obligation for us). This honors the "fully client-side / works offline" promise —
+a CDN dependency would leak the user's IP to a third party and silently degrade
+the entire visual identity to system fonts when offline.
+
 ### Lamplit Folio (dark, default)
 
 | token | value |
@@ -170,16 +203,37 @@ to `multiply`, vignette warmed to read as aged page edges.
 | caret | no glow (solid brass) |
 
 The approved interactive mockup is preserved at
-`.superpowers/brainstorm/<session>/content/lamplit-folio-v2.html`.
+`.superpowers/brainstorm/<session>/content/lamplit-folio-v3.html` (v3 places the
+theme toggle in-layout; supersedes v1/v2).
 
 ## Risks & first milestone
 
 The load-bearing risk is getting **ZVM + Glk + our custom GlkOte display** to run
-standalone under Vite (CommonJS modules, the Glk↔display protocol, browser
-bundling). Implementation therefore starts with a **walking skeleton**: boot
-Zork I and render "West of House" with a working input loop and a single hard-coded
-command round-trip — *before* any styling, persistence, or game picker. Styling,
-autosave, and the second/third games layer on once the skeleton runs.
+standalone under Vite. It is addressed in two steps:
+
+### Pre-planning spike (do this before writing the implementation plan)
+
+1. **Pin the Glk layer.** Identify the exact npm package + version that exposes a
+   standalone `Glk` object, and confirm it can be driven by a *custom* GlkOte
+   display (not fused to its own DOM display). This unblocks the whole
+   architecture.
+2. **Confirm Vite ↔ CommonJS interop.** `ifvms` is CommonJS (`module.exports =
+   VM`); the app is ESM. Verify `import` resolves through Vite's esbuild
+   dependency pre-bundling. Expected to work; flagged so it's a checkbox, not a
+   mid-build surprise.
+
+### Walking skeleton + go/no-go gate
+
+Then build a **walking skeleton**: boot Zork I and render "West of House" with a
+working input loop, a single command round-trip, **and at least one non-line-input
+path** (a `[MORE]`/char-input prompt) to prove the bridge's harder cases — *before*
+any styling, persistence, or game picker.
+
+This milestone is a **go/no-go decision point.** If the custom GlkOte bridge proves
+substantially deeper than expected, the **fallback** is to embed the stock browser
+GlkOte display for this first pass and defer the custom bridge until the LLM layer
+actually requires the interception seam. Either path keeps the roadmap intact.
+Styling, autosave, and the second/third games layer on once the skeleton runs.
 
 ## Testing
 

@@ -116,7 +116,8 @@ function isEndOfGame(update: GlkOteUpdate): boolean {
  *     - entry has `text[]`  → buffer (main transcript) window
  */
 export function reduce(prev: ViewState, update: GlkOteUpdate): ViewState {
-  let { status, lines, inputRequest, ended } = prev
+  let { status, inputRequest, ended } = prev
+  const { lines } = prev
 
   // Build the new lines list from the previous one, tracking strings so we
   // can honour append:true before converting to BufferLine objects.

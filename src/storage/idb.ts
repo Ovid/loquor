@@ -7,6 +7,9 @@ function open(): Promise<IDBDatabase> {
     req.onupgradeneeded = () => req.result.createObjectStore(STORE)
     req.onsuccess = () => resolve(req.result)
     req.onerror = () => reject(req.error)
+    // A version-change blocked by another open connection never fires
+    // success/error; reject so the wrapping promise can't hang forever.
+    req.onblocked = () => reject(new Error('indexedDB open blocked'))
   })
 }
 
@@ -17,9 +20,13 @@ async function tx<T>(
   const db = await open()
   try {
     return await new Promise<T>((resolve, reject) => {
-      const req = fn(db.transaction(STORE, mode).objectStore(STORE))
+      const t = db.transaction(STORE, mode)
+      const req = fn(t.objectStore(STORE))
       req.onsuccess = () => resolve(req.result as T)
       req.onerror = () => reject(req.error)
+      // A quota-exceeded (or otherwise aborted) transaction may abort without
+      // the request's onerror firing; reject so the promise settles.
+      t.onabort = () => reject(t.error ?? new Error('indexedDB tx aborted'))
     })
   } finally {
     // Close the connection once the operation settles. Each call opens its own

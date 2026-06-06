@@ -17,6 +17,7 @@ export function Terminal({
 }) {
   const [view, setView] = useState<ViewState>(emptyView)
   const engineRef = useRef<ZMachine | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -49,16 +50,22 @@ export function Terminal({
         onChangeVolume={onChangeVolume}
         themeToggle={themeToggle}
       />
-      <Scrollback lines={view.lines} />
-      <CommandInput
-        onSubmit={text => engineRef.current?.sendLine(text)}
-        disabled={false}
-        // Derived from view state (not engineRef) so we don't read a ref during
-        // render. A pending char request is a genuine single-key prompt here:
-        // glkapi emits no [MORE] paging, so inputRequest==='char' ⇔ awaitingKey.
-        awaitingKey={view.inputRequest === 'char'}
-        onKey={key => engineRef.current?.sendChar(key)}
-      />
+      <Scrollback
+        lines={view.lines}
+        onActivate={() => inputRef.current?.focus()}
+      >
+        <CommandInput
+          inputRef={inputRef}
+          onSubmit={text => engineRef.current?.sendLine(text)}
+          // Derived from view state (not engineRef) so we don't read a ref
+          // during render. A pending char request is a genuine single-key
+          // prompt here: glkapi emits no [MORE] paging, so inputRequest==='char'
+          // ⇔ awaitingKey. 'line' drives refocus at each turn boundary.
+          awaitingKey={view.inputRequest === 'char'}
+          awaitingLine={view.inputRequest === 'line'}
+          onKey={key => engineRef.current?.sendChar(key)}
+        />
+      </Scrollback>
     </div>
   )
 }

@@ -1,14 +1,39 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import type { BufferLine } from '../glkote-react/types'
 
-export function Scrollback({ lines }: { lines: BufferLine[] }) {
+export function Scrollback({
+  lines,
+  onActivate,
+  children,
+}: {
+  lines: BufferLine[]
+  /** Focus the prompt when the player clicks into the transcript. */
+  onActivate?: () => void
+  /** The inline command prompt, rendered at the end of the transcript. */
+  children?: ReactNode
+}) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     ref.current?.scrollTo?.(0, ref.current.scrollHeight)
   }, [lines])
+
+  // The game prints a bare '>' to the buffer as its line-input prompt. The
+  // inline CommandInput already shows that prompt, so the bare-'>' lines are
+  // redundant — drop them. (Historical echoes like '>open mailbox' are never
+  // bare, so they survive.)
+  const visible = lines.filter(l => l.text.trim() !== '>')
+
   return (
-    <div className="scroll" ref={ref}>
-      {lines.map(l => (
+    <div
+      className="scroll"
+      ref={ref}
+      onMouseUp={() => {
+        // Clicking anywhere in the transcript focuses the prompt — unless the
+        // player is selecting text to copy.
+        if (onActivate && !window.getSelection()?.toString()) onActivate()
+      }}
+    >
+      {visible.map(l => (
         <p
           key={l.id}
           className={
@@ -24,6 +49,7 @@ export function Scrollback({ lines }: { lines: BufferLine[] }) {
           )}
         </p>
       ))}
+      {children}
     </div>
   )
 }

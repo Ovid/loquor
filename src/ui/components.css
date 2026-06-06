@@ -118,14 +118,13 @@
 }
 
 /* ---------- CommandInput ---------- */
+/* Inline prompt: rendered as the last child of .scroll, so it aligns with the
+   prose and rides at the end of the transcript instead of a detached footer. */
 .inputline {
   display: flex;
   align-items: center;
-  gap: 12px;
-  max-width: 920px;
-  width: 100%;
-  margin: 0 auto;
-  padding: 14px 8vw 30px;
+  gap: 8px;
+  margin: 0;
 }
 .car {
   color: var(--brass);

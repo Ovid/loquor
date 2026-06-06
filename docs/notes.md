@@ -144,3 +144,21 @@ shippable.
   state that contradicts the simulation — only with strong guardrails).
 - Per-game theming flourishes.
 - Export/import of saves.
+
+## Known limitations carried out of the first pass
+
+- **In-game `SAVE`/`RESTORE` prompt is not wired.** Transparent auto-resume
+  (native ZVM autosave, keyed by story signature) is the headline persistence
+  feature and works end-to-end. The `IdbDialog.file_*` round-trip for named slots
+  exists and is tested, but the player-facing flow is not: typing `SAVE` makes the
+  VM emit a `specialinput: { type: 'fileref_prompt' }` update that the GlkOte
+  bridge does not yet answer, so the game waits at the prompt (it does not crash;
+  you can change volume or reload, and auto-resume still protects progress). To
+  finish it later, surface `specialinput` through the bridge into a small filename
+  UI and answer via `gli_fileref_create_by_prompt_callback`. See
+  `tests/fixtures/PROTOCOL-NOTES.md` §"Dialog fileref contract".
+- **Bundled-font OFL license text is not copied into `dist/`.** The OFL only
+  obligates shipping each face's license alongside the bundled `woff2`; Fontsource
+  ships `LICENSE` in each `@fontsource/*` package, so the obligation is met at the
+  dependency level, but a build step copying the OFL text into `dist/` (or
+  `public/`) would make the shipped bundle self-documenting.

@@ -97,10 +97,13 @@ Our implementation of the GlkOte display contract that Glk drives.
   - **Char-input / "press any key":** intro screens and some prompts request a
     single key rather than a line. The bridge satisfies a pending char-input
     request from **any keypress** in the input box (rather than requiring Enter).
-  - **Turn boundary / autosave trigger:** the precise moment to autosave is when
-    the bridge receives a **line-input request** (the VM has finished the previous
-    command and is asking for the next line). The bridge calls
-    `engine.do_autosave()` at that single, well-defined point.
+  - **Turn boundary / autosave trigger:** the precise moment the game autosaves
+    is when the bridge receives a **line-input request** (the VM has finished the
+    previous command and is asking for the next line). The autosave is performed
+    **natively** by ifvms+glkapi (`do_vm_autosave: true`), which fires at this
+    exact boundary; the bridge exposes an observer-only `onTurn` seam at the same
+    point. The bridge does **not** call `do_autosave()` itself — doing so would
+    double-save against the native write.
 
 **This is the future LLM interception seam:** raw player text enters here before
 becoming a Glk event, and room/status text is observable here. The later
@@ -115,9 +118,10 @@ Our `Dialog` implementation backed by IndexedDB.
 - Minimal fileref handling so explicit in-game `SAVE` / `RESTORE` map to named
   slots in the same store and do not crash. (Named saves are a thin extra on top
   of autosave, not the headline feature.)
-- We call `engine.do_autosave()` at each turn boundary (when the GlkOte bridge
-  receives a line-input request — see unit 2), so a tab close never loses more
-  than the current unsubmitted line.
+- Autosave fires **natively** (`do_vm_autosave: true`) at each turn boundary
+  (when the GlkOte bridge receives a line-input request — see unit 2), so a tab
+  close never loses more than the current unsubmitted line. The engine adds no
+  manual `do_autosave()` call (that would double-save).
 - **On clean game end** (the VM reaches `quit`, e.g. death or victory followed by
   `QUIT`), the autosave slot for that game is **cleared** — so reopening the game
   starts a fresh session rather than auto-resuming into a "You have died" screen.
@@ -156,7 +160,9 @@ modified.
 3. ZVM runs, emits Glk output; Glk produces an `update`; the bridge reduces it
    into React state (new scrollback + updated status line).
 4. VM blocks for the next line input.
-5. Engine calls `do_autosave()` → `Dialog.autosave_write(signature, snapshot)`.
+5. Native autosave (`do_vm_autosave`) fires at that boundary →
+   `Dialog.autosave_write(signature, snapshot)`. (The bridge's `onTurn` seam
+   fires here too, but only as an observer — it does not autosave.)
 
 On game open: fetch bytes → `prepare()` → `start()` → if an autosave exists ZVM
 auto-restores; otherwise it runs from the beginning.

@@ -30,6 +30,27 @@ that it is large and slow.
 - **Decline** → they keep playing, but are told they're restricted to the game's
   own grammar/parser (i.e. the first-pass behaviour).
 
+**The download is cancellable.** If it's taking too long, the player can cancel
+the in-progress download and keep playing in grammar-only mode; any partial
+download should be discarded (or resumable if the cache supports it) and the modal
+returns to its pre-download state so they can try again later.
+
+### Toggling natural language on and off mid-game
+
+The LLM is never a one-way door. While playing, the player can **always**:
+
+- **Toggle it off** — if the model is installed and active, switch back to
+  grammar-only input at any time (e.g. it's misreading their intent, or they want
+  the raw parser). No re-download; the model stays cached.
+- **Toggle it back on** — re-enable English input at any time. If the model is
+  already installed, it switches on immediately. If it is **not** installed (they
+  declined earlier, or cancelled the download), toggling on **re-shows the
+  download-warning modal** first, with the same accept/decline/cancel flow.
+
+The toggle's state and the "model installed?" status are independent: the control
+reflects both (e.g. *off · not installed*, *off · installed*, *on*). This lives
+naturally next to the existing theme toggle in the status bar.
+
 ### Grammar-constrained decoding (GBNF)
 
 Constrain the model to emit a canonical command string (or a JSON command object)

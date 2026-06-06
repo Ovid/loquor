@@ -2,6 +2,35 @@ import { idbGet, idbSet, idbDel } from './idb'
 
 const key = (sig: string) => `autosave:${sig}`
 
+// Diagnostic logging for the autosave path. The reducer/engine work in tests
+// (fake-indexeddb), so a "starts over on return" report is environment-specific;
+// these logs make the save→persist→preload→read boundaries visible in the
+// browser console (filter by "[autosave]"). Cheap; safe to keep.
+const alog = (...args: unknown[]) => console.info('[autosave]', ...args)
+
+/** Walk `value` and return the path of the first structured-clone-rejecting node. */
+function uncloneablePath(value: unknown): string {
+  const seen = new WeakSet<object>()
+  const walk = (v: unknown, path: string): string | null => {
+    if (typeof v === 'function' || typeof v === 'symbol')
+      return `${path} (${typeof v})`
+    if (v === null || typeof v !== 'object') return null
+    if (seen.has(v)) return null
+    seen.add(v)
+    try {
+      structuredClone(v)
+      return null // this subtree is fine
+    } catch {
+      for (const k of Object.keys(v as Record<string, unknown>)) {
+        const hit = walk((v as Record<string, unknown>)[k], `${path}.${k}`)
+        if (hit) return hit
+      }
+      return `${path} (${(v as object).constructor?.name ?? 'object'})`
+    }
+  }
+  return walk(value, '$') ?? '(unknown)'
+}
+
 /** A glkapi fileref: returned by file_construct_ref / *_temp_ref, fed back to file_*. */
 export interface FileRef {
   filename: string
@@ -34,17 +63,44 @@ export class IdbDialog {
   async preload(sig: string): Promise<void> {
     const v = await idbGet<unknown>(key(sig))
     this.cache.set(sig, v ?? null)
+    alog(
+      'preload',
+      key(sig),
+      v == null ? 'MISS (no save)' : 'HIT (will resume)',
+    )
   }
 
   // ---- synchronous API called by ifvms ----
   autosave_read(sig: string): unknown {
+    const has = this.cache.has(sig) && this.cache.get(sig) != null
+    alog(
+      'autosave_read',
+      key(sig),
+      has ? 'snapshot present' : 'none → fresh start',
+    )
     return this.cache.has(sig) ? this.cache.get(sig) : null
   }
   autosave_write(sig: string, snapshot: unknown): void {
     this.cache.set(sig, snapshot)
-    // Fire-and-forget persistence; the cache keeps reads consistent meanwhile.
-    if (snapshot == null) void idbDel(key(sig))
-    else void idbSet(key(sig), snapshot)
+    // Persistence is async; the sync cache keeps reads consistent meanwhile.
+    // It used to be fire-and-forget (`void idbSet(...)`), which silently
+    // swallowed write failures — so a save that never reached IndexedDB looked
+    // exactly like "starts over on return". Surface failures instead, and point
+    // at the offending field if the browser's structured clone rejected it.
+    const op = snapshot == null ? idbDel(key(sig)) : idbSet(key(sig), snapshot)
+    alog('autosave_write', key(sig), snapshot == null ? 'CLEAR' : 'save')
+    op.catch((err: unknown) => {
+      const e = err as { name?: string; message?: string }
+      console.error(
+        `[autosave] PERSIST FAILED for ${key(sig)}: ${e?.name}: ${e?.message}`,
+      )
+      if (snapshot != null && e?.name === 'DataCloneError') {
+        console.error(
+          '[autosave] non-cloneable field:',
+          uncloneablePath(snapshot),
+        )
+      }
+    })
   }
 
   // ---- async helpers for tests / UI (resume hint) ----

@@ -6,7 +6,11 @@ import { StatusBar } from './StatusBar'
 import { Scrollback } from './Scrollback'
 import { CommandInput } from './CommandInput'
 
-export function Terminal({ storyBytes, onChangeVolume, themeToggle }: {
+export function Terminal({
+  storyBytes,
+  onChangeVolume,
+  themeToggle,
+}: {
   storyBytes: Uint8Array
   onChangeVolume: () => void
   themeToggle: ReactNode
@@ -18,10 +22,14 @@ export function Terminal({ storyBytes, onChangeVolume, themeToggle }: {
     let cancelled = false
     const engine = new ZMachine({
       dialog: new IdbDialog() as any,
-      onState: v => { if (!cancelled) setView(v) },
+      onState: v => {
+        if (!cancelled) setView(v)
+      },
     })
     engineRef.current = engine
-    engine.boot(storyBytes).catch(err => { if (!cancelled) console.error('boot failed', err) })
+    engine.boot(storyBytes).catch(err => {
+      if (!cancelled) console.error('boot failed', err)
+    })
     return () => {
       cancelled = true
       if (engineRef.current === engine) engineRef.current = null
@@ -30,18 +38,27 @@ export function Terminal({ storyBytes, onChangeVolume, themeToggle }: {
 
   // Auto-ack display-owned [MORE] paging (no-ops for a genuine single-key prompt,
   // which is answered by a keystroke via CommandInput onKey → sendChar).
-  useEffect(() => { if (view.inputRequest === 'char') engineRef.current?.ackMore() },
-    [view.inputRequest])
+  useEffect(() => {
+    if (view.inputRequest === 'char') engineRef.current?.ackMore()
+  }, [view.inputRequest])
 
   return (
     <div className="screen term">
-      <StatusBar status={view.status} onChangeVolume={onChangeVolume} themeToggle={themeToggle} />
+      <StatusBar
+        status={view.status}
+        onChangeVolume={onChangeVolume}
+        themeToggle={themeToggle}
+      />
       <Scrollback lines={view.lines} />
       <CommandInput
         onSubmit={text => engineRef.current?.sendLine(text)}
         disabled={false}
-        awaitingKey={!!engineRef.current?.awaitingKey()}
-        onKey={key => engineRef.current?.sendChar(key)} />
+        // Derived from view state (not engineRef) so we don't read a ref during
+        // render. A pending char request is a genuine single-key prompt here:
+        // glkapi emits no [MORE] paging, so inputRequest==='char' ⇔ awaitingKey.
+        awaitingKey={view.inputRequest === 'char'}
+        onKey={key => engineRef.current?.sendChar(key)}
+      />
     </div>
   )
 }

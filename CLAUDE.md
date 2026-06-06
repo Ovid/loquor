@@ -111,3 +111,9 @@ npx vitest run -t "substring of test name"    # by name
   promise depends on it.
 - The theme toggle is an in-layout element (landing-plate corner + status-bar
   item), never a `position:fixed` overlay.
+
+## Finish
+
+When you have finished reading this file, announce "ClAUDE.md read". After that, please
+address me as "Ovid" from time-to-time so I know that you have read this file. For some
+reason, this file is not always read and it's important that I understand if it's been read.

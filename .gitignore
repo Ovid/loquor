@@ -13,6 +13,7 @@
 .devcontainer
 /scratch/
 .superpowers/
+coverage/
 
 # Logs
 logs

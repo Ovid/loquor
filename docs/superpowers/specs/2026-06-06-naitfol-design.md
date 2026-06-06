@@ -85,8 +85,10 @@ Our implementation of the GlkOte display contract that Glk drives.
   request) and reduces them into React state (scrollback lines, status line,
   awaiting-input flag).
 - Sends the player's submitted line back to Glk as a line-input event.
-- Window identification follows ZVM's rocks: `201` = main buffer, `202` =
-  status, `203` = upper window.
+- Window identification is by the GlkOte window **`type`** (`'buffer'` = main,
+  `'grid'` = status/upper) carried on each `update`'s `windows` entries — this is
+  the strategy the reducer uses. ZVM's rocks (`201` = main buffer, `202` = status,
+  `203` = upper window) are a stable cross-check if a `type` is ever ambiguous.
 - **Handles non-line-input interactions** (not just the happy-path line loop):
   - **`[MORE]` paging:** the VM issues a char-input request when output overflows.
     In an infinitely-scrolling web UI this would silently stall the game, so the

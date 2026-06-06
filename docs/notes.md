@@ -20,6 +20,51 @@ spec) is where raw player text becomes a Glk line-input event, and where
 room/status text is observable. The LLM layer hooks that boundary — no changes to
 the VM or the game files.
 
+### Device-capability gating (don't offer the LLM where it can't run)
+
+WebLLM runs the model in-browser on **WebGPU**, and a 8B-ish q4 model needs
+multiple GB of VRAM/unified memory. That's fine on a modern laptop — an M1 Mac
+handles it, surprisingly well — but a phone or a low-spec/old machine will either
+have no WebGPU at all or not enough memory, and trying to load the model there
+means a long download followed by an out-of-memory crash or an unusably slow
+session. So **capability detection gates the natural-language feature before we
+ever offer the download.**
+
+Detect, cheaply and up front:
+
+- **WebGPU present?** `if (!('gpu' in navigator)) → unsupported`. Then
+  `await navigator.gpu.requestAdapter()`; a `null` adapter (or a software/fallback
+  adapter) also means unsupported. Inspect `adapter.limits`
+  (`maxBufferSize`, `maxStorageBufferBindingSize`) and, where available,
+  `adapter.info` to reject clearly underpowered GPUs.
+- **Mobile / small device?** `navigator.userAgentData?.mobile === true`, or a UA
+  fallback for iOS/Android. iPhones are the canonical "won't run it" case — even
+  recent Safari WebGPU support doesn't give them the memory headroom for an 8B
+  model. Treat mobile as unsupported by default for the large model.
+- **Memory headroom?** `navigator.deviceMemory` (desktop heuristic, coarse — caps
+  at 8) as a soft signal; pair it with the adapter limits above rather than
+  trusting it alone.
+
+Behavior when a device is judged incapable:
+
+- The natural-language **toggle is shown in an `unavailable` state** (or hidden),
+  not silently broken — extends the toggle-state model already noted below
+  (*unavailable* alongside *off · not installed* / *off · installed* / *on*). The
+  player still gets the full first-pass grammar-only experience; nothing degrades.
+- Hovering/clicking the unavailable toggle explains *why* ("needs WebGPU and a few
+  GB of memory; your device can't run the language model — the game still works").
+- **Keep a manual override** for false negatives. Detection is heuristic and WebGPU
+  support is moving fast; a power user on a capable-but-misdetected machine should
+  be able to force-enable and attempt the download at their own risk (it remains
+  cancellable — see below).
+- **Lighter-model fallback (later).** Rather than a hard no on borderline devices,
+  a smaller quantized model (e.g. a 1–3B variant) could be offered where the 8B is
+  out of reach. Out of scope for the first NL pass; note the seam so the
+  capability check returns a *tier* (`none` / `small` / `full`), not just a bool.
+
+This check is also the right gate for the model-download modal: only devices that
+pass it ever see the download offer.
+
 ### Model-download modal
 
 The first time the player tries to use natural language for *any* game, show a
@@ -48,8 +93,9 @@ The LLM is never a one-way door. While playing, the player can **always**:
   download-warning modal** first, with the same accept/decline/cancel flow.
 
 The toggle's state and the "model installed?" status are independent: the control
-reflects both (e.g. *off · not installed*, *off · installed*, *on*). This lives
-naturally next to the existing theme toggle in the status bar.
+reflects both (e.g. *off · not installed*, *off · installed*, *on*, plus the
+*unavailable* state from device-capability gating above). This lives naturally
+next to the existing theme toggle in the status bar.
 
 ### Grammar-constrained decoding (GBNF)
 

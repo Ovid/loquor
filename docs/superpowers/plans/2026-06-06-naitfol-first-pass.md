@@ -423,9 +423,40 @@ if (acceptFn && captured.init) {
   acceptFn({ type: 'init', gen: 0, metrics: fakeMetrics() })
 }
 
+// Drive a short session so we also capture the NON-happy-path shapes the bridge
+// must handle: a [MORE]/char-input prompt and the end-of-game (quit) update.
+// `send` inspects the most recent update for the pending input request and fires
+// the matching Glk event — so we never invent gen/window numbers.
+function pending() {
+  const u = captured.updates[captured.updates.length - 1] ?? {}
+  return (u.input ?? []).find(i => i.type === 'line' || i.type === 'char')
+}
+function send(value) {
+  const req = pending()
+  if (!req) return
+  acceptFn({ type: req.type, window: req.id, value,
+    gen: req.gen ?? captured.updates.at(-1)?.gen ?? 0 })
+}
+
+// 1. Force a [MORE]/char-input request with long output, and record its shape.
+const moreStart = captured.updates.length
+send('verbose'); send('look')
+const charReq = captured.updates.slice(moreStart)
+  .flatMap(u => u.input ?? []).find(i => i.type === 'char')
+while (pending()?.type === 'char') send(' ')   // ack MORE so we can reach the quit
+
+// 2. Quit cleanly to capture the end-of-game update (drives the clear-on-quit path).
+const quitStart = captured.updates.length
+send('quit'); send('y')
+const endUpdate = captured.updates[captured.updates.length - 1]
+
 writeFileSync('tests/fixtures/glkote-zork1-boot.json', JSON.stringify(captured, null, 2))
+writeFileSync('tests/fixtures/glkote-zork1-end.json', JSON.stringify(
+  { charReq: charReq ?? null, quit: captured.updates.slice(quitStart) }, null, 2))
 console.log('Captured', captured.updates.length, 'updates; init keys:',
-  Object.keys(captured.init ?? {}))
+  Object.keys(captured.init ?? {}),
+  '\nchar-input request seen:', !!charReq,
+  '\nend update keys:', Object.keys(endUpdate ?? {}))
 
 function fakeMetrics() {
   return { width: 80, height: 40, gridcharwidth: 1, gridcharheight: 1,
@@ -463,11 +494,15 @@ node -e "const f=require('./tests/fixtures/glkote-zork1-boot.json'); console.log
 ```
 Read it. Identify: which window object is the **grid** (status) vs **buffer** (main); how text content arrives (`content` entries with `text`/`content` arrays of `{ content: [{ style, text }] }`); and how an input request appears (`input` entries with `type: 'line'|'char'`, `id`, `gen`). These shapes drive Task 1.5.
 
+Then inspect `tests/fixtures/glkote-zork1-end.json` and record two more shapes that Tasks 1.5/1.6 depend on:
+- **End-of-game signal:** what distinguishes the post-`quit` update from an ordinary turn — e.g. an `input: []` with no line/char request, a `disable: true`, an `exit`/`type` marker, or a final `content` with no following input. This is what the reducer uses to set `ended` (Issue 1).
+- **Char-request discrimination:** whether a `[MORE]`/paging char request is distinguishable from a genuine single-key prompt (e.g. a `gen`-paired paging flag, a `hyperlink`/`specialinput` marker, or simply "char request that immediately follows overflow output"). The bridge auto-acks only the former and routes the latter to the input box (Issue 2). If the protocol does **not** distinguish them, record that — the fallback is to treat all char input as MORE and note the scope reduction in the spec.
+
 - [ ] **Step 4: Commit the harness and fixture**
 
 ```bash
-git add scripts/capture-protocol.mjs tests/fixtures/glkote-zork1-boot.json package.json package-lock.json
-git commit -m "test: capture real GlkOte protocol from Zork I boot"
+git add scripts/capture-protocol.mjs tests/fixtures/glkote-zork1-boot.json tests/fixtures/glkote-zork1-end.json package.json package-lock.json
+git commit -m "test: capture real GlkOte protocol from Zork I boot, quit, and MORE"
 ```
 
 ### Task 1.5: Implement the reducer (TDD against the captured fixture)
@@ -484,6 +519,7 @@ import { describe, it, expect } from 'vitest'
 import { reduce } from './reduce'
 import { emptyView } from './types'
 import fixture from '../../tests/fixtures/glkote-zork1-boot.json'
+import endFixture from '../../tests/fixtures/glkote-zork1-end.json'
 
 describe('reduce', () => {
   it('produces a status line and buffer text from the boot updates', () => {
@@ -497,6 +533,16 @@ describe('reduce', () => {
     // After boot the VM waits for a typed command.
     expect(view.inputRequest).toBe('line')
     expect(view.ended).toBe(false)
+  })
+
+  it('flags game end from the quit fixture so clear-on-quit can fire', () => {
+    // Replay boot, then the captured post-quit updates (glkote-zork1-end.json).
+    let view = emptyView
+    for (const update of [...(fixture as any).updates, ...(endFixture as any).quit]) {
+      view = reduce(view, update)
+    }
+    expect(view.ended).toBe(true)
+    expect(view.inputRequest).toBeNull()
   })
 
   it('is pure — does not mutate the previous state', () => {
@@ -546,14 +592,28 @@ export function reduce(prev: ViewState, update: GlkOteUpdate): ViewState {
     }
   }
 
-  // 3. Input requests / disable (game end).
+  // 3. Input requests / disable / end-of-game.
   if (update.input) {
     const req = update.input.find(i => i.type === 'line' || i.type === 'char')
     inputRequest = (req?.type as 'line' | 'char' | undefined) ?? null
   }
   if (update.disable) { inputRequest = null }
+  if (isEndOfGame(update)) { inputRequest = null; ended = true }
 
   return { status, lines, inputRequest, ended }
+}
+
+/**
+ * True once the VM has quit. The reducer sets `ended` from this so the engine's
+ * onEnd → do_autosave(-1) clear-on-quit path can fire (without it, `ended` stays
+ * false forever and the slot is never cleared). Match the exact end marker
+ * recorded in tests/fixtures/glkote-zork1-end.json (Task 1.4 Step 3). The shape
+ * below is the common GlkOte case — input disabled with no line/char request —
+ * but confirm it against the captured quit update before trusting it.
+ */
+function isEndOfGame(u: GlkOteUpdate): boolean {
+  const hasReq = (u.input ?? []).some(i => i.type === 'line' || i.type === 'char')
+  return u.disable === true && !hasReq
 }
 
 /** Extract paragraph strings from a buffer-window content entry. */
@@ -590,7 +650,9 @@ function classify(text: string): BufferLine['kind'] {
 - [ ] **Step 4: Run to verify pass**
 
 Run: `npx vitest run src/glkote-react/reduce.test.ts`
-Expected: PASS. If shapes differ, fix `bufferText`/`parseStatus` to the fixture's real field names and re-run.
+Expected: PASS (all three tests). If shapes differ, fix `bufferText`/`parseStatus`/`isEndOfGame` to the fixture's real field names and re-run.
+
+**Refactor:** once green, confirm `isEndOfGame` keys off the *observed* end marker (not the placeholder `disable && !hasReq`); if the real signal is an explicit field, name a small constant for it. Keep the end-detection in one helper so the bridge/engine never re-derive it.
 
 - [ ] **Step 5: Commit**
 
@@ -633,6 +695,31 @@ describe('GlkOteBridge', () => {
     expect(accept).toHaveBeenLastCalledWith(
       expect.objectContaining({ type: 'line', value: 'open mailbox', gen: 1 }))
   })
+
+  it('auto-acks a MORE prompt but routes a genuine key prompt to sendChar', () => {
+    const bridge = new GlkOteBridge(vi.fn())
+    const accept = vi.fn()
+    bridge.init({ accept })
+
+    // A [MORE]/paging char request — ackMore() answers it with a space.
+    // (Replace the discriminating `more` field with the one observed in Task 1.4.)
+    bridge.update({ type: 'update', gen: 2, windows: [{ id: 7, type: 'buffer' }],
+      input: [{ type: 'char', id: 7, gen: 2 }], more: true } as any)
+    bridge.ackMore()
+    expect(accept).toHaveBeenLastCalledWith(
+      expect.objectContaining({ type: 'char', value: ' ', gen: 2 }))
+
+    // A genuine single-key prompt — ackMore() must NOT answer it; a keystroke does.
+    bridge.update({ type: 'update', gen: 3, windows: [{ id: 7, type: 'buffer' }],
+      input: [{ type: 'char', id: 7, gen: 3 }] } as any)
+    accept.mockClear()
+    bridge.ackMore()
+    expect(accept).not.toHaveBeenCalled()      // not MORE → left pending
+    expect(bridge.awaitingKey()).toBe(true)
+    bridge.sendChar('y')
+    expect(accept).toHaveBeenLastCalledWith(
+      expect.objectContaining({ type: 'char', value: 'y', gen: 3 }))
+  })
 })
 ```
 
@@ -661,6 +748,9 @@ export class GlkOteBridge implements GlkOteDisplay {
   private view: ViewState = emptyView
   private gen = 0
   private mainWindow = 0
+  /** Whether the pending char request is a [MORE]/paging prompt (auto-acked)
+   *  rather than a genuine single-key prompt (satisfied by a player keystroke). */
+  private charIsMore = false
   /** Set by the engine; called when the VM quits. */
   onEnd?: () => void
 
@@ -675,8 +765,12 @@ export class GlkOteBridge implements GlkOteDisplay {
   update(arg: GlkOteUpdate) {
     if (typeof arg.gen === 'number') this.gen = arg.gen
     // Track the most recent window awaiting input as the input target.
-    const lineReq = (arg.input ?? []).find(i => i.type === 'line' || i.type === 'char')
-    if (lineReq) this.mainWindow = lineReq.id as number
+    const req = (arg.input ?? []).find(i => i.type === 'line' || i.type === 'char')
+    if (req) this.mainWindow = req.id as number
+    // Classify a char request: [MORE]/paging (auto-acked) vs a genuine single-key
+    // prompt (routed to the input box). isMorePrompt matches the discriminator
+    // observed in Task 1.4 (glkote-zork1-end.json).
+    this.charIsMore = req?.type === 'char' && isMorePrompt(arg)
     this.view = reduce(this.view, arg)
     this.onState(this.view)
     if (this.view.ended) this.onEnd?.()
@@ -691,15 +785,33 @@ export class GlkOteBridge implements GlkOteDisplay {
     this.accept?.({ type: 'line', gen: this.gen, window: this.mainWindow, value: text })
   }
 
-  /** Satisfies a char-input request (and auto-acknowledges MORE prompts). */
+  /** Satisfies a char-input request — a [MORE] ack or the player's keystroke. */
   sendChar(key: string) {
     this.accept?.({ type: 'char', gen: this.gen, window: this.mainWindow, value: key })
   }
 
-  /** Auto-acknowledge a pending char request (MORE paging) with a space. */
+  /** Auto-acknowledge a pending [MORE]/paging prompt with a space. No-ops for a
+   *  genuine single-key request, which the player satisfies via sendChar(). */
   ackMore() {
-    if (this.view.inputRequest === 'char') this.sendChar(' ')
+    if (this.view.inputRequest === 'char' && this.charIsMore) this.sendChar(' ')
   }
+
+  /** True when a genuine single-key prompt (not MORE) is awaiting a keystroke. */
+  awaitingKey(): boolean {
+    return this.view.inputRequest === 'char' && !this.charIsMore
+  }
+}
+
+/**
+ * True when a char-input request is a [MORE]/paging prompt (auto-acked) rather
+ * than a genuine single-key prompt (routed to the input box). Match the real
+ * discriminator recorded in Task 1.4 (glkote-zork1-end.json) — replace `u.more`
+ * below with the observed field. If the protocol does NOT distinguish them,
+ * return `true` here (treat all char input as MORE, the documented fallback) and
+ * note that scope cut in the spec.
+ */
+function isMorePrompt(u: GlkOteUpdate): boolean {
+  return (u as { more?: boolean }).more === true
 }
 ```
 
@@ -804,6 +916,8 @@ export class ZMachine {
   sendLine(text: string) { this.bridge.sendLine(text) }
   sendChar(key: string) { this.bridge.sendChar(key) }
   ackMore() { this.bridge.ackMore() }
+  /** True when a genuine single-key prompt (not MORE) awaits a keystroke. */
+  awaitingKey() { return this.bridge.awaitingKey() }
 }
 ```
 
@@ -1093,7 +1207,7 @@ git commit -m "feat: IndexedDB-backed Dialog with autosave + sync cache"
 
 Create `src/zmachine/engine.persist.test.ts`:
 ```ts
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import 'fake-indexeddb/auto'
 import { readFileSync } from 'node:fs'
 import { ZMachine } from './engine'
@@ -1102,25 +1216,44 @@ import { emptyView } from '../glkote-react/types'
 
 const story = () => new Uint8Array(readFileSync('public/games/zork1.z3'))
 
+// fake-indexeddb is a single shared DB across the file; wipe it between tests so
+// the negative control can't see the previous test's autosave.
+const resetDb = () => new Promise<void>(r => {
+  const req = indexedDB.deleteDatabase('naitfol')
+  req.onsuccess = req.onerror = () => r()
+})
+beforeEach(resetDb)
+
 describe('autosave/resume', () => {
-  it('saves after a turn and resumes mid-game on a fresh engine', async () => {
+  it('resumes to the exact saved room on a fresh engine', async () => {
     const dialog = new IdbDialog()
     let view = emptyView
     const e1 = new ZMachine({ dialog, onState: v => (view = v) })
-    const sig = await e1.boot(story())          // boot returns the game signature
-    e1.sendLine('open mailbox')
-    e1.sendLine('north')
+    await e1.boot(story())
+    e1.sendLine('north')                         // move to a DISTINCT room
     await e1.flushAutosave()                     // ensure the IDB write settled
+    const saved = view.status?.location
+    // Sanity: we genuinely left the opening room before saving.
+    expect(saved).toMatch(/North of House/i)
+    expect(saved).not.toMatch(/West of House/i)
 
-    // Fresh engine + fresh dialog → should auto-restore to the saved spot.
+    // Fresh engine + fresh dialog → must auto-restore to the SAME distinct room.
     const dialog2 = new IdbDialog()
     let view2 = emptyView
     const e2 = new ZMachine({ dialog: dialog2, onState: v => (view2 = v) })
     await e2.boot(story())
-    // We moved north of the house; the opening "West of House" long description
-    // should not be the latest room if resume worked.
-    expect(view2.status?.location).not.toBe('')
-    expect(view2.inputRequest).toBe('line')
+    expect(view2.status?.location).toBe(saved)   // discriminating: a fresh boot
+    expect(view2.inputRequest).toBe('line')      // would read "West of House"
+  })
+
+  it('boots fresh (no resume) when the autosave slot is empty', async () => {
+    // Negative control: with no saved snapshot, boot lands at the opening room —
+    // proving the test above passes because of resume, not a coincidence.
+    const dialog = new IdbDialog()
+    let view = emptyView
+    const e = new ZMachine({ dialog, onState: v => (view = v) })
+    await e.boot(story())
+    expect(view.status?.location).toMatch(/West of House/i)
   })
 })
 ```
@@ -1410,9 +1543,12 @@ Create `src/ui/CommandInput.tsx`:
 ```tsx
 import { useState } from 'react'
 
-export function CommandInput({ onSubmit, disabled }: {
+export function CommandInput({ onSubmit, disabled, awaitingKey = false, onKey }: {
   onSubmit: (text: string) => void
   disabled: boolean
+  /** When true, a single keystroke satisfies a pending char-input prompt. */
+  awaitingKey?: boolean
+  onKey?: (key: string) => void
 }) {
   const [value, setValue] = useState('')
   return (
@@ -1424,7 +1560,15 @@ export function CommandInput({ onSubmit, disabled }: {
     }}>
       <span className="car">&gt;</span>
       <input className="cmd" value={value} disabled={disabled} autoFocus
-        placeholder="type a command…" onChange={e => setValue(e.target.value)} />
+        placeholder="type a command…"
+        onKeyDown={e => {
+          // A genuine single-key prompt is answered by any keystroke (no Enter).
+          if (awaitingKey && onKey && e.key.length === 1) {
+            e.preventDefault()
+            onKey(e.key)
+          }
+        }}
+        onChange={e => setValue(e.target.value)} />
     </form>
   )
 }
@@ -1488,7 +1632,7 @@ Create `src/ui/Terminal.tsx`:
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ZMachine } from '../zmachine/engine'
 import { IdbDialog } from '../storage/dialog'
-import { emptyView, type ViewState, type BufferLine } from '../glkote-react/types'
+import { emptyView, type ViewState } from '../glkote-react/types'
 import { StatusBar } from './StatusBar'
 import { Scrollback } from './Scrollback'
 import { CommandInput } from './CommandInput'
@@ -1499,9 +1643,7 @@ export function Terminal({ storyBytes, onChangeVolume, themeToggle }: {
   themeToggle: ReactNode
 }) {
   const [view, setView] = useState<ViewState>(emptyView)
-  const [echoes, setEchoes] = useState<BufferLine[]>([])
   const engineRef = useRef<ZMachine | null>(null)
-  const echoId = useRef(-1)
 
   useEffect(() => {
     const engine = new ZMachine({ dialog: new IdbDialog() as any, onState: setView })
@@ -1510,32 +1652,31 @@ export function Terminal({ storyBytes, onChangeVolume, themeToggle }: {
     return () => { engineRef.current = null }
   }, [storyBytes])
 
-  // Auto-acknowledge MORE prompts (char-input) so the scroll never stalls.
+  // Auto-acknowledge [MORE]/paging prompts so the scroll never stalls. ackMore()
+  // no-ops for a genuine single-key prompt — that is answered by a keystroke in
+  // the input box (CommandInput onKey → sendChar) instead.
   useEffect(() => { if (view.inputRequest === 'char') engineRef.current?.ackMore() },
     [view.inputRequest])
-
-  const submit = (text: string) => {
-    setEchoes(e => [...e, { id: echoId.current--, kind: 'input', text }])
-    engineRef.current?.sendLine(text)
-  }
-
-  // Merge VM output with our input echoes in order of arrival.
-  const lines = [...view.lines, ...echoes].sort((a, b) =>
-    (a.id < 0 ? Infinity : a.id) - (b.id < 0 ? Infinity : b.id))
 
   return (
     <div className="screen term">
       <StatusBar status={view.status} onChangeVolume={onChangeVolume} themeToggle={themeToggle} />
       <Scrollback lines={view.lines} />
-      <CommandInput onSubmit={submit} disabled={false} />
+      <CommandInput
+        onSubmit={text => engineRef.current?.sendLine(text)}
+        disabled={false}
+        awaitingKey={!!engineRef.current?.awaitingKey()}
+        onKey={key => engineRef.current?.sendChar(key)} />
     </div>
   )
 }
 ```
-> NOTE: prefer letting the VM echo commands if the captured fixture shows input is
-> echoed in the buffer window (many Glk setups do). If so, drop the local `echoes`
-> state and render `view.lines` only. Decide based on the Task 1.4 fixture: if typed
-> commands already appear in `content`, remove the echo bookkeeping.
+> NOTE (Issue 5 — echo): this renders `view.lines` directly because Glk normally
+> echoes the typed command into the buffer window itself. **Confirm against the
+> Task 1.4 boot fixture:** if typed commands do NOT appear in `content`, reinstate a
+> local echo — push an `{ kind: 'input' }` `BufferLine` in `onSubmit` before
+> `sendLine`, merge it into the rendered list in arrival order, and render the merged
+> array (not `view.lines`). Do not ship both paths — pick one from the observed fixture.
 
 - [ ] **Step 4: Run to verify pass**
 
@@ -1931,9 +2072,11 @@ git commit -m "docs: add local dev instructions"
 - Play Zork I/II/III in browser → Tasks 1.1, 1.7, 4.1 ✓
 - Landing → terminal → Tasks 4.2, 4.3 ✓
 - Auto-resume per game (native autosave, signature-keyed) → Tasks 2.2, 2.3, 4.3 ✓
-- `do_autosave` on line-input request; clear on quit → Tasks 2.3, 5.1 ✓
+- `do_autosave` on line-input request; clear on quit → Tasks 1.5 (reducer sets
+  `ended`), 2.3, 5.1 ✓
 - Custom GlkOte bridge over vendored glkapi; ifvms from npm → Tasks 1.2, 1.5, 1.6, 1.7 ✓
-- MORE auto-ack + char-input routing → Tasks 1.6 (`ackMore`/`sendChar`), 1.8/3.4 (effect) ✓
+- MORE auto-ack vs genuine single-key routing → Tasks 1.6 (MORE-only `ackMore`,
+  `awaitingKey`, `sendChar`), 3.3 (`CommandInput` `onKey`), 3.4 (effect + routing) ✓
 - Game files copied to public/, fetched at runtime → Tasks 1.1, 4.1, 4.3 ✓
 - Folio dark+light, tokens verbatim, self-hosted OFL fonts → Tasks 3.1, 3.2 ✓
 - Theme toggle in-layout (plate corner + status bar), persisted, ellipsis loc → Tasks 3.2, 3.3, 4.2 ✓
@@ -1941,10 +2084,14 @@ git commit -m "docs: add local dev instructions"
 - Walking skeleton as go/no-go gate w/ stock-GlkOte fallback → Milestone 1 (checkpoints A/B) ✓
 - Testing (engine, reducer, dialog, resume, UI smoke) → Tasks 1.5, 1.6, 1.7, 2.x, 3.x, 4.x ✓
 
-**Placeholder scan:** Tasks 5.2 and parts of 1.2/1.5 deliberately defer exact field
-names/method signatures to a read of the vendored `glkapi.js`/`ifvms` source — these
-are protocol specifics that must be observed, not invented, and each such step says
-exactly what to read and where to put the result. All code steps include real code.
+**Placeholder scan:** Tasks 5.2 and parts of 1.2/1.5/1.6 deliberately defer exact
+field names/method signatures to a read of the vendored `glkapi.js`/`ifvms` source
+or the Task 1.4 capture — these are protocol specifics that must be observed, not
+invented, and each such step says exactly what to read and where to put the result.
+Two such helpers carry placeholder discriminators to confirm against the
+`glkote-zork1-end.json` fixture: `isEndOfGame` (reducer end-of-game signal, Task 1.5)
+and `isMorePrompt` (MORE vs single-key char request, Task 1.6). All code steps
+include real code.
 
 **Type consistency:** `ViewState`/`BufferLine`/`StatusLine` (types.ts) are used
 consistently across `reduce.ts`, `bridge.ts`, `engine.ts`, and the UI. `ZMachine`

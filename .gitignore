@@ -12,3 +12,4 @@
 # development
 .devcontainer
 /scratch/
+.superpowers/

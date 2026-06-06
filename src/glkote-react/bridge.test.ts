@@ -92,4 +92,30 @@ describe('GlkOteBridge', () => {
       expect.objectContaining({ type: 'char', value: 'y', gen: 3 }),
     )
   })
+
+  it('ignores VM updates once disposed (StrictMode throwaway engine)', () => {
+    const onState = vi.fn()
+    const bridge = new GlkOteBridge(onState)
+    bridge.init({ accept: vi.fn() })
+    bridge.dispose()
+    bridge.update({ type: 'update', gen: 1, content: [], input: [] } as any)
+    expect(onState).not.toHaveBeenCalled()
+  })
+
+  it('getlibrary returns the injected Dialog and null for anything else', () => {
+    const bridge = new GlkOteBridge(vi.fn())
+    bridge.dialog = { marker: true }
+    expect(bridge.getlibrary('Dialog')).toEqual({ marker: true })
+    expect(bridge.getlibrary('Glk')).toBeNull()
+  })
+
+  it('forwards glk errors to the console (warnings/logs stay silent)', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const bridge = new GlkOteBridge(vi.fn())
+    bridge.warning('ignored')
+    bridge.log('ignored')
+    bridge.error('boom')
+    expect(spy).toHaveBeenCalledWith('[glk]', 'boom')
+    spy.mockRestore()
+  })
 })

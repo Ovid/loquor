@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import 'fake-indexeddb/auto'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
@@ -25,5 +25,25 @@ describe('Terminal', () => {
       () => expect(screen.getAllByText(/open mailbox/i)[0]).toBeInTheDocument(),
       { timeout: 8000 },
     )
+
+    // Clicking in the transcript (no active selection) refocuses the prompt.
+    input.blur()
+    fireEvent.mouseUp(document.querySelector('.scroll')!)
+    expect(document.activeElement).toBe(input)
+  })
+
+  it('logs (and does not crash) when booting invalid story bytes', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    render(
+      <Terminal
+        storyBytes={new Uint8Array([1, 2, 3, 4])}
+        onChangeVolume={() => {}}
+        themeToggle={null}
+      />,
+    )
+    await waitFor(() =>
+      expect(spy).toHaveBeenCalledWith('boot failed', expect.anything()),
+    )
+    spy.mockRestore()
   })
 })

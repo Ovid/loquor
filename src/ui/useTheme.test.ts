@@ -22,4 +22,12 @@ describe('useTheme', () => {
     const { result } = renderHook(() => useTheme())
     expect(result.current.theme).toBe('light')
   })
+
+  it('toggles back from light to dark, clearing the body theme', () => {
+    localStorage.setItem('naitfol-theme', 'light')
+    const { result } = renderHook(() => useTheme())
+    act(() => result.current.toggle())
+    expect(result.current.theme).toBe('dark')
+    expect(document.body.dataset.theme).toBeUndefined()
+  })
 })

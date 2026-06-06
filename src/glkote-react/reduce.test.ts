@@ -175,6 +175,20 @@ describe('reduce', () => {
     expect(view.status?.right).toContain('Score')
   })
 
+  it('treats a status line with no right-hand column as location-only', () => {
+    const update = {
+      type: 'update',
+      gen: 1,
+      content: [
+        { id: 104, lines: [{ line: 0, content: ['normal', 'Cellar'] }] },
+      ],
+      input: [],
+    }
+    const view = reduce(emptyView, update as any)
+    expect(view.status?.location).toContain('Cellar')
+    expect(view.status?.right).toBe('')
+  })
+
   it('sets ended=true and clears inputRequest on exit:true update', () => {
     const exitUpdate = {
       type: 'update',

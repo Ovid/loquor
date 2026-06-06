@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import 'fake-indexeddb/auto'
 import { IdbDialog } from './dialog'
 
@@ -43,6 +43,28 @@ describe('IdbDialog autosave', () => {
     d.autosave_write('GONE', { v: 1 })
     await d.flushWrites()
     expect(await d.autosave_read_async('GONE')).toBeNull()
+  })
+
+  it('surfaces a persist failure and names the non-cloneable field', async () => {
+    // A function can't be structured-cloned, so the IndexedDB put rejects with
+    // DataCloneError. autosave_write used to swallow that silently (looked like
+    // "starts over on return"); it must now log the failure and point at the
+    // offending field (via uncloneablePath).
+    const d = new IdbDialog()
+    const errors: string[] = []
+    const spy = vi
+      .spyOn(console, 'error')
+      .mockImplementation((...a: unknown[]) => {
+        errors.push(a.map(String).join(' '))
+      })
+
+    d.autosave_write('BAD', { ram: [1, 2, 3], onTick: () => {} })
+    await d.flushWrites()
+    await new Promise(r => setTimeout(r)) // let the op.catch microtask run
+
+    spy.mockRestore()
+    expect(errors.some(e => e.includes('PERSIST FAILED'))).toBe(true)
+    expect(errors.some(e => e.includes('onTick'))).toBe(true)
   })
 
   it('serializes rapid fire-and-forget writes so the last turn wins', async () => {

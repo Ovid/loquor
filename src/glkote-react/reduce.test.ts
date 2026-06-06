@@ -83,6 +83,31 @@ describe('reduce', () => {
         {
           id: 102,
           text: [
+            { content: ['normal', 'Hello '] },
+            { content: ['normal', 'World'], append: true },
+          ],
+        },
+      ],
+      input: [],
+    }
+    const view = reduce(emptyView, update as any)
+    // The two paragraphs should be merged into one line "Hello World"
+    expect(view.lines).toHaveLength(1)
+    expect(view.lines[0].text).toBe('Hello World')
+  })
+
+  it('renders an echoed player command (style "input") as an input line without the prompt char', () => {
+    // Real shape (PROTOCOL-NOTES / fixture): the command echoes as an
+    // input-styled run appended onto the bare ">" prompt line. It must become a
+    // single kind:'input' line carrying only the command — the caret supplies
+    // the ">", so keeping it here would render "> >look".
+    const update = {
+      type: 'update',
+      gen: 1,
+      content: [
+        {
+          id: 102,
+          text: [
             { content: ['normal', '>'] },
             { content: ['input', 'look'], append: true },
           ],
@@ -91,9 +116,38 @@ describe('reduce', () => {
       input: [],
     }
     const view = reduce(emptyView, update as any)
-    // The two paragraphs should be merged into one line ">look"
     expect(view.lines).toHaveLength(1)
-    expect(view.lines[0].text).toBe('>look')
+    expect(view.lines[0].kind).toBe('input')
+    expect(view.lines[0].text).toBe('look')
+  })
+
+  it('resets the transcript when a buffer entry has clear:true (RESTART / screen clear)', () => {
+    // glk_window_clear sets obj.clear=true (glkapi.js:600-608). The prior
+    // transcript must be dropped, not merged onto.
+    let view = reduce(emptyView, {
+      type: 'update',
+      gen: 1,
+      content: [{ id: 102, text: [{ content: ['normal', 'Old line'] }] }],
+      input: [],
+    } as any)
+    expect(view.lines.map(l => l.text)).toContain('Old line')
+
+    view = reduce(view, {
+      type: 'update',
+      gen: 2,
+      content: [
+        {
+          id: 102,
+          clear: true,
+          // Realistic shape: the post-clear first paragraph arrives append:true
+          // (it must NOT merge onto a now-stale trailing line).
+          text: [{ content: ['normal', 'Fresh start'], append: true }],
+        },
+      ],
+      input: [],
+    } as any)
+    expect(view.lines.map(l => l.text)).not.toContain('Old line')
+    expect(view.lines.map(l => l.text)).toContain('Fresh start')
   })
 
   it('parses status line into location and right parts', () => {

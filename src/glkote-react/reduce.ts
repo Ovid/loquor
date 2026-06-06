@@ -18,33 +18,61 @@ function joinRunText(content: unknown[]): string {
   return result
 }
 
+/** The style name of a run is its first (even-index) element. */
+function firstStyle(content: unknown[]): string | undefined {
+  return typeof content[0] === 'string' ? (content[0] as string) : undefined
+}
+
 /**
- * Given a buffer content entry (`c.text[]`), yield lines as strings, honoring
- * `append:true` by merging the text onto the previous emitted line rather than
- * starting a new one.
+ * An accumulating buffer line: its display text, whether it is an echoed player
+ * command (run style `"input"`), and the BufferLine it carried in the previous
+ * state (so ids stay stable across `append`-driven mutations).
+ */
+interface Para {
+  text: string
+  input: boolean
+  prev?: BufferLine
+}
+
+/**
+ * Given a buffer content entry (`c.text[]`), fold its paragraphs into the
+ * accumulating line list, honoring:
+ *   - `append:true` — merge text onto the previous emitted line;
+ *   - run style `"input"` — the line is an echoed command. It arrives appended
+ *     onto the bare `">"` prompt; we replace that prompt with the command alone
+ *     (the caret renders the `">"`) and mark the line `input`.
  */
 function bufferParagraphs(
   c: Record<string, unknown>,
-  previousLines: string[],
-): string[] {
+  previous: Para[],
+): Para[] {
   const paragraphs = (c.text ?? []) as Array<Record<string, unknown>>
-  const emitted = previousLines.slice()
+  const emitted = previous.slice()
 
   for (const para of paragraphs) {
     // An empty entry {} is a blank line
     if (!para.content) {
-      emitted.push('')
+      emitted.push({ text: '', input: false })
       continue
     }
 
     const content = para.content as unknown[]
     const text = joinRunText(content)
+    const isInput = firstStyle(content) === 'input'
+    const last = emitted[emitted.length - 1]
 
-    if (para.append && emitted.length > 0) {
-      // Merge onto the last line
-      emitted[emitted.length - 1] = emitted[emitted.length - 1] + text
+    if (isInput && para.append && last && last.text.trim() === '>') {
+      // Echoed command: drop the prompt char, keep the command, mark as input.
+      emitted[emitted.length - 1] = { text, input: true, prev: last.prev }
+    } else if (para.append && last) {
+      // Merge onto the previous line (preserving its identity/input flag).
+      emitted[emitted.length - 1] = {
+        text: last.text + text,
+        input: last.input || isInput,
+        prev: last.prev,
+      }
     } else {
-      emitted.push(text)
+      emitted.push({ text, input: isInput })
     }
   }
 
@@ -119,9 +147,13 @@ export function reduce(prev: ViewState, update: GlkOteUpdate): ViewState {
   let { status, inputRequest, ended } = prev
   const { lines } = prev
 
-  // Build the new lines list from the previous one, tracking strings so we
-  // can honour append:true before converting to BufferLine objects.
-  let lineTexts = lines.map(l => l.text)
+  // Seed the accumulator from the previous lines, carrying each line's identity
+  // so append-driven edits keep stable React keys.
+  let paras: Para[] = lines.map(l => ({
+    text: l.text,
+    input: l.kind === 'input',
+    prev: l,
+  }))
 
   for (const c of update.content ?? []) {
     const entry = c as Record<string, unknown>
@@ -131,24 +163,21 @@ export function reduce(prev: ViewState, update: GlkOteUpdate): ViewState {
       const parsed = parseStatus(entry)
       if (parsed !== null) status = parsed
     } else if (Array.isArray(entry.text)) {
-      // Buffer (main transcript) window — has a `text[]` array
-      lineTexts = bufferParagraphs(entry, lineTexts)
+      // Buffer (main transcript) window — has a `text[]` array.
+      // glk_window_clear sets clear:true (glkapi.js:600-608) — drop the prior
+      // transcript (and its prev refs) so RESTART/screen-clears start fresh.
+      if (entry.clear) paras = []
+      paras = bufferParagraphs(entry, paras)
     }
   }
 
-  // Convert string array to BufferLine objects, assigning new ids only for
-  // lines that are genuinely new (beyond the previous count).
-  const prevCount = lines.length
-  const newLines: BufferLine[] = lineTexts.map((text, i) => {
-    if (i < prevCount) {
-      // Preserve the existing BufferLine (might have been mutated by append)
-      // but refresh text if append changed the last line.
-      const prev = lines[i]
-      if (prev.text === text) return prev
-      // Last line may have changed due to append — create a fresh object.
-      return { id: prev.id, kind: prev.kind, text }
-    }
-    return { id: nextId++, kind: classify(text), text }
+  // Convert to BufferLine objects, reusing the previous object when a line is
+  // unchanged (stable identity) and assigning a fresh id only to genuinely new
+  // lines. An `input` line is an echoed command regardless of its text shape.
+  const newLines: BufferLine[] = paras.map(p => {
+    const kind = p.input ? 'input' : classify(p.text)
+    if (p.prev && p.prev.text === p.text && p.prev.kind === kind) return p.prev
+    return { id: p.prev ? p.prev.id : nextId++, kind, text: p.text }
   })
 
   // Input request: last one wins (Zork I only ever has one).

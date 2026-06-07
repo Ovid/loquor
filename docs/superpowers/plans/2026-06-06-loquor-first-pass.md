@@ -1,4 +1,4 @@
-# Naitfol First Pass — Implementation Plan
+# Loquor First Pass — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -8,7 +8,7 @@
 
 **Tech Stack:** Vite, React 18+, TypeScript, Vitest + @testing-library/react + jsdom, fake-indexeddb (tests), ESLint, Prettier, `ifvms`, vendored `glkapi.js`, `@fontsource/*`.
 
-**Reference spec:** [`docs/superpowers/specs/2026-06-06-naitfol-design.md`](../specs/2026-06-06-naitfol-design.md)
+**Reference spec:** [`docs/superpowers/specs/2026-06-06-loquor-design.md`](../specs/2026-06-06-loquor-design.md)
 **Spike (already done):** [`docs/spikes/2026-06-06-glk-vite-spike.md`](../../spikes/2026-06-06-glk-vite-spike.md)
 
 ---
@@ -1057,7 +1057,7 @@ Expected: FAIL.
 
 Create `src/storage/idb.ts`:
 ```ts
-const DB = 'naitfol'
+const DB = 'loquor'
 const STORE = 'kv'
 
 function open(): Promise<IDBDatabase> {
@@ -1219,7 +1219,7 @@ const story = () => new Uint8Array(readFileSync('public/games/zork1.z3'))
 // fake-indexeddb is a single shared DB across the file; wipe it between tests so
 // the negative control can't see the previous test's autosave.
 const resetDb = () => new Promise<void>(r => {
-  const req = indexedDB.deleteDatabase('naitfol')
+  const req = indexedDB.deleteDatabase('loquor')
   req.onsuccess = req.onerror = () => r()
 })
 beforeEach(resetDb)
@@ -1403,12 +1403,12 @@ describe('useTheme', () => {
     expect(result.current.theme).toBe('dark')
     act(() => result.current.toggle())
     expect(result.current.theme).toBe('light')
-    expect(localStorage.getItem('naitfol-theme')).toBe('light')
+    expect(localStorage.getItem('loquor-theme')).toBe('light')
     expect(document.body.dataset.theme).toBe('light')
   })
 
   it('reads the persisted theme on init', () => {
-    localStorage.setItem('naitfol-theme', 'light')
+    localStorage.setItem('loquor-theme', 'light')
     const { result } = renderHook(() => useTheme())
     expect(result.current.theme).toBe('light')
   })
@@ -1427,7 +1427,7 @@ Create `src/ui/useTheme.ts`:
 import { useCallback, useEffect, useState } from 'react'
 
 export type Theme = 'dark' | 'light'
-const KEY = 'naitfol-theme'
+const KEY = 'loquor-theme'
 
 export function useTheme() {
   const [theme, setTheme] = useState<Theme>(
@@ -1819,7 +1819,7 @@ export function Landing({ onEnter, savedSlugs, themeToggle }: {
     <div className="screen">
       <div className="plate">
         {themeToggle}
-        <h1 className="title">Naitfol</h1>
+        <h1 className="title">Loquor</h1>
         <p className="tagline">a spell of understanding, cast in the dark</p>
         <div className="howto">
           <b>How to play.</b> Type what you want to do, the way the game expects it.<br />
@@ -1880,7 +1880,7 @@ beforeEach(() => {
 describe('App', () => {
   it('routes from landing into the game', async () => {
     render(<App />)
-    expect(screen.getByText('Naitfol')).toBeInTheDocument()
+    expect(screen.getByText('Loquor')).toBeInTheDocument()
     fireEvent.click(screen.getByText(/Light the lamp/))
     await waitFor(() => expect(screen.getByText('West of House')).toBeInTheDocument())
   })

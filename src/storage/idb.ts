@@ -1,4 +1,4 @@
-const DB = 'naitfol'
+const DB = 'loquor'
 const STORE = 'kv'
 
 function open(): Promise<IDBDatabase> {

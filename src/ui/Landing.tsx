@@ -55,8 +55,8 @@ export function Landing({
           </button>
         )}
         {themeToggle}
-        <h1 className="title">Naitfol</h1>
-        <p className="tagline">a spell of understanding, cast in the dark</p>
+        <h1 className="title">Loquor</h1>
+        <p className="tagline">to speak, and be understood, in the dark</p>
         <div className="howto">
           <b>How to play.</b> Type what you want to do, the way the game expects
           it.

@@ -11,7 +11,7 @@ const story = () => new Uint8Array(readFileSync('public/games/zork1.z3'))
 // negative control can't see the previous test's autosave.
 const resetDb = () =>
   new Promise<void>(r => {
-    const req = indexedDB.deleteDatabase('naitfol')
+    const req = indexedDB.deleteDatabase('loquor')
     req.onsuccess = req.onerror = () => r()
   })
 beforeEach(resetDb)

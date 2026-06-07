@@ -1,4 +1,4 @@
-# Naitfol — First Pass Design
+# Loquor — First Pass Design
 
 **Date:** 2026-06-06
 **Branch:** `ovid/first-pass`
@@ -7,13 +7,13 @@ pre-planning spike, then implementation planning.
 
 ## Summary
 
-Naitfol is a browser app for playing Zork I, II, and III on top of the
+Loquor is a browser app for playing Zork I, II, and III on top of the
 `ifvms.js` Z-machine. This first pass delivers a self-contained React app where
 the player picks a game, plays it by typing commands the game's own parser
 understands, and resumes automatically where they left off.
 
 The natural-language / LLM layer that the project is ultimately named for
-(*Nitfol* — the Enchanter spell that lets you converse with creatures) is
+(*Loquor* — Latin for "I speak") is
 **explicitly out of scope for this pass** and is documented separately in
 [`docs/notes.md`](../../notes.md).
 

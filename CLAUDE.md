@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this project is
 
-**Naitfol** is a fully client-side web app for playing Zork I, II, and III in the
+**Loquor** is a fully client-side web app for playing Zork I, II, and III in the
 browser on top of the `ifvms.js` Z-machine, with a custom React UI. The eventual
 goal is a WebLLM-powered natural-language layer (type English → translated to a
 game command); that is **future work**, deliberately out of scope for the current
@@ -16,10 +16,10 @@ first pass.
 `src/` — only docs, a `Makefile`, a `README.md`, and gitignored vendored
 dependencies. The source of truth for what to build is, in priority order:
 
-1. `docs/superpowers/plans/2026-06-06-naitfol-first-pass.md` — the bite-sized,
+1. `docs/superpowers/plans/2026-06-06-loquor-first-pass.md` — the bite-sized,
    TDD implementation plan. **Execute this with `superpowers:subagent-driven-development`
    or `superpowers:executing-plans`.** It is the operational spec.
-2. `docs/superpowers/specs/2026-06-06-naitfol-design.md` — the design and locked
+2. `docs/superpowers/specs/2026-06-06-loquor-design.md` — the design and locked
    decisions (architecture, theme tokens, persistence model).
 3. `docs/spikes/2026-06-06-glk-vite-spike.md` — resolved feasibility spike (how the
    Glk layer is sourced; CommonJS/Vite interop).

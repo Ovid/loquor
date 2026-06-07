@@ -2,7 +2,8 @@
 
 **Date:** 2026-06-07
 **Branch:** `ovid/web-llm`
-**Status:** Approved (design). Ready for implementation planning.
+**Status:** Approved (design), revised 2026-06-07 after pushback review. Ready for
+implementation planning.
 
 ## Summary
 
@@ -44,8 +45,6 @@ toggle natural language on and off at any time mid-game.
   (needs game-state introspection the Z-machine does not expose cleanly).
 - **JSON-intermediate command object** (`{verb, object, prep, indirect}`) with
   pronoun resolution / disambiguation. This pass emits direct command strings.
-- **The `small` capability tier / lighter model.** The tier is returned by the
-  capability check as a reserved seam, but only `full` is wired this pass.
 - **LLM rewriting of game output** into richer prose.
 - **In-game `SAVE`/`RESTORE` UI.** Already a carried first-pass limitation; NL
   does not touch save/restore.
@@ -59,7 +58,9 @@ toggle natural language on and off at any time mid-game.
    then the game response.
 3. **Model source:** the MLC/HuggingFace CDN (WebLLM's prebuilt config). This is
    the single deliberate network call in an otherwise offline/privacy-respecting
-   app, documented as such. Weights cache locally after first download.
+   app, documented as such. Weights cache locally after first download. **Only
+   model weights are fetched — no game state or player input ever leaves the
+   device.**
 4. **Abstain path (`__UNKNOWN__`):** pass the player's raw English straight to
    the game's own Z-machine parser and let its error message handle it. No extra
    UI; always makes progress.
@@ -70,14 +71,28 @@ toggle natural language on and off at any time mid-game.
    exactly one input-side method, `echoLocal(text)`. All LLM logic lives in
    `src/llm/` behind a TypeScript `LlmEngine` interface and is orchestrated by a
    `useNaturalLanguage` hook that `Terminal` consumes.
+7. **Model choice — spike a small model first.** The translation task is narrow
+   and *grammar-constrained* (English → one canonical command from a fixed GBNF),
+   so it likely does not need an 8B model. Before committing to weights/latency,
+   the walking-skeleton gate first proves a **small** WebLLM model (e.g. a 1–3B
+   instruct, or a sub-1B model) against the per-game translation corpus (see
+   Testing). If the small model meets the corpus and the latency target, it
+   becomes the **default** path; the 8B `Llama-3-8B-Instruct-q4f32_1` is retained
+   as the **documented heavy fallback** for when the small model proves
+   insufficient. (This inverts the earlier "8B default, narrow-to-one-game
+   fallback" stance.) The `small` capability tier is therefore **wired this pass**,
+   not merely reserved.
 
 ## Stack additions
 
 - **`@mlc-ai/web-llm@0.2.84`** added to `package.json` dependencies (matching the
   vendored read-only reference at `web-llm/`). It is the only file-level
   dependency of `engine.webllm.ts`; nothing else imports it.
-- **Model:** `Llama-3-8B-Instruct-q4f32_1-MLC-1k` — the 1k-context variant
-  (ample for a short room description plus a command, and lower memory).
+- **Model id is configuration, decided by the spike, not hardcoded.** The default
+  is the small model that passes the gate (see Locked decision 7); the heavy
+  fallback is `Llama-3-8B-Instruct-q4f32_1-MLC-1k` (the 1k-context variant —
+  ample for a short room description plus a command, and lower memory). The
+  capability tier (`small`/`full`) selects which id `engine.webllm.ts` loads.
 - **Grammar-constrained decoding** via WebLLM/XGrammar GBNF. Confirm exact GBNF
   literal-vs-operator syntax against current XGrammar docs before wiring.
 
@@ -114,6 +129,9 @@ src/llm/
     zork1.gbnf.ts        per-game grammars (hand-curated; ZIL-derived = future)
     zork2.gbnf.ts
     zork3.gbnf.ts
+    zork1.corpus.ts      per-game translation corpus: {english, expect}[] — the
+    zork2.corpus.ts        coverage bar + gate pass/fail set (see Testing)
+    zork3.corpus.ts
   prompt.ts              buildPrompt(english, { location, recentOutput }) → ChatMessages  (pure)
   translate.ts           parseCompletion(raw) → TranslateResult                           (pure)
   useNaturalLanguage.ts  React hook: owns the engine + NL state machine, exposes translate()
@@ -123,6 +141,9 @@ src/ui/
 src/glkote-react/
   bridge.ts              + echoLocal(text): appends a UI-only source line (no VM round-trip)
   types.ts               + BufferLine.kind: 'nl-source'
+src/ui/
+  Scrollback.tsx         + render 'nl-source' lines (marker `>`, class .nl-source);
+                           switch the VM `input` echo marker from `>` to `›`
 ```
 
 ## Components
@@ -133,14 +154,21 @@ Pure function taking injectable `navigator` / WebGPU adapter so it is unit-testa
 without WebGPU. Returns a **tier**, not a boolean:
 
 - `none` — no `navigator.gpu`; `requestAdapter()` returns null or a
-  software/fallback adapter; mobile (`navigator.userAgentData?.mobile === true`
-  or a UA fallback for iOS/Android); or adapter limits below threshold
-  (`maxBufferSize`, `maxStorageBufferBindingSize`), with `navigator.deviceMemory`
-  as a coarse soft signal (capped at 8) paired with the limits rather than
-  trusted alone.
-- `full` — passes all checks → the 8B model is offered.
-- `small` — **reserved seam only.** Never returned this pass; documented so the
-  later lighter-model fallback slots in without changing the signature.
+  software/fallback adapter; or adapter limits below the minimum threshold
+  (`maxBufferSize`, `maxStorageBufferBindingSize`).
+- `small` — passes the WebGPU/adapter checks but sits below the `full` thresholds
+  (modest limits, or a soft signal such as mobile / low `navigator.deviceMemory`).
+  Offered the **small default model**. This is the common case and is **wired this
+  pass**.
+- `full` — passes all checks with headroom → may additionally be offered the heavy
+  8B fallback model.
+
+**Mobile is a soft signal, not a hard veto.** `navigator.userAgentData?.mobile ===
+true` (or a UA fallback for iOS/Android) and a low `navigator.deviceMemory`
+(coarse, capped at 8) push a device toward `small` rather than forcing `none`; the
+adapter-limit checks do the real gating, so a capable phone that passes them can
+still run the small model. `navigator.deviceMemory` is paired with the limits
+rather than trusted alone.
 
 The result carries `reasons[]` so the toggle's `unavailable` tooltip can explain
 *why*. A **manual override** ("force-enable anyway") lets a power user on a
@@ -179,10 +207,22 @@ interface LlmEngine {
   gitignored `scratch/` into `src/llm/grammar/`; the read-only vendored sources
   are never modified.
 - **`buildPrompt(english, context)`** (pure) assembles chat messages from the
-  player's English plus context read from `ViewState` — the current `location`
-  and recent buffer output (the room/look text). The system prompt instructs the
-  model to emit one canonical command from the grammar, or `__UNKNOWN__` when the
-  input is not a game action.
+  player's English plus a `{ location, recentOutput }` context. The system prompt
+  instructs the model to emit one canonical command from the grammar, or
+  `__UNKNOWN__` when the input is not a game action.
+
+  **Context contract** (the `useNaturalLanguage` hook derives this from `ViewState`
+  so `buildPrompt` stays pure and unit-testable against a fixed shape):
+  - `location = status?.location ?? ''`. When empty, the prompt **omits** the
+    location line entirely (don't emit a blank one). `status` is nullable and is
+    `null` before the first status update.
+  - `recentOutput =` the buffer text accumulated **since the last `input`-kind
+    line** — i.e. the current room/response block the player is looking at —
+    joined with newlines and **capped at ~1500 characters** (keep the *tail* if it
+    overflows). The cap is a starting value, tunable at the walking-skeleton gate
+    alongside latency.
+  - `nl-source` lines are excluded from `recentOutput` (they are the player's own
+    prior English, not game text).
 - **`parseCompletion(raw)`** (pure, total) → `{ kind:'command', text }` or
   `{ kind:'abstain' }` when the output is `__UNKNOWN__`. Constrained decoding
   guarantees grammar-valid output, so parsing is trivial.
@@ -207,21 +247,37 @@ an in-layout status-bar item, never a `position:fixed` overlay (project
 convention).
 
 **`ModelDownloadModal`** — shown the first time NL is requested on a capable
-device. Explains that `Llama-3-8B-Instruct-q4f32_1-MLC-1k` is large and slow.
-**Accept** → progress bar fed by `load`'s `onProgress` → English enabled.
+device. Explains that the model (the small default, or the 8B fallback when the
+tier offers it) is a sizable one-time download. **Accept** → progress bar fed by
+`load`'s `onProgress` → English enabled.
 **Decline** → stays grammar-only (told they are restricted to the game's own
 parser). **Cancel** mid-download → aborts via the `AbortSignal`, discards/keeps
 cached partial, returns the toggle to its pre-download state. This modal is only
 ever reachable by devices that pass the capability gate.
 
-### 5. Bridge change — `echoLocal(text)`
+### 5. Bridge change — `echoLocal(text)` + rendering contract
 
 The single bridge addition. Appends a UI-only **source line** to `ViewState`
-(new `BufferLine.kind: 'nl-source'`, rendered with a `>` marker) without sending
-anything to the VM. It is carried inertly through subsequent reducer passes (like
-any other prior line), so it stays put while the VM's own `input` echo
-(rendered with `›`) and output append after it. The bridge remains otherwise
-pure; no WebLLM dependency enters it.
+(new `BufferLine.kind: 'nl-source'`) without sending anything to the VM. It is
+carried inertly through subsequent reducer passes (like any other prior line), so
+it stays put while the VM's own `input` echo and output append after it. The
+bridge remains otherwise pure; no WebLLM dependency enters it.
+
+**Rendering contract** (`Scrollback.tsx` — an explicit change, with its test):
+
+- **`nl-source`** (the player's literal English) renders with a `>` marker and a
+  distinct `.nl-source` class (e.g. muted) so it reads as *"what I typed."*
+- **`input`** (the VM's echo of the command it actually received) switches from its
+  current `>` marker to **`›`** (U+203A) so the canonical command reads as
+  *"what the game ran."* This is the one change to existing echo rendering.
+- **Abstain path emits no `nl-source` line.** On abstain the raw English is sent
+  straight to the VM, so the VM's own `›` echo already shows the player's words —
+  adding an `nl-source` line would duplicate it. Only the *command* path calls
+  `echoLocal` (English) before `sendLine` (canonical).
+
+This is why the two worked examples differ: the command example shows both a
+`>` nl-source line and a `›` VM echo; the abstain example shows only the `›` VM
+echo of the pass-through.
 
 ## Data flow (NL on)
 
@@ -253,8 +309,8 @@ Taken.                           (VM output)
 ```
 
 ```
-> what should I do?              (VM input echo of the raw pass-through)
   …thinking                      (transient, then cleared)
+› what should I do?              (VM input echo of the raw pass-through; no nl-source line)
 I don't know the word "should".  (VM parser error)
 ```
 
@@ -266,7 +322,10 @@ I don't know the word "should".  (VM parser error)
 - **Cancel** → `AbortSignal`; partial discarded (or cached for resume), pre-download
   state restored.
 - **`generate()` throws or exceeds a watchdog timeout** → fall back to raw
-  pass-through (`sendLine(english)`) so the turn never wedges; log it.
+  pass-through (`sendLine(english)`) so the turn never wedges, but first surface a
+  brief transient notice (e.g. *"translation timed out — sent as typed"*) so the
+  player can tell a timeout from a normal abstain (which produces a similar parser
+  error); also log it. A timeout must not silently masquerade as an abstain.
 - **Unknown signature** (`grammarForSignature` returns `null`) → NL is silently
   unavailable for that game; grammar-only. All three shipped games are covered.
 - NL never touches save/restore, char-input prompts, or the VM. Existing autosave
@@ -279,11 +338,22 @@ boundary proven by a manual walking-skeleton gate.
 
 **Unit (vitest, with `engine.fake.ts`):**
 
-- `capability` — injected fake `navigator`/adapter across the tier matrix,
-  including mobile detection and the manual override.
-- `prompt` — context assembly from a `ViewState`.
+- `capability` — injected fake `navigator`/adapter across the tier matrix
+  (`none`/`small`/`full`), including mobile as a *soft* push toward `small`
+  (not a hard `none`) and the manual override.
+- `prompt` — context assembly: `location` null-handling (omitted when empty),
+  `recentOutput` window (since last `input` line, capped, tail kept), `nl-source`
+  exclusion.
 - `translate` — command vs `__UNKNOWN__` (abstain).
 - `grammar/index` — signature → grammar mapping, and the `null` path.
+- **Translation corpus (per game)** — `grammar/zork1.corpus.ts` (etc.): a fixture
+  of ~15–30 `{ english, expect }` pairs, where `expect` is either the canonical
+  command or `__UNKNOWN__`. It pins the grammars' **coverage bar** and includes
+  *should-abstain* cases (non-actions) plus near-misses that must NOT silently map
+  to a plausible-but-wrong valid command (the inherent risk of constrained
+  decoding — a missing noun gets forced to *some* grammar-valid command). The
+  corpus is asserted structurally in unit tests (every `expect` is grammar-valid
+  or `__UNKNOWN__`) and is the model's pass/fail set at the walking-skeleton gate.
 - `useNaturalLanguage` — state machine: `off → modal → download → on → off`;
   cancel; load-failure revert; `generate`-failure → raw fallback; input lock
   during translation.
@@ -296,16 +366,27 @@ boundary proven by a manual walking-skeleton gate.
 WebGPU does not exist in jsdom.
 
 **Walking-skeleton gate (go/no-go, like Milestone 1 of the first pass):** on a
-capable machine, load the model and confirm end-to-end:
+capable machine, load **the small default model** (Locked decision 7) and confirm
+end-to-end:
 
 1. *"grab the brass lantern" → `› take lantern` → "Taken."*
 2. An abstain case (e.g. *"what should I do?"*) passes through to the game's
    parser error.
 3. A mid-download **cancel** returns cleanly to grammar-only.
+4. **The small model passes the per-game translation corpus** (above) — every
+   non-abstain pair yields its canonical command, abstain pairs yield
+   `__UNKNOWN__`, and the near-miss pairs do not silently mis-map.
+5. **Latency target:** translation **p50 < ~2s, p95 < ~5s** on the reference
+   machine. These set the `generate()` watchdog timeout empirically.
 
-If constrained decoding or the model proves intractable in-browser, the
-documented fallback is to narrow the first NL pass to a single game and grammar
-while keeping the same seams.
+**Fallback ladder** (most → least preferred), if a step fails:
+
+1. Small model misses the corpus or the latency target → **escalate to the 8B
+   model** and re-run the corpus/latency check.
+2. 8B also intractable in-browser (latency/OOM) → **narrow the first NL pass to a
+   single game** (Zork I) and its grammar, keeping all the same seams.
+3. Constrained decoding itself proves unworkable → ship grammar-only (the feature
+   is fully optional and degrades cleanly).
 
 ## Open implementation notes (resolve during planning)
 
@@ -313,4 +394,8 @@ while keeping the same seams.
 - Confirm the precise WebLLM API for cached-model detection (drives the
   installed/not-installed toggle state) and for aborting an in-flight `load`.
 - Decide the watchdog timeout for `generate()` empirically during the
-  walking-skeleton gate (latency on an 8B q4 model in-browser).
+  walking-skeleton gate, against the latency target (p50 < ~2s, p95 < ~5s) on
+  whichever model the spike selects.
+- Pick the concrete small default model id during the spike (candidates: a 1–3B
+  instruct, or a sub-1B model) and confirm it supports XGrammar GBNF constrained
+  decoding under WebLLM.

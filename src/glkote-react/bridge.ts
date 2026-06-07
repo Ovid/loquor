@@ -55,8 +55,10 @@ export class GlkOteBridge implements GlkOteDisplay {
   /**
    * Documented turn-boundary seam. Fired from update() whenever the VM issues a
    * LINE input request — i.e. a turn has completed and the game is waiting for
-   * the next command. This is the canonical "a turn happened" point and the spot
-   * where the future LLM layer will intercept input.
+   * the next command. This is the canonical "a turn happened" point — an
+   * OBSERVER-ONLY hook (no current caller wires it; see ZMachineOptions.onTurn).
+   * Note: the NL layer does NOT intercept input here — it does so upstream at
+   * CommandInput.onSubmit → nl.translate, using the bridge's echoLocal() seam.
    *
    * NOTE: it does NOT itself perform the autosave. The save is done natively by
    * ifvms+glkapi (do_vm_autosave: true → glkapi.update() → check_autosave() →

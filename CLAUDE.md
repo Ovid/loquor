@@ -68,8 +68,11 @@ game output  ◄─ GlkOte bridge ◄─ Glk                       ◄─ ZVM
   entire integration seam.
 - **The GlkOte bridge (`src/glkote-react/`)** is our implementation of the GlkOte
   display contract. It reduces the VM's GlkOte "update" objects into a React
-  `ViewState` (pure reducer) and sends player input back as Glk events. **This is
-  also where the future LLM layer will intercept input** — keep it clean.
+  `ViewState` (pure reducer) and sends player input back as Glk events. It also
+  exposes the input-side `echoLocal()` seam the NL layer uses to inject the
+  player's English as a UI-only `nl-source` line. (The NL layer intercepts the
+  *typed input* upstream, at `CommandInput.onSubmit` → `nl.translate`, not in the
+  bridge; the bridge's `onTurn` is an observer-only turn-boundary seam.)
 - **Dialog (`src/storage/`)** is our IndexedDB-backed implementation of ZVM's
   native autosave. ZVM keys saves by a per-game **signature** (first 0x1E bytes of
   the story), so per-game slots are automatic. ZVM reads autosave *synchronously*

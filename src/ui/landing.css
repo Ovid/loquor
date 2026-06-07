@@ -156,13 +156,18 @@
   text-align: center;
   background: var(--vol-bg);
   transition: all 0.25s ease;
+  font: inherit;
+  color: inherit;
+  width: 100%;
 }
 .vol .num {
+  display: block;
   font-family: 'IM Fell English SC', serif;
   color: var(--brass);
   font-size: 26px;
 }
 .vol .nm {
+  display: block;
   font-family: 'IM Fell English', serif;
   font-style: italic;
   font-size: 12px;
@@ -174,6 +179,10 @@
   border-color: var(--brass-soft);
   background: var(--vol-hover-bg);
   transform: translateY(-2px);
+}
+.vol:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
 }
 .vol.sel {
   border-color: var(--brass);

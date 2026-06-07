@@ -36,14 +36,16 @@ export function Landing({
         <span className="label">— choose your descent —</span>
         <div className="volumes">
           {GAMES.map(g => (
-            <div
+            <button
               key={g.slug}
+              type="button"
               className={`vol${selected === g.slug ? ' sel' : ''}`}
+              aria-pressed={selected === g.slug}
               onClick={() => setSelected(g.slug)}
             >
-              <div className="num">{g.numeral}</div>
-              <div className="nm">{g.subtitle}</div>
-            </div>
+              <span className="num">{g.numeral}</span>
+              <span className="nm">{g.subtitle}</span>
+            </button>
           ))}
         </div>
         <button className="enter" onClick={() => onEnter(selected)}>

@@ -45,6 +45,11 @@ export class FakeLlmEngine implements LlmEngine {
     _grammar: string,
     signal?: AbortSignal,
   ): Promise<string> {
+    // Faithful to WebLlmEngine: generating before the weights are in memory
+    // throws. A cached model auto-restored to 'on' across a page reload is NOT
+    // loaded until load() runs this session, so the hook must load before it
+    // generates — this models that contract so the unit suite can catch it.
+    if (!this.loaded) throw new Error('engine not loaded')
     if (this.opts.failGenerate) throw new Error('fake generate failure')
     if (this.opts.generateDelayMs) {
       await new Promise<void>((resolve, reject) => {

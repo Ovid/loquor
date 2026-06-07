@@ -42,6 +42,7 @@ describe('FakeLlmEngine', () => {
   it('generate rejects when its abort signal fires (orphan cancellation)', async () => {
     vi.useFakeTimers()
     const eng = new FakeLlmEngine({ generateDelayMs: 10000, default: 'north' })
+    await eng.load(vi.fn(), new AbortController().signal)
     const ac = new AbortController()
     const p = eng.generate([{ role: 'user', content: 'go' }], 'G', ac.signal)
     const assertion = expect(p).rejects.toThrow(/abort/i)

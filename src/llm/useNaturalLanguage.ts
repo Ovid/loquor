@@ -229,6 +229,13 @@ export function useNaturalLanguage(
           antecedent: scene.antecedent,
         }
         const messages = buildPrompt(english, ctx)
+        // The model is enabled but may not be resident in GPU memory yet: a cached
+        // model auto-restored to 'on' across a page reload never went through the
+        // download/load path this session, so generate() would throw "engine not
+        // loaded". Bring it in first (no-op if already loaded). Kept outside the
+        // watchdog race below — a cold cache-load can legitimately take longer than
+        // a single generation's budget, and it reports its own progress.
+        if (!engine.isLoaded()) await engine.load(() => {}, ac.signal)
         const watchdog = new Promise<never>((_, rej) => {
           watchdogId = setTimeout(() => {
             // Reject FIRST so the watchdog wins Promise.race, THEN abort — abort

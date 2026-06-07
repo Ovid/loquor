@@ -346,4 +346,31 @@ describe('useNaturalLanguage', () => {
     expect(sendLine).toHaveBeenLastCalledWith('sing a merry tune') // raw passthrough
     expect(echoLocal).not.toHaveBeenCalled() // no canonical echo → no latch set
   })
+
+  it('lazily loads a cached model that auto-restored to on without a load()', async () => {
+    // Cross-reload bug (engine not loaded): a cached model + a prior enabled
+    // choice auto-restores phase 'on' WITHOUT bringing the weights into memory,
+    // so the first generate() threw "engine not loaded" and the turn was lost.
+    // translate must load the engine before generating.
+    localStorage.setItem('loquor.nl', JSON.stringify({ enabled: true }))
+    const engine = new FakeLlmEngine({
+      cached: true,
+      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const { hook, sendLine } = setup({ engine })
+    // Auto-restores to 'on' from cache — but the model is NOT in memory yet.
+    await waitFor(() => expect(hook.result.current.state.phase).toBe('on'))
+    expect(engine.isLoaded()).toBe(false)
+    act(() =>
+      hook.result.current.observe(
+        viewState('West of House', ['There is a small mailbox here.']),
+      ),
+    )
+    await act(async () => {
+      await hook.result.current.translate('open the mailbox')
+    })
+    expect(engine.isLoaded()).toBe(true) // translate brought it into memory
+    expect(sendLine).toHaveBeenCalledWith('open mailbox') // translated, not "failed"
+  })
 })

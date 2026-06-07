@@ -236,7 +236,11 @@ describe('reduce', () => {
       type: 'update',
       gen: 99,
       content: [
-        { id: 7, clear: true, text: [{ content: ['normal', 'West of House'] }] },
+        {
+          id: 7,
+          clear: true,
+          text: [{ content: ['normal', 'West of House'] }],
+        },
       ],
       input: [{ type: 'line', id: 7, gen: 99 }],
     } as any)

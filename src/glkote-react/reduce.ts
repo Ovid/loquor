@@ -58,11 +58,16 @@ function bufferParagraphs(
     const text = joinRunText(content)
     const isInput = firstStyle(content) === 'input'
     const last = emitted[emitted.length - 1]
+    // A locally-injected nl-source line (the player's English) is the buffer tail
+    // the VM never knows about. Its append:true echo was meant to merge onto the
+    // VM's bare ">" prompt, so merging onto the nl-source line instead would
+    // corrupt it (review I3). Push the echo as a NEW line and leave nl-source be.
+    const lastIsNlSource = last?.prev?.kind === 'nl-source'
 
     if (isInput && para.append && last && last.text.trim() === '>') {
       // Echoed command: drop the prompt char, keep the command, mark as input.
       emitted[emitted.length - 1] = { text, input: true, prev: last.prev }
-    } else if (para.append && last) {
+    } else if (para.append && last && !lastIsNlSource) {
       // Merge onto the previous line (preserving its identity/input flag).
       emitted[emitted.length - 1] = {
         text: last.text + text,

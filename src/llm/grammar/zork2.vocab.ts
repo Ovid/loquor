@@ -1,6 +1,6 @@
 // src/llm/grammar/zork2.vocab.ts
 import type { Vocab } from './types'
-import { TAKE_ACK, DROP_ACK, ABSENCE_PAT } from './patterns'
+import { TAKE_ACK, DROP_ACK, ABSENCE_PAT, FAILURE_PAT } from './patterns'
 
 export const ZORK2_VOCAB: Vocab = {
   verbsOnly: ['look', 'inventory', 'wait', 'again', 'quit'],
@@ -52,4 +52,5 @@ export const ZORK2_VOCAB: Vocab = {
   takeAck: TAKE_ACK,
   dropAck: DROP_ACK,
   absencePat: ABSENCE_PAT,
+  failurePat: FAILURE_PAT,
 }

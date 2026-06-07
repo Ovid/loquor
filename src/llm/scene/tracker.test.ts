@@ -3,7 +3,12 @@ import { reduceScene, TextSceneTracker } from './tracker'
 import { emptySceneState } from './types'
 import type { SceneEvent } from './types'
 import type { Vocab } from '../grammar/types'
-import { TAKE_ACK, DROP_ACK, ABSENCE_PAT } from '../grammar/patterns'
+import {
+  TAKE_ACK,
+  DROP_ACK,
+  ABSENCE_PAT,
+  FAILURE_PAT,
+} from '../grammar/patterns'
 
 const vocab: Vocab = {
   verbsOnly: ['look', 'inventory'],
@@ -27,6 +32,7 @@ const vocab: Vocab = {
   takeAck: TAKE_ACK,
   dropAck: DROP_ACK,
   absencePat: ABSENCE_PAT,
+  failurePat: FAILURE_PAT,
 }
 
 const ev = (over: Partial<SceneEvent>): SceneEvent => ({
@@ -115,6 +121,27 @@ describe('reduceScene — antecedent precedence', () => {
     )
     // leaflet not in scope → not acted-object; lamp stays the antecedent.
     expect(s.antecedent).toBe('lamp')
+  })
+
+  it('a no-op action (already open / cannot be) does NOT hijack the antecedent', () => {
+    // open mailbox reveals leaflet → antecedent is leaflet.
+    const prev = reduceScene(
+      emptySceneState,
+      ev({
+        lastCommand: 'open mailbox',
+        outputText: 'Opening the small mailbox reveals a leaflet.',
+      }),
+      vocab,
+    )
+    expect(prev.antecedent).toBe('leaflet')
+    // Re-opening the already-open mailbox no-ops and names no noun. The acted
+    // object (mailbox) must NOT become "it" — leaflet stays the antecedent.
+    const s = reduceScene(
+      prev,
+      ev({ lastCommand: 'open mailbox', outputText: 'It is already open.' }),
+      vocab,
+    )
+    expect(s.antecedent).toBe('leaflet')
   })
 
   it('a failed action (object suppressed) does NOT become the antecedent', () => {

@@ -155,8 +155,19 @@ export function reduceScene(
   if (mentioned.length > 0) {
     antecedent = mentioned[mentioned.length - 1]
   } else if (event.lastCommand) {
+    // A command that no-opped/was refused ("It is already open.") names no new
+    // object and must not promote its acted object to "it" — otherwise one
+    // mistranslated pronoun self-reinforces every following turn. This is the
+    // "failed" half of the precedence rule above (previously only "suppressed"
+    // was enforced; the no-op case leaked through).
+    const failed = vocab.failurePat?.test(event.outputText) ?? false
     const obj = directObject(event.lastCommand, vocab)
-    if (obj && !sup.has(obj) && inScope.some(o => o.canonical === obj))
+    if (
+      obj &&
+      !failed &&
+      !sup.has(obj) &&
+      inScope.some(o => o.canonical === obj)
+    )
       antecedent = obj
   }
 

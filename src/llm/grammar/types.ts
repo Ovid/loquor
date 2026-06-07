@@ -15,4 +15,5 @@ export interface Vocab {
   takeAck: RegExp // recognises a successful take in output text
   dropAck: RegExp // recognises a successful drop
   absencePat: RegExp // captures a negated/absent noun so it never enters scope
+  failurePat?: RegExp // matches a no-op/refusal so a failed action can't set "it"
 }

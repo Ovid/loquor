@@ -16,6 +16,16 @@ describe('CommandInput', () => {
     expect(input.value).toBe('')
   })
 
+  it('trims surrounding whitespace before submitting', () => {
+    // The empty-guard validates value.trim(); the value sent must match what was
+    // validated, not the raw padded string.
+    const onSubmit = vi.fn()
+    render(<CommandInput onSubmit={onSubmit} />)
+    fireEvent.change(field(), { target: { value: '  open mailbox  ' } })
+    fireEvent.submit(field())
+    expect(onSubmit).toHaveBeenCalledWith('open mailbox')
+  })
+
   it('ignores a whitespace-only submit', () => {
     const onSubmit = vi.fn()
     render(<CommandInput onSubmit={onSubmit} />)

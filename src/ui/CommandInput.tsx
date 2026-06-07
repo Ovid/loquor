@@ -34,8 +34,9 @@ export function CommandInput({
       className="inputline"
       onSubmit={e => {
         e.preventDefault()
-        if (!value.trim()) return
-        onSubmit(value)
+        const command = value.trim()
+        if (!command) return
+        onSubmit(command)
         setValue('')
       }}
     >

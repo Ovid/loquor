@@ -50,7 +50,13 @@ export interface GlkOteDisplay {
    * so only the metrics need to round-trip.
    */
   save_allstate(): unknown
-  /** Accept the state produced by save_allstate() during native autorestore. */
+  /**
+   * Part of the GlkOte display contract for shape-compatibility with the stock
+   * glkote.js (the documented fallback). The vendored glkapi.js does NOT call
+   * this — it stashes save_allstate()'s value and replays it via the second arg
+   * of update() during autorestore (glkapi.js:781) — so our implementation is a
+   * no-op kept only for contract completeness.
+   */
   restore_allstate(state: unknown): void
 }
 

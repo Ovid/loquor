@@ -129,7 +129,9 @@ export class GlkOteBridge implements GlkOteDisplay {
     return { metrics: METRICS }
   }
   restore_allstate(_state: unknown): void {
-    /* metrics are fixed; nothing to apply */
+    // Never called by the vendored glkapi.js: it replays autorestore state via
+    // the second arg of update() (glkapi.js:781), not through this method. Kept
+    // as a no-op only for shape-compatibility with the stock glkote.js fallback.
   }
 
   log(_msg: string) {}

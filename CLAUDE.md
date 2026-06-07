@@ -117,6 +117,23 @@ npx vitest run -t "substring of test name"    # by name
 - The theme toggle is an in-layout element (landing-plate corner + status-bar
   item), never a `position:fixed` overlay.
 
+## Known network egress (NL layer)
+
+The "fully client-side / offline / no-CDN" promise holds for the **base game**
+(engine, fonts, story files are all self-hosted). It has **one documented
+exception**: enabling the natural-language layer triggers a **one-time
+third-party download** — WebLLM (`engine.webllm.ts`) fetches the model weights
+from `huggingface.co` and the model-lib **WASM** from `raw.githubusercontent.com`
+via its built-in `prebuiltAppConfig` (no `appConfig` is passed). After that
+one-time fetch the model is cached and inference runs entirely on-device/offline.
+
+This is gated behind explicit user opt-in (the download modal, which now
+discloses the third-party fetch) and uses HTTPS, but it is **not** integrity-pinned
+(no SRI), and the model-lib WASM executes in the page origin. To make the offline
+promise fully true, the follow-up is to **self-host** (or integrity-check) the
+`model` + `model_lib` URLs under `public/` and pin them via an explicit
+`appConfig`. Until then, keep the modal disclosure accurate (review I1).
+
 ## Finish
 
 When you have finished reading this file, announce "ClAUDE.md read". After that, please

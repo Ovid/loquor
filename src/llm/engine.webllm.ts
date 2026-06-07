@@ -33,6 +33,11 @@ export class WebLlmEngine implements LlmEngine {
   ): Promise<void> {
     if (signal.aborted) throw new DOMException('aborted', 'AbortError')
     const { CreateMLCEngine: create } = await import('@mlc-ai/web-llm')
+    // NETWORK EGRESS (review I1, documented in CLAUDE.md): passing no `appConfig`
+    // makes WebLLM use its built-in prebuiltAppConfig, which fetches model weights
+    // from huggingface.co and the model-lib WASM from raw.githubusercontent.com on
+    // first use (no SRI). Gated behind explicit opt-in; one-time, then cached and
+    // offline. Follow-up: pin self-hosted/integrity-checked URLs under public/.
     this.engine = await create(this.modelId, {
       initProgressCallback: (r: InitProgressReport) => {
         // web-llm reports a 0..1 `progress`; normalize to loaded/total.

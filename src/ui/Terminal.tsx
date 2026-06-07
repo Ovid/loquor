@@ -27,16 +27,22 @@ export function Terminal({
 }) {
   const [view, setView] = useState<ViewState>(emptyView)
   const [signature, setSignature] = useState<string>('')
-  const [capability, setCapability] = useState<CapabilityResult>({ tier: 'none', reasons: [] })
+  const [capability, setCapability] = useState<CapabilityResult>({
+    tier: 'none',
+    reasons: [],
+  })
   const [override, setOverride] = useState(false)
-  const [dlProgress, setDlProgress] = useState<LoadProgress | null>(null)
   const engineRef = useRef<ZMachine | null>(null)
   const viewRef = useRef<ViewState>(emptyView)
   const inputRef = useRef<HTMLInputElement>(null)
-  const llmEngineRef = useRef<WebLlmEngine>(null as unknown as WebLlmEngine)
-  if (llmEngineRef.current === null) llmEngineRef.current = new WebLlmEngine()
+  // One stable LLM engine instance for this Terminal (created once, lazily).
+  const [llmEngine] = useState(() => new WebLlmEngine())
 
-  viewRef.current = view
+  // Keep a ref to the latest view so the NL hook's getContext() can read it at
+  // translate-time. Written in an effect (not during render) per react-hooks/refs.
+  useEffect(() => {
+    viewRef.current = view
+  }, [view])
 
   useEffect(() => {
     let cancelled = false
@@ -79,7 +85,7 @@ export function Terminal({
   )
 
   const nl = useNaturalLanguage({
-    engine: llmEngineRef.current,
+    engine: llmEngine,
     capability,
     grammar,
     getContext: () => viewToContext(viewRef.current),
@@ -88,14 +94,12 @@ export function Terminal({
     watchdogMs: WATCHDOG_MS,
   })
 
-  // Feed live download progress to the modal.
-  useEffect(() => {
-    if (nl.state.phase === 'downloading') {
-      setDlProgress({ loaded: nl.state.loaded, total: nl.state.total, text: 'downloading' })
-    } else {
-      setDlProgress(null)
-    }
-  }, [nl.state])
+  // Live download progress for the modal — derived from NL state during render
+  // (no separate state or effect needed).
+  const dlProgress: LoadProgress | null =
+    nl.state.phase === 'downloading'
+      ? { loaded: nl.state.loaded, total: nl.state.total, text: 'downloading' }
+      : null
 
   useEffect(() => {
     if (view.inputRequest === 'char') engineRef.current?.ackMore()
@@ -108,10 +112,17 @@ export function Terminal({
         onChangeStory={onChangeStory}
         themeToggle={themeToggle}
         nlToggle={
-          <NlToggle state={nl.state} onToggle={nl.toggle} onOverride={() => setOverride(true)} />
+          <NlToggle
+            state={nl.state}
+            onToggle={nl.toggle}
+            onOverride={() => setOverride(true)}
+          />
         }
       />
-      <Scrollback lines={view.lines} onActivate={() => inputRef.current?.focus()}>
+      <Scrollback
+        lines={view.lines}
+        onActivate={() => inputRef.current?.focus()}
+      >
         {nl.pending && <p className="nl-thinking">…thinking</p>}
         {nl.notice && <p className="nl-notice">{nl.notice}</p>}
         <CommandInput

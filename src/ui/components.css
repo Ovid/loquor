@@ -76,9 +76,17 @@
 .meta .sw {
   color: var(--brass-soft);
   cursor: pointer;
+  font: inherit;
+  background: none;
+  border: none;
+  padding: 0;
 }
 .meta .sw:hover {
   color: var(--brass);
+}
+.meta .sw:focus-visible {
+  outline: 1px solid var(--brass);
+  outline-offset: 2px;
 }
 
 /* ---------- Scrollback ---------- */

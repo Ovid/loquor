@@ -16,9 +16,9 @@ export function StatusBar({
       <span className="meta">
         <span>{status?.right ?? ''}</span>
         <span className="sep">·</span>
-        <span className="sw" onClick={onChangeVolume}>
+        <button className="sw" type="button" onClick={onChangeVolume}>
           ⌄ change volume
-        </span>
+        </button>
         {themeToggle}
       </span>
     </div>

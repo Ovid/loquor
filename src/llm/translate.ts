@@ -11,6 +11,22 @@ import type { Vocab } from './grammar/types'
  */
 export const ABSTAIN = '__UNKNOWN__'
 
+/**
+ * Split a compound English/French instruction into ordered clauses. Separators are
+ * the sequential words `and`/`then`/`et`/`puis`/`ensuite` (each surrounded by
+ * whitespace so substrings like "sand"/"strengthen" never trip it) and the
+ * sentence punctuation `.`/`;`. Commas are NOT separators (locked decision 1). A
+ * single clause (no separator) returns a length-1 array — the caller treats that
+ * as "not compound" and uses the existing single-command path. Pure, total,
+ * vocab-free.
+ */
+export function splitClauses(english: string): string[] {
+  return english
+    .split(/\s+(?:and|then|et|puis|ensuite)\s+|\s*[.;]\s*/i)
+    .map(clause => clause.trim())
+    .filter(clause => clause.length > 0)
+}
+
 // Z-machine meta-verbs that are not in-world actions: they have no canonical
 // game-command translation and must bypass the model entirely (sent raw to the
 // interpreter). Without this, the 1.5B model — reluctant to abstain — translates

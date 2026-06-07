@@ -4,6 +4,7 @@ import {
   isMetaCommand,
   isConfirmationPrompt,
   isDisambiguationPrompt,
+  splitClauses,
 } from './translate'
 import type { Scene } from './scene/types'
 import type { Vocab } from './grammar/types'
@@ -151,5 +152,62 @@ describe('isDisambiguationPrompt', () => {
       '',
     ])
       expect(isDisambiguationPrompt(p)).toBe(false)
+  })
+})
+
+describe('splitClauses', () => {
+  it('returns a single-element array when there is no separator', () => {
+    expect(splitClauses('open the mailbox')).toEqual(['open the mailbox'])
+  })
+
+  it('splits on the word separators (case-insensitive): and/then/et/puis/ensuite', () => {
+    expect(splitClauses('open mailbox and take leaflet')).toEqual([
+      'open mailbox',
+      'take leaflet',
+    ])
+    expect(splitClauses('open mailbox THEN read it')).toEqual([
+      'open mailbox',
+      'read it',
+    ])
+    expect(splitClauses('ouvre la boîte et prends-le')).toEqual([
+      'ouvre la boîte',
+      'prends-le',
+    ])
+    expect(splitClauses('va au nord puis ouvre la porte')).toEqual([
+      'va au nord',
+      'ouvre la porte',
+    ])
+    expect(splitClauses('regarde ensuite prends la lampe')).toEqual([
+      'regarde',
+      'prends la lampe',
+    ])
+  })
+
+  it('splits on "." and ";" punctuation', () => {
+    expect(splitClauses('open mailbox. read leaflet')).toEqual([
+      'open mailbox',
+      'read leaflet',
+    ])
+    expect(splitClauses('open mailbox; read leaflet')).toEqual([
+      'open mailbox',
+      'read leaflet',
+    ])
+  })
+
+  it('does NOT treat a comma as a separator', () => {
+    expect(splitClauses('take the lamp, sword and key')).toEqual([
+      'take the lamp, sword',
+      'key',
+    ])
+  })
+
+  it('does not false-split substrings like "sand" or "strengthen"', () => {
+    expect(splitClauses('dig in the sand')).toEqual(['dig in the sand'])
+    expect(splitClauses('strengthen the rope')).toEqual(['strengthen the rope'])
+  })
+
+  it('trims clauses and drops empties', () => {
+    expect(splitClauses('  open mailbox  and  ')).toEqual(['open mailbox'])
+    expect(splitClauses('open mailbox..')).toEqual(['open mailbox'])
   })
 })

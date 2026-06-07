@@ -22,12 +22,16 @@ export function CommandInput({
   const ref = inputRef ?? internalRef
   const [value, setValue] = useState('')
 
-  // Return focus to the prompt at each turn boundary (after the engine has
-  // processed the previous command) so the player can keep typing without
-  // clicking back into the field.
+  // Keep focus on the prompt whenever the VM awaits a line AND the field is
+  // enabled, so the player can keep typing without clicking back in. `disabled`
+  // is a dependency on purpose: while the NL layer translates, the field is
+  // disabled (pending) and the browser blurs it; awaitingLine does not transition
+  // across that, so re-focusing only on awaitingLine would never restore focus
+  // when the field re-enables. Focusing a disabled field is a no-op, so the
+  // !disabled guard avoids a wasted focus() call during the pending window.
   useEffect(() => {
-    if (awaitingLine) ref.current?.focus()
-  }, [awaitingLine, ref])
+    if (awaitingLine && !disabled) ref.current?.focus()
+  }, [awaitingLine, disabled, ref])
 
   return (
     <form

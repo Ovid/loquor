@@ -1,0 +1,53 @@
+// src/llm/grammar/zork3.vocab.ts
+import type { Vocab } from './types'
+import { TAKE_ACK, DROP_ACK, ABSENCE_PAT, FAILURE_PAT } from './patterns'
+
+export const ZORK3_VOCAB: Vocab = {
+  verbsOnly: ['look', 'inventory', 'wait', 'again', 'quit'],
+  movement: [
+    'north',
+    'south',
+    'east',
+    'west',
+    'northeast',
+    'northwest',
+    'southeast',
+    'southwest',
+    'up',
+    'down',
+    'enter',
+    'exit',
+  ],
+  verbs1: [
+    'take',
+    'drop',
+    'open',
+    'close',
+    'read',
+    'examine',
+    'push',
+    'kill',
+    'turn on',
+    'turn off',
+  ],
+  verbs2: ['unlock', 'lock', 'put', 'give'],
+  preps: ['with', 'in', 'on', 'to'],
+  nouns: [
+    { canonical: 'lamp', synonyms: ['lantern'] },
+    { canonical: 'staff' },
+    { canonical: 'sword' },
+    { canonical: 'hood' },
+    { canonical: 'cloak' },
+    { canonical: 'key' },
+    { canonical: 'door' },
+    { canonical: 'amulet' },
+    { canonical: 'ring' },
+    { canonical: 'chest' },
+    { canonical: 'table' },
+    { canonical: 'man' },
+  ],
+  takeAck: TAKE_ACK,
+  dropAck: DROP_ACK,
+  absencePat: ABSENCE_PAT,
+  failurePat: FAILURE_PAT,
+}

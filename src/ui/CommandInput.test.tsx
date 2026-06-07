@@ -47,4 +47,20 @@ describe('CommandInput', () => {
     fireEvent.keyDown(field(), { key: 'Enter' })
     expect(onKey).not.toHaveBeenCalled()
   })
+
+  it('refocuses the input when it re-enables after a pending turn', () => {
+    // Real-app bug: while the NL layer translates, the input is disabled
+    // (pending) and cannot hold focus. When translation finishes the input
+    // re-enables but awaitingLine never transitioned, so an effect keyed only on
+    // awaitingLine never refocuses — forcing the player to click back in to type.
+    const { rerender } = render(
+      <CommandInput onSubmit={() => {}} awaitingLine disabled={true} />,
+    )
+    const input = field()
+    expect(document.activeElement).not.toBe(input) // disabled → unfocusable
+
+    // Translation finishes: input re-enabled, VM still awaiting the same line.
+    rerender(<CommandInput onSubmit={() => {}} awaitingLine disabled={false} />)
+    expect(document.activeElement).toBe(input) // must refocus automatically
+  })
 })

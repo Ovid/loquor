@@ -15,7 +15,7 @@ import { CommandInput } from './CommandInput'
 import { NlToggle } from './NlToggle'
 import { ModelDownloadModal } from './ModelDownloadModal'
 import { detectCapability } from '../llm/capability'
-import { grammarForSignature } from '../llm/grammar/index'
+import { vocabForSignature } from '../llm/grammar/index'
 import { viewToContext } from '../llm/prompt'
 import { useNaturalLanguage } from '../llm/useNaturalLanguage'
 import { WebLlmEngine } from '../llm/engine.webllm'
@@ -95,8 +95,8 @@ export function Terminal({
     }
   }, [override])
 
-  const grammar = useMemo(
-    () => (signature ? grammarForSignature(signature) : null),
+  const vocab = useMemo(
+    () => (signature ? vocabForSignature(signature) : null),
     [signature],
   )
 
@@ -107,12 +107,20 @@ export function Terminal({
   const nl = useNaturalLanguage({
     engine: llmEngine,
     capability,
-    grammar,
+    vocab,
     getContext,
     echoLocal: t => engineRef.current?.echoLocal(t),
     sendLine: t => engineRef.current?.sendLine(t),
     watchdogMs: WATCHDOG_MS,
   })
+
+  // Turn-boundary scene observation: when the VM is waiting for a line of input,
+  // the previous turn's output block is complete. Feed it to the NL scene tracker
+  // exactly once per turn (reduceScene dedups identical re-renders). Only meaningful
+  // while NL is on, but observing harmlessly seeds the scene even when off.
+  useEffect(() => {
+    if (view.inputRequest === 'line') nl.observe(view)
+  }, [view, nl])
 
   // Live download progress for the modal — derived from NL state during render
   // (no separate state or effect needed).

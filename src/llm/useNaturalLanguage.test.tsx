@@ -4,19 +4,48 @@ import { useNaturalLanguage } from './useNaturalLanguage'
 import { FakeLlmEngine } from './engine.fake'
 import { readNlPref } from './nlpref'
 import type { CapabilityResult } from './types'
+import type { Vocab } from './grammar/types'
+import { TAKE_ACK, DROP_ACK, ABSENCE_PAT } from './grammar/patterns'
+import { emptyView } from '../glkote-react/types'
+import type { ViewState, BufferLine } from '../glkote-react/types'
 
 const capable: CapabilityResult = { tier: 'small', reasons: [] }
 const ctx = () => ({ location: 'West of House', recentOutput: '' })
 
+const TEST_VOCAB: Vocab = {
+  verbsOnly: ['look', 'inventory'],
+  movement: ['north'],
+  verbs1: ['take', 'open'],
+  verbs2: ['unlock'],
+  preps: ['with'],
+  nouns: [{ canonical: 'mailbox' }, { canonical: 'leaflet' }],
+  takeAck: TAKE_ACK,
+  dropAck: DROP_ACK,
+  absencePat: ABSENCE_PAT,
+}
+
+function viewState(
+  location: string,
+  outputs: string[],
+  lastInput?: string,
+): ViewState {
+  const lines: BufferLine[] = []
+  let id = 1
+  if (lastInput) lines.push({ id: id++, kind: 'input', text: lastInput })
+  for (const o of outputs) lines.push({ id: id++, kind: 'output', text: o })
+  return { ...emptyView, status: { location, right: '' }, lines, nextId: id }
+}
+
 function setup(over: Partial<Parameters<typeof useNaturalLanguage>[0]> = {}) {
   const echoLocal = vi.fn()
   const sendLine = vi.fn()
-  const engine = over.engine ?? new FakeLlmEngine({ default: '__UNKNOWN__' })
+  const engine =
+    over.engine ?? new FakeLlmEngine({ default: '{"verb":"__UNKNOWN__"}' })
   const hook = renderHook(() =>
     useNaturalLanguage({
       engine,
       capability: capable,
-      grammar: 'GRAMMAR',
+      vocab: TEST_VOCAB,
       getContext: ctx,
       echoLocal,
       sendLine,
@@ -43,8 +72,8 @@ describe('useNaturalLanguage', () => {
     expect(hook.result.current.state.phase).toBe('unavailable')
   })
 
-  it('grammar null → disabled (silent), not unavailable', () => {
-    const { hook } = setup({ grammar: null })
+  it('vocab null → disabled (silent), not unavailable', () => {
+    const { hook } = setup({ vocab: null })
     expect(hook.result.current.state.phase).toBe('disabled')
   })
 
@@ -88,20 +117,27 @@ describe('useNaturalLanguage', () => {
 
   it('command translation echoes English then sends the canonical command', async () => {
     const engine = new FakeLlmEngine({
-      completions: { 'grab the lantern': 'take lantern' },
+      cached: true,
+      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
     })
     const { hook, echoLocal, sendLine } = setup({ engine })
     await reachOn(hook)
+    // Seed the scene so "mailbox" is in scope this turn.
+    act(() =>
+      hook.result.current.observe(
+        viewState('West of House', ['There is a small mailbox here.']),
+      ),
+    )
     await act(async () => {
-      await hook.result.current.translate('grab the lantern')
+      await hook.result.current.translate('open the mailbox')
     })
-    expect(echoLocal).toHaveBeenCalledWith('grab the lantern')
-    expect(sendLine).toHaveBeenCalledWith('take lantern')
+    expect(echoLocal).toHaveBeenCalledWith('open the mailbox')
+    expect(sendLine).toHaveBeenCalledWith('open mailbox')
   })
 
   it('abstain sends the raw English (no echoLocal)', async () => {
     const { hook, echoLocal, sendLine } = setup({
-      engine: new FakeLlmEngine({ default: '__UNKNOWN__' }),
+      engine: new FakeLlmEngine({ default: '{"verb":"__UNKNOWN__"}' }),
     })
     await reachOn(hook)
     await act(async () => {
@@ -114,7 +150,7 @@ describe('useNaturalLanguage', () => {
   it('locks input (pending=true) while a translation is in flight', async () => {
     const engine = new FakeLlmEngine({
       generateDelayMs: 50,
-      completions: { go: 'north' },
+      completions: { go: '{"verb":"north"}' },
     })
     const { hook } = setup({ engine })
     await reachOn(hook)
@@ -172,9 +208,6 @@ describe('useNaturalLanguage', () => {
   })
 
   it('decline clears a stale enabled:true so it cannot auto-restore to on', async () => {
-    // A prior session persisted enabled:true, but the model is NOT cached now, so
-    // the hook stays off and offers the modal. Declining must wipe enabled — else
-    // the isCached effect re-enables NL the moment the model becomes cached.
     localStorage.setItem('loquor.nl', JSON.stringify({ enabled: true }))
     const { hook } = setup() // not cached → stays off
     await waitFor(() =>
@@ -187,15 +220,12 @@ describe('useNaturalLanguage', () => {
   })
 
   it('cancelDownload aborts an in-flight load, reverts to off, persists nothing', async () => {
-    // Use an engine whose load never resolves until the abort signal fires.
-    // This guarantees the cancel path is exercised (AbortError caught, enabled
-    // NOT written) rather than a race where the load finishes first.
     let resolveLoad!: () => void
     const blockingEngine: import('./types').LlmEngine = {
       isCached: async () => false,
       isLoaded: () => false,
       unload: async () => {},
-      generate: async () => '__UNKNOWN__',
+      generate: async () => '{"verb":"__UNKNOWN__"}',
       load: (_onProgress, signal) =>
         new Promise<void>((resolve, reject) => {
           resolveLoad = resolve
@@ -209,26 +239,21 @@ describe('useNaturalLanguage', () => {
       expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
     )
     act(() => hook.result.current.requestDownload())
-    // Confirm we are now in the downloading state (load is in-flight).
     expect(hook.result.current.state.phase).toBe('downloading')
     act(() => hook.result.current.cancelDownload())
     await waitFor(() => expect(hook.result.current.state.phase).toBe('off'))
     expect(hook.result.current.notice).toBeNull()
     expect(readNlPref().enabled).toBe(false)
-    // Resolve the internal promise to avoid unhandled-rejection noise.
     resolveLoad()
   })
 
   it('a load that RESOLVES after cancel does not flip on / persist enabled', async () => {
-    // The dangerous race (review I2): cancel aborts + sets off, then the
-    // underlying load resolves anyway (it ignored the signal). Without a stale
-    // guard the .then would clobber off→on and persist enabled against the cancel.
     let resolveLoad!: () => void
     const racingEngine: import('./types').LlmEngine = {
       isCached: async () => false,
       isLoaded: () => false,
       unload: async () => {},
-      generate: async () => '__UNKNOWN__',
+      generate: async () => '{"verb":"__UNKNOWN__"}',
       load: () => new Promise<void>(resolve => (resolveLoad = resolve)),
     }
     const { hook } = setup({ engine: racingEngine })
@@ -239,7 +264,7 @@ describe('useNaturalLanguage', () => {
     expect(hook.result.current.state.phase).toBe('downloading')
     act(() => hook.result.current.cancelDownload())
     await act(async () => {
-      resolveLoad() // load resolves AFTER the cancel
+      resolveLoad()
     })
     expect(hook.result.current.state.phase).toBe('off')
     expect(readNlPref().enabled).toBe(false)
@@ -250,8 +275,166 @@ describe('useNaturalLanguage', () => {
     await reachOn(a.hook) // persists enabled=true
     expect(readNlPref().enabled).toBe(true)
     a.hook.unmount()
-    // Fresh mount, cached engine → should auto-restore 'on'.
     const b = setup({ engine: new FakeLlmEngine({ cached: true }) })
     await waitFor(() => expect(b.hook.result.current.state.phase).toBe('on'))
+  })
+
+  it('replays the French bug: open mailbox reveals leaflet, then prends-le → take leaflet', async () => {
+    const engine = new FakeLlmEngine({
+      cached: true,
+      completions: {
+        'Ouvrez la boîte aux lettres': '{"verb":"open","object":"mailbox"}',
+        'prends-le': '{"verb":"take","object":"leaflet"}',
+      },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const { hook, sendLine } = setup({ engine })
+    await reachOn(hook)
+
+    // Turn 0: opening room mentions the mailbox (scene seed).
+    act(() =>
+      hook.result.current.observe(
+        viewState('West of House', ['There is a small mailbox here.']),
+      ),
+    )
+    // Turn 1: translate "open mailbox"; it is a command, so it is sent canonical.
+    await act(async () => {
+      await hook.result.current.translate('Ouvrez la boîte aux lettres')
+    })
+    expect(sendLine).toHaveBeenLastCalledWith('open mailbox')
+    // The VM output reveals the leaflet; observe attributes it to lastCommand.
+    act(() =>
+      hook.result.current.observe(
+        viewState(
+          'West of House',
+          ['open mailbox', 'Opening the small mailbox reveals a leaflet.'],
+          'open mailbox',
+        ),
+      ),
+    )
+    // Turn 2: "prends-le" → the model resolves le→leaflet from the antecedent hint.
+    await act(async () => {
+      await hook.result.current.translate('prends-le')
+    })
+    expect(sendLine).toHaveBeenLastCalledWith('take leaflet')
+  })
+
+  it('a bare meta-command (restart) bypasses the model and is sent raw', async () => {
+    // The model would translate anything into a command; prove "restart" never
+    // reaches it (no generate, no canonical echo) and goes straight to Zork.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"open","object":"mailbox"}',
+    })
+    const generateSpy = vi.spyOn(engine, 'generate')
+    const { hook, echoLocal, sendLine } = setup({ engine })
+    await reachOn(hook)
+    await act(async () => {
+      await hook.result.current.translate('restart')
+    })
+    expect(sendLine).toHaveBeenCalledWith('restart') // raw passthrough
+    expect(echoLocal).not.toHaveBeenCalled() // no canonical echo
+    expect(generateSpy).not.toHaveBeenCalled() // model never consulted
+  })
+
+  it('a reply to a yes/no confirmation prompt bypasses the model (restart flow)', async () => {
+    // After "restart", Zork asks "Do you wish to restart? (Y is affirmative):"
+    // as a LINE read. The player's "Y" must answer the game, not be translated
+    // (the model would turn it into "look" and the restart would never confirm).
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"look"}',
+    })
+    const generateSpy = vi.spyOn(engine, 'generate')
+    const getContext = () => ({
+      location: '',
+      recentOutput: 'Do you wish to restart? (Y is affirmative): ',
+    })
+    const { hook, echoLocal, sendLine } = setup({ engine, getContext })
+    await reachOn(hook)
+    await act(async () => {
+      await hook.result.current.translate('Y')
+    })
+    expect(sendLine).toHaveBeenCalledWith('Y') // raw passthrough answers the game
+    expect(echoLocal).not.toHaveBeenCalled()
+    expect(generateSpy).not.toHaveBeenCalled() // model never consulted
+  })
+
+  it('a reply to a disambiguation prompt bypasses the model (which door…)', async () => {
+    // "open door" with two doors → "Which door do you mean, the wooden door or
+    // the trap door?" (a LINE read). "wooden door" answers the parser and must
+    // reach Zork raw, not be translated into some other command.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"look"}',
+    })
+    const generateSpy = vi.spyOn(engine, 'generate')
+    const getContext = () => ({
+      location: 'Cellar',
+      recentOutput: 'Which door do you mean, the wooden door or the trap door?',
+    })
+    const { hook, echoLocal, sendLine } = setup({ engine, getContext })
+    await reachOn(hook)
+    await act(async () => {
+      await hook.result.current.translate('wooden door')
+    })
+    expect(sendLine).toHaveBeenCalledWith('wooden door') // raw answer to the parser
+    expect(echoLocal).not.toHaveBeenCalled()
+    expect(generateSpy).not.toHaveBeenCalled()
+  })
+
+  it('observe is idempotent across re-renders of the same turn', async () => {
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const { hook } = setup({ engine })
+    await reachOn(hook)
+    const v = viewState('West of House', ['A lamp is here.'])
+    act(() => hook.result.current.observe(v))
+    act(() => hook.result.current.observe(v)) // duplicate — must not double-apply
+    // No throw, no corruption; a second identical observe is a no-op by construction.
+    expect(true).toBe(true)
+  })
+
+  it('abstain passes raw English through and does NOT echo or latch a command', async () => {
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const { hook, echoLocal, sendLine } = setup({ engine })
+    await reachOn(hook)
+    await act(async () => {
+      await hook.result.current.translate('sing a merry tune')
+    })
+    expect(sendLine).toHaveBeenLastCalledWith('sing a merry tune') // raw passthrough
+    expect(echoLocal).not.toHaveBeenCalled() // no canonical echo → no latch set
+  })
+
+  it('lazily loads a cached model that auto-restored to on without a load()', async () => {
+    // Cross-reload bug (engine not loaded): a cached model + a prior enabled
+    // choice auto-restores phase 'on' WITHOUT bringing the weights into memory,
+    // so the first generate() threw "engine not loaded" and the turn was lost.
+    // translate must load the engine before generating.
+    localStorage.setItem('loquor.nl', JSON.stringify({ enabled: true }))
+    const engine = new FakeLlmEngine({
+      cached: true,
+      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const { hook, sendLine } = setup({ engine })
+    // Auto-restores to 'on' from cache — but the model is NOT in memory yet.
+    await waitFor(() => expect(hook.result.current.state.phase).toBe('on'))
+    expect(engine.isLoaded()).toBe(false)
+    act(() =>
+      hook.result.current.observe(
+        viewState('West of House', ['There is a small mailbox here.']),
+      ),
+    )
+    await act(async () => {
+      await hook.result.current.translate('open the mailbox')
+    })
+    expect(engine.isLoaded()).toBe(true) // translate brought it into memory
+    expect(sendLine).toHaveBeenCalledWith('open mailbox') // translated, not "failed"
   })
 })

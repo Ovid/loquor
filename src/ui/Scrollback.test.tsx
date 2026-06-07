@@ -23,6 +23,19 @@ describe('Scrollback', () => {
     expect(screen.getByText(/West of House/)).toBeInTheDocument()
   })
 
+  it('keeps an nl-source line even when its text is literally ">"', () => {
+    render(
+      <Scrollback
+        lines={[
+          line({ id: 1, text: '>', kind: 'output' }), // VM prompt — dropped
+          { id: 2, kind: 'nl-source', text: '>' }, // player's English — kept
+        ]}
+      />,
+    )
+    // Only the nl-source '>' survives, rendered with its caret marker.
+    expect(document.querySelectorAll('p.nl-source')).toHaveLength(1)
+  })
+
   it('focuses the prompt on mouse-up when no text is selected', () => {
     const onActivate = vi.fn()
     const { container } = render(

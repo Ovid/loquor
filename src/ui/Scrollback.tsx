@@ -20,8 +20,11 @@ export function Scrollback({
   // The game prints a bare '>' to the buffer as its line-input prompt. The
   // inline CommandInput already shows that prompt, so the bare-'>' lines are
   // redundant — drop them. (Historical echoes like '>open mailbox' are never
-  // bare, so they survive.)
-  const visible = lines.filter(l => l.text.trim() !== '>')
+  // bare, so they survive.) Filter on kind too, so a (pathological) nl-source
+  // line whose English is literally '>' is not swallowed (review S13).
+  const visible = lines.filter(
+    l => l.kind === 'nl-source' || l.text.trim() !== '>',
+  )
 
   return (
     <div

@@ -49,10 +49,16 @@ export type TranslateResult =
   | { kind: 'command'; text: string }
   | { kind: 'abstain' }
 
-/** Pure prompt context derived from ViewState by viewToContext(). */
-export interface PromptContext {
+/** Pure view-derived context (location + recent output) from viewToContext(). */
+export interface ViewContext {
   location: string
   recentOutput: string
+}
+
+/** Full prompt context: view context + the per-turn scene the hook supplies. */
+export interface PromptContext extends ViewContext {
+  inScope: string[]
+  antecedent: string | null
 }
 
 /** Toggle/state-machine state surfaced by useNaturalLanguage. */

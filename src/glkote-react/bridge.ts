@@ -93,7 +93,12 @@ export class GlkOteBridge implements GlkOteDisplay {
       (i: any) => i.type === 'line' || i.type === 'char',
     )
     if (req) this.mainWindow = (req as any).id as number
-    this.charIsMore = (req as any)?.type === 'char' && isMorePrompt(arg)
+    // Only reclassify the prompt when this update actually carries an `input`
+    // field. A content-only update (no `input`) leaves inputRequest untouched in
+    // the reducer; recomputing here would reset charIsMore to false and desync
+    // it from a still-pending char prompt.
+    if (arg.input !== undefined)
+      this.charIsMore = (req as any)?.type === 'char' && isMorePrompt(arg)
     this.view = reduce(this.view, arg)
     this.onState(this.view)
     // Turn boundary: the VM is now waiting for a line of input. Fire the seam

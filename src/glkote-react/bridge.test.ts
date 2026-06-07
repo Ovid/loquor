@@ -93,6 +93,34 @@ describe('GlkOteBridge', () => {
     )
   })
 
+  it('keeps a pending MORE-prompt classification across a content-only update', () => {
+    // A content-only update carries no `input` field, so the reducer leaves
+    // inputRequest at 'char'. The bridge must likewise leave charIsMore intact,
+    // or it desyncs (ackMore would no-op a still-pending MORE prompt).
+    const bridge = new GlkOteBridge(vi.fn())
+    const accept = vi.fn()
+    bridge.init({ accept })
+
+    bridge.update({
+      type: 'update',
+      gen: 2,
+      windows: [{ id: 7, type: 'buffer' }],
+      input: [{ type: 'char', id: 7, gen: 2 }],
+      more: true,
+    } as any)
+    // A content-only update (no input field) must not reclassify the prompt.
+    bridge.update({
+      type: 'update',
+      gen: 3,
+      content: [{ id: 7, text: [{ content: ['normal', 'more text'] }] }],
+    } as any)
+    accept.mockClear()
+    bridge.ackMore()
+    expect(accept).toHaveBeenLastCalledWith(
+      expect.objectContaining({ type: 'char', value: ' ' }),
+    )
+  })
+
   it('ignores VM updates once disposed (StrictMode throwaway engine)', () => {
     const onState = vi.fn()
     const bridge = new GlkOteBridge(onState)

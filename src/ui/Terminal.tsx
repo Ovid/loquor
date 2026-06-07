@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, useMemo, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useMemo,
+  type ReactNode,
+} from 'react'
 import { ZMachine } from '../zmachine/engine'
 import { IdbDialog } from '../storage/dialog'
 import { emptyView, type ViewState } from '../glkote-react/types'
@@ -93,11 +100,15 @@ export function Terminal({
     [signature],
   )
 
+  // Memoized so it doesn't defeat translate()'s useCallback identity each render
+  // (review S9). viewRef is stable, so an empty dep list is correct.
+  const getContext = useCallback(() => viewToContext(viewRef.current), [])
+
   const nl = useNaturalLanguage({
     engine: llmEngine,
     capability,
     grammar,
-    getContext: () => viewToContext(viewRef.current),
+    getContext,
     echoLocal: t => engineRef.current?.echoLocal(t),
     sendLine: t => engineRef.current?.sendLine(t),
     watchdogMs: WATCHDOG_MS,
@@ -138,7 +149,11 @@ export function Terminal({
           inputRef={inputRef}
           onSubmit={text => {
             if (nl.state.phase === 'on') void nl.translate(text)
-            else engineRef.current?.sendLine(text)
+            else if (engineRef.current) engineRef.current.sendLine(text)
+            // Practically unreachable (engine is set synchronously and input is
+            // disabled until a line request), but warn rather than silently
+            // swallow the turn if it ever happens (review S11).
+            else console.warn('submit ignored: engine not ready')
           }}
           disabled={nl.pending}
           awaitingKey={view.inputRequest === 'char'}

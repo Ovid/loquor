@@ -79,6 +79,11 @@ export function useNaturalLanguage(
   // the model is known cached. (Don't auto-enable against an uncached model — that
   // would re-prompt.) Doing this in the async callback (not synchronously in the
   // effect body) avoids react-hooks/set-state-in-effect while preserving behavior.
+  //
+  // Depends on [engine] only (review S6): re-running on every phase change just
+  // re-probed redundantly. A successful download sets `installed` directly (below),
+  // and the functional setInternal flips on only when currently off — so we never
+  // need internal.phase as a dep.
   useEffect(() => {
     let cancelled = false
     engine
@@ -87,15 +92,15 @@ export function useNaturalLanguage(
         if (cancelled) return
         const cached = c || engine.isLoaded()
         setInstalled(cached)
-        if (cached && readNlPref().enabled && internal.phase === 'off') {
-          setInternal({ phase: 'on' })
+        if (cached && readNlPref().enabled) {
+          setInternal(prev => (prev.phase === 'off' ? { phase: 'on' } : prev))
         }
       })
       .catch(() => {})
     return () => {
       cancelled = true
     }
-  }, [engine, internal.phase])
+  }, [engine])
 
   const state: NlState = useMemo(() => {
     if (!available) return { phase: 'unavailable', reasons: capability.reasons }
@@ -135,6 +140,9 @@ export function useNaturalLanguage(
       )
       .then(() => {
         if (stale()) return
+        // The model is now loaded (hence cached) — mark installed directly so the
+        // probe effect needn't re-run on the phase change to discover it (S6).
+        setInstalled(true)
         setInternal({ phase: 'on' })
         writeNlPref({ enabled: true })
       })

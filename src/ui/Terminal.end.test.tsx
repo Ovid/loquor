@@ -11,7 +11,7 @@ describe('Terminal game end', () => {
     render(
       <Terminal
         storyBytes={bytes}
-        onChangeVolume={() => {}}
+        onChangeStory={() => {}}
         themeToggle={null}
       />,
     )

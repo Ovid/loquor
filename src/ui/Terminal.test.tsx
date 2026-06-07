@@ -10,7 +10,7 @@ describe('Terminal', () => {
     render(
       <Terminal
         storyBytes={bytes}
-        onChangeVolume={() => {}}
+        onChangeStory={() => {}}
         themeToggle={null}
       />,
     )
@@ -37,7 +37,7 @@ describe('Terminal', () => {
     render(
       <Terminal
         storyBytes={new Uint8Array([1, 2, 3, 4])}
-        onChangeVolume={() => {}}
+        onChangeStory={() => {}}
         themeToggle={null}
       />,
     )

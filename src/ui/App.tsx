@@ -24,13 +24,16 @@ export default function App() {
   const [bytes, setBytes] = useState<Uint8Array | null>(null)
   const [savedSlugs, setSavedSlugs] = useState<Set<string>>(new Set())
   const [loadError, setLoadError] = useState<string | null>(null)
+  // True while the in-game "Change story" picker is overlaid on a running game.
+  // The game stays mounted underneath, so dismissing returns to it exactly.
+  const [picking, setPicking] = useState(false)
 
-  // Discover which games have a saved session (for the resume hint). Re-run
-  // whenever we return to the landing screen (slug === null) so the hint
-  // reflects a save just made or cleared. A per-game fetch that fails simply
-  // yields no hint for that game rather than crashing the mount.
+  // Discover which games have a saved session (for the resume hint). Re-run on
+  // the initial landing (slug === null) and whenever the picker is opened, so
+  // the hint reflects a save just made or cleared. A per-game fetch that fails
+  // simply yields no hint for that game rather than crashing the mount.
   useEffect(() => {
-    if (slug !== null) return
+    if (slug !== null && !picking) return
     let cancelled = false
     const dialog = new IdbDialog()
     Promise.all(
@@ -48,14 +51,22 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [slug])
+  }, [slug, picking])
 
   const enter = async (s: Game['slug']) => {
+    // Picking the story already in progress just closes the overlay — no reboot,
+    // so the live game is returned to exactly as it was left.
+    if (picking && s === slug) {
+      setPicking(false)
+      return
+    }
     const game = gameBySlug(s)!
     setLoadError(null)
     try {
-      setBytes(await loadStory(game.file))
+      const story = await loadStory(game.file)
+      setBytes(story)
       setSlug(s)
+      setPicking(false)
     } catch (err) {
       console.error('story load failed', err)
       setLoadError(`“${game.title}” could not be loaded. Please try again.`)
@@ -63,24 +74,27 @@ export default function App() {
   }
 
   const toggleEl = <ThemeToggle onToggle={toggle} />
-  if (slug && bytes) {
-    return (
-      <Terminal
-        storyBytes={bytes}
-        themeToggle={toggleEl}
-        onChangeVolume={() => {
-          setSlug(null)
-          setBytes(null)
-        }}
-      />
-    )
-  }
+  const inGame = slug && bytes
   return (
-    <Landing
-      onEnter={enter}
-      savedSlugs={savedSlugs}
-      themeToggle={toggleEl}
-      loadError={loadError}
-    />
+    <>
+      {inGame && (
+        <Terminal
+          storyBytes={bytes}
+          themeToggle={toggleEl}
+          onChangeStory={() => setPicking(true)}
+        />
+      )}
+      {(!inGame || picking) && (
+        <Landing
+          onEnter={enter}
+          savedSlugs={savedSlugs}
+          themeToggle={toggleEl}
+          loadError={loadError}
+          // In-game picker: render dismissibly so the player can return to the
+          // running game. The initial landing has no game behind it.
+          onDismiss={inGame ? () => setPicking(false) : undefined}
+        />
+      )}
+    </>
   )
 }

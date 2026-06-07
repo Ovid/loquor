@@ -23,15 +23,23 @@ describe('App', () => {
     )
   })
 
-  it('returns to the landing screen via "change volume"', async () => {
+  it('opens the story picker and dismisses back to the live game', async () => {
     render(<App />)
     fireEvent.click(screen.getByText(/Light the lamp/))
     await waitFor(
       () => expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
       { timeout: 10000 },
     )
-    fireEvent.click(screen.getByText(/change volume/))
+    // "Change story" overlays the picker on top of the running game.
+    fireEvent.click(screen.getByText(/change story/i))
     await waitFor(() => expect(screen.getByText('Naitfol')).toBeInTheDocument())
+    // Dismissing returns to exactly where we were — the game is still mounted,
+    // not rebooted, so its status line never disappeared.
+    fireEvent.click(screen.getByRole('button', { name: /return to game/i }))
+    await waitFor(() =>
+      expect(screen.queryByText('Naitfol')).not.toBeInTheDocument(),
+    )
+    expect(screen.getAllByText('West of House')[0]).toBeInTheDocument()
   })
 
   it('surfaces a load error (instead of crashing) when the story file 404s', async () => {

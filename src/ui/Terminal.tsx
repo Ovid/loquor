@@ -8,11 +8,11 @@ import { CommandInput } from './CommandInput'
 
 export function Terminal({
   storyBytes,
-  onChangeVolume,
+  onChangeStory,
   themeToggle,
 }: {
   storyBytes: Uint8Array
-  onChangeVolume: () => void
+  onChangeStory: () => void
   themeToggle: ReactNode
 }) {
   const [view, setView] = useState<ViewState>(emptyView)
@@ -48,7 +48,7 @@ export function Terminal({
     <div className="screen term">
       <StatusBar
         status={view.status}
-        onChangeVolume={onChangeVolume}
+        onChangeStory={onChangeStory}
         themeToggle={themeToggle}
       />
       <Scrollback

@@ -7,7 +7,7 @@ describe('StatusBar', () => {
     render(
       <StatusBar
         status={{ location: 'West of House', right: 'Score: 0   Moves: 1' }}
-        onChangeVolume={() => {}}
+        onChangeStory={() => {}}
         themeToggle={null}
       />,
     )

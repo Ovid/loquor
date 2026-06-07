@@ -3,11 +3,11 @@ import type { StatusLine } from '../glkote-react/types'
 
 export function StatusBar({
   status,
-  onChangeVolume,
+  onChangeStory,
   themeToggle,
 }: {
   status: StatusLine | null
-  onChangeVolume: () => void
+  onChangeStory: () => void
   themeToggle: ReactNode
 }) {
   return (
@@ -16,8 +16,8 @@ export function StatusBar({
       <span className="meta">
         <span>{status?.right ?? ''}</span>
         <span className="sep">·</span>
-        <button className="sw" type="button" onClick={onChangeVolume}>
-          ⌄ change volume
+        <button className="sw" type="button" onClick={onChangeStory}>
+          ⌄ Change story
         </button>
         {themeToggle}
       </span>

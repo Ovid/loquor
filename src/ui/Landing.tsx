@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { GAMES, type Game } from '../games/catalog'
 
 export function Landing({
@@ -6,17 +6,54 @@ export function Landing({
   savedSlugs,
   themeToggle,
   loadError,
+  onDismiss,
 }: {
   onEnter: (slug: Game['slug']) => void
   savedSlugs: Set<string>
   themeToggle: ReactNode
   /** A story-load failure to surface (e.g. a missing/404'd game file). */
   loadError?: string | null
+  /** When set, the landing renders as a dismissible overlay (the in-game
+   *  "Change story" picker): it dims the running game behind it, traps Escape,
+   *  and shows a control to return to where the player was. Omitted on the
+   *  initial landing, which has no game to return to. */
+  onDismiss?: () => void
 }) {
   const [selected, setSelected] = useState<Game['slug']>('zork1')
+  const dismissRef = useRef<HTMLButtonElement>(null)
+
+  // Overlay-only behaviour: Escape returns to the game, and focus lands on the
+  // dismiss control so a keyboard user can leave immediately. Guarded on
+  // onDismiss so the initial landing keeps its plain, non-modal behaviour.
+  useEffect(() => {
+    if (!onDismiss) return
+    dismissRef.current?.focus()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onDismiss()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onDismiss])
+
   return (
-    <div className="screen">
-      <div className="plate">
+    <div className={`screen${onDismiss ? ' overlay' : ''}`}>
+      <div
+        className="plate"
+        role={onDismiss ? 'dialog' : undefined}
+        aria-modal={onDismiss ? true : undefined}
+        aria-label={onDismiss ? 'Change story' : undefined}
+      >
+        {onDismiss && (
+          <button
+            ref={dismissRef}
+            className="dismiss"
+            type="button"
+            aria-label="Return to game"
+            onClick={onDismiss}
+          >
+            ✕
+          </button>
+        )}
         {themeToggle}
         <h1 className="title">Naitfol</h1>
         <p className="tagline">a spell of understanding, cast in the dark</p>

@@ -2,6 +2,8 @@
 import { describe, it, expect } from 'vitest'
 import { grammarForSignature } from './index'
 import { ZORK1_GBNF } from './zork1.gbnf'
+import { ZORK2_GBNF } from './zork2.gbnf'
+import { ZORK3_GBNF } from './zork3.gbnf'
 import { ZORK1_CORPUS } from './zork1.corpus'
 import { ZORK2_CORPUS } from './zork2.corpus'
 import { ZORK3_CORPUS } from './zork3.corpus'
@@ -12,7 +14,7 @@ describe('grammarForSignature', () => {
   })
 
   it('all three games map to a grammar containing the abstain production', () => {
-    for (const g of [ZORK1_GBNF]) {
+    for (const g of [ZORK1_GBNF, ZORK2_GBNF, ZORK3_GBNF]) {
       expect(g).toContain('"__UNKNOWN__"')
     }
   })
@@ -39,6 +41,8 @@ function wordsInGrammar(cmd: string, gbnf: string): boolean {
 
 describe.each([
   ['zork1', ZORK1_CORPUS, ZORK1_GBNF],
+  ['zork2', ZORK2_CORPUS, ZORK2_GBNF],
+  ['zork3', ZORK3_CORPUS, ZORK3_GBNF],
 ])('%s corpus is grammar-consistent', (_name, corpus, gbnf) => {
   it('every expected command is grammar-valid or __UNKNOWN__', () => {
     for (const { english, expect: exp } of corpus) {

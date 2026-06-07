@@ -3,6 +3,7 @@ import 'fake-indexeddb/auto'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { Terminal } from './Terminal'
+import { WebLlmEngine } from '../llm/engine.webllm'
 
 const bytes = new Uint8Array(readFileSync('public/games/zork1.z3'))
 describe('Terminal', () => {
@@ -45,5 +46,25 @@ describe('Terminal', () => {
       expect(spy).toHaveBeenCalledWith('boot failed', expect.anything()),
     )
     spy.mockRestore()
+  })
+
+  it('unloads the LLM engine when it unmounts (no resource leak)', async () => {
+    const unload = vi
+      .spyOn(WebLlmEngine.prototype, 'unload')
+      .mockResolvedValue(undefined)
+    const { unmount } = render(
+      <Terminal
+        storyBytes={bytes}
+        onChangeStory={() => {}}
+        themeToggle={null}
+      />,
+    )
+    await waitFor(
+      () => expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+      { timeout: 8000 },
+    )
+    unmount()
+    expect(unload).toHaveBeenCalled()
+    unload.mockRestore()
   })
 })

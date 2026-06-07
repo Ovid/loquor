@@ -146,4 +146,55 @@ describe('GlkOteBridge', () => {
     expect(spy).toHaveBeenCalledWith('[glk]', 'boom')
     spy.mockRestore()
   })
+
+  it('echoLocal appends a UI-only nl-source line that survives later VM updates', () => {
+    const states: any[] = []
+    const bridge = new GlkOteBridge(v => states.push(v))
+    bridge.init({ accept: vi.fn() })
+
+    bridge.echoLocal('grab the brass lantern')
+    const afterEcho = states[states.length - 1]
+    const src = afterEcho.lines.find((l: any) => l.kind === 'nl-source')
+    expect(src).toBeTruthy()
+    expect(src.text).toBe('grab the brass lantern')
+
+    // A subsequent VM update (the canonical echo + output) must not drop it.
+    bridge.update({
+      type: 'update',
+      gen: 1,
+      content: [{ id: 7, text: [{ content: ['input', 'take lantern'] }] }],
+      input: [{ type: 'line', id: 7, gen: 1 }],
+    } as any)
+    const after = states[states.length - 1]
+    expect(after.lines.some((l: any) => l.kind === 'nl-source')).toBe(true)
+  })
+
+  it('preserves the nl-source line when the VM echo arrives append:true', () => {
+    // The realistic echo shape: the canonical command echoes append:true (it was
+    // meant to merge onto the VM's bare ">" prompt). Our extra nl-source line is
+    // now the buffer tail, so a naive merge would corrupt it (e.g. "go northnorth"
+    // reclassified as input). It must stay intact and the echo become its own
+    // line (review I3).
+    const states: any[] = []
+    const bridge = new GlkOteBridge(v => states.push(v))
+    bridge.init({ accept: vi.fn() })
+
+    bridge.echoLocal('go north')
+    bridge.update({
+      type: 'update',
+      gen: 1,
+      content: [
+        { id: 7, text: [{ content: ['input', 'north'], append: true }] },
+      ],
+      input: [{ type: 'line', id: 7, gen: 1 }],
+    } as any)
+
+    const after = states[states.length - 1]
+    const src = after.lines.find((l: any) => l.kind === 'nl-source')
+    expect(src).toBeTruthy()
+    expect(src.text).toBe('go north')
+    expect(
+      after.lines.some((l: any) => l.kind === 'input' && l.text === 'north'),
+    ).toBe(true)
+  })
 })

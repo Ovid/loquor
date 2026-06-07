@@ -184,3 +184,75 @@
   color: var(--text-dim);
   opacity: 0.6;
 }
+
+/* Player's literal English before NL translation — muted vs. the VM's echo. */
+.nl-source {
+  opacity: 0.65;
+  font-style: italic;
+}
+
+/* Transient "…thinking" while a translation is in flight. */
+.nl-thinking {
+  opacity: 0.6;
+  font-style: italic;
+}
+/* Watchdog/timeout/error notice — distinguishable from a normal abstain. */
+.nl-notice {
+  opacity: 0.8;
+  font-size: 0.9em;
+}
+
+/* ---------- NL toggle + model-download modal ---------- */
+.nl-toggle {
+  color: var(--brass-soft);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--vignette);
+  z-index: 50;
+  padding: 1rem;
+}
+.modal {
+  background: var(--plate-grad), var(--bg-base);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  max-width: 28rem;
+  padding: 1.5rem 1.75rem;
+  color: var(--text);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+}
+.modal h2 {
+  color: var(--brass);
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+}
+.modal p {
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin: 0 0 1rem;
+}
+.modal progress {
+  width: 100%;
+  accent-color: var(--brass);
+}
+.modal-actions {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 0.5rem;
+}
+.modal .sw {
+  color: var(--brass-soft);
+  cursor: pointer;
+  font: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+}
+.modal .sw:hover {
+  color: var(--brass);
+}

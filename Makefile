@@ -4,7 +4,7 @@
 # Prettier (format). Targets call tools via `npx`. Run `make install` first.
 
 .DEFAULT_GOAL := help
-.PHONY: all install ensure-deps dev build preview typecheck test cover lint format help
+.PHONY: all install ensure-deps dev build preview typecheck test cover lint format loc help
 
 all: lint format typecheck test ## Full CI pass: lint, format, typecheck, test
 
@@ -52,6 +52,21 @@ lint: ## Lint with autofix (ESLint)
 
 format: ## Format code (Prettier)
 	npx prettier --write .
+
+# Lines of code for what we've built. Tests are co-located `*.test.ts(x)` files
+# under src/, so "src" means implementation only and "tests" the rest. Uses
+# `cat | wc -l` (not `wc -l file...`) so a no-match find pipes empty → prints 0
+# instead of `wc` blocking on stdin; portable across GNU and BSD userlands.
+loc: ## Count lines of code (src implementation and tests)
+	@printf '  %-12s %7s lines  %3s files\n' \
+		'src:'   "$$(find src -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.css' \) ! -name '*.test.ts' ! -name '*.test.tsx' -exec cat {} + | wc -l | tr -d ' ')" \
+		         "$$(find src -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.css' \) ! -name '*.test.ts' ! -name '*.test.tsx' | wc -l | tr -d ' ')"; \
+	printf '  %-12s %7s lines  %3s files\n' \
+		'tests:' "$$(find src -type f \( -name '*.test.ts' -o -name '*.test.tsx' \) -exec cat {} + | wc -l | tr -d ' ')" \
+		         "$$(find src -type f \( -name '*.test.ts' -o -name '*.test.tsx' \) | wc -l | tr -d ' ')"; \
+	printf '  %-12s %7s lines  %3s files\n' \
+		'total:' "$$(find src -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.css' \) -exec cat {} + | wc -l | tr -d ' ')" \
+		         "$$(find src -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.css' \) | wc -l | tr -d ' ')"
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'

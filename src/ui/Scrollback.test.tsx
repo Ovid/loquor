@@ -23,6 +23,19 @@ describe('Scrollback', () => {
     expect(screen.getByText(/West of House/)).toBeInTheDocument()
   })
 
+  it('keeps an nl-source line even when its text is literally ">"', () => {
+    render(
+      <Scrollback
+        lines={[
+          line({ id: 1, text: '>', kind: 'output' }), // VM prompt — dropped
+          { id: 2, kind: 'nl-source', text: '>' }, // player's English — kept
+        ]}
+      />,
+    )
+    // Only the nl-source '>' survives, rendered with its caret marker.
+    expect(document.querySelectorAll('p.nl-source')).toHaveLength(1)
+  })
+
   it('focuses the prompt on mouse-up when no text is selected', () => {
     const onActivate = vi.fn()
     const { container } = render(
@@ -43,5 +56,25 @@ describe('Scrollback', () => {
     fireEvent.mouseUp(container.querySelector('.scroll')!)
     expect(onActivate).not.toHaveBeenCalled()
     sel.mockRestore()
+  })
+
+  it('renders an nl-source line with a > marker and the .nl-source class', () => {
+    render(
+      <Scrollback
+        lines={[{ id: 1, kind: 'nl-source', text: 'grab the brass lantern' }]}
+      />,
+    )
+    const p = screen.getByText('grab the brass lantern').closest('p')!
+    expect(p).toHaveClass('nl-source')
+    expect(p.textContent).toContain('>')
+  })
+
+  it('renders a VM input echo with the › marker (not >)', () => {
+    render(
+      <Scrollback lines={[{ id: 2, kind: 'input', text: 'take lantern' }]} />,
+    )
+    const p = screen.getByText('take lantern').closest('p')!
+    expect(p.textContent).toContain('›') // ›
+    expect(p).toHaveClass('echo')
   })
 })

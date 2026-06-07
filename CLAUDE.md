@@ -5,27 +5,32 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this project is
 
 **Loquor** is a fully client-side web app for playing Zork I, II, and III in the
-browser on top of the `ifvms.js` Z-machine, with a custom React UI. The eventual
-goal is a WebLLM-powered natural-language layer (type English → translated to a
-game command); that is **future work**, deliberately out of scope for the current
-first pass.
+browser on top of the `ifvms.js` Z-machine, with a custom React UI. The headline
+feature is a WebLLM-powered natural-language layer (type English → translated to a
+canonical game command). The **first pass is built** (the playable engine + UI);
+the **natural-language layer is the current work** on the `ovid/web-llm` branch.
 
-## Repository state: design/planning phase
+## Repository state: first pass scaffolded; NL layer in progress
 
-**The application is not scaffolded yet.** There is no `package.json`, Vite app, or
-`src/` — only docs, a `Makefile`, a `README.md`, and gitignored vendored
-dependencies. The source of truth for what to build is, in priority order:
+**The application IS scaffolded.** `package.json`, the Vite app, and `src/` all
+exist, with the first pass implemented and tested (engine, GlkOte bridge, storage,
+UI). The current work is the natural-language layer. Sources of truth, in priority
+order:
 
-1. `docs/superpowers/plans/2026-06-06-loquor-first-pass.md` — the bite-sized,
-   TDD implementation plan. **Execute this with `superpowers:subagent-driven-development`
-   or `superpowers:executing-plans`.** It is the operational spec.
-2. `docs/superpowers/specs/2026-06-06-loquor-design.md` — the design and locked
-   decisions (architecture, theme tokens, persistence model).
-3. `docs/spikes/2026-06-06-glk-vite-spike.md` — resolved feasibility spike (how the
+1. `docs/superpowers/specs/2026-06-07-loquor-nl-layer-design.md` — the **NL layer
+   design** (the current work; revised after pushback review). Its companion
+   implementation plan is `docs/superpowers/plans/2026-06-07-loquor-nl-layer.md`.
+2. `docs/superpowers/plans/2026-06-06-loquor-first-pass.md` — the first-pass TDD
+   plan (largely executed; historical reference).
+3. `docs/superpowers/specs/2026-06-06-loquor-design.md` — the first-pass design and
+   locked decisions (architecture, theme tokens, persistence model).
+4. `docs/spikes/2026-06-06-glk-vite-spike.md` — resolved feasibility spike (how the
    Glk layer is sourced; CommonJS/Vite interop).
-4. `docs/notes.md` — the deferred LLM/grammar roadmap.
+5. `docs/notes.md` — the deferred LLM/grammar roadmap (post-first-NL-pass ideas).
 
-Read the plan before writing code. Build on the `ovid/first-pass` branch.
+Read the relevant spec/plan before writing code. NL-layer work lives on the
+`ovid/web-llm` branch; **execute its plan with `superpowers:subagent-driven-development`
+or `superpowers:executing-plans`.**
 
 ## Read-only vendored directories (NEVER modify)
 
@@ -63,8 +68,11 @@ game output  ◄─ GlkOte bridge ◄─ Glk                       ◄─ ZVM
   entire integration seam.
 - **The GlkOte bridge (`src/glkote-react/`)** is our implementation of the GlkOte
   display contract. It reduces the VM's GlkOte "update" objects into a React
-  `ViewState` (pure reducer) and sends player input back as Glk events. **This is
-  also where the future LLM layer will intercept input** — keep it clean.
+  `ViewState` (pure reducer) and sends player input back as Glk events. It also
+  exposes the input-side `echoLocal()` seam the NL layer uses to inject the
+  player's English as a UI-only `nl-source` line. (The NL layer intercepts the
+  *typed input* upstream, at `CommandInput.onSubmit` → `nl.translate`, not in the
+  bridge; the bridge's `onTurn` is an observer-only turn-boundary seam.)
 - **Dialog (`src/storage/`)** is our IndexedDB-backed implementation of ZVM's
   native autosave. ZVM keys saves by a per-game **signature** (first 0x1E bytes of
   the story), so per-game slots are automatic. ZVM reads autosave *synchronously*
@@ -111,6 +119,23 @@ npx vitest run -t "substring of test name"    # by name
   promise depends on it.
 - The theme toggle is an in-layout element (landing-plate corner + status-bar
   item), never a `position:fixed` overlay.
+
+## Known network egress (NL layer)
+
+The "fully client-side / offline / no-CDN" promise holds for the **base game**
+(engine, fonts, story files are all self-hosted). It has **one documented
+exception**: enabling the natural-language layer triggers a **one-time
+third-party download** — WebLLM (`engine.webllm.ts`) fetches the model weights
+from `huggingface.co` and the model-lib **WASM** from `raw.githubusercontent.com`
+via its built-in `prebuiltAppConfig` (no `appConfig` is passed). After that
+one-time fetch the model is cached and inference runs entirely on-device/offline.
+
+This is gated behind explicit user opt-in (the download modal, which now
+discloses the third-party fetch) and uses HTTPS, but it is **not** integrity-pinned
+(no SRI), and the model-lib WASM executes in the page origin. To make the offline
+promise fully true, the follow-up is to **self-host** (or integrity-check) the
+`model` + `model_lib` URLs under `public/` and pin them via an explicit
+`appConfig`. Until then, keep the modal disclosure accurate (review I1).
 
 ## Finish
 

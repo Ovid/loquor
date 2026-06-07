@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 export type Theme = 'dark' | 'light'
-const KEY = 'naitfol-theme'
+const KEY = 'loquor-theme'
 
 export function useTheme() {
   const [theme, setTheme] = useState<Theme>(() =>

@@ -15,7 +15,7 @@ beforeEach(() => {
 describe('App', () => {
   it('routes from landing into the game', async () => {
     render(<App />)
-    expect(screen.getByText('Naitfol')).toBeInTheDocument()
+    expect(screen.getByText('Loquor')).toBeInTheDocument()
     fireEvent.click(screen.getByText(/Light the lamp/))
     await waitFor(
       () => expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
@@ -32,12 +32,12 @@ describe('App', () => {
     )
     // "Change story" overlays the picker on top of the running game.
     fireEvent.click(screen.getByText(/change story/i))
-    await waitFor(() => expect(screen.getByText('Naitfol')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Loquor')).toBeInTheDocument())
     // Dismissing returns to exactly where we were — the game is still mounted,
     // not rebooted, so its status line never disappeared.
     fireEvent.click(screen.getByRole('button', { name: /return to game/i }))
     await waitFor(() =>
-      expect(screen.queryByText('Naitfol')).not.toBeInTheDocument(),
+      expect(screen.queryByText('Loquor')).not.toBeInTheDocument(),
     )
     expect(screen.getAllByText('West of House')[0]).toBeInTheDocument()
   })
@@ -59,7 +59,7 @@ describe('App', () => {
       expect(screen.getByText(/could not be loaded/i)).toBeInTheDocument(),
     )
     // Still on the landing screen, not crashed into a blank/garbage VM.
-    expect(screen.getByText('Naitfol')).toBeInTheDocument()
+    expect(screen.getByText('Loquor')).toBeInTheDocument()
   })
 
   it('rejects a body too short to be a story file', async () => {

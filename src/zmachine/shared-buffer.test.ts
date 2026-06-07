@@ -10,7 +10,7 @@ const story = (g: string) =>
   new Uint8Array(readFileSync(`public/games/${g}.z3`))
 const resetDb = () =>
   new Promise<void>(r => {
-    const req = indexedDB.deleteDatabase('naitfol')
+    const req = indexedDB.deleteDatabase('loquor')
     req.onsuccess = req.onerror = () => r()
   })
 beforeEach(resetDb)

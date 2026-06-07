@@ -1,25 +1,24 @@
-# Naitfol
+# Loquor
 
-> *Nitfol* — in Infocom's *Enchanter*, the spell that lets you understand and
-> converse with creatures in their own tongue. With WebLLM, **Naitfol** lets you
-> talk to Zork.
+> *Loquor* — Latin for "I speak." With WebLLM, **Loquor** lets you talk to Zork
+> in plain English.
 
-Naitfol is a fully client-side web app for playing **Zork I, II, and III** in the
+Loquor is a fully client-side web app for playing **Zork I, II, and III** in the
 browser, on top of a JavaScript Z-machine. Pick a game, play it, and resume
 automatically where you left off — nothing leaves your machine.
 
-The eventual goal (the spell the project is named for) is to let you type plain
+The eventual goal — what the name promises — is to let you type plain
 English and have an in-browser LLM translate it into commands the game
 understands. That natural-language layer is **future work** — see
 [`docs/notes.md`](docs/notes.md). The current first pass focuses on getting the
 three games running with a custom interface; see the design spec at
-[`docs/superpowers/specs/2026-06-06-naitfol-design.md`](docs/superpowers/specs/2026-06-06-naitfol-design.md).
+[`docs/superpowers/specs/2026-06-06-loquor-design.md`](docs/superpowers/specs/2026-06-06-loquor-design.md).
 
 ## Why we can do this — Zork is open source
 
 In November 2025, Microsoft released the original source code for Zork I, II, and
 III under the **MIT License** (the `LICENSE` files in the game directories read
-*Copyright (c) 2025 Microsoft*). This is what makes Naitfol possible: we can ship
+*Copyright (c) 2025 Microsoft*). This is what makes Loquor possible: we can ship
 the games, read their ZIL source, and — later — derive a command grammar directly
 from that source.
 

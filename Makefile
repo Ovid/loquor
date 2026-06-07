@@ -1,4 +1,4 @@
-# Naitfol — project tasks
+# Loquor — project tasks
 #
 # Stack: Vite + React + TypeScript, Vitest (test/coverage), ESLint (lint),
 # Prettier (format). Targets call tools via `npx`. Run `make install` first.

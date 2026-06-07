@@ -1,13 +1,12 @@
-# Naitfol — future work
+# Loquor — future work
 
 These are deliberately **out of scope for the first pass** (which just gets Zork
 I/II/III playable in the browser — see
-[`docs/superpowers/specs/2026-06-06-naitfol-design.md`](superpowers/specs/2026-06-06-naitfol-design.md)).
+[`docs/superpowers/specs/2026-06-06-loquor-design.md`](superpowers/specs/2026-06-06-loquor-design.md)).
 They're recorded here so the first-pass architecture leaves the right seams.
 
-The project's name points at the destination: *Nitfol* is the Enchanter spell for
-understanding and conversing with creatures in their own tongue. Naitfol's
-endgame is to let you talk to Zork in plain English.
+The project's name points at the destination: *Loquor* is Latin for "I speak."
+Loquor's endgame is to let you talk to Zork in plain English.
 
 ## The natural-language layer (the headline future feature)
 

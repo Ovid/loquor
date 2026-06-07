@@ -1,7 +1,7 @@
 # Spike: pin the Glk layer + confirm Vite/CommonJS interop
 
 **Date:** 2026-06-06
-**For:** [Naitfol first-pass design](../superpowers/specs/2026-06-06-naitfol-design.md)
+**For:** [Loquor first-pass design](../superpowers/specs/2026-06-06-loquor-design.md)
 **Outcome:** **GO** on the custom-GlkOte-bridge architecture, with one correction:
 the Glk layer is **vendored from source**, not installed from npm.
 

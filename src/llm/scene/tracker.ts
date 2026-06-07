@@ -1,6 +1,12 @@
 // src/llm/scene/tracker.ts
 import type { Vocab, NounEntry } from '../grammar/types'
-import type { Scene, SceneEvent, SceneObject, SceneProvider, SceneState } from './types'
+import type {
+  Scene,
+  SceneEvent,
+  SceneObject,
+  SceneProvider,
+  SceneState,
+} from './types'
 import { emptySceneState } from './types'
 
 function esc(s: string): string {
@@ -8,13 +14,18 @@ function esc(s: string): string {
 }
 
 /** Surface phrases (canonical, synonyms, adjective+canonical), longest first. */
-function surfaceForms(nouns: NounEntry[]): { phrase: string; canonical: string }[] {
+function surfaceForms(
+  nouns: NounEntry[],
+): { phrase: string; canonical: string }[] {
   const forms: { phrase: string; canonical: string }[] = []
   for (const n of nouns) {
     for (const base of [n.canonical, ...(n.synonyms ?? [])])
       forms.push({ phrase: base.toLowerCase(), canonical: n.canonical })
     for (const adj of n.adjectives ?? [])
-      forms.push({ phrase: `${adj} ${n.canonical}`.toLowerCase(), canonical: n.canonical })
+      forms.push({
+        phrase: `${adj} ${n.canonical}`.toLowerCase(),
+        canonical: n.canonical,
+      })
   }
   return forms.sort((a, b) => b.phrase.length - a.phrase.length)
 }
@@ -115,16 +126,25 @@ export function reduceScene(
   const sup = suppressed(event.outputText, vocab)
   const mentioned = mentions(event.outputText, vocab, sup)
   for (const canonical of mentioned)
-    if (!inScope.some(o => o.canonical === canonical)) inScope.push({ canonical })
+    if (!inScope.some(o => o.canonical === canonical))
+      inScope.push({ canonical })
 
   if (event.lastCommand) {
     const obj = directObject(event.lastCommand, vocab)
-    if (obj && /^take\b/i.test(event.lastCommand) && vocab.takeAck.test(event.outputText)) {
+    if (
+      obj &&
+      /^take\b/i.test(event.lastCommand) &&
+      vocab.takeAck.test(event.outputText)
+    ) {
       const found = inScope.find(o => o.canonical === obj)
       if (found) found.carried = true
       else inScope.push({ canonical: obj, carried: true })
     }
-    if (obj && /^drop\b/i.test(event.lastCommand) && vocab.dropAck.test(event.outputText)) {
+    if (
+      obj &&
+      /^drop\b/i.test(event.lastCommand) &&
+      vocab.dropAck.test(event.outputText)
+    ) {
       const found = inScope.find(o => o.canonical === obj)
       if (found) found.carried = false
     }
@@ -136,7 +156,8 @@ export function reduceScene(
     antecedent = mentioned[mentioned.length - 1]
   } else if (event.lastCommand) {
     const obj = directObject(event.lastCommand, vocab)
-    if (obj && !sup.has(obj) && inScope.some(o => o.canonical === obj)) antecedent = obj
+    if (obj && !sup.has(obj) && inScope.some(o => o.canonical === obj))
+      antecedent = obj
   }
 
   return { location: event.location, inScope, antecedent, lastKey: key }

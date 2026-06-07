@@ -33,7 +33,7 @@ describe('buildGrammar', () => {
     expect(g).toContain('"{\\"verb\\":\\"__UNKNOWN__\\"}"')
   })
 
-  it('never emits a pronoun terminal (pronouns are the model\'s job)', () => {
+  it("never emits a pronoun terminal (pronouns are the model's job)", () => {
     const g = buildGrammar(vocab, scene(['mailbox', 'leaflet']))
     for (const p of ['"\\"it\\""', '"\\"them\\""', '"\\"le\\""', '"\\"la\\""'])
       expect(g).not.toContain(p)

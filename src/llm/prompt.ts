@@ -1,5 +1,10 @@
 // src/llm/prompt.ts
-import type { ChatMessages, PromptContext, ViewContext, ViewState } from './types'
+import type {
+  ChatMessages,
+  PromptContext,
+  ViewContext,
+  ViewState,
+} from './types'
 
 const CONTEXT_CAP = 1500
 
@@ -19,7 +24,8 @@ export function viewToContext(view: ViewState): ViewContext {
     .filter(l => l.kind !== 'nl-source')
     .map(l => l.text)
     .join('\n')
-  const recentOutput = block.length > CONTEXT_CAP ? block.slice(-CONTEXT_CAP) : block
+  const recentOutput =
+    block.length > CONTEXT_CAP ? block.slice(-CONTEXT_CAP) : block
 
   return { location, recentOutput }
 }
@@ -38,11 +44,19 @@ export function buildPrompt(english: string, ctx: PromptContext): ChatMessages {
   ]
   if (ctx.location) lines.push(`Current location: ${ctx.location}`)
   if (ctx.inScope.length)
-    lines.push(`In scope (you may only name these objects): ${ctx.inScope.join(', ')}`)
-  else lines.push('No objects are in scope; only movement or verb-only commands are possible.')
+    lines.push(
+      `In scope (you may only name these objects): ${ctx.inScope.join(', ')}`,
+    )
+  else
+    lines.push(
+      'No objects are in scope; only movement or verb-only commands are possible.',
+    )
   if (ctx.antecedent)
-    lines.push(`Most recently mentioned (resolve "it"/"them" to this): ${ctx.antecedent}`)
-  if (ctx.recentOutput) lines.push(`Recent game text (CONTEXT):\n"""\n${ctx.recentOutput}\n"""`)
+    lines.push(
+      `Most recently mentioned (resolve "it"/"them" to this): ${ctx.antecedent}`,
+    )
+  if (ctx.recentOutput)
+    lines.push(`Recent game text (CONTEXT):\n"""\n${ctx.recentOutput}\n"""`)
 
   return [
     { role: 'system', content: lines.join('\n') },

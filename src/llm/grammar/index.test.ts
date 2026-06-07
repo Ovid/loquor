@@ -39,10 +39,13 @@ function commandFitsVocab(cmd: string, v: Vocab): boolean {
   const verb = verbs.find(x => rest === x || rest.startsWith(x + ' '))
   if (!verb) return false
   rest = rest.slice(verb.length).replace(/^ /, '')
-  if (rest === '') return v.verbsOnly.includes(verb) || v.movement.includes(verb)
+  if (rest === '')
+    return v.verbsOnly.includes(verb) || v.movement.includes(verb)
   // Remaining tokens are: noun [prep noun]. Longest-noun-match greedily.
   const eat = (): boolean => {
-    const n = [...nounSet].sort((a, b) => b.length - a.length).find(x => rest === x || rest.startsWith(x + ' '))
+    const n = [...nounSet]
+      .sort((a, b) => b.length - a.length)
+      .find(x => rest === x || rest.startsWith(x + ' '))
     if (!n) return false
     rest = rest.slice(n.length).replace(/^ /, '')
     return true

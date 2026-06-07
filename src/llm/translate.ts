@@ -24,7 +24,11 @@ interface RawCmd {
  * decision 6 the model has already mapped pronouns to in-scope canonicals, so a
  * pronoun can never appear here.
  */
-export function parseCommand(rawJson: string, scene: Scene, vocab: Vocab): TranslateResult {
+export function parseCommand(
+  rawJson: string,
+  scene: Scene,
+  vocab: Vocab,
+): TranslateResult {
   let cmd: RawCmd
   try {
     cmd = JSON.parse(rawJson.trim()) as RawCmd
@@ -46,16 +50,19 @@ export function parseCommand(rawJson: string, scene: Scene, vocab: Vocab): Trans
   if (!isOnly && !is1 && !is2) return { kind: 'abstain' }
 
   if (isOnly) {
-    if (object !== undefined || prep !== undefined || indirect !== undefined) return { kind: 'abstain' }
+    if (object !== undefined || prep !== undefined || indirect !== undefined)
+      return { kind: 'abstain' }
     return { kind: 'command', text: verb }
   }
   if (is1) {
-    if (object === undefined || prep !== undefined || indirect !== undefined) return { kind: 'abstain' }
+    if (object === undefined || prep !== undefined || indirect !== undefined)
+      return { kind: 'abstain' }
     if (!inScope.has(object)) return { kind: 'abstain' }
     return { kind: 'command', text: `${verb} ${object}` }
   }
   // is2
-  if (object === undefined || prep === undefined || indirect === undefined) return { kind: 'abstain' }
+  if (object === undefined || prep === undefined || indirect === undefined)
+    return { kind: 'abstain' }
   if (!inScope.has(object) || !inScope.has(indirect)) return { kind: 'abstain' }
   if (!vocab.preps.includes(prep)) return { kind: 'abstain' }
   return { kind: 'command', text: `${verb} ${object} ${prep} ${indirect}` }

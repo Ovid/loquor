@@ -36,7 +36,10 @@ export function buildGrammar(vocab: Vocab, scene: Scene): string {
   lines.push(`abstain ::= ${ABSTAIN_TERM}`)
   lines.push(`verbonly ::= ${OPEN} vonly ${CLOSE}`)
   if (hasNouns) lines.push(`verb1cmd ::= ${OPEN} v1 ${OBJ} noun ${CLOSE}`)
-  if (hasV2) lines.push(`verb2cmd ::= ${OPEN} v2 ${OBJ} noun ${PREP} prep ${IND} noun ${CLOSE}`)
+  if (hasV2)
+    lines.push(
+      `verb2cmd ::= ${OPEN} v2 ${OBJ} noun ${PREP} prep ${IND} noun ${CLOSE}`,
+    )
   lines.push(`vonly ::= ${alt([...vocab.verbsOnly, ...vocab.movement])}`)
   if (hasNouns) lines.push(`v1 ::= ${alt(vocab.verbs1)}`)
   if (hasV2) lines.push(`v2 ::= ${alt(vocab.verbs2)}`)

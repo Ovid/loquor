@@ -50,7 +50,9 @@ describe('reduceScene — mentions', () => {
   it('does NOT match a noun embedded in a larger word', () => {
     const s = reduceScene(
       emptySceneState,
-      ev({ outputText: 'A trapdoor is here; the dog begged; you felt controlled.' }),
+      ev({
+        outputText: 'A trapdoor is here; the dog begged; you felt controlled.',
+      }),
       vocab,
     )
     // "door" must not match "trapdoor"; "egg" not "begged"; "troll" not "controlled".
@@ -61,7 +63,10 @@ describe('reduceScene — mentions', () => {
   it('absence/negation suppresses a mention', () => {
     const s = reduceScene(
       emptySceneState,
-      ev({ outputText: "There is no lamp here. The trophy case is empty. You can't see any troll." }),
+      ev({
+        outputText:
+          "There is no lamp here. The trophy case is empty. You can't see any troll.",
+      }),
       vocab,
     )
     expect(s.inScope.map(o => o.canonical)).toEqual([])
@@ -73,31 +78,57 @@ describe('reduceScene — antecedent precedence', () => {
   it('tier 1: revealed-in-output beats the acted object', () => {
     const s = reduceScene(
       emptySceneState,
-      ev({ lastCommand: 'open mailbox', outputText: 'Opening the mailbox reveals a leaflet.' }),
+      ev({
+        lastCommand: 'open mailbox',
+        outputText: 'Opening the mailbox reveals a leaflet.',
+      }),
       vocab,
     )
     expect(s.antecedent).toBe('leaflet')
   })
 
   it('tier 2: acted object becomes antecedent when prose names nothing', () => {
-    const prev = reduceScene(emptySceneState, ev({ outputText: 'A lamp and a rug are here.' }), vocab)
+    const prev = reduceScene(
+      emptySceneState,
+      ev({ outputText: 'A lamp and a rug are here.' }),
+      vocab,
+    )
     expect(prev.antecedent).toBe('rug')
-    const s = reduceScene(prev, ev({ lastCommand: 'take lamp', outputText: 'Taken.' }), vocab)
+    const s = reduceScene(
+      prev,
+      ev({ lastCommand: 'take lamp', outputText: 'Taken.' }),
+      vocab,
+    )
     expect(s.antecedent).toBe('lamp') // not the stale "rug"
   })
 
   it('tier 3: prior antecedent carries over when nothing new fires', () => {
-    const prev = reduceScene(emptySceneState, ev({ outputText: 'A lamp is here.' }), vocab)
-    const s = reduceScene(prev, ev({ lastCommand: 'read leaflet', outputText: 'How pedestrian.' }), vocab)
+    const prev = reduceScene(
+      emptySceneState,
+      ev({ outputText: 'A lamp is here.' }),
+      vocab,
+    )
+    const s = reduceScene(
+      prev,
+      ev({ lastCommand: 'read leaflet', outputText: 'How pedestrian.' }),
+      vocab,
+    )
     // leaflet not in scope → not acted-object; lamp stays the antecedent.
     expect(s.antecedent).toBe('lamp')
   })
 
   it('a failed action (object suppressed) does NOT become the antecedent', () => {
-    const prev = reduceScene(emptySceneState, ev({ outputText: 'A rug is here.' }), vocab)
+    const prev = reduceScene(
+      emptySceneState,
+      ev({ outputText: 'A rug is here.' }),
+      vocab,
+    )
     const s = reduceScene(
       prev,
-      ev({ lastCommand: 'take lamp', outputText: "You can't see any lamp here." }),
+      ev({
+        lastCommand: 'take lamp',
+        outputText: "You can't see any lamp here.",
+      }),
       vocab,
     )
     expect(s.antecedent).toBe('rug') // lamp was absent → tier 2 skipped
@@ -106,33 +137,69 @@ describe('reduceScene — antecedent precedence', () => {
 
 describe('reduceScene — carried + room change', () => {
   it('take marks carried; carried object survives a room change, others drop', () => {
-    let s = reduceScene(emptySceneState, ev({ outputText: 'A lamp and a rug are here.' }), vocab)
-    s = reduceScene(s, ev({ lastCommand: 'take lamp', outputText: 'Taken.' }), vocab)
+    let s = reduceScene(
+      emptySceneState,
+      ev({ outputText: 'A lamp and a rug are here.' }),
+      vocab,
+    )
+    s = reduceScene(
+      s,
+      ev({ lastCommand: 'take lamp', outputText: 'Taken.' }),
+      vocab,
+    )
     expect(s.inScope.find(o => o.canonical === 'lamp')?.carried).toBe(true)
-    s = reduceScene(s, ev({ location: 'Forest', outputText: 'This is a forest.' }), vocab)
+    s = reduceScene(
+      s,
+      ev({ location: 'Forest', outputText: 'This is a forest.' }),
+      vocab,
+    )
     const names = s.inScope.map(o => o.canonical)
     expect(names).toContain('lamp') // carried
     expect(names).not.toContain('rug') // dropped on room change
   })
 
   it('drop clears carried', () => {
-    let s = reduceScene(emptySceneState, ev({ outputText: 'A lamp is here.' }), vocab)
-    s = reduceScene(s, ev({ lastCommand: 'take lamp', outputText: 'Taken.' }), vocab)
-    s = reduceScene(s, ev({ lastCommand: 'drop lamp', outputText: 'Dropped.' }), vocab)
+    let s = reduceScene(
+      emptySceneState,
+      ev({ outputText: 'A lamp is here.' }),
+      vocab,
+    )
+    s = reduceScene(
+      s,
+      ev({ lastCommand: 'take lamp', outputText: 'Taken.' }),
+      vocab,
+    )
+    s = reduceScene(
+      s,
+      ev({ lastCommand: 'drop lamp', outputText: 'Dropped.' }),
+      vocab,
+    )
     expect(s.inScope.find(o => o.canonical === 'lamp')?.carried).toBe(false)
   })
 
   it('lastCommand null marks nothing carried, even when takeAck matches', () => {
     // This is the consequence of the hook nulling its latch after an abstain: an
     // observed "Taken." with no associated command must not mark anything carried.
-    let s = reduceScene(emptySceneState, ev({ outputText: 'A lamp is here.' }), vocab)
+    let s = reduceScene(
+      emptySceneState,
+      ev({ outputText: 'A lamp is here.' }),
+      vocab,
+    )
     s = reduceScene(s, ev({ lastCommand: null, outputText: 'Taken.' }), vocab)
     expect(s.inScope.find(o => o.canonical === 'lamp')?.carried).toBeUndefined()
   })
 
   it('room change clears the antecedent unless re-mentioned', () => {
-    let s = reduceScene(emptySceneState, ev({ outputText: 'A lamp is here.' }), vocab)
-    s = reduceScene(s, ev({ location: 'Forest', outputText: 'Trees everywhere.' }), vocab)
+    let s = reduceScene(
+      emptySceneState,
+      ev({ outputText: 'A lamp is here.' }),
+      vocab,
+    )
+    s = reduceScene(
+      s,
+      ev({ location: 'Forest', outputText: 'Trees everywhere.' }),
+      vocab,
+    )
     expect(s.antecedent).toBeNull()
   })
 })

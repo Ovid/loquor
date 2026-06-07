@@ -15,7 +15,10 @@ export const ZORK1_CORPUS: CorpusEntry[] = [
   { english: 'drop the knife', expect: 'drop knife' },
   { english: 'attack the troll', expect: 'kill troll' },
   // two-object — the commands that actually solve the game
-  { english: 'unlock the grating with the key', expect: 'unlock grating with key' },
+  {
+    english: 'unlock the grating with the key',
+    expect: 'unlock grating with key',
+  },
   { english: 'put the coffin in the case', expect: 'put coffin in case' },
   { english: 'give the garlic to the troll', expect: 'give garlic to troll' },
   // pronoun — antecedent = leaflet (revealed by "open mailbox"); model resolves it

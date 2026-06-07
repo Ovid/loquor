@@ -268,7 +268,15 @@ export function useNaturalLanguage(
         setPending(false)
       }
     },
-    [internal.phase, vocab, engine, getContext, echoLocal, sendLine, watchdogMs],
+    [
+      internal.phase,
+      vocab,
+      engine,
+      getContext,
+      echoLocal,
+      sendLine,
+      watchdogMs,
+    ],
   )
 
   // Fire once per turn (Terminal gates on the line-input boundary). Builds a

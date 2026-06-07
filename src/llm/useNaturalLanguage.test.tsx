@@ -24,7 +24,11 @@ const TEST_VOCAB: Vocab = {
   absencePat: ABSENCE_PAT,
 }
 
-function viewState(location: string, outputs: string[], lastInput?: string): ViewState {
+function viewState(
+  location: string,
+  outputs: string[],
+  lastInput?: string,
+): ViewState {
   const lines: BufferLine[] = []
   let id = 1
   if (lastInput) lines.push({ id: id++, kind: 'input', text: lastInput })
@@ -35,7 +39,8 @@ function viewState(location: string, outputs: string[], lastInput?: string): Vie
 function setup(over: Partial<Parameters<typeof useNaturalLanguage>[0]> = {}) {
   const echoLocal = vi.fn()
   const sendLine = vi.fn()
-  const engine = over.engine ?? new FakeLlmEngine({ default: '{"verb":"__UNKNOWN__"}' })
+  const engine =
+    over.engine ?? new FakeLlmEngine({ default: '{"verb":"__UNKNOWN__"}' })
   const hook = renderHook(() =>
     useNaturalLanguage({
       engine,
@@ -315,7 +320,10 @@ describe('useNaturalLanguage', () => {
   })
 
   it('observe is idempotent across re-renders of the same turn', async () => {
-    const engine = new FakeLlmEngine({ cached: true, default: '{"verb":"__UNKNOWN__"}' })
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"__UNKNOWN__"}',
+    })
     const { hook } = setup({ engine })
     await reachOn(hook)
     const v = viewState('West of House', ['A lamp is here.'])
@@ -326,7 +334,10 @@ describe('useNaturalLanguage', () => {
   })
 
   it('abstain passes raw English through and does NOT echo or latch a command', async () => {
-    const engine = new FakeLlmEngine({ cached: true, default: '{"verb":"__UNKNOWN__"}' })
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"__UNKNOWN__"}',
+    })
     const { hook, echoLocal, sendLine } = setup({ engine })
     await reachOn(hook)
     await act(async () => {

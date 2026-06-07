@@ -28,7 +28,11 @@ export interface LlmEngine {
     onProgress: (p: LoadProgress) => void,
     signal: AbortSignal,
   ): Promise<void>
-  generate(prompt: ChatMessages, grammar: string): Promise<string>
+  generate(
+    prompt: ChatMessages,
+    grammar: string,
+    signal?: AbortSignal,
+  ): Promise<string>
   unload(): Promise<void>
   /** Loaded into memory THIS session. */
   isLoaded(): boolean

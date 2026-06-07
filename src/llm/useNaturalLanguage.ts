@@ -36,6 +36,18 @@ type Internal =
   | { phase: 'downloading'; loaded: number; total: number }
   | { phase: 'on' }
 
+/**
+ * Watchdog-timeout sentinel — distinguishes a translation timeout from a genuine
+ * generate error without sniffing `err.message` (review S5). Both still fall back
+ * to raw pass-through; only the player-facing notice text differs.
+ */
+class WatchdogTimeout extends Error {
+  constructor() {
+    super('watchdog')
+    this.name = 'WatchdogTimeout'
+  }
+}
+
 export function useNaturalLanguage(
   args: UseNaturalLanguageArgs,
 ): UseNaturalLanguage {
@@ -54,6 +66,9 @@ export function useNaturalLanguage(
   const [notice, setNotice] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
+  // Guards against a second translate running concurrently. `pending` (state)
+  // also disables the input, but a ref closes the same-tick window synchronously.
+  const translatingRef = useRef(false)
 
   const available = capability.tier !== 'none'
   const hasGrammar = grammar !== null
@@ -169,16 +184,29 @@ export function useNaturalLanguage(
         sendLine(english)
         return
       }
+      // A translation is already in flight — drop this one rather than orphan a
+      // second inference (review I4 concurrency guard).
+      if (translatingRef.current) return
+      translatingRef.current = true
       setPending(true)
       setNotice(null)
       let watchdogId: ReturnType<typeof setTimeout>
+      // Aborts the in-flight generate() when the watchdog fires so the orphaned
+      // inference stops consuming the GPU instead of running to completion.
+      const ac = new AbortController()
       try {
         const messages = buildPrompt(english, getContext())
         const watchdog = new Promise<never>((_, rej) => {
-          watchdogId = setTimeout(() => rej(new Error('watchdog')), watchdogMs)
+          watchdogId = setTimeout(() => {
+            // Reject FIRST so the watchdog wins Promise.race, THEN abort — abort
+            // rejects generate() with AbortError, but the race is already settled
+            // on the timeout, keeping the "timed out" notice accurate.
+            rej(new WatchdogTimeout())
+            ac.abort()
+          }, watchdogMs)
         })
         const raw = await Promise.race([
-          engine.generate(messages, grammar),
+          engine.generate(messages, grammar, ac.signal),
           watchdog,
         ])
         clearTimeout(watchdogId!)
@@ -194,12 +222,13 @@ export function useNaturalLanguage(
         // Watchdog or generate error: never wedge the turn. Surface a visible
         // notice so a timeout is distinguishable from a normal abstain.
         setNotice(
-          (err as Error).message === 'watchdog'
+          err instanceof WatchdogTimeout
             ? 'Translation timed out — sent as typed.'
             : 'Translation failed — sent as typed.',
         )
         sendLine(english)
       } finally {
+        translatingRef.current = false
         setPending(false)
       }
     },

@@ -1,6 +1,7 @@
 import type { MLCEngineInterface, InitProgressReport } from '@mlc-ai/web-llm'
 import type { ChatMessages, LlmEngine, LoadProgress } from './types'
 import { DEFAULT_MODEL } from './models'
+import { ABSTAIN } from './translate'
 
 /**
  * Real LLM boundary over @mlc-ai/web-llm (WebGPU). The single file that imports
@@ -48,15 +49,29 @@ export class WebLlmEngine implements LlmEngine {
     }
   }
 
-  async generate(prompt: ChatMessages, grammar: string): Promise<string> {
+  async generate(
+    prompt: ChatMessages,
+    grammar: string,
+    signal?: AbortSignal,
+  ): Promise<string> {
     if (!this.engine) throw new Error('engine not loaded')
-    const res = await this.engine.chat.completions.create({
-      messages: prompt,
-      temperature: 0,
-      // ResponseFormat in 0.2.84 supports { type: 'grammar', grammar: string } natively.
-      response_format: { type: 'grammar', grammar },
-    })
-    return res.choices[0]?.message?.content ?? '__UNKNOWN__'
+    const engine = this.engine
+    // On abort (watchdog timeout / supersession) interrupt the in-flight WebGPU
+    // inference so a timed-out generation stops consuming the GPU rather than
+    // running to completion orphaned (review I4).
+    const onAbort = () => engine.interruptGenerate()
+    signal?.addEventListener('abort', onAbort)
+    try {
+      const res = await engine.chat.completions.create({
+        messages: prompt,
+        temperature: 0,
+        // ResponseFormat in 0.2.84 supports { type: 'grammar', grammar: string } natively.
+        response_format: { type: 'grammar', grammar },
+      })
+      return res.choices[0]?.message?.content ?? ABSTAIN
+    } finally {
+      signal?.removeEventListener('abort', onAbort)
+    }
   }
 
   async unload(): Promise<void> {

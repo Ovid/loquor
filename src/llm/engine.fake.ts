@@ -1,4 +1,5 @@
 import type { ChatMessages, LlmEngine, LoadProgress } from './types'
+import { ABSTAIN } from './translate'
 
 export interface FakeOptions {
   completions?: Record<string, string>
@@ -39,14 +40,27 @@ export class FakeLlmEngine implements LlmEngine {
     this.loaded = true
   }
 
-  async generate(prompt: ChatMessages, _grammar: string): Promise<string> {
+  async generate(
+    prompt: ChatMessages,
+    _grammar: string,
+    signal?: AbortSignal,
+  ): Promise<string> {
     if (this.opts.failGenerate) throw new Error('fake generate failure')
     if (this.opts.generateDelayMs) {
-      await new Promise(r => setTimeout(r, this.opts.generateDelayMs))
+      await new Promise<void>((resolve, reject) => {
+        const t = setTimeout(resolve, this.opts.generateDelayMs)
+        // Honor abort so a watchdog timeout actually unblocks the fake inference
+        // (mirrors WebLlmEngine.interruptGenerate); lets tests assert the orphan
+        // generation is cancelled, not just discarded (review I4).
+        signal?.addEventListener('abort', () => {
+          clearTimeout(t)
+          reject(new DOMException('aborted', 'AbortError'))
+        })
+      })
     }
     const lastUser = [...prompt].reverse().find(m => m.role === 'user')
     const key = lastUser?.content ?? ''
-    return this.opts.completions?.[key] ?? this.opts.default ?? '__UNKNOWN__'
+    return this.opts.completions?.[key] ?? this.opts.default ?? ABSTAIN
   }
 
   async unload(): Promise<void> {

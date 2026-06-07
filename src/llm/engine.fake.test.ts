@@ -39,6 +39,17 @@ describe('FakeLlmEngine', () => {
     expect(miss).toBe('__UNKNOWN__')
   })
 
+  it('generate rejects when its abort signal fires (orphan cancellation)', async () => {
+    vi.useFakeTimers()
+    const eng = new FakeLlmEngine({ generateDelayMs: 10000, default: 'north' })
+    const ac = new AbortController()
+    const p = eng.generate([{ role: 'user', content: 'go' }], 'G', ac.signal)
+    const assertion = expect(p).rejects.toThrow(/abort/i)
+    ac.abort()
+    await assertion
+    vi.useRealTimers()
+  })
+
   it('isCached reflects the cached option (independent of isLoaded)', async () => {
     const eng = new FakeLlmEngine({ cached: true })
     expect(eng.isLoaded()).toBe(false)

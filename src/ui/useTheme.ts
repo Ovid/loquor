@@ -4,8 +4,10 @@ export type Theme = 'dark' | 'light'
 const KEY = 'naitfol-theme'
 
 export function useTheme() {
-  const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem(KEY) as Theme) ?? 'dark',
+  const [theme, setTheme] = useState<Theme>(() =>
+    // Validate the persisted value rather than trusting it: a corrupt/legacy
+    // entry (e.g. "Light") would otherwise make the first toggle misbehave.
+    localStorage.getItem(KEY) === 'light' ? 'light' : 'dark',
   )
 
   useEffect(() => {

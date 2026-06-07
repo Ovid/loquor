@@ -23,6 +23,14 @@ describe('useTheme', () => {
     expect(result.current.theme).toBe('light')
   })
 
+  it('falls back to dark when the persisted value is not a valid theme', () => {
+    // A corrupt/legacy value (e.g. casing drift) must not be trusted verbatim,
+    // or the first toggle misbehaves. Anything that is not 'light' reads dark.
+    localStorage.setItem('naitfol-theme', 'Light')
+    const { result } = renderHook(() => useTheme())
+    expect(result.current.theme).toBe('dark')
+  })
+
   it('toggles back from light to dark, clearing the body theme', () => {
     localStorage.setItem('naitfol-theme', 'light')
     const { result } = renderHook(() => useTheme())

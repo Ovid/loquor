@@ -14,7 +14,10 @@ export interface FakeOptions {
 
 export class FakeLlmEngine implements LlmEngine {
   private loaded = false
-  constructor(private opts: FakeOptions = {}) {}
+  private opts: FakeOptions
+  constructor(opts: FakeOptions = {}) {
+    this.opts = opts
+  }
 
   async isCached(): Promise<boolean> {
     return this.opts.cached === true || this.loaded

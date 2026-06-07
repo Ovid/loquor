@@ -51,30 +51,28 @@ export function useNaturalLanguage(
   const hasGrammar = grammar !== null
 
   // Probe the ON-DISK cache (survives reloads) for the installed/not-installed
-  // distinction — distinct from isLoaded() (in-memory, this session only).
-  // Re-probe whenever the internal phase changes (e.g. after a successful load).
+  // distinction — distinct from isLoaded() (in-memory, this session only) — and,
+  // in the same async callback, restore the player's prior "enabled" choice once
+  // the model is known cached. (Don't auto-enable against an uncached model — that
+  // would re-prompt.) Doing this in the async callback (not synchronously in the
+  // effect body) avoids react-hooks/set-state-in-effect while preserving behavior.
   useEffect(() => {
     let cancelled = false
     engine
       .isCached()
       .then(c => {
-        if (!cancelled) setInstalled(c || engine.isLoaded())
+        if (cancelled) return
+        const cached = c || engine.isLoaded()
+        setInstalled(cached)
+        if (cached && readNlPref().enabled && internal.phase === 'off') {
+          setInternal({ phase: 'on' })
+        }
       })
       .catch(() => {})
     return () => {
       cancelled = true
     }
   }, [engine, internal.phase])
-
-  // Restore the player's prior "enabled" choice once the model is known cached.
-  // (Don't auto-enable against an uncached model — that would re-prompt.)
-  // Persistence is written on explicit actions below, NOT in a mount effect, so
-  // this read never sees a value clobbered by our own first render.
-  useEffect(() => {
-    if (readNlPref().enabled && installed && internal.phase === 'off') {
-      setInternal({ phase: 'on' })
-    }
-  }, [installed, internal.phase])
 
   const state: NlState = useMemo(() => {
     if (!available) return { phase: 'unavailable', reasons: capability.reasons }

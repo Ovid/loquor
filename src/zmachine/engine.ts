@@ -174,6 +174,11 @@ export class ZMachine {
     if (typeof dialog.dispose === 'function') dialog.dispose()
   }
 
+  /** UI-only source-line echo (the player's English). Pass-through to the bridge. */
+  echoLocal(text: string) {
+    this.bridge.echoLocal(text)
+  }
+
   sendLine(text: string) {
     this.bridge.sendLine(text)
   }

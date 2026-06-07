@@ -5,10 +5,12 @@ export function StatusBar({
   status,
   onChangeStory,
   themeToggle,
+  nlToggle,
 }: {
   status: StatusLine | null
   onChangeStory: () => void
   themeToggle: ReactNode
+  nlToggle?: ReactNode
 }) {
   return (
     <div className="statusbar">
@@ -19,6 +21,7 @@ export function StatusBar({
         <button className="sw" type="button" onClick={onChangeStory}>
           ⌄ Change story
         </button>
+        {nlToggle}
         {themeToggle}
       </span>
     </div>

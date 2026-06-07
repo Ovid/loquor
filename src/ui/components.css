@@ -190,3 +190,14 @@
   opacity: 0.65;
   font-style: italic;
 }
+
+/* Transient "…thinking" while a translation is in flight. */
+.nl-thinking {
+  opacity: 0.6;
+  font-style: italic;
+}
+/* Watchdog/timeout/error notice — distinguishable from a normal abstain. */
+.nl-notice {
+  opacity: 0.8;
+  font-size: 0.9em;
+}

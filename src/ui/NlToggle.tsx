@@ -13,7 +13,10 @@ export function NlToggle({
   if (state.phase === 'disabled') return null
   if (state.phase === 'unavailable') {
     return (
-      <span className="nl-toggle" title={`unavailable: ${state.reasons.join(', ')}`}>
+      <span
+        className="nl-toggle"
+        title={`unavailable: ${state.reasons.join(', ')}`}
+      >
         English: unavailable{' '}
         <button className="sw" type="button" onClick={onOverride}>
           force-enable
@@ -22,7 +25,8 @@ export function NlToggle({
     )
   }
   if (state.phase === 'downloading') {
-    const pct = state.total > 0 ? Math.round((state.loaded / state.total) * 100) : 0
+    const pct =
+      state.total > 0 ? Math.round((state.loaded / state.total) * 100) : 0
     return <span className="nl-toggle">downloading… {pct}%</span>
   }
   const label =

@@ -35,7 +35,11 @@ export class WebLlmEngine implements LlmEngine {
     this.engine = await create(this.modelId, {
       initProgressCallback: (r: InitProgressReport) => {
         // web-llm reports a 0..1 `progress`; normalize to loaded/total.
-        onProgress({ loaded: Math.round(r.progress * 100), total: 100, text: r.text })
+        onProgress({
+          loaded: Math.round(r.progress * 100),
+          total: 100,
+          text: r.text,
+        })
       },
     })
     if (signal.aborted) {

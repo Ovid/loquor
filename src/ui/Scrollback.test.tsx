@@ -57,7 +57,9 @@ describe('Scrollback', () => {
   })
 
   it('renders a VM input echo with the › marker (not >)', () => {
-    render(<Scrollback lines={[{ id: 2, kind: 'input', text: 'take lantern' }]} />)
+    render(
+      <Scrollback lines={[{ id: 2, kind: 'input', text: 'take lantern' }]} />,
+    )
     const p = screen.getByText('take lantern').closest('p')!
     expect(p.textContent).toContain('›') // ›
     expect(p).toHaveClass('echo')

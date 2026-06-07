@@ -39,7 +39,13 @@ describe('ModelDownloadModal', () => {
 
   it('renders nothing when closed', () => {
     const { container } = render(
-      <ModelDownloadModal open={false} progress={null} onAccept={vi.fn()} onDecline={vi.fn()} onCancel={vi.fn()} />,
+      <ModelDownloadModal
+        open={false}
+        progress={null}
+        onAccept={vi.fn()}
+        onDecline={vi.fn()}
+        onCancel={vi.fn()}
+      />,
     )
     expect(container).toBeEmptyDOMElement()
   })

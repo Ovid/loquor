@@ -39,7 +39,15 @@ type Internal =
 export function useNaturalLanguage(
   args: UseNaturalLanguageArgs,
 ): UseNaturalLanguage {
-  const { engine, capability, grammar, getContext, echoLocal, sendLine, watchdogMs } = args
+  const {
+    engine,
+    capability,
+    grammar,
+    getContext,
+    echoLocal,
+    sendLine,
+    watchdogMs,
+  } = args
   const [internal, setInternal] = useState<Internal>({ phase: 'off' })
   const [installed, setInstalled] = useState(false)
   const [pending, setPending] = useState(false)
@@ -78,7 +86,11 @@ export function useNaturalLanguage(
     if (!available) return { phase: 'unavailable', reasons: capability.reasons }
     if (!hasGrammar) return { phase: 'disabled' } // silent: this game has no grammar
     if (internal.phase === 'downloading')
-      return { phase: 'downloading', loaded: internal.loaded, total: internal.total }
+      return {
+        phase: 'downloading',
+        loaded: internal.loaded,
+        total: internal.total,
+      }
     if (internal.phase === 'on') return { phase: 'on' }
     return { phase: 'off', installed }
   }, [available, hasGrammar, capability.reasons, internal, installed])
@@ -90,7 +102,15 @@ export function useNaturalLanguage(
     abortRef.current = ac
     setInternal({ phase: 'downloading', loaded: 0, total: 0 })
     engine
-      .load(p => setInternal({ phase: 'downloading', loaded: p.loaded, total: p.total }), ac.signal)
+      .load(
+        p =>
+          setInternal({
+            phase: 'downloading',
+            loaded: p.loaded,
+            total: p.total,
+          }),
+        ac.signal,
+      )
       .then(() => {
         setInternal({ phase: 'on' })
         writeNlPref({ enabled: true })
@@ -146,7 +166,10 @@ export function useNaturalLanguage(
         const watchdog = new Promise<never>((_, rej) => {
           watchdogId = setTimeout(() => rej(new Error('watchdog')), watchdogMs)
         })
-        const raw = await Promise.race([engine.generate(messages, grammar), watchdog])
+        const raw = await Promise.race([
+          engine.generate(messages, grammar),
+          watchdog,
+        ])
         clearTimeout(watchdogId!)
         const result = parseCompletion(raw)
         if (result.kind === 'command') {
@@ -169,7 +192,15 @@ export function useNaturalLanguage(
         setPending(false)
       }
     },
-    [internal.phase, grammar, engine, getContext, echoLocal, sendLine, watchdogMs],
+    [
+      internal.phase,
+      grammar,
+      engine,
+      getContext,
+      echoLocal,
+      sendLine,
+      watchdogMs,
+    ],
   )
 
   return {

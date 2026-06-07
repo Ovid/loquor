@@ -37,7 +37,9 @@ describe('useNaturalLanguage', () => {
   beforeEach(() => localStorage.clear())
 
   it('tier none → unavailable (offers override)', () => {
-    const { hook } = setup({ capability: { tier: 'none', reasons: ['no-webgpu'] } })
+    const { hook } = setup({
+      capability: { tier: 'none', reasons: ['no-webgpu'] },
+    })
     expect(hook.result.current.state.phase).toBe('unavailable')
   })
 
@@ -49,20 +51,29 @@ describe('useNaturalLanguage', () => {
   it('capable + not cached → off (installed:false)', async () => {
     const { hook } = setup()
     await waitFor(() =>
-      expect(hook.result.current.state).toEqual({ phase: 'off', installed: false }),
+      expect(hook.result.current.state).toEqual({
+        phase: 'off',
+        installed: false,
+      }),
     )
   })
 
   it('capable + cached → off (installed:true), no re-download needed', async () => {
     const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
     await waitFor(() =>
-      expect(hook.result.current.state).toEqual({ phase: 'off', installed: true }),
+      expect(hook.result.current.state).toEqual({
+        phase: 'off',
+        installed: true,
+      }),
     )
   })
 
   it('download success transitions off → on', async () => {
     const engine = new FakeLlmEngine({
-      progress: [{ loaded: 1, total: 2, text: 'a' }, { loaded: 2, total: 2, text: 'b' }],
+      progress: [
+        { loaded: 1, total: 2, text: 'a' },
+        { loaded: 2, total: 2, text: 'b' },
+      ],
     })
     const { hook } = setup({ engine })
     await reachOn(hook)
@@ -71,14 +82,14 @@ describe('useNaturalLanguage', () => {
   it('load failure reverts to off and sets a notice', async () => {
     const { hook } = setup({ engine: new FakeLlmEngine({ failLoad: true }) })
     act(() => hook.result.current.requestDownload())
-    await waitFor(() =>
-      expect(hook.result.current.state.phase).toBe('off'),
-    )
+    await waitFor(() => expect(hook.result.current.state.phase).toBe('off'))
     expect(hook.result.current.notice).toBeTruthy()
   })
 
   it('command translation echoes English then sends the canonical command', async () => {
-    const engine = new FakeLlmEngine({ completions: { 'grab the lantern': 'take lantern' } })
+    const engine = new FakeLlmEngine({
+      completions: { 'grab the lantern': 'take lantern' },
+    })
     const { hook, echoLocal, sendLine } = setup({ engine })
     await reachOn(hook)
     await act(async () => {
@@ -101,7 +112,10 @@ describe('useNaturalLanguage', () => {
   })
 
   it('locks input (pending=true) while a translation is in flight', async () => {
-    const engine = new FakeLlmEngine({ generateDelayMs: 50, completions: { go: 'north' } })
+    const engine = new FakeLlmEngine({
+      generateDelayMs: 50,
+      completions: { go: 'north' },
+    })
     const { hook } = setup({ engine })
     await reachOn(hook)
     let p!: Promise<void>
@@ -116,7 +130,9 @@ describe('useNaturalLanguage', () => {
   })
 
   it('generate failure falls back to raw pass-through with a notice', async () => {
-    const { hook, sendLine } = setup({ engine: new FakeLlmEngine({ failGenerate: true }) })
+    const { hook, sendLine } = setup({
+      engine: new FakeLlmEngine({ failGenerate: true }),
+    })
     await reachOn(hook)
     await act(async () => {
       await hook.result.current.translate('take lantern')
@@ -181,9 +197,7 @@ describe('useNaturalLanguage', () => {
     // Confirm we are now in the downloading state (load is in-flight).
     expect(hook.result.current.state.phase).toBe('downloading')
     act(() => hook.result.current.cancelDownload())
-    await waitFor(() =>
-      expect(hook.result.current.state.phase).toBe('off'),
-    )
+    await waitFor(() => expect(hook.result.current.state.phase).toBe('off'))
     expect(hook.result.current.notice).toBeNull()
     expect(readNlPref().enabled).toBe(false)
     // Resolve the internal promise to avoid unhandled-rejection noise.

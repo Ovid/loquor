@@ -3,7 +3,10 @@ import { viewToContext, buildPrompt } from './prompt'
 import { emptyView } from '../glkote-react/types'
 import type { ViewState } from '../glkote-react/types'
 
-const view = (over: Partial<ViewState>): ViewState => ({ ...emptyView, ...over })
+const view = (over: Partial<ViewState>): ViewState => ({
+  ...emptyView,
+  ...over,
+})
 
 describe('viewToContext', () => {
   it('reads location from status, empty when status is null', () => {
@@ -20,7 +23,11 @@ describe('viewToContext', () => {
         { id: 1, kind: 'output', text: 'old stuff' },
         { id: 2, kind: 'input', text: 'open mailbox' },
         { id: 3, kind: 'nl-source', text: 'grab lantern' },
-        { id: 4, kind: 'output', text: 'Opening the mailbox reveals a leaflet.' },
+        {
+          id: 4,
+          kind: 'output',
+          text: 'Opening the mailbox reveals a leaflet.',
+        },
       ],
     })
     expect(viewToContext(v).recentOutput).toBe(
@@ -53,7 +60,9 @@ describe('buildPrompt', () => {
 
   it('omits the location line entirely when location is empty', () => {
     const msgs = buildPrompt('xyzzy', { location: '', recentOutput: '' })
-    expect(msgs.some(m => /location/i.test(m.content) && /^.*: *$/m.test(m.content))).toBe(false)
+    expect(
+      msgs.some(m => /location/i.test(m.content) && /^.*: *$/m.test(m.content)),
+    ).toBe(false)
     expect(JSON.stringify(msgs)).not.toContain('Location:')
   })
 })

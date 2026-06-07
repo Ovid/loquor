@@ -38,7 +38,11 @@ describe('detectCapability', () => {
 
   it('limits below the small threshold → none', async () => {
     const r = await detectCapability({
-      navigator: nav({ adapter: { limits: { maxBufferSize: 1024, maxStorageBufferBindingSize: 1024 } } }) as any,
+      navigator: nav({
+        adapter: {
+          limits: { maxBufferSize: 1024, maxStorageBufferBindingSize: 1024 },
+        },
+      }) as any,
     })
     expect(r.tier).toBe('none')
     expect(r.reasons).toContain('insufficient-limits')
@@ -67,7 +71,13 @@ describe('detectCapability', () => {
 
   it('a probe that throws → none, never crashes', async () => {
     const r = await detectCapability({
-      navigator: { gpu: { requestAdapter: async () => { throw new Error('boom') } } } as any,
+      navigator: {
+        gpu: {
+          requestAdapter: async () => {
+            throw new Error('boom')
+          },
+        },
+      } as any,
     })
     expect(r.tier).toBe('none')
     expect(r.reasons).toContain('probe-error')

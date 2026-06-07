@@ -32,8 +32,8 @@ describe('nlpref', () => {
       enabled: false,
       declined: false,
     })
-    expect(
-      readNlPref(fakeStore({ 'loquor.nl': '{"enabled":"yes"}' })),
-    ).toEqual({ enabled: false, declined: false })
+    expect(readNlPref(fakeStore({ 'loquor.nl': '{"enabled":"yes"}' }))).toEqual(
+      { enabled: false, declined: false },
+    )
   })
 })

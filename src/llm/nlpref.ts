@@ -22,7 +22,10 @@ export function readNlPref(store: Storage = localStorage): NlPref {
   }
 }
 
-export function writeNlPref(patch: Partial<NlPref>, store: Storage = localStorage): void {
+export function writeNlPref(
+  patch: Partial<NlPref>,
+  store: Storage = localStorage,
+): void {
   try {
     store.setItem(KEY, JSON.stringify({ ...readNlPref(store), ...patch }))
   } catch {

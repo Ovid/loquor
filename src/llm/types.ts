@@ -24,7 +24,10 @@ export interface LoadProgress {
 
 /** The swappable LLM boundary. Real impl: engine.webllm.ts. Test: engine.fake.ts. */
 export interface LlmEngine {
-  load(onProgress: (p: LoadProgress) => void, signal: AbortSignal): Promise<void>
+  load(
+    onProgress: (p: LoadProgress) => void,
+    signal: AbortSignal,
+  ): Promise<void>
   generate(prompt: ChatMessages, grammar: string): Promise<string>
   unload(): Promise<void>
   /** Loaded into memory THIS session. */

@@ -24,14 +24,16 @@ export function ModelDownloadModal({
       <div className="modal">
         <h2>Natural-language input</h2>
         <p>
-          This downloads a language model (a sizable, one-time download) so you can
-          type plain English. It runs entirely on your device and is cached after
-          the first download.
+          This downloads a language model (a sizable, one-time download) so you
+          can type plain English. It runs entirely on your device and is cached
+          after the first download.
         </p>
         {downloading ? (
           <>
             <progress value={pct} max={100} />
-            <p>{pct}% — {progress!.text}</p>
+            <p>
+              {pct}% — {progress!.text}
+            </p>
             <button className="sw" type="button" onClick={onCancel}>
               Cancel
             </button>

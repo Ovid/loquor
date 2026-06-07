@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { parseCommand } from './translate'
+import {
+  parseCommand,
+  isMetaCommand,
+  isConfirmationPrompt,
+  isDisambiguationPrompt,
+} from './translate'
 import type { Scene } from './scene/types'
 import type { Vocab } from './grammar/types'
 import { TAKE_ACK, DROP_ACK, ABSENCE_PAT } from './grammar/patterns'
@@ -93,5 +98,58 @@ describe('parseCommand', () => {
   it('malformed JSON → abstain', () => {
     expect(parseCommand('not json', scene, vocab)).toEqual({ kind: 'abstain' })
     expect(parseCommand('', scene, vocab)).toEqual({ kind: 'abstain' })
+  })
+})
+
+describe('isMetaCommand', () => {
+  it('recognises bare meta verbs regardless of case / trailing punctuation', () => {
+    for (const m of ['restart', 'SAVE', ' restore ', 'Quit!', 'version.'])
+      expect(isMetaCommand(m)).toBe(true)
+  })
+
+  it('does NOT treat game actions or meta-prefixed phrases as meta', () => {
+    // "restart" is meta; "open the mailbox" is a game action; "save the egg" is
+    // a genuine in-game intent that must still reach the translator.
+    for (const g of ['open the mailbox', 'take it', 'save the egg', 'north'])
+      expect(isMetaCommand(g)).toBe(false)
+  })
+})
+
+describe('isConfirmationPrompt', () => {
+  it('detects the interpreter’s yes/no confirmation prompts', () => {
+    for (const p of [
+      'Do you wish to restart? (Y is affirmative): ',
+      'Your score is 0 (total of 350 points), in 12 moves.\nDo you wish to leave the game? (Y is affirmative):',
+      'Are you sure you want to quit?',
+    ])
+      expect(isConfirmationPrompt(p)).toBe(true)
+  })
+
+  it('does NOT fire on ordinary room / response text', () => {
+    for (const p of [
+      'You are standing in an open field west of a white house.',
+      'Opening the small mailbox reveals a leaflet.',
+      '',
+    ])
+      expect(isConfirmationPrompt(p)).toBe(false)
+  })
+})
+
+describe('isDisambiguationPrompt', () => {
+  it('detects the parser’s "Which … do you mean" disambiguation', () => {
+    for (const p of [
+      'Which door do you mean, the wooden door or the trap door?',
+      'Which do you mean, the brass lantern or the lantern?',
+    ])
+      expect(isDisambiguationPrompt(p)).toBe(true)
+  })
+
+  it('does NOT fire on prose that merely contains "which"', () => {
+    for (const p of [
+      'The leaflet, which you can read, welcomes you to Zork.',
+      'You are standing in an open field west of a white house.',
+      '',
+    ])
+      expect(isDisambiguationPrompt(p)).toBe(false)
   })
 })

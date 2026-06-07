@@ -319,6 +319,70 @@ describe('useNaturalLanguage', () => {
     expect(sendLine).toHaveBeenLastCalledWith('take leaflet')
   })
 
+  it('a bare meta-command (restart) bypasses the model and is sent raw', async () => {
+    // The model would translate anything into a command; prove "restart" never
+    // reaches it (no generate, no canonical echo) and goes straight to Zork.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"open","object":"mailbox"}',
+    })
+    const generateSpy = vi.spyOn(engine, 'generate')
+    const { hook, echoLocal, sendLine } = setup({ engine })
+    await reachOn(hook)
+    await act(async () => {
+      await hook.result.current.translate('restart')
+    })
+    expect(sendLine).toHaveBeenCalledWith('restart') // raw passthrough
+    expect(echoLocal).not.toHaveBeenCalled() // no canonical echo
+    expect(generateSpy).not.toHaveBeenCalled() // model never consulted
+  })
+
+  it('a reply to a yes/no confirmation prompt bypasses the model (restart flow)', async () => {
+    // After "restart", Zork asks "Do you wish to restart? (Y is affirmative):"
+    // as a LINE read. The player's "Y" must answer the game, not be translated
+    // (the model would turn it into "look" and the restart would never confirm).
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"look"}',
+    })
+    const generateSpy = vi.spyOn(engine, 'generate')
+    const getContext = () => ({
+      location: '',
+      recentOutput: 'Do you wish to restart? (Y is affirmative): ',
+    })
+    const { hook, echoLocal, sendLine } = setup({ engine, getContext })
+    await reachOn(hook)
+    await act(async () => {
+      await hook.result.current.translate('Y')
+    })
+    expect(sendLine).toHaveBeenCalledWith('Y') // raw passthrough answers the game
+    expect(echoLocal).not.toHaveBeenCalled()
+    expect(generateSpy).not.toHaveBeenCalled() // model never consulted
+  })
+
+  it('a reply to a disambiguation prompt bypasses the model (which door…)', async () => {
+    // "open door" with two doors → "Which door do you mean, the wooden door or
+    // the trap door?" (a LINE read). "wooden door" answers the parser and must
+    // reach Zork raw, not be translated into some other command.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"look"}',
+    })
+    const generateSpy = vi.spyOn(engine, 'generate')
+    const getContext = () => ({
+      location: 'Cellar',
+      recentOutput: 'Which door do you mean, the wooden door or the trap door?',
+    })
+    const { hook, echoLocal, sendLine } = setup({ engine, getContext })
+    await reachOn(hook)
+    await act(async () => {
+      await hook.result.current.translate('wooden door')
+    })
+    expect(sendLine).toHaveBeenCalledWith('wooden door') // raw answer to the parser
+    expect(echoLocal).not.toHaveBeenCalled()
+    expect(generateSpy).not.toHaveBeenCalled()
+  })
+
   it('observe is idempotent across re-renders of the same turn', async () => {
     const engine = new FakeLlmEngine({
       cached: true,

@@ -12,7 +12,12 @@ import type { SceneEvent } from './scene/types'
 import { TextSceneTracker } from './scene/tracker'
 import { buildGrammar } from './grammar/buildGrammar'
 import { buildPrompt, viewToContext } from './prompt'
-import { parseCommand } from './translate'
+import {
+  parseCommand,
+  isMetaCommand,
+  isConfirmationPrompt,
+  isDisambiguationPrompt,
+} from './translate'
 import { readNlPref, writeNlPref } from './nlpref'
 
 export interface UseNaturalLanguageArgs {
@@ -209,6 +214,29 @@ export function useNaturalLanguage(
         sendLine(english)
         return
       }
+      // Z-machine meta-verbs (restart, save, quit…) are not in-world actions and
+      // have no canonical translation — send them straight to the interpreter
+      // rather than let the model invent a wrong command for them. Mirrors the
+      // abstain path: no echo, no command latch.
+      if (isMetaCommand(english)) {
+        lastCommandRef.current = null
+        sendLine(english)
+        return
+      }
+      // The game's own prompts are read as line input too: a yes/no confirmation
+      // (restart/quit/restore) or a parser disambiguation ("Which door…?"). The
+      // player's reply answers the interpreter and must not be translated — else
+      // "Y" → "look" (restart never confirms) or "wooden door" gets mangled. Pass
+      // it raw so Zork's own parser handles the reply.
+      const recentOutput = getContext().recentOutput
+      if (
+        isConfirmationPrompt(recentOutput) ||
+        isDisambiguationPrompt(recentOutput)
+      ) {
+        lastCommandRef.current = null
+        sendLine(english)
+        return
+      }
       // A translation is already in flight — drop this one rather than orphan a
       // second inference (review I4 concurrency guard).
       if (translatingRef.current) return
@@ -251,6 +279,18 @@ export function useNaturalLanguage(
         ])
         clearTimeout(watchdogId!)
         const result = parseCommand(raw, scene, vocab)
+        // TEMP gate diagnostics — what the scene fed the model vs. what it emitted.
+        // Remove once translation quality is tuned.
+        console.log(
+          '[nl debug]',
+          JSON.stringify({
+            english,
+            antecedent: scene.antecedent,
+            inScope: scene.inScope.map(o => o.canonical),
+            raw,
+            result,
+          }),
+        )
         if (result.kind === 'command') {
           lastCommandRef.current = result.text // latch for the next observe()
           echoLocal(english)

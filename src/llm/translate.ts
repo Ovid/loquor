@@ -11,6 +11,63 @@ import type { Vocab } from './grammar/types'
  */
 export const ABSTAIN = '__UNKNOWN__'
 
+// Z-machine meta-verbs that are not in-world actions: they have no canonical
+// game-command translation and must bypass the model entirely (sent raw to the
+// interpreter). Without this, the 1.5B model — reluctant to abstain — translates
+// "restart" into a plausible-but-wrong action like "open door" (systematic-
+// debugging). Match only the BARE verb so a real intent like "save the egg"
+// still reaches the translator.
+const META_COMMANDS = new Set([
+  'restart',
+  'save',
+  'restore',
+  'quit',
+  'version',
+  'script',
+  'unscript',
+  'verbose',
+  'brief',
+  'superbrief',
+  'diagnose',
+  'score',
+])
+
+/** True when the raw English is a bare Z-machine meta-command (restart, save…). */
+export function isMetaCommand(english: string): boolean {
+  const norm = english
+    .trim()
+    .toLowerCase()
+    .replace(/[!.?]+$/, '')
+  return META_COMMANDS.has(norm)
+}
+
+// The interpreter's yes/no confirmation prompts (restart, quit, restore-overwrite)
+// are read as ordinary LINE input — there is no engine-level flag distinguishing
+// them from the main command prompt. When the recent output is such a prompt, the
+// player's reply ("Y") is an answer to the game, NOT English to translate: the
+// model would turn "Y" into a bogus command (observed: "Y" → "look"), so the
+// restart could never confirm. Detect the prompt from its text and pass raw.
+const CONFIRM_PROMPT =
+  /\(Y is affirmative\)|\bare you sure\b|\bdo you (?:really )?wish to\b/i
+
+/** True when the recent game output is an interpreter yes/no confirmation prompt. */
+export function isConfirmationPrompt(recentOutput: string): boolean {
+  return CONFIRM_PROMPT.test(recentOutput)
+}
+
+// The parser's disambiguation question ("Which door do you mean, the wooden door
+// or the trap door?") is also a LINE read: the player's reply ("wooden door") is
+// a noun-phrase the game pairs with the pending verb, NOT a fresh command. Sent
+// through the model it would be mistranslated; pass it raw so Zork resolves it.
+// Requires both "which" and "do you mean" so ordinary prose ("…which you read…")
+// can't trip it.
+const DISAMBIGUATION_PROMPT = /\bwhich\b[\s\S]*\bdo you mean\b/i
+
+/** True when the recent game output is a parser disambiguation question. */
+export function isDisambiguationPrompt(recentOutput: string): boolean {
+  return DISAMBIGUATION_PROMPT.test(recentOutput)
+}
+
 interface RawCmd {
   verb?: unknown
   object?: unknown

@@ -17,6 +17,7 @@
     "@fontsource/im-fell-english": "5.2.6",
     "@fontsource/im-fell-english-sc": "5.2.6",
     "@fontsource/jetbrains-mono": "5.2.8",
+    "@mlc-ai/web-llm": "0.2.84",
     "ifvms": "^1.1.6",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"

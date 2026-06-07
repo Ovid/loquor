@@ -1,0 +1,81 @@
+import type { MLCEngineInterface, InitProgressReport } from '@mlc-ai/web-llm'
+import type { ChatMessages, LlmEngine, LoadProgress } from './types'
+import { DEFAULT_MODEL } from './models'
+
+/**
+ * Real LLM boundary over @mlc-ai/web-llm (WebGPU). The single file that imports
+ * web-llm. Constrained decoding uses XGrammar GBNF via response_format.
+ *
+ * Open items confirmed at the walking-skeleton gate (spec open notes):
+ *  - exact GBNF response_format shape (`type: 'grammar'` + `grammar` field — confirmed
+ *    in ResponseFormat interface from 0.2.84 openai_api_protocols/chat_completion.d.ts);
+ *  - cached-model detection for the installed/not-installed toggle;
+ *  - aborting an in-flight load (AbortSignal wiring).
+ *
+ * JSDOM NOTE: The runtime imports (CreateMLCEngine, hasModelInCache) are lazy
+ * dynamic imports inside the methods, NOT top-level static imports. This is
+ * required because @mlc-ai/web-llm references browser globals (Worker, WebGPU)
+ * at module-evaluation time, which would crash the jsdom test environment on
+ * import. The `import type` lines above are type-only and erased at compile
+ * time, so they are safe as static imports.
+ */
+export class WebLlmEngine implements LlmEngine {
+  private engine: MLCEngineInterface | null = null
+  private modelId: string
+  constructor(modelId: string = DEFAULT_MODEL) {
+    this.modelId = modelId
+  }
+
+  async load(
+    onProgress: (p: LoadProgress) => void,
+    signal: AbortSignal,
+  ): Promise<void> {
+    if (signal.aborted) throw new DOMException('aborted', 'AbortError')
+    const { CreateMLCEngine: create } = await import('@mlc-ai/web-llm')
+    this.engine = await create(this.modelId, {
+      initProgressCallback: (r: InitProgressReport) => {
+        // web-llm reports a 0..1 `progress`; normalize to loaded/total.
+        onProgress({ loaded: Math.round(r.progress * 100), total: 100, text: r.text })
+      },
+    })
+    if (signal.aborted) {
+      await this.unload()
+      throw new DOMException('aborted', 'AbortError')
+    }
+  }
+
+  async generate(prompt: ChatMessages, grammar: string): Promise<string> {
+    if (!this.engine) throw new Error('engine not loaded')
+    const res = await this.engine.chat.completions.create({
+      messages: prompt,
+      temperature: 0,
+      // ResponseFormat in 0.2.84 supports { type: 'grammar', grammar: string } natively.
+      response_format: { type: 'grammar', grammar },
+    })
+    return res.choices[0]?.message?.content ?? '__UNKNOWN__'
+  }
+
+  async unload(): Promise<void> {
+    await this.engine?.unload?.()
+    this.engine = null
+  }
+
+  isLoaded(): boolean {
+    return this.engine !== null
+  }
+
+  /**
+   * Whether the model weights are already in WebLLM's on-disk cache (survives
+   * reloads) — drives the off·installed vs off·not-installed toggle state so a
+   * returning player is not re-prompted. Distinct from isLoaded().
+   * Dynamic import for jsdom safety (see class-level JSDoc).
+   */
+  async isCached(): Promise<boolean> {
+    try {
+      const { hasModelInCache: check } = await import('@mlc-ai/web-llm')
+      return await check(this.modelId)
+    } catch {
+      return false
+    }
+  }
+}

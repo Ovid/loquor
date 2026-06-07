@@ -1,0 +1,10 @@
+/* App-global base styles intentionally live in src/ui/theme.css (html/body,
+   parchment background, fonts, and the Folio theme tokens).
+
+   This file previously held the `npm create vite` starter boilerplate — a
+   conflicting `:root` palette (which overrode theme.css's `--text`), a centered
+   `#root { width: 1126px; text-align: center }` demo layout, and demo
+   `h1/h2/p/code` rules. Because it is imported last in main.tsx, that boilerplate
+   won the cascade and broke the terminal (centered prose, hijacked text color).
+   It is removed; keep this file empty of global resets so theme.css stays the
+   single source of truth. */

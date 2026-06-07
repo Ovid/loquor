@@ -1,0 +1,7 @@
+/* Self-hosted OFL fonts (Fontsource) — bundled as app assets, never CDN-loaded.
+   The offline/privacy promise depends on this: no fonts.gstatic / googleapis. */
+@import '@fontsource/im-fell-english/400.css';
+@import '@fontsource/im-fell-english/400-italic.css';
+@import '@fontsource/im-fell-english-sc/400.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';

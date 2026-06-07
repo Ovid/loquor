@@ -1,0 +1,101 @@
+/* Folio theme tokens — copied verbatim from lamplit-folio-v3.html */
+
+:root {
+  /* Lamplit Folio (dark, default) */
+  --bg-base: #0e0b08;
+  --glow1: rgba(232, 163, 61, 0.1);
+  --glow2: rgba(232, 163, 61, 0.06);
+  --text: #e7dcc4;
+  --text-dim: #b8ac90;
+  --brass: #e8a33d;
+  --brass-soft: #caa46a;
+  --ember: #c5482f;
+  --rule: #3a2c1c;
+  --vignette: rgba(0, 0, 0, 0.55);
+  --plate-grad: linear-gradient(
+    180deg,
+    rgba(40, 30, 18, 0.55),
+    rgba(20, 15, 9, 0.65)
+  );
+  --status-grad: linear-gradient(180deg, #241a0f, #180f08);
+  --vol-bg: rgba(0, 0, 0, 0.25);
+  --vol-hover-bg: rgba(232, 163, 61, 0.06);
+  --caret-shadow: 0 0 12px rgba(232, 163, 61, 0.6);
+  --title-shadow:
+    0 0 18px rgba(232, 163, 61, 0.45), 0 0 2px rgba(232, 163, 61, 0.8);
+  --loc-shadow: 0 0 10px rgba(232, 163, 61, 0.3);
+  --enter-text: #0e0b08;
+  --grain-opacity: 0.05;
+  --grain-blend: overlay;
+}
+
+[data-theme='light'] {
+  /* Daylit Folio (light) */
+  --bg-base: #e7dcc4;
+  --glow1: rgba(255, 248, 230, 0.65);
+  --glow2: rgba(180, 140, 80, 0.06);
+  --text: #3a2c1c;
+  --text-dim: #6b5740;
+  --brass: #9a6312;
+  --brass-soft: #7c5a2a;
+  --ember: #a5371f;
+  --rule: rgba(90, 65, 35, 0.4);
+  --vignette: rgba(90, 60, 25, 0.26);
+  --plate-grad: linear-gradient(
+    180deg,
+    rgba(255, 250, 238, 0.72),
+    rgba(232, 220, 196, 0.72)
+  );
+  --status-grad: linear-gradient(180deg, #e3d6ba, #d6c5a2);
+  --vol-bg: rgba(255, 250, 238, 0.5);
+  --vol-hover-bg: rgba(154, 99, 18, 0.08);
+  --caret-shadow: none;
+  --title-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+  --loc-shadow: none;
+  --enter-text: #f7efdd;
+  --grain-opacity: 0.07;
+  --grain-blend: multiply;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+body {
+  background:
+    radial-gradient(120% 90% at 50% -10%, var(--glow1), transparent 55%),
+    radial-gradient(80% 60% at 50% 40%, var(--glow2), transparent 60%),
+    var(--bg-base);
+  color: var(--text);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  overflow: hidden;
+  transition:
+    color 0.5s,
+    background 0.5s;
+}
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  opacity: var(--grain-opacity);
+  mix-blend-mode: var(--grain-blend);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  background: radial-gradient(
+    110% 80% at 50% 35%,
+    transparent 40%,
+    var(--vignette) 100%
+  );
+}

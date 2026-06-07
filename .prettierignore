@@ -1,0 +1,24 @@
+# Hand-authored documentation and project instructions — not auto-formatted.
+docs/
+README.md
+CLAUDE.md
+
+# Vendored, read-only references (also gitignored; belt-and-suspenders).
+ifvms.js/
+web-llm/
+zork1/
+zork2/
+zork3/
+scratch/
+.superpowers/
+
+# Vendored Glk layer — pinned verbatim to an upstream SHA; never reformat it.
+vendor/
+
+# Captured protocol fixtures (generated output) + their notes — leave as-is.
+tests/fixtures/
+
+# Build output and deps.
+dist/
+node_modules/
+package-lock.json

@@ -1,0 +1,186 @@
+/* Folio presentational components — extracted from lamplit-folio-v3.html */
+/* Excludes: theme tokens (theme.css), body/html, landing/plate rules (Task 4.2) */
+
+/* ---------- Terminal shell ---------- */
+/* `.screen` (landing.css) is a fixed full-viewport flexbox that centers a single
+   child — correct for the landing plate. The terminal reuses `.screen` but stacks
+   StatusBar / Scrollback / CommandInput top-to-bottom, so `.term` overrides it to
+   a stretched column (mockup: `.term{flex-direction:column;align-items:stretch}`).
+   Without this, the three children lay out as a centered row and the scrollback
+   collapses to a one-word-per-line column. */
+.screen.term {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+/* ---------- Theme toggle button ---------- */
+/* shared small theme control — used inside the plate and the status bar, never floating */
+.themebtn {
+  cursor: pointer;
+  font-family: 'IM Fell English', serif;
+  font-style: italic;
+  font-size: 12px;
+  color: var(--brass-soft);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 16px;
+  padding: 3px 11px;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.themebtn:hover {
+  border-color: var(--brass);
+  color: var(--brass);
+}
+
+/* ---------- StatusBar ---------- */
+.statusbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  background: var(--status-grad);
+  border-bottom: 1px solid var(--rule);
+  padding: 9px 18px;
+  font-size: 13px;
+  transition: background 0.5s;
+}
+
+/* Location text — truncates with ellipsis so a long room name never crowds the right cluster */
+.loc {
+  font-family: 'IM Fell English SC', serif;
+  color: var(--brass);
+  letter-spacing: 0.5px;
+  font-size: 15px;
+  text-shadow: var(--loc-shadow);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  white-space: nowrap;
+}
+.meta b {
+  color: var(--text);
+}
+.meta .sep {
+  opacity: 0.4;
+}
+.meta .sw {
+  color: var(--brass-soft);
+  cursor: pointer;
+  font: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+}
+.meta .sw:hover {
+  color: var(--brass);
+}
+.meta .sw:focus-visible {
+  outline: 1px solid var(--brass);
+  outline-offset: 2px;
+}
+
+/* ---------- Scrollback ---------- */
+.scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 30px 8vw 10px;
+  font-size: 15px;
+  line-height: 1.65;
+  max-width: 920px;
+  width: 100%;
+  margin: 0 auto;
+  /* Subtle themed scrollbar — the default browser chrome clashes with the
+     parchment. Standard properties (Firefox + recent Chromium): */
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule) transparent;
+}
+/* WebKit/Blink equivalent: a thin, rounded thumb floated off a transparent
+   track via a transparent border + padding-box clip; brass on hover. */
+.scroll::-webkit-scrollbar {
+  width: 10px;
+}
+.scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll::-webkit-scrollbar-thumb {
+  background: var(--rule);
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+.scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--brass-soft);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+.scroll .room {
+  color: var(--brass);
+  font-family: 'IM Fell English SC', serif;
+  font-size: 17px;
+  letter-spacing: 0.4px;
+}
+.scroll p {
+  margin: 0 0 14px;
+  opacity: 0;
+  animation: rise 0.5s ease forwards;
+}
+.scroll .echo {
+  color: var(--brass-soft);
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- CommandInput ---------- */
+/* Inline prompt: rendered as the last child of .scroll, so it aligns with the
+   prose and rides at the end of the transcript instead of a detached footer. */
+.inputline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.car {
+  color: var(--brass);
+  text-shadow: var(--caret-shadow);
+  font-weight: 500;
+}
+.blink {
+  animation: blink 1.1s step-end infinite;
+}
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+.cmd {
+  flex: 1;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 15px;
+  caret-color: var(--brass);
+}
+.cmd::placeholder {
+  color: var(--text-dim);
+  opacity: 0.6;
+}

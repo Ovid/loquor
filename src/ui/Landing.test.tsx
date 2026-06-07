@@ -1,0 +1,60 @@
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
+import { Landing } from './Landing'
+
+describe('Landing', () => {
+  it('lets you pick a volume and enter', () => {
+    const onEnter = vi.fn()
+    render(
+      <Landing onEnter={onEnter} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    fireEvent.click(screen.getByText('The Wizard of Frobozz'))
+    fireEvent.click(screen.getByText(/Light the lamp/))
+    expect(onEnter).toHaveBeenCalledWith('zork2')
+  })
+  it('shows a resume hint for saved games', () => {
+    render(
+      <Landing
+        onEnter={() => {}}
+        savedSlugs={new Set(['zork1'])}
+        themeToggle={null}
+      />,
+    )
+    expect(screen.getByText(/resume/i)).toBeInTheDocument()
+  })
+
+  // Overlay (story-picker) mode: when opened over a running game, the picker
+  // must be dismissible so the player can return to where they were.
+  it('renders no dismiss control on the initial landing (no onDismiss)', () => {
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    expect(screen.queryByRole('button', { name: /return to game/i })).toBeNull()
+  })
+  it('calls onDismiss when the dismiss control is clicked (overlay mode)', () => {
+    const onDismiss = vi.fn()
+    render(
+      <Landing
+        onEnter={() => {}}
+        savedSlugs={new Set()}
+        themeToggle={null}
+        onDismiss={onDismiss}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /return to game/i }))
+    expect(onDismiss).toHaveBeenCalledTimes(1)
+  })
+  it('dismisses on the Escape key (overlay mode)', () => {
+    const onDismiss = vi.fn()
+    render(
+      <Landing
+        onEnter={() => {}}
+        savedSlugs={new Set()}
+        themeToggle={null}
+        onDismiss={onDismiss}
+      />,
+    )
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onDismiss).toHaveBeenCalledTimes(1)
+  })
+})

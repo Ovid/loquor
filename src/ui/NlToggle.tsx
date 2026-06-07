@@ -1,4 +1,5 @@
 import type { NlState } from '../llm/types'
+import { pct as toPct } from '../llm/progress'
 
 export function NlToggle({
   state,
@@ -25,8 +26,7 @@ export function NlToggle({
     )
   }
   if (state.phase === 'downloading') {
-    const pct =
-      state.total > 0 ? Math.round((state.loaded / state.total) * 100) : 0
+    const pct = toPct(state.loaded, state.total)
     return <span className="nl-toggle">downloading… {pct}%</span>
   }
   const label =

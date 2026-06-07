@@ -37,6 +37,21 @@ describe('ModelDownloadModal', () => {
     expect(onCancel).toHaveBeenCalled()
   })
 
+  it('exposes the dialog with an accessible name', () => {
+    render(
+      <ModelDownloadModal
+        open
+        progress={null}
+        onAccept={vi.fn()}
+        onDecline={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    )
+    expect(
+      screen.getByRole('dialog', { name: /natural-language input/i }),
+    ).toBeInTheDocument()
+  })
+
   it('renders nothing when closed', () => {
     const { container } = render(
       <ModelDownloadModal

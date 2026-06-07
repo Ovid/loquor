@@ -4,16 +4,22 @@ import type {
   LlmEngine,
   NlState,
   PromptContext,
+  ViewContext,
 } from './types'
-import { buildPrompt } from './prompt'
-import { parseCompletion } from './translate'
+import type { ViewState } from '../glkote-react/types'
+import type { Vocab } from './grammar/types'
+import type { SceneEvent } from './scene/types'
+import { TextSceneTracker } from './scene/tracker'
+import { buildGrammar } from './grammar/buildGrammar'
+import { buildPrompt, viewToContext } from './prompt'
+import { parseCommand } from './translate'
 import { readNlPref, writeNlPref } from './nlpref'
 
 export interface UseNaturalLanguageArgs {
   engine: LlmEngine
   capability: CapabilityResult
-  grammar: string | null
-  getContext: () => PromptContext
+  vocab: Vocab | null
+  getContext: () => ViewContext
   echoLocal: (text: string) => void
   sendLine: (text: string) => void
   watchdogMs: number
@@ -29,6 +35,8 @@ export interface UseNaturalLanguage {
   declineDownload: () => void
   cancelDownload: () => void
   translate: (english: string) => Promise<void>
+  /** Feed a turn-boundary ViewState to the scene tracker (once per turn). */
+  observe: (view: ViewState) => void
 }
 
 type Internal =
@@ -54,7 +62,7 @@ export function useNaturalLanguage(
   const {
     engine,
     capability,
-    grammar,
+    vocab,
     getContext,
     echoLocal,
     sendLine,
@@ -69,9 +77,19 @@ export function useNaturalLanguage(
   // Guards against a second translate running concurrently. `pending` (state)
   // also disables the input, but a ref closes the same-tick window synchronously.
   const translatingRef = useRef(false)
+  // The canonical command we last sent (for take/drop/acted-object attribution).
+  // Set when translate emits a command; stays null through an abstain / raw send.
+  const lastCommandRef = useRef<string | null>(null)
 
   const available = capability.tier !== 'none'
-  const hasGrammar = grammar !== null
+  const hasVocab = vocab !== null
+
+  // Own a scene tracker; rebuild + reset when the game (vocab) changes.
+  const trackerRef = useRef<TextSceneTracker | null>(null)
+  useEffect(() => {
+    trackerRef.current = vocab ? new TextSceneTracker(vocab) : null
+    lastCommandRef.current = null
+  }, [vocab])
 
   // Probe the ON-DISK cache (survives reloads) for the installed/not-installed
   // distinction — distinct from isLoaded() (in-memory, this session only) — and,
@@ -104,7 +122,7 @@ export function useNaturalLanguage(
 
   const state: NlState = useMemo(() => {
     if (!available) return { phase: 'unavailable', reasons: capability.reasons }
-    if (!hasGrammar) return { phase: 'disabled' } // silent: this game has no grammar
+    if (!hasVocab) return { phase: 'disabled' } // silent: this game has no vocab
     if (internal.phase === 'downloading')
       return {
         phase: 'downloading',
@@ -113,7 +131,7 @@ export function useNaturalLanguage(
       }
     if (internal.phase === 'on') return { phase: 'on' }
     return { phase: 'off', installed }
-  }, [available, hasGrammar, capability.reasons, internal, installed])
+  }, [available, hasVocab, capability.reasons, internal, installed])
 
   const requestDownload = useCallback(() => {
     setNotice(null)
@@ -168,7 +186,7 @@ export function useNaturalLanguage(
   }, [])
 
   const toggle = useCallback(() => {
-    if (!available || !hasGrammar) return
+    if (!available || !hasVocab) return
     if (internal.phase === 'on') {
       setInternal({ phase: 'off' }) // off is instant; model stays cached
       writeNlPref({ enabled: false })
@@ -180,12 +198,14 @@ export function useNaturalLanguage(
     } else {
       setModalOpen(true)
     }
-  }, [available, hasGrammar, internal.phase, installed])
+  }, [available, hasVocab, internal.phase, installed])
 
   const translate = useCallback(
     async (english: string) => {
+      const tracker = trackerRef.current
       // NL off / disabled / unavailable → behave exactly like the first pass.
-      if (internal.phase !== 'on' || grammar === null) {
+      if (internal.phase !== 'on' || vocab === null || tracker === null) {
+        lastCommandRef.current = null
         sendLine(english)
         return
       }
@@ -200,7 +220,15 @@ export function useNaturalLanguage(
       // inference stops consuming the GPU instead of running to completion.
       const ac = new AbortController()
       try {
-        const messages = buildPrompt(english, getContext())
+        const scene = tracker.scene()
+        const grammar = buildGrammar(vocab, scene)
+        const base = getContext()
+        const ctx: PromptContext = {
+          ...base,
+          inScope: scene.inScope.map(o => o.canonical),
+          antecedent: scene.antecedent,
+        }
+        const messages = buildPrompt(english, ctx)
         const watchdog = new Promise<never>((_, rej) => {
           watchdogId = setTimeout(() => {
             // Reject FIRST so the watchdog wins Promise.race, THEN abort — abort
@@ -215,15 +243,18 @@ export function useNaturalLanguage(
           watchdog,
         ])
         clearTimeout(watchdogId!)
-        const result = parseCompletion(raw)
+        const result = parseCommand(raw, scene, vocab)
         if (result.kind === 'command') {
+          lastCommandRef.current = result.text // latch for the next observe()
           echoLocal(english)
           sendLine(result.text)
         } else {
+          lastCommandRef.current = null // abstain → raw send, no acted-object
           sendLine(english) // abstain → game's own parser handles it
         }
       } catch (err) {
         clearTimeout(watchdogId!)
+        lastCommandRef.current = null
         // Watchdog or generate error: never wedge the turn. Surface a visible
         // notice so a timeout is distinguishable from a normal abstain.
         setNotice(
@@ -237,16 +268,26 @@ export function useNaturalLanguage(
         setPending(false)
       }
     },
-    [
-      internal.phase,
-      grammar,
-      engine,
-      getContext,
-      echoLocal,
-      sendLine,
-      watchdogMs,
-    ],
+    [internal.phase, vocab, engine, getContext, echoLocal, sendLine, watchdogMs],
   )
+
+  // Fire once per turn (Terminal gates on the line-input boundary). Builds a
+  // SceneEvent from the live view + the latched last command, then clears the
+  // latch so a duplicate observe of the same view is a no-op (reduceScene is
+  // idempotent too). Derives the event from the passed `view`, not getContext()
+  // (which reads a possibly-stale ref).
+  const observe = useCallback((view: ViewState) => {
+    const tracker = trackerRef.current
+    if (!tracker) return
+    const vc = viewToContext(view)
+    const event: SceneEvent = {
+      location: vc.location,
+      outputText: vc.recentOutput,
+      lastCommand: lastCommandRef.current,
+    }
+    tracker.observe(event)
+    lastCommandRef.current = null
+  }, [])
 
   return {
     state,
@@ -258,5 +299,6 @@ export function useNaturalLanguage(
     declineDownload,
     cancelDownload,
     translate,
+    observe,
   }
 }

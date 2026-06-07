@@ -60,13 +60,3 @@ export function parseCommand(rawJson: string, scene: Scene, vocab: Vocab): Trans
   if (!vocab.preps.includes(prep)) return { kind: 'abstain' }
   return { kind: 'command', text: `${verb} ${object} ${prep} ${indirect}` }
 }
-
-// TEMPORARY: the previous single-token completion parser. The hook
-// (useNaturalLanguage.ts) still calls this until Task 7 rewrites it to use
-// parseCommand with a scene. Removed in Task 7. Kept here only to keep the
-// typecheck + existing hook tests green between Task 5 and Task 7.
-export function parseCompletion(raw: string): TranslateResult {
-  const text = raw.trim()
-  if (text === '' || text === ABSTAIN) return { kind: 'abstain' }
-  return { kind: 'command', text }
-}

@@ -44,4 +44,22 @@ describe('Scrollback', () => {
     expect(onActivate).not.toHaveBeenCalled()
     sel.mockRestore()
   })
+
+  it('renders an nl-source line with a > marker and the .nl-source class', () => {
+    render(
+      <Scrollback
+        lines={[{ id: 1, kind: 'nl-source', text: 'grab the brass lantern' }]}
+      />,
+    )
+    const p = screen.getByText('grab the brass lantern').closest('p')!
+    expect(p).toHaveClass('nl-source')
+    expect(p.textContent).toContain('>')
+  })
+
+  it('renders a VM input echo with the › marker (not >)', () => {
+    render(<Scrollback lines={[{ id: 2, kind: 'input', text: 'take lantern' }]} />)
+    const p = screen.getByText('take lantern').closest('p')!
+    expect(p.textContent).toContain('›') // ›
+    expect(p).toHaveClass('echo')
+  })
 })

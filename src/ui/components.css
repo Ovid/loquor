@@ -184,3 +184,9 @@
   color: var(--text-dim);
   opacity: 0.6;
 }
+
+/* Player's literal English before NL translation — muted vs. the VM's echo. */
+.nl-source {
+  opacity: 0.65;
+  font-style: italic;
+}

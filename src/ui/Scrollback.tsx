@@ -37,10 +37,20 @@ export function Scrollback({
         <p
           key={l.id}
           className={
-            l.kind === 'room' ? 'room' : l.kind === 'input' ? 'echo' : ''
+            l.kind === 'room'
+              ? 'room'
+              : l.kind === 'input'
+                ? 'echo'
+                : l.kind === 'nl-source'
+                  ? 'nl-source'
+                  : ''
           }
         >
           {l.kind === 'input' ? (
+            <>
+              <span className="car">&#8250;</span> {l.text}
+            </>
+          ) : l.kind === 'nl-source' ? (
             <>
               <span className="car">&gt;</span> {l.text}
             </>

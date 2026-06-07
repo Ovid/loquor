@@ -44,6 +44,15 @@ export function Terminal({
     viewRef.current = view
   }, [view])
 
+  // Release the model's GPU/worker resources when the Terminal unmounts (leaving
+  // the game, or a hot-reload). The instance is stable, so this fires on unmount
+  // only — story changes reuse it (review S1).
+  useEffect(() => {
+    return () => {
+      void llmEngine.unload()
+    }
+  }, [llmEngine])
+
   useEffect(() => {
     let cancelled = false
     const engine = new ZMachine({

@@ -150,6 +150,23 @@ export class GlkOteBridge implements GlkOteDisplay {
   }
 
   /**
+   * Append a UI-only "source" line (the player's literal English) to ViewState
+   * WITHOUT sending anything to the VM. The reducer seeds its accumulator from
+   * the prior lines, so this line is carried inertly through later updates while
+   * the VM's own `input` echo and output append after it. The future LLM layer's
+   * only input-side bridge addition.
+   */
+  echoLocal(text: string) {
+    const id = this.view.nextId
+    this.view = {
+      ...this.view,
+      lines: [...this.view.lines, { id, kind: 'nl-source', text }],
+      nextId: id + 1,
+    }
+    this.onState(this.view)
+  }
+
+  /**
    * Satisfies a char-input request — either a [MORE] auto-ack or the player's
    * genuine keystroke. See charIsMore for the discrimination logic.
    */

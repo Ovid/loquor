@@ -172,8 +172,14 @@ export function reduce(prev: ViewState, update: GlkOteUpdate): ViewState {
   // Convert to BufferLine objects, reusing the previous object when a line is
   // unchanged (stable identity) and assigning a fresh id only to genuinely new
   // lines. An `input` line is an echoed command regardless of its text shape.
+  // UI-only kinds (e.g. 'nl-source') are carried inertly — the VM never touches
+  // them, so we preserve their original kind rather than reclassifying.
   const newLines: BufferLine[] = paras.map(p => {
-    const kind = p.input ? 'input' : classify(p.text)
+    const kind = p.input
+      ? 'input'
+      : p.prev?.kind === 'nl-source'
+        ? 'nl-source'
+        : classify(p.text)
     if (p.prev && p.prev.text === p.text && p.prev.kind === kind) return p.prev
     return { id: p.prev ? p.prev.id : nextId++, kind, text: p.text }
   })

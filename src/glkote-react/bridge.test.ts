@@ -146,4 +146,26 @@ describe('GlkOteBridge', () => {
     expect(spy).toHaveBeenCalledWith('[glk]', 'boom')
     spy.mockRestore()
   })
+
+  it('echoLocal appends a UI-only nl-source line that survives later VM updates', () => {
+    const states: any[] = []
+    const bridge = new GlkOteBridge(v => states.push(v))
+    bridge.init({ accept: vi.fn() })
+
+    bridge.echoLocal('grab the brass lantern')
+    const afterEcho = states[states.length - 1]
+    const src = afterEcho.lines.find((l: any) => l.kind === 'nl-source')
+    expect(src).toBeTruthy()
+    expect(src.text).toBe('grab the brass lantern')
+
+    // A subsequent VM update (the canonical echo + output) must not drop it.
+    bridge.update({
+      type: 'update',
+      gen: 1,
+      content: [{ id: 7, text: [{ content: ['input', 'take lantern'] }] }],
+      input: [{ type: 'line', id: 7, gen: 1 }],
+    } as any)
+    const after = states[states.length - 1]
+    expect(after.lines.some((l: any) => l.kind === 'nl-source')).toBe(true)
+  })
 })

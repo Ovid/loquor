@@ -5,10 +5,11 @@ import {
   isConfirmationPrompt,
   isDisambiguationPrompt,
   splitClauses,
+  clauseFailed,
 } from './translate'
 import type { Scene } from './scene/types'
 import type { Vocab } from './grammar/types'
-import { TAKE_ACK, DROP_ACK, ABSENCE_PAT } from './grammar/patterns'
+import { TAKE_ACK, DROP_ACK, ABSENCE_PAT, FAILURE_PAT } from './grammar/patterns'
 
 const vocab: Vocab = {
   verbsOnly: ['look', 'inventory'],
@@ -209,5 +210,33 @@ describe('splitClauses', () => {
   it('trims clauses and drops empties', () => {
     expect(splitClauses('  open mailbox  and  ')).toEqual(['open mailbox'])
     expect(splitClauses('open mailbox..')).toEqual(['open mailbox'])
+  })
+})
+
+describe('clauseFailed', () => {
+  const v: Vocab = { ...vocab, failurePat: FAILURE_PAT }
+
+  it('is true on a no-op failure phrase (failurePat)', () => {
+    expect(clauseFailed('It is already open.', v)).toBe(true)
+  })
+
+  it('is true on an absence phrase (absencePat)', () => {
+    expect(clauseFailed("You can't see any grue here.", v)).toBe(true)
+  })
+
+  it('is false on ordinary success output', () => {
+    expect(clauseFailed('Opening the small mailbox reveals a leaflet.', v)).toBe(
+      false,
+    )
+  })
+
+  it('is not stateful across calls (rebuilds the global absencePat each time)', () => {
+    const out = "You can't see any grue here."
+    expect(clauseFailed(out, v)).toBe(true)
+    expect(clauseFailed(out, v)).toBe(true)
+  })
+
+  it('tolerates a vocab with no failurePat', () => {
+    expect(clauseFailed('It is already open.', vocab)).toBe(false)
   })
 })

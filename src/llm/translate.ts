@@ -84,6 +84,20 @@ export function isDisambiguationPrompt(recentOutput: string): boolean {
   return DISAMBIGUATION_PROMPT.test(recentOutput)
 }
 
+/**
+ * True when a clause's turn output signals an in-game no-op/refusal (`failurePat`,
+ * e.g. "It is already open.") or an absence (`absencePat`, e.g. "You can't see any
+ * grue here."). Used to STOP a compound sequence after a clause that didn't take
+ * effect (locked decision 3). `absencePat` is a global regex, so a fresh instance
+ * is built per call — `.test()` on the shared one is stateful (mirrors
+ * tracker.ts's suppressed()).
+ */
+export function clauseFailed(recentOutput: string, vocab: Vocab): boolean {
+  if (vocab.failurePat?.test(recentOutput)) return true
+  const absence = new RegExp(vocab.absencePat.source, vocab.absencePat.flags)
+  return absence.test(recentOutput)
+}
+
 interface RawCmd {
   verb?: unknown
   object?: unknown

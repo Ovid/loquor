@@ -183,10 +183,13 @@ export function reduce(prev: ViewState, update: GlkOteUpdate): ViewState {
     if (update.input.length === 0) {
       inputRequest = null
     } else {
+      // Non-empty input: adopt a line/char request if present, but if it holds
+      // only other request shapes (hyperlink/mouse), leave inputRequest as-is —
+      // the VM is still waiting, so we must not clear a pending line/char.
       const req = update.input.find(
         (i: Record<string, unknown>) => i.type === 'line' || i.type === 'char',
       )
-      inputRequest = (req?.type as 'line' | 'char' | undefined) ?? null
+      if (req) inputRequest = req.type as 'line' | 'char'
     }
   }
 

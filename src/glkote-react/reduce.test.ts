@@ -219,6 +219,26 @@ describe('reduce', () => {
     expect(a.lines[0].id).toBe(b.lines[0].id) // both start at 1, independent
   })
 
+  it('leaves the input request unchanged on a non-empty input with no line/char request', () => {
+    // A GlkOte update may carry a non-empty `input` array that holds only a
+    // hyperlink/mouse request (valid shapes) and no line/char. That must NOT
+    // clear a still-pending line request — the VM is genuinely still waiting.
+    let view = reduce(emptyView, {
+      type: 'update',
+      gen: 1,
+      content: [{ id: 7, text: [{ content: ['normal', 'West of House'] }] }],
+      input: [{ type: 'line', id: 7, gen: 1 }],
+    } as any)
+    expect(view.inputRequest).toBe('line')
+
+    view = reduce(view, {
+      type: 'update',
+      gen: 2,
+      input: [{ type: 'hyperlink', id: 7, gen: 2 }],
+    } as any)
+    expect(view.inputRequest).toBe('line')
+  })
+
   it('classifies short title-case room headings as "room" kind', () => {
     const update = {
       type: 'update',

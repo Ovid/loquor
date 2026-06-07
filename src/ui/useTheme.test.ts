@@ -4,7 +4,7 @@ import { useTheme } from './useTheme'
 
 beforeEach(() => {
   localStorage.clear()
-  document.documentElement.removeAttribute('data-theme')
+  delete document.body.dataset.theme
 })
 
 describe('useTheme', () => {

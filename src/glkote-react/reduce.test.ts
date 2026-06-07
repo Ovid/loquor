@@ -219,6 +219,31 @@ describe('reduce', () => {
     expect(a.lines[0].id).toBe(b.lines[0].id) // both start at 1, independent
   })
 
+  it('resets ended on an in-place RESTART (clear + fresh line-input request)', () => {
+    // Reach the dead state, then simulate an in-place RESTART: the screen wipes
+    // (clear:true) and the VM asks for a command again. `ended` must not stay
+    // latched, or any future UI gating on it would treat the restarted game as
+    // over.
+    let view = emptyView
+    for (const update of [
+      ...(fixture as any).updates,
+      ...(endFixture as any).quit,
+    ])
+      view = reduce(view, update as any)
+    expect(view.ended).toBe(true)
+
+    view = reduce(view, {
+      type: 'update',
+      gen: 99,
+      content: [
+        { id: 7, clear: true, text: [{ content: ['normal', 'West of House'] }] },
+      ],
+      input: [{ type: 'line', id: 7, gen: 99 }],
+    } as any)
+    expect(view.ended).toBe(false)
+    expect(view.inputRequest).toBe('line')
+  })
+
   it('leaves the input request unchanged on a non-empty input with no line/char request', () => {
     // A GlkOte update may carry a non-empty `input` array that holds only a
     // hyperlink/mouse request (valid shapes) and no line/char. That must NOT

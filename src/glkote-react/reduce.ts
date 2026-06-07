@@ -189,7 +189,13 @@ export function reduce(prev: ViewState, update: GlkOteUpdate): ViewState {
       const req = update.input.find(
         (i: Record<string, unknown>) => i.type === 'line' || i.type === 'char',
       )
-      if (req) inputRequest = req.type as 'line' | 'char'
+      if (req) {
+        inputRequest = req.type as 'line' | 'char'
+        // A fresh line-input request means the game is alive and asking for a
+        // command — an in-place RESTART after death lands here, so unlatch
+        // `ended` rather than leaving the restarted game flagged as over.
+        if (req.type === 'line') ended = false
+      }
     }
   }
 

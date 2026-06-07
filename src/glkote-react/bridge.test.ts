@@ -183,7 +183,9 @@ describe('GlkOteBridge', () => {
     bridge.update({
       type: 'update',
       gen: 1,
-      content: [{ id: 7, text: [{ content: ['input', 'north'], append: true }] }],
+      content: [
+        { id: 7, text: [{ content: ['input', 'north'], append: true }] },
+      ],
       input: [{ type: 'line', id: 7, gen: 1 }],
     } as any)
 

@@ -29,8 +29,8 @@ export function ModelDownloadModal({
         <p>
           The first time, this fetches a language model (a sizable, one-time
           download) from a third-party host (Hugging Face). After that it runs
-          entirely on your device — offline and private — and is cached, so it is
-          not downloaded again.
+          entirely on your device — offline and private — and is cached, so it
+          is not downloaded again.
         </p>
         {downloading ? (
           <>

@@ -127,17 +127,14 @@ export function useNaturalLanguage(
     // the player's cancel (review I2).
     const stale = () => ac.signal.aborted || abortRef.current !== ac
     engine
-      .load(
-        p => {
-          if (stale()) return
-          setInternal({
-            phase: 'downloading',
-            loaded: p.loaded,
-            total: p.total,
-          })
-        },
-        ac.signal,
-      )
+      .load(p => {
+        if (stale()) return
+        setInternal({
+          phase: 'downloading',
+          loaded: p.loaded,
+          total: p.total,
+        })
+      }, ac.signal)
       .then(() => {
         if (stale()) return
         // The model is now loaded (hence cached) — mark installed directly so the

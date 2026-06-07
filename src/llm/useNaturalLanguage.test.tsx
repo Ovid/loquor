@@ -219,6 +219,32 @@ describe('useNaturalLanguage', () => {
     resolveLoad()
   })
 
+  it('a load that RESOLVES after cancel does not flip on / persist enabled', async () => {
+    // The dangerous race (review I2): cancel aborts + sets off, then the
+    // underlying load resolves anyway (it ignored the signal). Without a stale
+    // guard the .then would clobber off→on and persist enabled against the cancel.
+    let resolveLoad!: () => void
+    const racingEngine: import('./types').LlmEngine = {
+      isCached: async () => false,
+      isLoaded: () => false,
+      unload: async () => {},
+      generate: async () => '__UNKNOWN__',
+      load: () => new Promise<void>(resolve => (resolveLoad = resolve)),
+    }
+    const { hook } = setup({ engine: racingEngine })
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
+    )
+    act(() => hook.result.current.requestDownload())
+    expect(hook.result.current.state.phase).toBe('downloading')
+    act(() => hook.result.current.cancelDownload())
+    await act(async () => {
+      resolveLoad() // load resolves AFTER the cancel
+    })
+    expect(hook.result.current.state.phase).toBe('off')
+    expect(readNlPref().enabled).toBe(false)
+  })
+
   it('restores the enabled choice on remount when the model is cached', async () => {
     const a = setup({ engine: new FakeLlmEngine({ cached: true }) })
     await reachOn(a.hook) // persists enabled=true

@@ -101,22 +101,30 @@ export function useNaturalLanguage(
     const ac = new AbortController()
     abortRef.current = ac
     setInternal({ phase: 'downloading', loaded: 0, total: 0 })
+    // True once this load is no longer the active one — aborted (cancel) or
+    // superseded by a newer requestDownload. A load that resolves on/around the
+    // abort tick must NOT flip the state back to 'on' or persist enabled against
+    // the player's cancel (review I2).
+    const stale = () => ac.signal.aborted || abortRef.current !== ac
     engine
       .load(
-        p =>
+        p => {
+          if (stale()) return
           setInternal({
             phase: 'downloading',
             loaded: p.loaded,
             total: p.total,
-          }),
+          })
+        },
         ac.signal,
       )
       .then(() => {
+        if (stale()) return
         setInternal({ phase: 'on' })
         writeNlPref({ enabled: true })
       })
       .catch(err => {
-        if ((err as Error).name === 'AbortError') {
+        if (stale() || (err as Error).name === 'AbortError') {
           setInternal({ phase: 'off' })
         } else {
           setNotice('Model download failed — staying grammar-only.')

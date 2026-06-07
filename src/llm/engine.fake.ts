@@ -32,6 +32,10 @@ export class FakeLlmEngine implements LlmEngine {
       if (signal.aborted) throw new DOMException('aborted', 'AbortError')
       onProgress(p)
     }
+    // Re-check after the progress loop (mirrors WebLlmEngine's post-create
+    // check): with no progress entries, an abort mid-load would otherwise slip
+    // through and report a successful load.
+    if (signal.aborted) throw new DOMException('aborted', 'AbortError')
     this.loaded = true
   }
 

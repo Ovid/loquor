@@ -143,13 +143,51 @@ describe('useNaturalLanguage', () => {
     vi.useRealTimers()
   })
 
-  it('decline persists (declined=true) and closes the modal', () => {
+  it('decline persists (declined=true) and closes the modal', async () => {
     const { hook } = setup()
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
+    )
     act(() => hook.result.current.toggle()) // not installed → opens modal
     expect(hook.result.current.modalOpen).toBe(true)
     act(() => hook.result.current.declineDownload())
     expect(hook.result.current.modalOpen).toBe(false)
     expect(readNlPref().declined).toBe(true)
+  })
+
+  it('cancelDownload aborts an in-flight load, reverts to off, persists nothing', async () => {
+    // Use an engine whose load never resolves until the abort signal fires.
+    // This guarantees the cancel path is exercised (AbortError caught, enabled
+    // NOT written) rather than a race where the load finishes first.
+    let resolveLoad!: () => void
+    const blockingEngine: import('./types').LlmEngine = {
+      isCached: async () => false,
+      isLoaded: () => false,
+      unload: async () => {},
+      generate: async () => '__UNKNOWN__',
+      load: (_onProgress, signal) =>
+        new Promise<void>((resolve, reject) => {
+          resolveLoad = resolve
+          signal.addEventListener('abort', () =>
+            reject(new DOMException('aborted', 'AbortError')),
+          )
+        }),
+    }
+    const { hook } = setup({ engine: blockingEngine })
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
+    )
+    act(() => hook.result.current.requestDownload())
+    // Confirm we are now in the downloading state (load is in-flight).
+    expect(hook.result.current.state.phase).toBe('downloading')
+    act(() => hook.result.current.cancelDownload())
+    await waitFor(() =>
+      expect(hook.result.current.state.phase).toBe('off'),
+    )
+    expect(hook.result.current.notice).toBeNull()
+    expect(readNlPref().enabled).toBe(false)
+    // Resolve the internal promise to avoid unhandled-rejection noise.
+    resolveLoad()
   })
 
   it('restores the enabled choice on remount when the model is cached', async () => {

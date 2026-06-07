@@ -142,12 +142,14 @@ export function useNaturalLanguage(
       }
       setPending(true)
       setNotice(null)
+      let watchdogId: ReturnType<typeof setTimeout>
       try {
         const messages = buildPrompt(english, getContext())
-        const watchdog = new Promise<never>((_, rej) =>
-          setTimeout(() => rej(new Error('watchdog')), watchdogMs),
-        )
+        const watchdog = new Promise<never>((_, rej) => {
+          watchdogId = setTimeout(() => rej(new Error('watchdog')), watchdogMs)
+        })
         const raw = await Promise.race([engine.generate(messages, grammar), watchdog])
+        clearTimeout(watchdogId!)
         const result = parseCompletion(raw)
         if (result.kind === 'command') {
           echoLocal(english)
@@ -156,6 +158,7 @@ export function useNaturalLanguage(
           sendLine(english) // abstain → game's own parser handles it
         }
       } catch (err) {
+        clearTimeout(watchdogId!)
         // Watchdog or generate error: never wedge the turn. Surface a visible
         // notice so a timeout is distinguishable from a normal abstain.
         setNotice(

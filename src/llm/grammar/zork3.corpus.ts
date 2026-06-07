@@ -4,7 +4,7 @@ import type { CorpusEntry } from './index'
 export const ZORK3_CORPUS: CorpusEntry[] = [
   { english: 'take the staff', expect: 'take staff' },
   { english: 'wear the hood', expect: '__UNKNOWN__' },
-  { english: 'give the amulet', expect: 'give amulet' },
+  { english: 'give the ring to the man', expect: 'give ring to man' },
   { english: 'open the chest', expect: 'open chest' },
   { english: 'go south', expect: 'south' },
   { english: 'inventory', expect: 'inventory' },

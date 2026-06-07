@@ -15,13 +15,25 @@ import { CommandInput } from './CommandInput'
 import { NlToggle } from './NlToggle'
 import { ModelDownloadModal } from './ModelDownloadModal'
 import { detectCapability } from '../llm/capability'
-import { grammarForSignature } from '../llm/grammar/index'
+import { ZORK1_GBNF } from '../llm/grammar/zork1.gbnf'
+import { ZORK2_GBNF } from '../llm/grammar/zork2.gbnf'
+import { ZORK3_GBNF } from '../llm/grammar/zork3.gbnf'
 import { viewToContext } from '../llm/prompt'
 import { useNaturalLanguage } from '../llm/useNaturalLanguage'
 import { WebLlmEngine } from '../llm/engine.webllm'
 import type { CapabilityResult, LoadProgress } from '../llm/types'
 
 const WATCHDOG_MS = 8000 // starting value; tune at the gate
+
+// Per-game story signature → static GBNF. Temporary bridge: the NL hook still
+// consumes a GBNF string while the vocab pipeline is being wired up (Tasks 7/8
+// replace this with vocabForSignature + buildGrammar). The signatures match
+// src/llm/grammar/index.ts.
+const GBNF_BY_SIGNATURE: Record<string, string> = {
+  '030000774b5450d5389903e602b02c12004038383034323901f0a99bbf44': ZORK1_GBNF,
+  '0300003f4d6c4de53a8e02a823132df7000038363038313101e8b4b64492': ZORK2_GBNF,
+  '030000194dfa6cf73d8b02ae1fd23104000038363038313101eeabd8f645': ZORK3_GBNF,
+}
 
 export function Terminal({
   storyBytes,
@@ -96,7 +108,7 @@ export function Terminal({
   }, [override])
 
   const grammar = useMemo(
-    () => (signature ? grammarForSignature(signature) : null),
+    () => (signature ? (GBNF_BY_SIGNATURE[signature] ?? null) : null),
     [signature],
   )
 

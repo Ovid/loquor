@@ -11,7 +11,7 @@ export const ZORK1_CORPUS: CorpusEntry[] = [
   { english: 'look around', expect: 'look' },
   { english: 'what am I carrying?', expect: 'inventory' },
   { english: 'examine the egg', expect: 'examine egg' },
-  { english: 'switch on the lamp', expect: 'turn on lamp' },
+  { english: 'switch on the lamp', expect: 'turn on lantern' },
   { english: 'drop the knife', expect: 'drop knife' },
   { english: 'attack the troll', expect: 'kill troll' },
   // should-abstain — not a game action

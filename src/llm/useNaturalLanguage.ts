@@ -133,7 +133,10 @@ export function useNaturalLanguage(
   const declineDownload = useCallback(() => {
     setModalOpen(false)
     setInternal({ phase: 'off' })
-    writeNlPref({ declined: true })
+    // Clear `enabled` alongside `declined`: an explicit "Not now" must not leave
+    // a stale enabled:true that the isCached effect later auto-restores to 'on'
+    // once the model happens to be cached (review inline comment).
+    writeNlPref({ declined: true, enabled: false })
   }, [])
 
   const toggle = useCallback(() => {

@@ -17,7 +17,11 @@ export function readNlPref(store: Storage = localStorage): NlPref {
       enabled: typeof parsed.enabled === 'boolean' ? parsed.enabled : false,
       declined: typeof parsed.declined === 'boolean' ? parsed.declined : false,
     }
-  } catch {
+  } catch (err) {
+    // Corrupt JSON falls back to DEFAULT — but say so, because a silent fallback
+    // means a subsequent partial writeNlPref() resets the other field with no
+    // signal (review I5). A diagnostic makes that data reset debuggable.
+    console.warn('readNlPref: ignoring unreadable stored prefs', err)
     return DEFAULT
   }
 }

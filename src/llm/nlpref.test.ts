@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { readNlPref, writeNlPref } from './nlpref'
 
 function fakeStore(initial: Record<string, string> = {}): Storage {
@@ -35,5 +35,12 @@ describe('nlpref', () => {
     expect(readNlPref(fakeStore({ 'loquor.nl': '{"enabled":"yes"}' }))).toEqual(
       { enabled: false, declined: false },
     )
+  })
+
+  it('warns (does not silently fall back) when stored JSON is unreadable', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    readNlPref(fakeStore({ 'loquor.nl': 'not json' }))
+    expect(warn).toHaveBeenCalled()
+    warn.mockRestore()
   })
 })

@@ -171,6 +171,21 @@ describe('useNaturalLanguage', () => {
     expect(readNlPref().declined).toBe(true)
   })
 
+  it('decline clears a stale enabled:true so it cannot auto-restore to on', async () => {
+    // A prior session persisted enabled:true, but the model is NOT cached now, so
+    // the hook stays off and offers the modal. Declining must wipe enabled — else
+    // the isCached effect re-enables NL the moment the model becomes cached.
+    localStorage.setItem('loquor.nl', JSON.stringify({ enabled: true }))
+    const { hook } = setup() // not cached → stays off
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
+    )
+    act(() => hook.result.current.toggle()) // not installed → opens modal
+    act(() => hook.result.current.declineDownload())
+    expect(readNlPref().enabled).toBe(false)
+    expect(readNlPref().declined).toBe(true)
+  })
+
   it('cancelDownload aborts an in-flight load, reverts to off, persists nothing', async () => {
     // Use an engine whose load never resolves until the abort signal fires.
     // This guarantees the cancel path is exercised (AbortError caught, enabled

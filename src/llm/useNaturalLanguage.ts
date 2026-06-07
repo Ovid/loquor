@@ -255,6 +255,12 @@ export function useNaturalLanguage(
       } catch (err) {
         clearTimeout(watchdogId!)
         lastCommandRef.current = null
+        // A genuine generate failure (vs. a benign watchdog timeout) is otherwise
+        // swallowed by the notice below, leaving the root cause invisible — e.g. an
+        // invalid grammar the model's grammar compiler rejects. Log it so it is
+        // diagnosable from the console; timeouts stay quiet to avoid noise.
+        if (!(err instanceof WatchdogTimeout))
+          console.error('[nl] translation failed:', err)
         // Watchdog or generate error: never wedge the turn. Surface a visible
         // notice so a timeout is distinguishable from a normal abstain.
         setNotice(

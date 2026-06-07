@@ -3,17 +3,24 @@ import type { Vocab } from './types'
 import type { Scene } from '../scene/types'
 import { ABSTAIN } from '../translate'
 
-// GBNF terminal for the JSON string "s" — e.g. q('take') === `"\"take\""`.
-const q = (s: string): string => `"\\"${s}\\""`
+// XGrammar's EBNF parser (W3C XML notation; see web-llm's Grammar.fromEBNF doc)
+// only accepts C-style unicode escapes (\uXXXX) inside a "..." string literal —
+// a literal " or a \" escape is rejected and makes fromEBNF throw, which the hook
+// surfaces to the player as "Translation failed — sent as typed." So every JSON
+// double-quote the model must emit is written as the " unicode escape.
+const DQ = '\\u0022' // the JSON " character, encoded for an XGrammar EBNF literal
+
+// EBNF terminal matching the JSON string "s" — e.g. q('take') matches `"take"`.
+const q = (s: string): string => `"${DQ}${s}${DQ}"`
 const alt = (xs: string[]): string => xs.map(q).join(' | ')
 
-// Literal GBNF terminals for the JSON scaffolding.
-const OPEN = '"{\\"verb\\":"'
-const OBJ = '",\\"object\\":"'
-const PREP = '",\\"prep\\":"'
-const IND = '",\\"indirect\\":"'
+// Literal EBNF terminals for the JSON scaffolding (matches `{"verb":`, etc.).
+const OPEN = `"{${DQ}verb${DQ}:"`
+const OBJ = `",${DQ}object${DQ}:"`
+const PREP = `",${DQ}prep${DQ}:"`
+const IND = `",${DQ}indirect${DQ}:"`
 const CLOSE = '"}"'
-const ABSTAIN_TERM = `"{\\"verb\\":\\"${ABSTAIN}\\"}"`
+const ABSTAIN_TERM = `"{${DQ}verb${DQ}:${DQ}${ABSTAIN}${DQ}}"`
 
 /**
  * Build a JSON-shaped GBNF for this turn. The `noun` production is filled from

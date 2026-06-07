@@ -69,13 +69,17 @@ export class IdbDialog {
    */
   private writeChain: Promise<unknown> = Promise.resolve()
   /**
-   * Once disposed, drop all writes. A StrictMode throwaway engine shares the
-   * same IndexedDB key as the live one; silencing its Dialog stops it from
-   * persisting stale snapshots behind the live engine's back.
+   * Once disposed, no-op all FUTURE writes. A StrictMode throwaway engine shares
+   * the same IndexedDB key as the live one; silencing its Dialog stops it from
+   * persisting stale snapshots behind the live engine's back. Note: a write
+   * already enqueued/in-flight before dispose() still settles — this gate only
+   * blocks writes submitted afterward, which is sufficient because the throwaway
+   * is disposed before it runs a turn (its only write is the identical initial
+   * snapshot).
    */
   private disposed = false
 
-  /** Stop persisting (used when the owning engine is torn down). */
+  /** Stop persisting FUTURE writes (used when the owning engine is torn down). */
   dispose(): void {
     this.disposed = true
   }

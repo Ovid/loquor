@@ -160,10 +160,13 @@ export class ZMachine {
   }
 
   /**
-   * Tear down this engine: stop the bridge responding to VM updates and stop
-   * the Dialog persisting. Under React StrictMode the boot effect runs twice on
-   * one shared buffer; disposing the throwaway engine in cleanup keeps it from
-   * emitting state or autosaving the same IDB key behind the live engine.
+   * Tear down this engine: stop the bridge responding to VM updates and stop the
+   * Dialog persisting FUTURE writes (an already in-flight IDB write still
+   * settles — see IdbDialog.dispose). Under React StrictMode the boot effect
+   * runs twice on one shared buffer; disposing the throwaway engine in cleanup
+   * keeps it from emitting state or autosaving the same IDB key behind the live
+   * engine. The throwaway is disposed before it runs a turn, so its only write
+   * is the identical initial snapshot — the unblocked in-flight write is benign.
    */
   dispose() {
     this.bridge.dispose()

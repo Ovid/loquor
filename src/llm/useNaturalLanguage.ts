@@ -446,9 +446,16 @@ export function useNaturalLanguage(
             outputText: vc.recentOutput,
             lastCommand: lastCommandRef.current,
           })
-          if (!roomChanged && clauseFailed(vc.recentOutput, vocab)) {
+          if (
+            !roomChanged &&
+            clauseFailed(
+              vc.recentOutput,
+              vocab,
+              lastCommandRef.current ?? undefined,
+            )
+          ) {
             stopReason = 'in-game-failure'
-            break // no-op / absence
+            break // no-op / absence (scoped to the acted object — F2/R3)
           }
           if (
             isConfirmationPrompt(vc.recentOutput) ||

@@ -269,6 +269,31 @@ describe('clauseFailed', () => {
   it('tolerates a vocab with no failurePat', () => {
     expect(clauseFailed('It is already open.', vocab)).toBe(false)
   })
+
+  // F2/R3: tie the absence match to the object the clause acted on, so narrative
+  // "No X" text (e.g. the leaflet body) can't masquerade as an in-game failure
+  // and truncate a compound sequence.
+  it('ignores narrative "No X" unrelated to the acted object (F2/R3)', () => {
+    const leaflet =
+      'WELCOME TO ZORK! ZORK is a game of adventure. No computer should be without one!'
+    // 2-arg (no command) keeps the old blanket behavior…
+    expect(clauseFailed(leaflet, v)).toBe(true)
+    // …but knowing the clause was `read leaflet`, "no computer" is not a failure.
+    expect(clauseFailed(leaflet, v, 'read leaflet')).toBe(false)
+  })
+
+  it('still flags an absence that names the acted object', () => {
+    expect(
+      clauseFailed("You can't see any leaflet here!", v, 'read leaflet'),
+    ).toBe(true)
+    expect(clauseFailed('There is no leaflet here.', v, 'drop leaflet')).toBe(
+      true,
+    )
+  })
+
+  it('still flags a refusal (failurePat) regardless of object', () => {
+    expect(clauseFailed('It is already open.', v, 'open grating')).toBe(true)
+  })
 })
 
 describe('meta-command source', () => {

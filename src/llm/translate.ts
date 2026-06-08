@@ -90,6 +90,22 @@ export function isDisambiguationPrompt(recentOutput: string): boolean {
   return DISAMBIGUATION_PROMPT.test(recentOutput)
 }
 
+/** Lowercased surface words (canonical tokens + synonyms) of every vocab noun the
+ * command references — used to decide whether an absence phrase is ABOUT the thing
+ * the clause acted on. */
+function commandObjectWords(command: string, vocab: Vocab): Set<string> {
+  const tokens = new Set(command.toLowerCase().split(/\s+/).filter(Boolean))
+  const out = new Set<string>(tokens)
+  for (const n of vocab.nouns) {
+    const words = [
+      ...n.canonical.toLowerCase().split(/\s+/),
+      ...(n.synonyms?.map(s => s.toLowerCase()) ?? []),
+    ]
+    if (words.some(w => tokens.has(w))) for (const w of words) out.add(w)
+  }
+  return out
+}
+
 /**
  * True when a clause's turn output signals an in-game no-op/refusal (`failurePat`,
  * e.g. "It is already open.") or an absence (`absencePat`, e.g. "You can't see any
@@ -97,11 +113,28 @@ export function isDisambiguationPrompt(recentOutput: string): boolean {
  * effect (locked decision 3). `absencePat` is a global regex, so a fresh instance
  * is built per call — `.test()` on the shared one is stateful (mirrors
  * tracker.ts's suppressed()).
+ *
+ * When `command` is given, an absence only counts if the absent noun NAMES the
+ * object the clause acted on — otherwise narrative "No X" text (e.g. the leaflet
+ * body's "No computer should be without one!") falsely truncates the sequence
+ * (UAT F2/R3). A refusal (`failurePat`) still counts regardless of object.
  */
-export function clauseFailed(recentOutput: string, vocab: Vocab): boolean {
+export function clauseFailed(
+  recentOutput: string,
+  vocab: Vocab,
+  command?: string,
+): boolean {
   if (vocab.failurePat?.test(recentOutput)) return true
   const absence = new RegExp(vocab.absencePat.source, vocab.absencePat.flags)
-  return absence.test(recentOutput)
+  if (!command) return absence.test(recentOutput)
+  const relevant = commandObjectWords(command, vocab)
+  let m: RegExpExecArray | null
+  while ((m = absence.exec(recentOutput)) !== null) {
+    const word = (m.slice(1).find(g => g !== undefined) ?? '').toLowerCase()
+    if (relevant.has(word)) return true
+    if (m.index === absence.lastIndex) absence.lastIndex++ // zero-width guard
+  }
+  return false
 }
 
 interface RawCmd {

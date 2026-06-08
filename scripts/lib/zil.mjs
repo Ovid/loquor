@@ -43,6 +43,7 @@ export function tokenize(src) {
           j++
         }
       }
+      if (j >= n) throw new Error('zil tokenize: unterminated string literal')
       toks.push({ type: 'str', v: s })
       i = j + 1
       continue

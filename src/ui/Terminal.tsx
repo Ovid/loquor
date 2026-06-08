@@ -19,6 +19,7 @@ import { vocabForSignature } from '../llm/grammar/index'
 import { viewToContext } from '../llm/prompt'
 import { useNaturalLanguage } from '../llm/useNaturalLanguage'
 import { WebLlmEngine } from '../llm/engine.webllm'
+import { selectedModelId } from '../llm/modelSelection'
 import type { CapabilityResult, LoadProgress } from '../llm/types'
 
 const WATCHDOG_MS = 8000 // starting value; tune at the gate
@@ -42,8 +43,10 @@ export function Terminal({
   const engineRef = useRef<ZMachine | null>(null)
   const viewRef = useRef<ViewState>(emptyView)
   const inputRef = useRef<HTMLInputElement>(null)
-  // One stable LLM engine instance for this Terminal (created once, lazily).
-  const [llmEngine] = useState(() => new WebLlmEngine())
+  // One stable LLM engine instance for this Terminal (created once, lazily). The
+  // model id honors a ?model=full / VITE_LLM_MODEL override (else the default),
+  // so the 8B multilingual model can be A/B tested without a rebuild.
+  const [llmEngine] = useState(() => new WebLlmEngine(selectedModelId()))
 
   // Keep a ref to the latest view so the NL hook's getContext() can read it at
   // translate-time. Written in an effect (not during render) per react-hooks/refs.

@@ -101,6 +101,27 @@ describe('vocab invariants (regeneration regression gate)', () => {
     expect(ZORK3_VOCAB.nouns.some(n => n.canonical === 'water')).toBe(true)
   })
 
+  it.each(games)(
+    '%s: no parser pseudo-objects leak into nouns (R1 phantom-scope fix)',
+    (_name, v) => {
+      // UAT R1: ZIL parser sentinels that carry a DESC (IT->"random object",
+      // ADVENTURER->"cretin", INTNUM->"number", PSEUDO-OBJECT->"pseudo",
+      // NOT-HERE-OBJECT->"such thing", LOCAL-GLOBALS->"zzmgck") were leaking into
+      // every in-scope noun set, so the model snapped unmapped words onto them
+      // (e.g. southeast -> "move random object"). None may be an emittable noun.
+      const canon = new Set(v.nouns.map(n => n.canonical))
+      for (const ghost of [
+        'number',
+        'random object',
+        'cretin',
+        'pseudo',
+        'such thing',
+        'zzmgck',
+      ])
+        expect(canon.has(ghost)).toBe(false)
+    },
+  )
+
   it('per-game isolation: one-object KILL is Zork II only (gsyntax COND gate)', () => {
     expect(ZORK2_VOCAB.verbs1).toContain('kill')
     expect(ZORK1_VOCAB.verbs1).not.toContain('kill')

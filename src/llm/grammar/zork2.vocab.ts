@@ -376,7 +376,6 @@ export const ZORK2_VOCAB: Vocab = {
     },
     { canonical: 'cloth bag', synonyms: ['bag'], adjectives: ['cloth'] },
     { canonical: 'compass' },
-    { canonical: 'cretin', synonyms: ['adventurer'] },
     {
       canonical: 'crypt door',
       synonyms: ['door'],
@@ -570,7 +569,6 @@ export const ZORK2_VOCAB: Vocab = {
       synonyms: ['wall'],
       adjectives: ['north', 'northe'],
     },
-    { canonical: 'number', synonyms: ['intnum'] },
     {
       canonical: 'package of candy',
       synonyms: ['candy', 'grasshoppers', 'package', 'treasure'],
@@ -621,7 +619,6 @@ export const ZORK2_VOCAB: Vocab = {
       synonyms: ['coin', 'gold', 'treasure', 'zorkmid'],
       adjectives: ['gold', 'priceless'],
     },
-    { canonical: 'pseudo' },
     {
       canonical: 'purple book',
       synonyms: ['book', 'books'],
@@ -635,7 +632,6 @@ export const ZORK2_VOCAB: Vocab = {
       canonical: 'quantity of water',
       synonyms: ['h2o', 'liquid', 'quantity', 'water'],
     },
-    { canonical: 'random object', synonyms: ['her', 'him', 'it', 'them'] },
     { canonical: 'receptacle', adjectives: ['metal'] },
     {
       canonical: 'red crystal sphere',
@@ -740,7 +736,6 @@ export const ZORK2_VOCAB: Vocab = {
       adjectives: ['glass'],
     },
     { canonical: 'stream', adjectives: ['flowing', 'small'] },
-    { canonical: 'such thing' },
     { canonical: 'table', adjectives: ['dusty', 'wooden'] },
     {
       canonical: 'three-headed dog',
@@ -814,7 +809,6 @@ export const ZORK2_VOCAB: Vocab = {
     },
     { canonical: 'you', synonyms: ['cretin', 'me', 'myself', 'self'] },
     { canonical: 'zorkmid' },
-    { canonical: 'zzmgck' },
   ],
   takeAck: TAKE_ACK,
   dropAck: DROP_ACK,

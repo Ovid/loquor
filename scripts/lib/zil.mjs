@@ -266,9 +266,30 @@ export function extractDirections(dungeonSrc) {
   return sortUniq(dirs)
 }
 
+// ZIL parser pseudo-objects: standard Infocom sentinels in gglobals.zil (shared
+// by Zork I/II/III) that exist for the parser's own use, never as player-
+// targetable nouns. They each carry a DESC, so the "no DESC and no SYNONYM" skip
+// does NOT catch them — they were leaking into every in-scope noun set and the
+// model snapped unmapped words onto them (UAT R1: southeast -> "move random
+// object"). Matched by stable ZIL object name — NOT by flags: TOOLBIT is a real
+// game flag for usable tools (shovel/wrench/key/knife) so it cannot be filtered,
+// and ACTORBIT (combat NPCs: troll/thief/cyclops) and INVISIBLE (objects that
+// start hidden then become referenceable) likewise mark objects we must keep.
+const PSEUDO_OBJECT_NAMES = new Set([
+  'IT', // DESC "random object" — pronoun anaphora (it/them/her/him)
+  'ADVENTURER', // DESC "cretin" — the player avatar
+  'INTNUM', // DESC "number" — the parser's number interface (TOOLBIT)
+  'INTDIR', // DESC "direction" — the parser's direction interface (TOOLBIT)
+  'PSEUDO-OBJECT', // DESC "pseudo" — parser placeholder
+  'NOT-HERE-OBJECT', // DESC "such thing" — parser "not here" sentinel
+  'GLOBAL-OBJECTS', // global container (no DESC anyway, but pin it)
+  'LOCAL-GLOBALS', // DESC-less local-globals container (SYNONYM ZZMGCK)
+])
+
 // Every <OBJECT …> in the dungeon + globals sources, mapped to a NounEntry.
 // <ROOM …> blocks are excluded (different head). Canonical = DESC text (or first
-// SYNONYM if no DESC); sentinels with neither are skipped.
+// SYNONYM if no DESC); sentinels with neither are skipped, as are the parser
+// pseudo-objects named in PSEUDO_OBJECT_NAMES above.
 export function extractNouns(dungeonSrc, globalsSrc) {
   const forms = [...readForms(dungeonSrc), ...readForms(globalsSrc)]
   const out = []
@@ -276,6 +297,7 @@ export function extractNouns(dungeonSrc, globalsSrc) {
 
   for (const f of forms) {
     if (f.t !== 'list' || f.k !== '<' || headAtom(f) !== 'OBJECT') continue
+    if (PSEUDO_OBJECT_NAMES.has(atomAt(f, 1))) continue
     let desc = null
     let syn = []
     let adj = []

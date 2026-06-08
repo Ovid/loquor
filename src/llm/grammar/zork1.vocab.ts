@@ -390,7 +390,6 @@ export const ZORK1_VOCAB: Vocab = {
       adjectives: ['control'],
     },
     { canonical: 'crack', adjectives: ['narrow'] },
-    { canonical: 'cretin', synonyms: ['adventurer'] },
     {
       canonical: 'crystal skull',
       synonyms: ['head', 'skull', 'treasure'],
@@ -520,7 +519,6 @@ export const ZORK1_VOCAB: Vocab = {
       synonyms: ['blade', 'knife', 'knives'],
       adjectives: ['nasty', 'unrusty'],
     },
-    { canonical: 'number', synonyms: ['intnum'] },
     {
       canonical: 'number of ghosts',
       synonyms: ['fiends', 'force', 'ghosts', 'spirits'],
@@ -573,7 +571,6 @@ export const ZORK1_VOCAB: Vocab = {
       synonyms: ['inscription'],
       adjectives: ['ancient', 'old'],
     },
-    { canonical: 'pseudo' },
     {
       canonical: 'punctured boat',
       synonyms: ['boat', 'pile', 'plastic'],
@@ -584,7 +581,6 @@ export const ZORK1_VOCAB: Vocab = {
       synonyms: ['h2o', 'liquid', 'quantity', 'water'],
     },
     { canonical: 'rainbow' },
-    { canonical: 'random object', synonyms: ['her', 'him', 'it', 'them'] },
     { canonical: 'red buoy', synonyms: ['buoy'], adjectives: ['red'] },
     {
       canonical: 'red button',
@@ -656,7 +652,6 @@ export const ZORK1_VOCAB: Vocab = {
       synonyms: ['door'],
       adjectives: ['huge', 'stone'],
     },
-    { canonical: 'such thing' },
     {
       canonical: 'surrounding wall',
       synonyms: ['wall', 'walls'],
@@ -752,7 +747,6 @@ export const ZORK1_VOCAB: Vocab = {
       adjectives: ['owners', 'small', 'zork'],
     },
     { canonical: 'zorkmid' },
-    { canonical: 'zzmgck' },
   ],
   takeAck: TAKE_ACK,
   dropAck: DROP_ACK,

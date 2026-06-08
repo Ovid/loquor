@@ -130,6 +130,44 @@ describe('extractNouns', () => {
       extractNouns(dungeon, globals).some(n => n.canonical === 'window'),
     ).toBe(true)
   })
+
+  it('excludes parser pseudo-objects that DO have a DESC (R1 phantom-scope fix)', () => {
+    // These are the standard Infocom parser sentinels in gglobals.zil, shared by
+    // Zork I/II/III: the pronoun anaphora object (IT), the player avatar
+    // (ADVENTURER), the number parser (INTNUM), and the "pseudo"/"not here"/
+    // local-globals placeholders. They each carry a DESC so they slip past the
+    // "no DESC and no SYNONYM" sentinel skip, then pollute every in-scope noun set
+    // — the model snaps unmapped words onto them (UAT R1: southeast -> "move
+    // random object"). They must NOT be emitted as player-targetable nouns.
+    const g = `
+      <OBJECT INTNUM (IN GLOBAL-OBJECTS) (SYNONYM INTNUM) (FLAGS TOOLBIT) (DESC "number")>
+      <OBJECT INTDIR (IN GLOBAL-OBJECTS) (SYNONYM INTDIR) (FLAGS TOOLBIT) (DESC "direction")>
+      <OBJECT IT (IN GLOBAL-OBJECTS) (SYNONYM IT THEM HER HIM) (DESC "random object") (FLAGS NDESCBIT TOUCHBIT)>
+      <OBJECT ADVENTURER (SYNONYM ADVENTURER) (DESC "cretin") (FLAGS NDESCBIT INVISIBLE SACREDBIT ACTORBIT)>
+      <OBJECT PSEUDO-OBJECT (IN LOCAL-GLOBALS) (DESC "pseudo") (ACTION CRETIN-FCN)>
+      <OBJECT NOT-HERE-OBJECT (DESC "such thing") (ACTION NOT-HERE-OBJECT-F)>
+      <OBJECT LOCAL-GLOBALS (IN GLOBAL-OBJECTS) (SYNONYM ZZMGCK) (DESCFCN PATH-OBJECT)>`
+    // Two classes that MUST survive: a real combat NPC (ACTORBIT actor — the
+    // filter must not blanket-exclude actors) and a real usable tool (TOOLBIT is
+    // a game flag for shovels/keys/knives, NOT a parser-toolkit marker; an early
+    // flag-based filter wrongly dropped these — regression guard).
+    const d = `
+      <OBJECT TROLL (IN TROLL-ROOM) (SYNONYM TROLL) (ADJECTIVE NASTY) (DESC "troll") (FLAGS OVISON ACTORBIT FIGHTBIT)>
+      <OBJECT SHOVEL (SYNONYM SHOVEL) (DESC "shovel") (FLAGS TAKEBIT TOOLBIT)>`
+    const canon = extractNouns(d, g).map(n => n.canonical)
+    for (const ghost of [
+      'number',
+      'direction',
+      'random object',
+      'cretin',
+      'pseudo',
+      'such thing',
+      'zzmgck',
+    ])
+      expect(canon).not.toContain(ghost)
+    expect(canon).toContain('troll')
+    expect(canon).toContain('shovel')
+  })
 })
 
 describe('extractDirections', () => {

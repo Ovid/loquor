@@ -296,8 +296,6 @@ export const ZORK3_VOCAB: Vocab = {
       adjectives: ['compass'],
     },
     { canonical: 'compass rose', synonyms: ['rose'], adjectives: ['compass'] },
-    { canonical: 'cretin', synonyms: ['adventurer'] },
-    { canonical: 'direction', synonyms: ['intdir'] },
     {
       canonical: 'dungeon master',
       synonyms: ['man', 'master'],
@@ -344,7 +342,6 @@ export const ZORK3_VOCAB: Vocab = {
       synonyms: ['wall'],
       adjectives: ['north', 'northe'],
     },
-    { canonical: 'number', synonyms: ['intnum'] },
     { canonical: 'old man', synonyms: ['man'], adjectives: ['old'] },
     {
       canonical: 'pair of hands',
@@ -363,12 +360,10 @@ export const ZORK3_VOCAB: Vocab = {
       synonyms: ['panel', 'wall'],
       adjectives: ['pine'],
     },
-    { canonical: 'pseudo' },
     {
       canonical: 'quantity of water',
       synonyms: ['h2o', 'liquid', 'quantity', 'water'],
     },
-    { canonical: 'random object', synonyms: ['her', 'him', 'it', 'them'] },
     {
       canonical: 'red beam of light',
       synonyms: ['beam', 'light'],
@@ -418,7 +413,6 @@ export const ZORK3_VOCAB: Vocab = {
       synonyms: ['channel', 'hole'],
       adjectives: ['stone'],
     },
-    { canonical: 'such thing' },
     {
       canonical: 'sundial',
       synonyms: ['arrow', 'dial', 'indicator'],
@@ -478,7 +472,6 @@ export const ZORK3_VOCAB: Vocab = {
     },
     { canonical: 'you', synonyms: ['cretin', 'me', 'myself', 'self'] },
     { canonical: 'zorkmid' },
-    { canonical: 'zzmgck' },
   ],
   takeAck: TAKE_ACK,
   dropAck: DROP_ACK,

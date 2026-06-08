@@ -3,6 +3,7 @@ import { readForms, headAtom } from './zil.mjs'
 import { activeForms } from './zil.mjs'
 import { extractVerbsAndPreps } from './zil.mjs'
 import { extractNouns } from './zil.mjs'
+import { extractDirections } from './zil.mjs'
 
 describe('readForms', () => {
   it('parses nested angle/paren forms and string literals', () => {
@@ -116,6 +117,25 @@ describe('extractNouns', () => {
 
   it('reads globals (window) alongside dungeon objects', () => {
     expect(extractNouns(dungeon, globals).some(n => n.canonical === 'window')).toBe(true)
+  })
+})
+
+describe('extractDirections', () => {
+  it('reads the games own DIRECTIONS and normalizes compass abbreviations', () => {
+    const dirs = extractDirections(
+      '<DIRECTIONS NORTH EAST WEST SOUTH NE NW SE SW UP DOWN IN OUT LAND>',
+    )
+    expect(dirs).toContain('northeast')
+    expect(dirs).toContain('northwest')
+    expect(dirs).toContain('southeast')
+    expect(dirs).toContain('southwest')
+    expect(dirs).toContain('north')
+    expect(dirs).toContain('up')
+    expect(dirs).toContain('land')
+    expect(dirs).not.toContain('ne')
+  })
+  it('returns [] when no DIRECTIONS form is present', () => {
+    expect(extractDirections('<OBJECT FOO>')).toEqual([])
   })
 })
 

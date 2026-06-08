@@ -231,6 +231,24 @@ export function extractVerbsAndPreps(forms, N, metaSet) {
   }
 }
 
+const DIR_MAP = { NE: 'northeast', NW: 'northwest', SE: 'southeast', SW: 'southwest' }
+
+// The game's own <DIRECTIONS …> declaration (in <N>dungeon.zil), normalized to
+// full lowercase names. enter/exit are NOT directions here — they are verb-only
+// verbs (V-ENTER/V-EXIT) extracted from SYNTAX.
+export function extractDirections(dungeonSrc) {
+  const forms = readForms(dungeonSrc)
+  const d = forms.find(
+    f => f.t === 'list' && f.k === '<' && headAtom(f) === 'DIRECTIONS',
+  )
+  if (!d) return []
+  const dirs = d.items
+    .slice(1)
+    .filter(x => x.t === 'atom')
+    .map(x => DIR_MAP[x.v] || x.v.toLowerCase())
+  return sortUniq(dirs)
+}
+
 // Every <OBJECT …> in the dungeon + globals sources, mapped to a NounEntry.
 // <ROOM …> blocks are excluded (different head). Canonical = DESC text (or first
 // SYNONYM if no DESC); sentinels with neither are skipped.

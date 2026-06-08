@@ -498,6 +498,62 @@ describe('useNaturalLanguage', () => {
     expect(hook.result.current.notice).toBeNull()
   })
 
+  it('compound: registers awaitTurn before sendLine so a synchronous VM turn is not missed', async () => {
+    // The real bridge runs each turn SYNCHRONOUSLY inside sendLine(): accept() →
+    // VM run → bridge.update() → resolveTurn() — all before sendLine returns. So
+    // the turn boundary fires the instant sendLine is called, draining only the
+    // awaitTurn resolvers registered BEFORE it. If the loop registers awaitTurn
+    // AFTER sendLine, the boundary is missed and raceTurn times out, stopping the
+    // sequence after one clause. This fake models that coupling; the prior tests'
+    // decoupled turnScript/no-op sendLine cannot catch it. Two independent
+    // verbsOnly clauses isolate the timing seam from scene/translation concerns.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      completions: {
+        look: '{"verb":"look"}',
+        'check inventory': '{"verb":"inventory"}',
+      },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const views = [
+      viewState('West of House', ['look', 'West of House'], 'look'),
+      viewState(
+        'West of House',
+        ['inventory', 'You are empty-handed.'],
+        'inventory',
+      ),
+    ]
+    let i = 0
+    const resolvers: Array<(r: TurnResult) => void> = []
+    const sendLine = vi.fn((_text: string) => {
+      const view = views[Math.min(i++, views.length - 1)]
+      resolvers.splice(0).forEach(r => r({ view, reason: 'line' as const }))
+    })
+    const awaitTurn = () =>
+      new Promise<TurnResult>(res => {
+        resolvers.push(res)
+      })
+    const { hook } = setup({ engine, sendLine, awaitTurn, watchdogMs: 1000 })
+    await reachOn(hook)
+    act(() =>
+      hook.result.current.observe(
+        viewState('West of House', ['West of House']),
+      ),
+    )
+    vi.useFakeTimers()
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate('look and check inventory')
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1100)
+      await p
+    })
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['look', 'inventory'])
+    expect(hook.result.current.notice).toBeNull()
+    vi.useRealTimers()
+  })
+
   it('compound: caps at MAX_CLAUSES (8) and notices "Ran 8 of 9 actions."', async () => {
     // Nine individually-translatable clauses. The loop must stop after the cap
     // (MAX_CLAUSES = 8), not after a turn/no-op/prompt condition: every settled

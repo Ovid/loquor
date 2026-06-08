@@ -368,10 +368,17 @@ export function useNaturalLanguage(
 
           if (done === 0) echoLocal(english) // echo the full English once (decision 5)
           lastCommandRef.current = result.text
+          // Register the turn listener BEFORE sendLine: the VM runs the turn
+          // SYNCHRONOUSLY inside sendLine (accept → VM → bridge.update →
+          // resolveTurn), so awaitTurn must already be pending or the boundary
+          // fires into an empty resolver list and the wait times out. (Design doc:
+          // "registered before sendLine"; raceTurn() registers awaitTurn
+          // synchronously before its first await.)
+          const turnPromise = raceTurn()
           sendLine(result.text)
           done++
 
-          const turn = await raceTurn()
+          const turn = await turnPromise
           if (turn === 'timeout' || turn.reason !== 'line') break // decision 8
 
           const vc = viewToContext(turn.view)

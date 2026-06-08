@@ -17,7 +17,7 @@ const meta = new Set(META_COMMANDS)
 
 describe('vocab invariants (regeneration regression gate)', () => {
   it.each(games)('%s: no meta verb leaks into verbsOnly', (_name, v) => {
-    expect(v.verbsOnly.filter((x) => meta.has(x))).toEqual([])
+    expect(v.verbsOnly.filter(x => meta.has(x))).toEqual([])
   })
 
   it.each(games)(
@@ -60,7 +60,7 @@ describe('vocab invariants (regeneration regression gate)', () => {
 
   it.each(games)(
     '%s: committed vocab is Prettier-clean (no-op regenerate guard)',
-    async (name) => {
+    async name => {
       // The generator runs Prettier as its last step (Task 8), so a fresh regenerate
       // must be a no-op diff. Asserting the committed file equals its own formatted
       // form catches formatter drift that would silently break re-runnability
@@ -68,14 +68,17 @@ describe('vocab invariants (regeneration regression gate)', () => {
       const path = join(process.cwd(), `src/llm/grammar/${name}.vocab.ts`)
       const src = readFileSync(path, 'utf8')
       const config = await prettier.resolveConfig(path)
-      const formatted = await prettier.format(src, { ...config, filepath: path })
+      const formatted = await prettier.format(src, {
+        ...config,
+        filepath: path,
+      })
       expect(formatted).toBe(src)
     },
   )
 
   it('zork1: the climb-tree fix is expressible', () => {
     expect(ZORK1_VOCAB.verbs1).toContain('climb')
-    const tree = ZORK1_VOCAB.nouns.find((n) => n.canonical === 'tree')
+    const tree = ZORK1_VOCAB.nouns.find(n => n.canonical === 'tree')
     expect(tree?.synonyms).toContain('branch')
     expect(tree?.adjectives).toEqual(expect.arrayContaining(['large', 'storm']))
     // ZIL has no single WINDOW object: 1dungeon.zil defines KITCHEN-WINDOW
@@ -84,13 +87,13 @@ describe('vocab invariants (regeneration regression gate)', () => {
     // shared synonym. The window referent must stay reachable (as a synonym),
     // but there is no canonical === 'window' to assert (corrected from the
     // task's original assumption; see DONE_WITH_CONCERNS note).
-    expect(ZORK1_VOCAB.nouns.some((n) => n.synonyms?.includes('window'))).toBe(
+    expect(ZORK1_VOCAB.nouns.some(n => n.synonyms?.includes('window'))).toBe(
       true,
     )
   })
 
   it('zork3 is sourced from 3dungeon.zil (water present, not the stale dungeon.zil)', () => {
-    expect(ZORK3_VOCAB.nouns.some((n) => n.canonical === 'water')).toBe(true)
+    expect(ZORK3_VOCAB.nouns.some(n => n.canonical === 'water')).toBe(true)
   })
 
   it('per-game isolation: one-object KILL is Zork II only (gsyntax COND gate)', () => {

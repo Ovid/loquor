@@ -26,9 +26,13 @@ function readMetaSet() {
   // brackets and parse zero commands, silently disabling the meta-exclusion guard.
   const block = text.match(/META_COMMANDS[^=]*=\s*\[([\s\S]*?)\]/)
   const set = new Set()
-  if (block) for (const m of block[1].matchAll(/['"]([^'"]+)['"]/g)) set.add(m[1].toLowerCase())
+  if (block)
+    for (const m of block[1].matchAll(/['"]([^'"]+)['"]/g))
+      set.add(m[1].toLowerCase())
   if (set.size === 0) {
-    throw new Error('readMetaSet: parsed 0 commands from src/llm/meta.ts — META_COMMANDS regex did not match; aborting to avoid silently leaking meta verbs into verbsOnly')
+    throw new Error(
+      'readMetaSet: parsed 0 commands from src/llm/meta.ts — META_COMMANDS regex did not match; aborting to avoid silently leaking meta verbs into verbsOnly',
+    )
   }
   return set
 }
@@ -46,7 +50,9 @@ function readCommittedVerbsOnly(outPath) {
   }
   const block = text.match(/verbsOnly:\s*\[([\s\S]*?)\]/)
   const out = []
-  if (block) for (const m of block[1].matchAll(/['"]([^'"]+)['"]/g)) out.push(m[1].toLowerCase())
+  if (block)
+    for (const m of block[1].matchAll(/['"]([^'"]+)['"]/g))
+      out.push(m[1].toLowerCase())
   return out
 }
 
@@ -76,12 +82,16 @@ function main() {
       `zork${N}: verbsOnly=${vp.verbsOnly.length} verbs1=${vp.verbs1.length} ` +
         `verbs2=${vp.verbs2.length} preps=${vp.preps.length} nouns=${nouns.length}`,
     )
-    console.log(`  meta-excluded verb-only canonicals: ${vp.excludedMeta.join(', ') || '(none)'}`)
+    console.log(
+      `  meta-excluded verb-only canonicals: ${vp.excludedMeta.join(', ') || '(none)'}`,
+    )
     // Spec-mandated reconciliation DIFF: verbs in the committed verbsOnly now absent
     // from the regenerated output AND not routed via META — the silent-drop class
     // this generator exists to make visible. (META_COMMANDS verbs like 'again'/'quit'
     // are excluded: they are intentionally relocated, not dropped.)
-    const dropped = priorVerbsOnly.filter(v => !vp.verbsOnly.includes(v) && !meta.has(v))
+    const dropped = priorVerbsOnly.filter(
+      v => !vp.verbsOnly.includes(v) && !meta.has(v),
+    )
     if (dropped.length) {
       console.warn(
         `  RECONCILE: committed verbsOnly verbs now absent (review before commit!): ${dropped.join(', ')}`,
@@ -90,12 +100,17 @@ function main() {
       console.log('  reconcile: no committed verbsOnly verbs dropped')
     }
     if (!vp.verbsOnly.includes('inventory')) {
-      console.warn(`  WARNING: 'inventory' missing from zork${N} verbsOnly — it must stay emittable`)
+      console.warn(
+        `  WARNING: 'inventory' missing from zork${N} verbsOnly — it must stay emittable`,
+      )
     }
   }
 
   // Make the committed artifacts formatter-canonical so a fresh run is a no-op diff.
-  execFileSync('npx', ['prettier', '--write', ...outFiles], { stdio: 'inherit', cwd: ROOT })
+  execFileSync('npx', ['prettier', '--write', ...outFiles], {
+    stdio: 'inherit',
+    cwd: ROOT,
+  })
   console.log('Done. Review the diff + reconciliation log above, then commit.')
 }
 

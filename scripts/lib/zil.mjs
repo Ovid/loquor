@@ -168,8 +168,19 @@ export function sortUniq(iterable) {
 // the canonical is the block head (first token), so `through`/`thru` stay
 // synonyms of `with`, not separate preps (matches the committed vocab).
 const PREP_HEADS = new Set([
-  'with', 'in', 'on', 'under', 'to', 'at', 'over', 'through', 'from',
-  'behind', 'across', 'around', 'off',
+  'with',
+  'in',
+  'on',
+  'under',
+  'to',
+  'at',
+  'over',
+  'through',
+  'from',
+  'behind',
+  'across',
+  'around',
+  'off',
 ])
 
 // From the active SYNTAX rules for game N: verb-only canonicals (minus meta),
@@ -209,7 +220,8 @@ export function extractVerbsAndPreps(forms, N, metaSet) {
     } else {
       const particles = seq.slice(1, objIdx[0]).map(s => s.toLowerCase())
       verbs2.add([verb, ...particles].join(' '))
-      for (const p of seq.slice(objIdx[0] + 1, objIdx[1])) preps.add(p.toLowerCase())
+      for (const p of seq.slice(objIdx[0] + 1, objIdx[1]))
+        preps.add(p.toLowerCase())
     }
   }
 
@@ -231,7 +243,12 @@ export function extractVerbsAndPreps(forms, N, metaSet) {
   }
 }
 
-const DIR_MAP = { NE: 'northeast', NW: 'northwest', SE: 'southeast', SW: 'southwest' }
+const DIR_MAP = {
+  NE: 'northeast',
+  NW: 'northwest',
+  SE: 'southeast',
+  SW: 'southwest',
+}
 
 // The game's own <DIRECTIONS …> declaration (in <N>dungeon.zil), normalized to
 // full lowercase names. enter/exit are NOT directions here — they are verb-only
@@ -269,9 +286,15 @@ export function extractNouns(dungeonSrc, globalsSrc) {
         const s = it.items.find(x => x.t === 'str')
         if (s) desc = s.v
       } else if (tag === 'SYNONYM') {
-        syn = it.items.slice(1).filter(x => x.t === 'atom').map(x => x.v.toLowerCase())
+        syn = it.items
+          .slice(1)
+          .filter(x => x.t === 'atom')
+          .map(x => x.v.toLowerCase())
       } else if (tag === 'ADJECTIVE') {
-        adj = it.items.slice(1).filter(x => x.t === 'atom').map(x => x.v.toLowerCase())
+        adj = it.items
+          .slice(1)
+          .filter(x => x.t === 'atom')
+          .map(x => x.v.toLowerCase())
       }
     }
     const canonical = desc ? desc.toLowerCase() : syn[0] || null
@@ -285,7 +308,9 @@ export function extractNouns(dungeonSrc, globalsSrc) {
     out.push(entry)
   }
 
-  out.sort((a, b) => (a.canonical < b.canonical ? -1 : a.canonical > b.canonical ? 1 : 0))
+  out.sort((a, b) =>
+    a.canonical < b.canonical ? -1 : a.canonical > b.canonical ? 1 : 0,
+  )
   return out
 }
 
@@ -327,12 +352,16 @@ ${vocab.nouns.map(noun).join('\n')}
 // first true branch's body. Non-COND forms pass through unchanged.
 export function activeForms(forms, N) {
   const out = []
-  const visit = (node) => {
+  const visit = node => {
     if (!node || node.t !== 'list' || node.k !== '<') return
     if (headAtom(node) === 'COND') {
       for (let i = 1; i < node.items.length; i++) {
         const branch = node.items[i]
-        if (branch.t === 'list' && branch.k === '(' && predTrue(branch.items[0], N)) {
+        if (
+          branch.t === 'list' &&
+          branch.k === '(' &&
+          predTrue(branch.items[0], N)
+        ) {
           for (let j = 1; j < branch.items.length; j++) visit(branch.items[j])
           break // first true branch wins
         }

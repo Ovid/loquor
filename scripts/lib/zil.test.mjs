@@ -73,13 +73,16 @@ describe('extractVerbsAndPreps', () => {
   })
 
   it('honors the KILL anti-infection gate (verbs1 only for Zork II)', () => {
-    const src = '<COND (<==? ,ZORK-NUMBER 2> <SYNTAX KILL OBJECT (FIND ACTORBIT) = V-ATTACK>)>'
+    const src =
+      '<COND (<==? ,ZORK-NUMBER 2> <SYNTAX KILL OBJECT (FIND ACTORBIT) = V-ATTACK>)>'
     expect(run(src, 1).verbs1).not.toContain('kill')
     expect(run(src, 2).verbs1).toContain('kill')
   })
 
   it('drops $/# debug verbs', () => {
-    const v = run('<SYNTAX $VERIFY = V-VERIFY> <SYNTAX #COMMAND OBJECT = V-DEBUG>')
+    const v = run(
+      '<SYNTAX $VERIFY = V-VERIFY> <SYNTAX #COMMAND OBJECT = V-DEBUG>',
+    )
     expect(v.verbsOnly.join()).not.toMatch(/[#$]/)
     expect(v.verbs1.join()).not.toMatch(/[#$]/)
   })
@@ -109,15 +112,23 @@ describe('extractNouns', () => {
   })
 
   it('excludes <ROOM> blocks', () => {
-    expect(extractNouns(dungeon, globals).some(n => n.canonical === 'forest path')).toBe(false)
+    expect(
+      extractNouns(dungeon, globals).some(n => n.canonical === 'forest path'),
+    ).toBe(false)
   })
 
   it('skips parser sentinels with no DESC and no SYNONYM', () => {
-    expect(extractNouns(dungeon, globals).some(n => n.canonical === 'global-objects')).toBe(false)
+    expect(
+      extractNouns(dungeon, globals).some(
+        n => n.canonical === 'global-objects',
+      ),
+    ).toBe(false)
   })
 
   it('reads globals (window) alongside dungeon objects', () => {
-    expect(extractNouns(dungeon, globals).some(n => n.canonical === 'window')).toBe(true)
+    expect(
+      extractNouns(dungeon, globals).some(n => n.canonical === 'window'),
+    ).toBe(true)
   })
 })
 
@@ -146,23 +157,23 @@ describe('activeForms (ZORK-NUMBER gating)', () => {
     <COND (<==? ,ZORK-NUMBER 2> <SYNTAX KILL OBJECT = V-ATTACK>)>
     <COND (<N==? ,ZORK-NUMBER 3> <SYNTAX GIVE OBJECT TO OBJECT = V-GIVE>)>
   `
-  const heads = (n) => activeForms(readForms(src), n).map(headAtom)
+  const heads = n => activeForms(readForms(src), n).map(headAtom)
 
   it('always includes ungated forms', () => {
     expect(heads(1)).toContain('SYNTAX') // BACK
   })
   it('includes ==?-gated forms only for the matching game', () => {
-    const kill1 = activeForms(readForms(src), 1).filter(
-      f => f.items.some(i => i.t === 'atom' && i.v === 'KILL'),
+    const kill1 = activeForms(readForms(src), 1).filter(f =>
+      f.items.some(i => i.t === 'atom' && i.v === 'KILL'),
     )
-    const kill2 = activeForms(readForms(src), 2).filter(
-      f => f.items.some(i => i.t === 'atom' && i.v === 'KILL'),
+    const kill2 = activeForms(readForms(src), 2).filter(f =>
+      f.items.some(i => i.t === 'atom' && i.v === 'KILL'),
     )
     expect(kill1).toHaveLength(0)
     expect(kill2).toHaveLength(1)
   })
   it('includes N==?-gated forms for every game except the excluded one', () => {
-    const has = (n) =>
+    const has = n =>
       activeForms(readForms(src), n).some(f =>
         f.items.some(i => i.t === 'atom' && i.v === 'GIVE'),
       )

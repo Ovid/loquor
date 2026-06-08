@@ -8,7 +8,11 @@ import {
 } from 'react'
 import { ZMachine } from '../zmachine/engine'
 import { IdbDialog } from '../storage/dialog'
-import { emptyView, type ViewState } from '../glkote-react/types'
+import {
+  emptyView,
+  type ViewState,
+  type TurnResult,
+} from '../glkote-react/types'
 import { StatusBar } from './StatusBar'
 import { Scrollback } from './Scrollback'
 import { CommandInput } from './CommandInput'
@@ -111,6 +115,11 @@ export function Terminal({
     getContext,
     echoLocal: t => engineRef.current?.echoLocal(t),
     sendLine: t => engineRef.current?.sendLine(t),
+    // Per-clause turn-boundary await for the compound-command loop. Delegates to
+    // the engine's bridge; if the engine isn't up yet the sequence can't be
+    // running, so a never-settling promise is an inert placeholder.
+    awaitTurn: () =>
+      engineRef.current?.awaitTurn() ?? new Promise<TurnResult>(() => {}),
     watchdogMs: WATCHDOG_MS,
   })
 
@@ -119,6 +128,10 @@ export function Terminal({
   // exactly once per turn (reduceScene dedups identical re-renders). Only meaningful
   // while NL is on, but observing harmlessly seeds the scene even when off.
   useEffect(() => {
+    // During a compound sequence the hook drives per-clause observes in order;
+    // the view-driven effect must defer so the same turn isn't observed twice
+    // (locked decision 9).
+    if (nl.isSequencing()) return
     if (view.inputRequest === 'line') nl.observe(view)
   }, [view, nl])
 

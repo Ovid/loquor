@@ -5,9 +5,9 @@ import { FakeLlmEngine } from './engine.fake'
 import { readNlPref } from './nlpref'
 import type { CapabilityResult } from './types'
 import type { Vocab } from './grammar/types'
-import { TAKE_ACK, DROP_ACK, ABSENCE_PAT } from './grammar/patterns'
+import { TAKE_ACK, DROP_ACK, ABSENCE_PAT, FAILURE_PAT } from './grammar/patterns'
 import { emptyView } from '../glkote-react/types'
-import type { ViewState, BufferLine } from '../glkote-react/types'
+import type { ViewState, BufferLine, TurnResult } from '../glkote-react/types'
 
 const capable: CapabilityResult = { tier: 'small', reasons: [] }
 const ctx = () => ({ location: 'West of House', recentOutput: '' })
@@ -36,6 +36,15 @@ function viewState(
   return { ...emptyView, status: { location, right: '' }, lines, nextId: id }
 }
 
+/** An awaitTurn that returns the given views in order (last one repeats). */
+function turnScript(views: ViewState[]): () => Promise<TurnResult> {
+  let i = 0
+  return async () => ({
+    view: views[Math.min(i++, views.length - 1)],
+    reason: 'line' as const,
+  })
+}
+
 function setup(over: Partial<Parameters<typeof useNaturalLanguage>[0]> = {}) {
   const echoLocal = vi.fn()
   const sendLine = vi.fn()
@@ -49,6 +58,7 @@ function setup(over: Partial<Parameters<typeof useNaturalLanguage>[0]> = {}) {
       getContext: ctx,
       echoLocal,
       sendLine,
+      awaitTurn: async () => ({ view: emptyView, reason: 'line' as const }),
       watchdogMs: 5000,
       ...over,
     }),
@@ -436,5 +446,213 @@ describe('useNaturalLanguage', () => {
     })
     expect(engine.isLoaded()).toBe(true) // translate brought it into memory
     expect(sendLine).toHaveBeenCalledWith('open mailbox') // translated, not "failed"
+  })
+
+  it('compound: runs each clause against the live scene (open mailbox + prends-le)', async () => {
+    const engine = new FakeLlmEngine({
+      cached: true,
+      completions: {
+        'Ouvrez la boîte aux lettres': '{"verb":"open","object":"mailbox"}',
+        'prends-le': '{"verb":"take","object":"leaflet"}',
+      },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const revealView = viewState(
+      'West of House',
+      ['open mailbox', 'Opening the small mailbox reveals a leaflet.'],
+      'open mailbox',
+    )
+    const afterTake = viewState('West of House', ['take leaflet', 'Taken.'], 'take leaflet')
+    const { hook, echoLocal, sendLine } = setup({
+      engine,
+      awaitTurn: turnScript([revealView, afterTake]),
+    })
+    await reachOn(hook)
+    act(() =>
+      hook.result.current.observe(
+        viewState('West of House', ['There is a small mailbox here.']),
+      ),
+    )
+    await act(async () => {
+      await hook.result.current.translate('Ouvrez la boîte aux lettres and prends-le')
+    })
+    expect(echoLocal).toHaveBeenCalledTimes(1)
+    expect(echoLocal).toHaveBeenCalledWith('Ouvrez la boîte aux lettres and prends-le')
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['open mailbox', 'take leaflet'])
+    expect(hook.result.current.notice).toBeNull()
+  })
+
+  it('compound: stops and notices when a later clause cannot be translated', async () => {
+    const engine = new FakeLlmEngine({
+      cached: true,
+      completions: { 'open mailbox': '{"verb":"open","object":"mailbox"}' },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const revealView = viewState(
+      'West of House',
+      ['open mailbox', 'Opening the small mailbox reveals a leaflet.'],
+      'open mailbox',
+    )
+    const { hook, sendLine } = setup({ engine, awaitTurn: turnScript([revealView]) })
+    await reachOn(hook)
+    act(() =>
+      hook.result.current.observe(
+        viewState('West of House', ['There is a small mailbox here.']),
+      ),
+    )
+    await act(async () => {
+      await hook.result.current.translate('open mailbox and xyzzy the grue')
+    })
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['open mailbox'])
+    expect(hook.result.current.notice).toBe('Ran 1 of 2 actions.')
+  })
+
+  it('compound: stops after an in-game no-op (failurePat) on the first clause', async () => {
+    const engine = new FakeLlmEngine({
+      cached: true,
+      completions: { 'open mailbox': '{"verb":"open","object":"mailbox"}' },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const noop = viewState('West of House', ['open mailbox', 'It is already open.'], 'open mailbox')
+    const { hook, sendLine } = setup({
+      engine,
+      vocab: { ...TEST_VOCAB, failurePat: FAILURE_PAT },
+      awaitTurn: turnScript([noop]),
+    })
+    await reachOn(hook)
+    act(() =>
+      hook.result.current.observe(
+        viewState('West of House', ['There is a small mailbox here.']),
+      ),
+    )
+    await act(async () => {
+      await hook.result.current.translate('open mailbox and take leaflet')
+    })
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['open mailbox'])
+    expect(hook.result.current.notice).toBe('Ran 1 of 2 actions.')
+  })
+
+  it('compound: stops when a clause lands on a disambiguation prompt', async () => {
+    const engine = new FakeLlmEngine({
+      cached: true,
+      completions: { 'open mailbox': '{"verb":"open","object":"mailbox"}' },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const disambig = viewState(
+      'West of House',
+      ['open mailbox', 'Which mailbox do you mean, the brass mailbox or the small mailbox?'],
+      'open mailbox',
+    )
+    const { hook, sendLine } = setup({ engine, awaitTurn: turnScript([disambig]) })
+    await reachOn(hook)
+    act(() =>
+      hook.result.current.observe(
+        viewState('West of House', ['There is a small mailbox here.']),
+      ),
+    )
+    await act(async () => {
+      await hook.result.current.translate('open mailbox and take leaflet')
+    })
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['open mailbox'])
+    expect(hook.result.current.notice).toBe('Ran 1 of 2 actions.')
+  })
+
+  it('compound: a never-settling turn times out, stops, and re-enables input', async () => {
+    const engine = new FakeLlmEngine({
+      cached: true,
+      completions: {
+        'open mailbox': '{"verb":"open","object":"mailbox"}',
+        'take leaflet': '{"verb":"take","object":"leaflet"}',
+      },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const neverSettle = () => new Promise<TurnResult>(() => {})
+    const { hook, sendLine } = setup({ engine, watchdogMs: 1000, awaitTurn: neverSettle })
+    await reachOn(hook)
+    act(() =>
+      hook.result.current.observe(
+        viewState('West of House', ['There is a small mailbox here.', 'a leaflet']),
+      ),
+    )
+    vi.useFakeTimers()
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate('open mailbox and take leaflet')
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1100)
+      await p
+    })
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['open mailbox'])
+    expect(hook.result.current.pending).toBe(false)
+    expect(hook.result.current.notice).toBe('Ran 1 of 2 actions.')
+    vi.useRealTimers()
+  })
+
+  it('compound: first clause untranslatable → raw-send the whole input, no notice', async () => {
+    const { hook, echoLocal, sendLine } = setup({
+      engine: new FakeLlmEngine({ cached: true, default: '{"verb":"__UNKNOWN__"}' }),
+    })
+    await reachOn(hook)
+    await act(async () => {
+      await hook.result.current.translate('foo the bar and baz the qux')
+    })
+    expect(sendLine).toHaveBeenCalledWith('foo the bar and baz the qux')
+    expect(echoLocal).not.toHaveBeenCalled()
+    expect(hook.result.current.notice).toBeNull()
+  })
+
+  it('a prompt reply containing "and" is bypassed, not split or translated', async () => {
+    const engine = new FakeLlmEngine({ cached: true, default: '{"verb":"look"}' })
+    const generateSpy = vi.spyOn(engine, 'generate')
+    const getContext = () => ({
+      location: '',
+      recentOutput: 'Do you wish to restart? (Y is affirmative): ',
+    })
+    const { hook, sendLine } = setup({ engine, getContext })
+    await reachOn(hook)
+    await act(async () => {
+      await hook.result.current.translate('yes and restart')
+    })
+    expect(sendLine).toHaveBeenCalledWith('yes and restart')
+    expect(generateSpy).not.toHaveBeenCalled()
+  })
+
+  it('isSequencing() is true while a clause turn is pending, false at rest', async () => {
+    const engine = new FakeLlmEngine({
+      cached: true,
+      completions: { 'open mailbox': '{"verb":"open","object":"mailbox"}' },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    let release!: (r: TurnResult) => void
+    const gate = new Promise<TurnResult>(res => {
+      release = res
+    })
+    const { hook } = setup({ engine, awaitTurn: () => gate })
+    await reachOn(hook)
+    act(() =>
+      hook.result.current.observe(
+        viewState('West of House', ['There is a small mailbox here.']),
+      ),
+    )
+    expect(hook.result.current.isSequencing()).toBe(false)
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate('open mailbox and take it')
+    })
+    // inSequenceRef is set synchronously on entering the sequence branch.
+    expect(hook.result.current.isSequencing()).toBe(true)
+    await act(async () => {
+      release({
+        view: viewState(
+          'West of House',
+          ['open mailbox', 'Opening the small mailbox reveals a leaflet.'],
+          'open mailbox',
+        ),
+        reason: 'line',
+      })
+      await p
+    })
+    expect(hook.result.current.isSequencing()).toBe(false)
   })
 })

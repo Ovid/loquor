@@ -5,11 +5,12 @@ import type {
   LlmEngine,
   NlState,
   PromptContext,
+  TranslateResult,
   ViewContext,
 } from './types'
-import type { ViewState } from '../glkote-react/types'
+import type { ViewState, TurnResult } from '../glkote-react/types'
 import type { Vocab } from './grammar/types'
-import type { SceneEvent } from './scene/types'
+import type { Scene, SceneEvent } from './scene/types'
 import { TextSceneTracker } from './scene/tracker'
 import { buildGrammar } from './grammar/buildGrammar'
 import { buildPrompt, viewToContext } from './prompt'
@@ -18,6 +19,8 @@ import {
   isMetaCommand,
   isConfirmationPrompt,
   isDisambiguationPrompt,
+  splitClauses,
+  clauseFailed,
 } from './translate'
 import { readNlPref, writeNlPref } from './nlpref'
 
@@ -28,6 +31,7 @@ export interface UseNaturalLanguageArgs {
   getContext: () => ViewContext
   echoLocal: (text: string) => void
   sendLine: (text: string) => void
+  awaitTurn: () => Promise<TurnResult>
   watchdogMs: number
 }
 
@@ -43,6 +47,8 @@ export interface UseNaturalLanguage {
   translate: (english: string) => Promise<void>
   /** Feed a turn-boundary ViewState to the scene tracker (once per turn). */
   observe: (view: ViewState) => void
+  /** True while a compound sequence is mid-flight (Terminal's observe effect defers to the hook). */
+  isSequencing: () => boolean
 }
 
 type Internal =
@@ -62,6 +68,9 @@ class WatchdogTimeout extends Error {
   }
 }
 
+/** Safety cap: at most this many clauses run per compound input (locked decision 6). */
+const MAX_CLAUSES = 8
+
 export function useNaturalLanguage(
   args: UseNaturalLanguageArgs,
 ): UseNaturalLanguage {
@@ -72,6 +81,7 @@ export function useNaturalLanguage(
     getContext,
     echoLocal,
     sendLine,
+    awaitTurn,
     watchdogMs,
   } = args
   const [internal, setInternal] = useState<Internal>({ phase: 'off' })
@@ -86,6 +96,9 @@ export function useNaturalLanguage(
   // The canonical command we last sent (for take/drop/acted-object attribution).
   // Set when translate emits a command; stays null through an abstain / raw send.
   const lastCommandRef = useRef<string | null>(null)
+  // True for the duration of a compound sequence so Terminal's view-driven observe
+  // effect defers to the hook's in-order, per-clause observes (locked decision 9).
+  const inSequenceRef = useRef(false)
 
   const available = capability.tier !== 'none'
   const hasVocab = vocab !== null
@@ -273,8 +286,13 @@ export function useNaturalLanguage(
       translatingRef.current = true
       setPending(true)
       setNotice(null)
-      try {
-        const scene = tracker.scene()
+
+      // Translate one clause against the given live scene, returning the parsed
+      // result. Shared by the single-command path and the per-clause compound loop.
+      const generateClause = async (
+        clause: string,
+        scene: Scene,
+      ): Promise<{ result: TranslateResult; raw: string }> => {
         const grammar = buildGrammar(vocab, scene)
         const base = getContext()
         const ctx: PromptContext = {
@@ -282,27 +300,103 @@ export function useNaturalLanguage(
           inScope: scene.inScope.map(o => o.canonical),
           antecedent: scene.antecedent,
         }
-        const raw = await generateRaw(buildPrompt(english, ctx), grammar)
-        const result = parseCommand(raw, scene, vocab)
-        // TEMP gate diagnostics — what the scene fed the model vs. what it emitted.
-        // Remove once translation quality is tuned.
-        console.log(
-          '[nl debug]',
-          JSON.stringify({
-            english,
-            antecedent: scene.antecedent,
-            inScope: scene.inScope.map(o => o.canonical),
-            raw,
-            result,
-          }),
-        )
-        if (result.kind === 'command') {
-          lastCommandRef.current = result.text // latch for the next observe()
-          echoLocal(english)
+        const raw = await generateRaw(buildPrompt(clause, ctx), grammar)
+        return { result: parseCommand(raw, scene, vocab), raw }
+      }
+
+      // Bounded wait for the clause's turn boundary: race awaitTurn() against a
+      // timer so a clause can never wedge the sequence (locked decision 8). Turns
+      // run synchronously in the VM, so the timer is a defensive backstop; reusing
+      // watchdogMs keeps a single tunable knob.
+      const raceTurn = async (): Promise<TurnResult | 'timeout'> => {
+        let timer: ReturnType<typeof setTimeout>
+        const timeout = new Promise<'timeout'>(res => {
+          timer = setTimeout(() => res('timeout'), watchdogMs)
+        })
+        try {
+          return await Promise.race([awaitTurn(), timeout])
+        } finally {
+          clearTimeout(timer!)
+        }
+      }
+
+      try {
+        const clauses = splitClauses(english)
+
+        if (clauses.length <= 1) {
+          // SINGLE-COMMAND PATH (unchanged behavior).
+          const scene = tracker.scene()
+          const { result, raw } = await generateClause(english, scene)
+          // TEMP gate diagnostics — what the scene fed the model vs. what it emitted.
+          // Remove once translation quality is tuned.
+          console.log(
+            '[nl debug]',
+            JSON.stringify({
+              english,
+              antecedent: scene.antecedent,
+              inScope: scene.inScope.map(o => o.canonical),
+              raw,
+              result,
+            }),
+          )
+          if (result.kind === 'command') {
+            lastCommandRef.current = result.text // latch for the next observe()
+            echoLocal(english)
+            sendLine(result.text)
+          } else {
+            lastCommandRef.current = null // abstain → raw send, no acted-object
+            sendLine(english) // abstain → game's own parser handles it
+          }
+          return
+        }
+
+        // COMPOUND PATH (locked decisions 1–9).
+        inSequenceRef.current = true
+        const total = clauses.length
+        const limit = Math.min(total, MAX_CLAUSES)
+        let done = 0
+        for (let i = 0; i < limit; i++) {
+          const clause = clauses[i]
+          const scene = tracker.scene()
+          let result: TranslateResult
+          try {
+            ;({ result } = await generateClause(clause, scene))
+          } catch {
+            break // untranslatable (timeout/error) → stop (locked decision 4)
+          }
+          if (result.kind !== 'command') break // abstain → stop
+
+          if (done === 0) echoLocal(english) // echo the full English once (decision 5)
+          lastCommandRef.current = result.text
           sendLine(result.text)
-        } else {
-          lastCommandRef.current = null // abstain → raw send, no acted-object
-          sendLine(english) // abstain → game's own parser handles it
+          done++
+
+          const turn = await raceTurn()
+          if (turn === 'timeout' || turn.reason !== 'line') break // decision 8
+
+          const vc = viewToContext(turn.view)
+          // The hook owns observe during a sequence (decision 9).
+          tracker.observe({
+            location: vc.location,
+            outputText: vc.recentOutput,
+            lastCommand: lastCommandRef.current,
+          })
+          if (clauseFailed(vc.recentOutput, vocab)) break // no-op / absence
+          if (
+            isConfirmationPrompt(vc.recentOutput) ||
+            isDisambiguationPrompt(vc.recentOutput)
+          )
+            break // mid-sequence interactive prompt (decision 3)
+        }
+
+        if (done === 0) {
+          // First clause untranslatable, nothing ran → raw-send the original input
+          // (today's abstain behavior preserved; decision 4 exception). No notice.
+          lastCommandRef.current = null
+          sendLine(english)
+        } else if (done < total) {
+          // Truncated sequence → make it visible (decision 7).
+          setNotice(`Ran ${done} of ${total} actions.`)
         }
       } catch (err) {
         lastCommandRef.current = null
@@ -323,6 +417,7 @@ export function useNaturalLanguage(
       } finally {
         translatingRef.current = false
         setPending(false)
+        inSequenceRef.current = false
       }
     },
     [
@@ -332,6 +427,8 @@ export function useNaturalLanguage(
       echoLocal,
       sendLine,
       generateRaw,
+      awaitTurn,
+      watchdogMs,
     ],
   )
 
@@ -353,6 +450,8 @@ export function useNaturalLanguage(
     lastCommandRef.current = null
   }, [])
 
+  const isSequencing = useCallback(() => inSequenceRef.current, [])
+
   return {
     state,
     pending,
@@ -364,5 +463,6 @@ export function useNaturalLanguage(
     cancelDownload,
     translate,
     observe,
+    isSequencing,
   }
 }

@@ -55,7 +55,7 @@ describe('NlToggle', () => {
   it('downloading shows a percentage', () => {
     render(
       <NlToggle
-        state={{ phase: 'downloading', loaded: 1, total: 4 }}
+        state={{ phase: 'downloading', loaded: 1, total: 4, etaSeconds: null }}
         onToggle={vi.fn()}
         onOverride={vi.fn()}
       />,

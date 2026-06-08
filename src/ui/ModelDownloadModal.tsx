@@ -1,15 +1,19 @@
 import type { LoadProgress } from '../llm/types'
-import { pct as toPct } from '../llm/progress'
+import { pct as toPct, formatEta } from '../llm/progress'
 
 export function ModelDownloadModal({
   open,
   progress,
+  etaSeconds = null,
   onAccept,
   onDecline,
   onCancel,
 }: {
   open: boolean
   progress: LoadProgress | null
+  /** Estimated seconds remaining for the download (computed by the NL hook), or
+   * null when not yet estimable. */
+  etaSeconds?: number | null
   onAccept: () => void
   onDecline: () => void
   onCancel: () => void
@@ -17,6 +21,7 @@ export function ModelDownloadModal({
   if (!open) return null
   const downloading = progress !== null
   const pct = progress ? toPct(progress.loaded, progress.total) : 0
+  const eta = formatEta(etaSeconds)
   return (
     <div
       className="modal-backdrop"
@@ -37,6 +42,7 @@ export function ModelDownloadModal({
             <progress value={pct} max={100} />
             <p>
               {pct}% — {progress!.text}
+              {eta ? ` · ${eta}` : ''}
             </p>
             <button className="sw" type="button" onClick={onCancel}>
               Cancel

@@ -37,6 +37,34 @@ describe('ModelDownloadModal', () => {
     expect(onCancel).toHaveBeenCalled()
   })
 
+  it('renders the estimated time remaining from the etaSeconds prop', () => {
+    render(
+      <ModelDownloadModal
+        open
+        progress={{ loaded: 50, total: 100, text: 'downloading' }}
+        etaSeconds={10}
+        onAccept={vi.fn()}
+        onDecline={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    )
+    expect(screen.getByText(/~10s remaining/)).toBeInTheDocument()
+  })
+
+  it('omits the ETA while it is not yet estimable', () => {
+    render(
+      <ModelDownloadModal
+        open
+        progress={{ loaded: 0, total: 100, text: 'downloading' }}
+        etaSeconds={null}
+        onAccept={vi.fn()}
+        onDecline={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    )
+    expect(screen.queryByText(/remaining/)).toBeNull()
+  })
+
   it('exposes the dialog with an accessible name', () => {
     render(
       <ModelDownloadModal

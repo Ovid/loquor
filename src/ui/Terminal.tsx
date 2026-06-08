@@ -182,6 +182,9 @@ export function Terminal({
       <ModelDownloadModal
         open={nl.modalOpen || nl.state.phase === 'downloading'}
         progress={dlProgress}
+        etaSeconds={
+          nl.state.phase === 'downloading' ? nl.state.etaSeconds : null
+        }
         onAccept={nl.requestDownload}
         onDecline={nl.declineDownload}
         onCancel={nl.cancelDownload}

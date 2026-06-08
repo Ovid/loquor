@@ -24,6 +24,8 @@ import {
   clauseFailed,
 } from './translate'
 import { parseDirection } from './directions'
+import { pct as toPct, estimateRemainingSeconds } from './progress'
+import type { ProgressSample } from './progress'
 import { readNlPref, writeNlPref } from './nlpref'
 
 export interface UseNaturalLanguageArgs {
@@ -55,7 +57,12 @@ export interface UseNaturalLanguage {
 
 type Internal =
   | { phase: 'off' }
-  | { phase: 'downloading'; loaded: number; total: number }
+  | {
+      phase: 'downloading'
+      loaded: number
+      total: number
+      etaSeconds: number | null
+    }
   | { phase: 'on' }
 
 /**
@@ -101,6 +108,10 @@ export function useNaturalLanguage(
   // True for the duration of a compound sequence so Terminal's view-driven observe
   // effect defers to the hook's in-order, per-clause observes (locked decision 9).
   const inSequenceRef = useRef(false)
+  // (percent, time) samples for the active download, used to estimate the time
+  // remaining. Reset at the start of each requestDownload; sampled in its progress
+  // callback (a side-effect context — keeps the timing out of render).
+  const dlSamplesRef = useRef<ProgressSample[]>([])
 
   const available = capability.tier !== 'none'
   const hasVocab = vocab !== null
@@ -149,6 +160,7 @@ export function useNaturalLanguage(
         phase: 'downloading',
         loaded: internal.loaded,
         total: internal.total,
+        etaSeconds: internal.etaSeconds,
       }
     if (internal.phase === 'on') return { phase: 'on' }
     return { phase: 'off', installed }
@@ -159,7 +171,8 @@ export function useNaturalLanguage(
     setModalOpen(false)
     const ac = new AbortController()
     abortRef.current = ac
-    setInternal({ phase: 'downloading', loaded: 0, total: 0 })
+    dlSamplesRef.current = []
+    setInternal({ phase: 'downloading', loaded: 0, total: 0, etaSeconds: null })
     // True once this load is no longer the active one — aborted (cancel) or
     // superseded by a newer requestDownload. A load that resolves on/around the
     // abort tick must NOT flip the state back to 'on' or persist enabled against
@@ -168,10 +181,15 @@ export function useNaturalLanguage(
     engine
       .load(p => {
         if (stale()) return
+        dlSamplesRef.current = [
+          ...dlSamplesRef.current,
+          { pct: toPct(p.loaded, p.total), t: Date.now() },
+        ].slice(-60)
         setInternal({
           phase: 'downloading',
           loaded: p.loaded,
           total: p.total,
+          etaSeconds: estimateRemainingSeconds(dlSamplesRef.current),
         })
       }, ac.signal)
       .then(() => {

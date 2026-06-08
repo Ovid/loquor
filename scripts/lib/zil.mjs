@@ -155,6 +155,82 @@ function predTrue(pred, N) {
   return false
 }
 
+export function sortUniq(iterable) {
+  return [...new Set(iterable)].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+}
+
+// Canonical prepositions recognized as <SYNONYM …> declaration heads in
+// gsyntax.zil (e.g. <SYNONYM WITH USING THROUGH THRU>). The spec defines `preps`
+// as these block canonicals PLUS any preposition observed between two OBJECTs, so
+// a declared prep like `under` — used only as a one-object particle ("look
+// under"), never inter-object — is not silently dropped. A SYNONYM whose head is
+// NOT in this set (e.g. <SYNONYM ATTACK …>) is a verb/noun synonym and ignored;
+// the canonical is the block head (first token), so `through`/`thru` stay
+// synonyms of `with`, not separate preps (matches the committed vocab).
+const PREP_HEADS = new Set([
+  'with', 'in', 'on', 'under', 'to', 'at', 'over', 'through', 'from',
+  'behind', 'across', 'around', 'off',
+])
+
+// From the active SYNTAX rules for game N: verb-only canonicals (minus meta),
+// one-object verbs (verbs1, multiword particles preserved), two-object verbs
+// (verbs2), and the prepositions — the <SYNONYM …> prep-block heads UNION any
+// preposition that sits between two OBJECTs.
+export function extractVerbsAndPreps(forms, N, metaSet) {
+  const active = activeForms(forms, N)
+  const verbsOnly = new Set()
+  const verbs1 = new Set()
+  const verbs2 = new Set()
+  const preps = new Set()
+  const excludedMeta = new Set()
+
+  for (const f of active) {
+    if (headAtom(f) !== 'SYNTAX') continue
+    // Pre-"=" atom sequence; (flag) paren groups are skipped.
+    const seq = []
+    for (let i = 1; i < f.items.length; i++) {
+      const it = f.items[i]
+      if (it.t === 'atom' && it.v === '=') break
+      if (it.t === 'atom') seq.push(it.v)
+    }
+    if (seq.length === 0) continue
+    const verb = seq[0].toLowerCase()
+    if (/[#$]/.test(verb)) continue // debug verbs ($verify, #command)
+
+    const objIdx = []
+    for (let i = 1; i < seq.length; i++) if (seq[i] === 'OBJECT') objIdx.push(i)
+
+    if (objIdx.length === 0) {
+      if (metaSet.has(verb)) excludedMeta.add(verb)
+      else verbsOnly.add(verb)
+    } else if (objIdx.length === 1) {
+      const particles = seq.slice(1, objIdx[0]).map(s => s.toLowerCase())
+      verbs1.add([verb, ...particles].join(' '))
+    } else {
+      const particles = seq.slice(1, objIdx[0]).map(s => s.toLowerCase())
+      verbs2.add([verb, ...particles].join(' '))
+      for (const p of seq.slice(objIdx[0] + 1, objIdx[1])) preps.add(p.toLowerCase())
+    }
+  }
+
+  // Prep-class declarations: <SYNONYM WITH …>/<SYNONYM IN …>/… The block head is
+  // the canonical prep; union it into preps so declared-but-not-inter-object preps
+  // (e.g. `under`) survive. Non-prep SYNONYM heads (verb/noun synonyms) are skipped.
+  for (const f of active) {
+    if (headAtom(f) !== 'SYNONYM') continue
+    const head = atomAt(f, 1).toLowerCase()
+    if (PREP_HEADS.has(head)) preps.add(head)
+  }
+
+  return {
+    verbsOnly: sortUniq(verbsOnly),
+    verbs1: sortUniq(verbs1),
+    verbs2: sortUniq(verbs2),
+    preps: sortUniq(preps),
+    excludedMeta: sortUniq(excludedMeta),
+  }
+}
+
 // Flatten top-level forms for game N, descending into <COND> and taking the
 // first true branch's body. Non-COND forms pass through unchanged.
 export function activeForms(forms, N) {

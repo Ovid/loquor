@@ -197,4 +197,82 @@ describe('GlkOteBridge', () => {
       after.lines.some((l: any) => l.kind === 'input' && l.text === 'north'),
     ).toBe(true)
   })
+
+  it('awaitTurn resolves reason:"line" with the settled view on a line update', async () => {
+    const bridge = new GlkOteBridge(vi.fn())
+    bridge.init({ accept: vi.fn() })
+    const p = bridge.awaitTurn()
+    bridge.update({
+      type: 'update',
+      gen: 1,
+      windows: [{ id: 7, type: 'buffer' }],
+      content: [{ id: 7, text: [{ content: ['normal', 'West of House'] }] }],
+      input: [{ type: 'line', id: 7, gen: 1 }],
+    } as any)
+    const r = await p
+    expect(r.reason).toBe('line')
+    expect(r.view.inputRequest).toBe('line')
+  })
+
+  it('awaitTurn pages through a MORE prompt then resolves on the next line', async () => {
+    const bridge = new GlkOteBridge(vi.fn())
+    const accept = vi.fn()
+    bridge.init({ accept })
+    const p = bridge.awaitTurn()
+    // A MORE char prompt: with an awaiter pending, the bridge auto-acks with space…
+    bridge.update({
+      type: 'update',
+      gen: 2,
+      windows: [{ id: 7, type: 'buffer' }],
+      input: [{ type: 'char', id: 7, gen: 2 }],
+      more: true,
+    } as any)
+    expect(accept).toHaveBeenLastCalledWith(
+      expect.objectContaining({ type: 'char', value: ' ' }),
+    )
+    // …and only resolves once the real line boundary arrives.
+    bridge.update({
+      type: 'update',
+      gen: 3,
+      windows: [{ id: 7, type: 'buffer' }],
+      input: [{ type: 'line', id: 7, gen: 3 }],
+    } as any)
+    await expect(p).resolves.toMatchObject({ reason: 'line' })
+  })
+
+  it('awaitTurn resolves reason:"key" on a genuine single-key prompt', async () => {
+    const bridge = new GlkOteBridge(vi.fn())
+    bridge.init({ accept: vi.fn() })
+    const p = bridge.awaitTurn()
+    bridge.update({
+      type: 'update',
+      gen: 2,
+      windows: [{ id: 7, type: 'buffer' }],
+      input: [{ type: 'char', id: 7, gen: 2 }],
+    } as any)
+    await expect(p).resolves.toMatchObject({ reason: 'key' })
+  })
+
+  it('awaitTurn resolves reason:"end" when the game ends', async () => {
+    const bridge = new GlkOteBridge(vi.fn())
+    bridge.init({ accept: vi.fn() })
+    const p = bridge.awaitTurn()
+    bridge.update({ type: 'update', gen: 1, exit: true } as any)
+    await expect(p).resolves.toMatchObject({ reason: 'end' })
+  })
+
+  it('multiple concurrent awaiters all resolve on the same line boundary', async () => {
+    const bridge = new GlkOteBridge(vi.fn())
+    bridge.init({ accept: vi.fn() })
+    const a = bridge.awaitTurn()
+    const b = bridge.awaitTurn()
+    bridge.update({
+      type: 'update',
+      gen: 1,
+      windows: [{ id: 7, type: 'buffer' }],
+      input: [{ type: 'line', id: 7, gen: 1 }],
+    } as any)
+    const both = await Promise.all([a, b])
+    expect(both.map(r => r.reason)).toEqual(['line', 'line'])
+  })
 })

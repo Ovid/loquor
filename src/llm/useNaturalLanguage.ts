@@ -355,16 +355,39 @@ export function useNaturalLanguage(
         const total = clauses.length
         const limit = Math.min(total, MAX_CLAUSES)
         let done = 0
+        // TEMP compound diagnostics — why a sequence stopped (set at each break,
+        // logged once below). Mirrors the single-path [nl debug]; remove together
+        // once translation quality is tuned.
+        let stopReason: string | null = null
         for (let i = 0; i < limit; i++) {
           const clause = clauses[i]
           const scene = tracker.scene()
           let result: TranslateResult
+          let raw: string
           try {
-            ;({ result } = await generateClause(clause, scene))
-          } catch {
+            ;({ result, raw } = await generateClause(clause, scene))
+          } catch (err) {
+            stopReason = `generate-error: ${String(err)}`
             break // untranslatable (timeout/error) → stop (locked decision 4)
           }
-          if (result.kind !== 'command') break // abstain → stop
+          // TEMP per-clause diagnostics — what the live scene fed the model for this
+          // clause vs. what it emitted. Mirrors the single-command [nl debug] so a
+          // compound sequence is not a black box. Remove once quality is tuned.
+          console.log(
+            '[nl debug] clause',
+            JSON.stringify({
+              i,
+              clause,
+              antecedent: scene.antecedent,
+              inScope: scene.inScope.map(o => o.canonical),
+              raw,
+              result,
+            }),
+          )
+          if (result.kind !== 'command') {
+            stopReason = 'abstain'
+            break // abstain → stop
+          }
 
           if (done === 0) echoLocal(english) // echo the full English once (decision 5)
           lastCommandRef.current = result.text
@@ -379,7 +402,11 @@ export function useNaturalLanguage(
           done++
 
           const turn = await turnPromise
-          if (turn === 'timeout' || turn.reason !== 'line') break // decision 8
+          if (turn === 'timeout' || turn.reason !== 'line') {
+            stopReason =
+              turn === 'timeout' ? 'turn-timeout' : `turn:${turn.reason}`
+            break // decision 8
+          }
 
           const vc = viewToContext(turn.view)
           // The hook owns observe during a sequence (decision 9).
@@ -388,13 +415,23 @@ export function useNaturalLanguage(
             outputText: vc.recentOutput,
             lastCommand: lastCommandRef.current,
           })
-          if (clauseFailed(vc.recentOutput, vocab)) break // no-op / absence
+          if (clauseFailed(vc.recentOutput, vocab)) {
+            stopReason = 'in-game-failure'
+            break // no-op / absence
+          }
           if (
             isConfirmationPrompt(vc.recentOutput) ||
             isDisambiguationPrompt(vc.recentOutput)
-          )
+          ) {
+            stopReason = 'interactive-prompt'
             break // mid-sequence interactive prompt (decision 3)
+          }
         }
+        if (stopReason)
+          console.log(
+            '[nl debug] sequence stop',
+            JSON.stringify({ stopReason, done, total }),
+          )
 
         if (done === 0) {
           // First clause untranslatable, nothing ran → raw-send the original input

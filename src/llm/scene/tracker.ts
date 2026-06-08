@@ -13,14 +13,41 @@ function esc(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-/** Surface phrases (canonical, synonyms, adjective+canonical), longest first. */
+/** Synonyms shared by 2+ distinct objects (e.g. "window" owned by both
+ * KITCHEN-WINDOW and BOARDED-WINDOW). Too generic to pin to one canonical:
+ * resolving the bare word to an arbitrary owner over-specifies and corrupts the
+ * command (UAT F3: `open window` -> `open boarded window`, rejected). Such a
+ * synonym instead resolves to ITSELF, so we emit "window" and let the Z-machine
+ * parser disambiguate by room. An explicit adjective ("boarded window") still
+ * resolves to the specific canonical via the canonical/adjective surface forms. */
+function ambiguousSynonyms(nouns: NounEntry[]): Set<string> {
+  const owners = new Map<string, number>()
+  for (const n of nouns)
+    for (const s of n.synonyms ?? []) {
+      const k = s.toLowerCase()
+      owners.set(k, (owners.get(k) ?? 0) + 1)
+    }
+  const out = new Set<string>()
+  for (const [k, c] of owners) if (c >= 2) out.add(k)
+  return out
+}
+
+/** Surface phrases (canonical, synonyms, adjective+canonical), longest first. A
+ * synonym shared across objects maps to itself (generic) rather than an owner. */
 function surfaceForms(
   nouns: NounEntry[],
 ): { phrase: string; canonical: string }[] {
+  const ambiguous = ambiguousSynonyms(nouns)
   const forms: { phrase: string; canonical: string }[] = []
   for (const n of nouns) {
-    for (const base of [n.canonical, ...(n.synonyms ?? [])])
-      forms.push({ phrase: base.toLowerCase(), canonical: n.canonical })
+    forms.push({ phrase: n.canonical.toLowerCase(), canonical: n.canonical })
+    for (const s of n.synonyms ?? []) {
+      const phrase = s.toLowerCase()
+      forms.push({
+        phrase,
+        canonical: ambiguous.has(phrase) ? phrase : n.canonical,
+      })
+    }
     for (const adj of n.adjectives ?? [])
       forms.push({
         phrase: `${adj} ${n.canonical}`.toLowerCase(),
@@ -30,12 +57,17 @@ function surfaceForms(
   return forms.sort((a, b) => b.phrase.length - a.phrase.length)
 }
 
-/** Map every surface word → canonical (for absence lookup + acted-object). */
+/** Map every surface word → canonical (for absence lookup + acted-object). A
+ * shared synonym maps to itself (generic), matching surfaceForms. */
 function surfaceToCanonical(vocab: Vocab): Map<string, string> {
+  const ambiguous = ambiguousSynonyms(vocab.nouns)
   const m = new Map<string, string>()
   for (const n of vocab.nouns) {
     m.set(n.canonical.toLowerCase(), n.canonical)
-    for (const s of n.synonyms ?? []) m.set(s.toLowerCase(), n.canonical)
+    for (const s of n.synonyms ?? []) {
+      const k = s.toLowerCase()
+      m.set(k, ambiguous.has(k) ? k : n.canonical)
+    }
   }
   return m
 }

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readForms, headAtom } from './zil.mjs'
 import { activeForms } from './zil.mjs'
 import { extractVerbsAndPreps } from './zil.mjs'
+import { extractNouns } from './zil.mjs'
 
 describe('readForms', () => {
   it('parses nested angle/paren forms and string literals', () => {
@@ -79,6 +80,42 @@ describe('extractVerbsAndPreps', () => {
     const v = run('<SYNTAX $VERIFY = V-VERIFY> <SYNTAX #COMMAND OBJECT = V-DEBUG>')
     expect(v.verbsOnly.join()).not.toMatch(/[#$]/)
     expect(v.verbs1.join()).not.toMatch(/[#$]/)
+  })
+})
+
+describe('extractNouns', () => {
+  const dungeon = `
+    <ROOM FOREST-PATH (DESC "Forest Path") (NORTH TO CLEARING)>
+    <OBJECT TREE
+      (IN LOCAL-GLOBALS)
+      (SYNONYM TREE BRANCH)
+      (ADJECTIVE LARGE STORM ;"-TOSSED")
+      (DESC "tree")
+      (FLAGS NDESCBIT CLIMBBIT)>`
+  const globals = `
+    <OBJECT GLOBAL-OBJECTS (FLAGS NDESCBIT)>
+    <OBJECT WINDOW (SYNONYM WINDOW) (DESC "window") (FLAGS DOORBIT)>`
+
+  it('maps DESC->canonical, SYNONYM->synonyms (minus canonical), ADJECTIVE->adjectives', () => {
+    const nouns = extractNouns(dungeon, globals)
+    const tree = nouns.find(n => n.canonical === 'tree')
+    expect(tree).toEqual({
+      canonical: 'tree',
+      synonyms: ['branch'],
+      adjectives: ['large', 'storm'],
+    })
+  })
+
+  it('excludes <ROOM> blocks', () => {
+    expect(extractNouns(dungeon, globals).some(n => n.canonical === 'forest path')).toBe(false)
+  })
+
+  it('skips parser sentinels with no DESC and no SYNONYM', () => {
+    expect(extractNouns(dungeon, globals).some(n => n.canonical === 'global-objects')).toBe(false)
+  })
+
+  it('reads globals (window) alongside dungeon objects', () => {
+    expect(extractNouns(dungeon, globals).some(n => n.canonical === 'window')).toBe(true)
   })
 })
 

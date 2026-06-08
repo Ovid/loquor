@@ -231,6 +231,46 @@ export function extractVerbsAndPreps(forms, N, metaSet) {
   }
 }
 
+// Every <OBJECT …> in the dungeon + globals sources, mapped to a NounEntry.
+// <ROOM …> blocks are excluded (different head). Canonical = DESC text (or first
+// SYNONYM if no DESC); sentinels with neither are skipped.
+export function extractNouns(dungeonSrc, globalsSrc) {
+  const forms = [...readForms(dungeonSrc), ...readForms(globalsSrc)]
+  const out = []
+  const seen = new Set()
+
+  for (const f of forms) {
+    if (f.t !== 'list' || f.k !== '<' || headAtom(f) !== 'OBJECT') continue
+    let desc = null
+    let syn = []
+    let adj = []
+    for (const it of f.items) {
+      if (it.t !== 'list' || it.k !== '(') continue
+      const tag = headAtom(it)
+      if (tag === 'DESC') {
+        const s = it.items.find(x => x.t === 'str')
+        if (s) desc = s.v
+      } else if (tag === 'SYNONYM') {
+        syn = it.items.slice(1).filter(x => x.t === 'atom').map(x => x.v.toLowerCase())
+      } else if (tag === 'ADJECTIVE') {
+        adj = it.items.slice(1).filter(x => x.t === 'atom').map(x => x.v.toLowerCase())
+      }
+    }
+    const canonical = desc ? desc.toLowerCase() : syn[0] || null
+    if (!canonical || seen.has(canonical)) continue
+    seen.add(canonical)
+    const synonyms = sortUniq(syn.filter(s => s !== canonical))
+    const adjectives = sortUniq(adj)
+    const entry = { canonical }
+    if (synonyms.length) entry.synonyms = synonyms
+    if (adjectives.length) entry.adjectives = adjectives
+    out.push(entry)
+  }
+
+  out.sort((a, b) => (a.canonical < b.canonical ? -1 : a.canonical > b.canonical ? 1 : 0))
+  return out
+}
+
 // Flatten top-level forms for game N, descending into <COND> and taking the
 // first true branch's body. Non-COND forms pass through unchanged.
 export function activeForms(forms, N) {

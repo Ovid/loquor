@@ -482,6 +482,60 @@ describe('useNaturalLanguage', () => {
     expect(hook.result.current.notice).toBeNull()
   })
 
+  it('compound: caps at MAX_CLAUSES (8) and notices "Ran 8 of 9 actions."', async () => {
+    // Nine individually-translatable clauses. The loop must stop after the cap
+    // (MAX_CLAUSES = 8), not after a turn/no-op/prompt condition: every settled
+    // view is plain success output ("Taken.") that matches no stop predicate.
+    // Each clause maps to a no-object verbsOnly verb ('look' / 'inventory') so
+    // it always parses to a command without needing an in-scope noun.
+    const englishClauses = [
+      'glance one',
+      'glance two',
+      'glance three',
+      'glance four',
+      'glance five',
+      'glance six',
+      'glance seven',
+      'glance eight',
+      'glance nine',
+    ]
+    // Alternate look/inventory so the issued commands are distinguishable in order.
+    const verbs = englishClauses.map((_, i) =>
+      i % 2 === 0 ? 'look' : 'inventory',
+    )
+    const completions: Record<string, string> = {}
+    for (let i = 0; i < englishClauses.length; i++) {
+      completions[englishClauses[i]] = JSON.stringify({ verb: verbs[i] })
+    }
+    const engine = new FakeLlmEngine({
+      cached: true,
+      completions,
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    // Every clause settles on a plain "Taken." view — no failurePat (the default
+    // test vocab has none anyway), no confirmation/disambiguation prompt.
+    const okView = viewState('West of House', ['Taken.'], 'look')
+    const { hook, echoLocal, sendLine } = setup({
+      engine,
+      awaitTurn: turnScript([okView]),
+    })
+    await reachOn(hook)
+    act(() =>
+      hook.result.current.observe(
+        viewState('West of House', ['There is a small mailbox here.']),
+      ),
+    )
+    await act(async () => {
+      await hook.result.current.translate(englishClauses.join(' and '))
+    })
+    // Exactly 8 commands issued (the first 8, in order), then the cap halts it.
+    expect(sendLine.mock.calls.map(c => c[0]).length).toBe(8)
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(verbs.slice(0, 8))
+    expect(hook.result.current.notice).toBe('Ran 8 of 9 actions.')
+    // The full English echoes exactly once (decision 5).
+    expect(echoLocal).toHaveBeenCalledTimes(1)
+  })
+
   it('compound: stops and notices when a later clause cannot be translated', async () => {
     const engine = new FakeLlmEngine({
       cached: true,

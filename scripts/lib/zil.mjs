@@ -142,3 +142,37 @@ export function atomAt(node, i) {
   const it = node && node.t === 'list' ? node.items[i] : null
   return it && it.t === 'atom' ? it.v : ''
 }
+
+function predTrue(pred, N) {
+  if (!pred) return false
+  if (pred.t === 'atom') return pred.v === 'T' || pred.v === 'ELSE'
+  if (pred.t === 'list' && pred.k === '<') {
+    const op = atomAt(pred, 0)
+    const k = parseInt(atomAt(pred, pred.items.length - 1), 10)
+    if (op === '==?') return N === k
+    if (op === 'N==?') return N !== k
+  }
+  return false
+}
+
+// Flatten top-level forms for game N, descending into <COND> and taking the
+// first true branch's body. Non-COND forms pass through unchanged.
+export function activeForms(forms, N) {
+  const out = []
+  const visit = (node) => {
+    if (!node || node.t !== 'list' || node.k !== '<') return
+    if (headAtom(node) === 'COND') {
+      for (let i = 1; i < node.items.length; i++) {
+        const branch = node.items[i]
+        if (branch.t === 'list' && branch.k === '(' && predTrue(branch.items[0], N)) {
+          for (let j = 1; j < branch.items.length; j++) visit(branch.items[j])
+          break // first true branch wins
+        }
+      }
+      return
+    }
+    out.push(node)
+  }
+  for (const f of forms) visit(f)
+  return out
+}

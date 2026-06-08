@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   CapabilityResult,
+  ChatMessages,
   LlmEngine,
   NlState,
   PromptContext,
@@ -205,6 +206,35 @@ export function useNaturalLanguage(
     }
   }, [available, hasVocab, internal.phase, installed])
 
+  // One bounded inference: load the model if it isn't resident yet, then race
+  // generate() against a watchdog. Throws WatchdogTimeout on timeout (aborting the
+  // orphaned generate) or the underlying error on failure. Shared by the single-
+  // command path and the per-clause compound loop.
+  const generateRaw = useCallback(
+    async (messages: ChatMessages, grammar: string): Promise<string> => {
+      const ac = new AbortController()
+      let watchdogId: ReturnType<typeof setTimeout>
+      try {
+        if (!engine.isLoaded()) await engine.load(() => {}, ac.signal)
+        const watchdog = new Promise<never>((_, rej) => {
+          watchdogId = setTimeout(() => {
+            // Reject FIRST so the watchdog wins the race (keeping the "timed out"
+            // notice accurate), THEN abort the now-orphaned generate.
+            rej(new WatchdogTimeout())
+            ac.abort()
+          }, watchdogMs)
+        })
+        return await Promise.race([
+          engine.generate(messages, grammar, ac.signal),
+          watchdog,
+        ])
+      } finally {
+        clearTimeout(watchdogId!)
+      }
+    },
+    [engine, watchdogMs],
+  )
+
   const translate = useCallback(
     async (english: string) => {
       const tracker = trackerRef.current
@@ -243,10 +273,6 @@ export function useNaturalLanguage(
       translatingRef.current = true
       setPending(true)
       setNotice(null)
-      let watchdogId: ReturnType<typeof setTimeout>
-      // Aborts the in-flight generate() when the watchdog fires so the orphaned
-      // inference stops consuming the GPU instead of running to completion.
-      const ac = new AbortController()
       try {
         const scene = tracker.scene()
         const grammar = buildGrammar(vocab, scene)
@@ -256,28 +282,7 @@ export function useNaturalLanguage(
           inScope: scene.inScope.map(o => o.canonical),
           antecedent: scene.antecedent,
         }
-        const messages = buildPrompt(english, ctx)
-        // The model is enabled but may not be resident in GPU memory yet: a cached
-        // model auto-restored to 'on' across a page reload never went through the
-        // download/load path this session, so generate() would throw "engine not
-        // loaded". Bring it in first (no-op if already loaded). Kept outside the
-        // watchdog race below — a cold cache-load can legitimately take longer than
-        // a single generation's budget, and it reports its own progress.
-        if (!engine.isLoaded()) await engine.load(() => {}, ac.signal)
-        const watchdog = new Promise<never>((_, rej) => {
-          watchdogId = setTimeout(() => {
-            // Reject FIRST so the watchdog wins Promise.race, THEN abort — abort
-            // rejects generate() with AbortError, but the race is already settled
-            // on the timeout, keeping the "timed out" notice accurate.
-            rej(new WatchdogTimeout())
-            ac.abort()
-          }, watchdogMs)
-        })
-        const raw = await Promise.race([
-          engine.generate(messages, grammar, ac.signal),
-          watchdog,
-        ])
-        clearTimeout(watchdogId!)
+        const raw = await generateRaw(buildPrompt(english, ctx), grammar)
         const result = parseCommand(raw, scene, vocab)
         // TEMP gate diagnostics — what the scene fed the model vs. what it emitted.
         // Remove once translation quality is tuned.
@@ -300,7 +305,6 @@ export function useNaturalLanguage(
           sendLine(english) // abstain → game's own parser handles it
         }
       } catch (err) {
-        clearTimeout(watchdogId!)
         lastCommandRef.current = null
         // A genuine generate failure (vs. a benign watchdog timeout) is otherwise
         // swallowed by the notice below, leaving the root cause invisible — e.g. an
@@ -324,11 +328,10 @@ export function useNaturalLanguage(
     [
       internal.phase,
       vocab,
-      engine,
       getContext,
       echoLocal,
       sendLine,
-      watchdogMs,
+      generateRaw,
     ],
   )
 

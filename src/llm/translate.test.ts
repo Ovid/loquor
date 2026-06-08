@@ -9,7 +9,12 @@ import {
 } from './translate'
 import type { Scene } from './scene/types'
 import type { Vocab } from './grammar/types'
-import { TAKE_ACK, DROP_ACK, ABSENCE_PAT, FAILURE_PAT } from './grammar/patterns'
+import {
+  TAKE_ACK,
+  DROP_ACK,
+  ABSENCE_PAT,
+  FAILURE_PAT,
+} from './grammar/patterns'
 
 const vocab: Vocab = {
   verbsOnly: ['look', 'inventory'],
@@ -225,9 +230,9 @@ describe('clauseFailed', () => {
   })
 
   it('is false on ordinary success output', () => {
-    expect(clauseFailed('Opening the small mailbox reveals a leaflet.', v)).toBe(
-      false,
-    )
+    expect(
+      clauseFailed('Opening the small mailbox reveals a leaflet.', v),
+    ).toBe(false)
   })
 
   it('is not stateful across calls (rebuilds the global absencePat each time)', () => {

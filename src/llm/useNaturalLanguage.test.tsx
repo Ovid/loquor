@@ -5,7 +5,12 @@ import { FakeLlmEngine } from './engine.fake'
 import { readNlPref } from './nlpref'
 import type { CapabilityResult } from './types'
 import type { Vocab } from './grammar/types'
-import { TAKE_ACK, DROP_ACK, ABSENCE_PAT, FAILURE_PAT } from './grammar/patterns'
+import {
+  TAKE_ACK,
+  DROP_ACK,
+  ABSENCE_PAT,
+  FAILURE_PAT,
+} from './grammar/patterns'
 import { emptyView } from '../glkote-react/types'
 import type { ViewState, BufferLine, TurnResult } from '../glkote-react/types'
 
@@ -462,7 +467,11 @@ describe('useNaturalLanguage', () => {
       ['open mailbox', 'Opening the small mailbox reveals a leaflet.'],
       'open mailbox',
     )
-    const afterTake = viewState('West of House', ['take leaflet', 'Taken.'], 'take leaflet')
+    const afterTake = viewState(
+      'West of House',
+      ['take leaflet', 'Taken.'],
+      'take leaflet',
+    )
     const { hook, echoLocal, sendLine } = setup({
       engine,
       awaitTurn: turnScript([revealView, afterTake]),
@@ -474,11 +483,18 @@ describe('useNaturalLanguage', () => {
       ),
     )
     await act(async () => {
-      await hook.result.current.translate('Ouvrez la boîte aux lettres and prends-le')
+      await hook.result.current.translate(
+        'Ouvrez la boîte aux lettres and prends-le',
+      )
     })
     expect(echoLocal).toHaveBeenCalledTimes(1)
-    expect(echoLocal).toHaveBeenCalledWith('Ouvrez la boîte aux lettres and prends-le')
-    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['open mailbox', 'take leaflet'])
+    expect(echoLocal).toHaveBeenCalledWith(
+      'Ouvrez la boîte aux lettres and prends-le',
+    )
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual([
+      'open mailbox',
+      'take leaflet',
+    ])
     expect(hook.result.current.notice).toBeNull()
   })
 
@@ -547,7 +563,10 @@ describe('useNaturalLanguage', () => {
       ['open mailbox', 'Opening the small mailbox reveals a leaflet.'],
       'open mailbox',
     )
-    const { hook, sendLine } = setup({ engine, awaitTurn: turnScript([revealView]) })
+    const { hook, sendLine } = setup({
+      engine,
+      awaitTurn: turnScript([revealView]),
+    })
     await reachOn(hook)
     act(() =>
       hook.result.current.observe(
@@ -567,7 +586,11 @@ describe('useNaturalLanguage', () => {
       completions: { 'open mailbox': '{"verb":"open","object":"mailbox"}' },
       default: '{"verb":"__UNKNOWN__"}',
     })
-    const noop = viewState('West of House', ['open mailbox', 'It is already open.'], 'open mailbox')
+    const noop = viewState(
+      'West of House',
+      ['open mailbox', 'It is already open.'],
+      'open mailbox',
+    )
     const { hook, sendLine } = setup({
       engine,
       vocab: { ...TEST_VOCAB, failurePat: FAILURE_PAT },
@@ -594,10 +617,16 @@ describe('useNaturalLanguage', () => {
     })
     const disambig = viewState(
       'West of House',
-      ['open mailbox', 'Which mailbox do you mean, the brass mailbox or the small mailbox?'],
+      [
+        'open mailbox',
+        'Which mailbox do you mean, the brass mailbox or the small mailbox?',
+      ],
       'open mailbox',
     )
-    const { hook, sendLine } = setup({ engine, awaitTurn: turnScript([disambig]) })
+    const { hook, sendLine } = setup({
+      engine,
+      awaitTurn: turnScript([disambig]),
+    })
     await reachOn(hook)
     act(() =>
       hook.result.current.observe(
@@ -621,11 +650,18 @@ describe('useNaturalLanguage', () => {
       default: '{"verb":"__UNKNOWN__"}',
     })
     const neverSettle = () => new Promise<TurnResult>(() => {})
-    const { hook, sendLine } = setup({ engine, watchdogMs: 1000, awaitTurn: neverSettle })
+    const { hook, sendLine } = setup({
+      engine,
+      watchdogMs: 1000,
+      awaitTurn: neverSettle,
+    })
     await reachOn(hook)
     act(() =>
       hook.result.current.observe(
-        viewState('West of House', ['There is a small mailbox here.', 'a leaflet']),
+        viewState('West of House', [
+          'There is a small mailbox here.',
+          'a leaflet',
+        ]),
       ),
     )
     vi.useFakeTimers()
@@ -645,7 +681,10 @@ describe('useNaturalLanguage', () => {
 
   it('compound: first clause untranslatable → raw-send the whole input, no notice', async () => {
     const { hook, echoLocal, sendLine } = setup({
-      engine: new FakeLlmEngine({ cached: true, default: '{"verb":"__UNKNOWN__"}' }),
+      engine: new FakeLlmEngine({
+        cached: true,
+        default: '{"verb":"__UNKNOWN__"}',
+      }),
     })
     await reachOn(hook)
     await act(async () => {
@@ -657,7 +696,10 @@ describe('useNaturalLanguage', () => {
   })
 
   it('a prompt reply containing "and" is bypassed, not split or translated', async () => {
-    const engine = new FakeLlmEngine({ cached: true, default: '{"verb":"look"}' })
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"look"}',
+    })
     const generateSpy = vi.spyOn(engine, 'generate')
     const getContext = () => ({
       location: '',

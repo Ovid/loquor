@@ -144,6 +144,7 @@ describe('extractNouns', () => {
       <OBJECT INTDIR (IN GLOBAL-OBJECTS) (SYNONYM INTDIR) (FLAGS TOOLBIT) (DESC "direction")>
       <OBJECT IT (IN GLOBAL-OBJECTS) (SYNONYM IT THEM HER HIM) (DESC "random object") (FLAGS NDESCBIT TOUCHBIT)>
       <OBJECT ADVENTURER (SYNONYM ADVENTURER) (DESC "cretin") (FLAGS NDESCBIT INVISIBLE SACREDBIT ACTORBIT)>
+      <OBJECT ME (IN GLOBAL-OBJECTS) (SYNONYM ME MYSELF SELF CRETIN) (DESC "you") (FLAGS ACTORBIT)>
       <OBJECT PSEUDO-OBJECT (IN LOCAL-GLOBALS) (DESC "pseudo") (ACTION CRETIN-FCN)>
       <OBJECT NOT-HERE-OBJECT (DESC "such thing") (ACTION NOT-HERE-OBJECT-F)>
       <OBJECT LOCAL-GLOBALS (IN GLOBAL-OBJECTS) (SYNONYM ZZMGCK) (DESCFCN PATH-OBJECT)>`
@@ -160,6 +161,7 @@ describe('extractNouns', () => {
       'direction',
       'random object',
       'cretin',
+      'you',
       'pseudo',
       'such thing',
       'zzmgck',

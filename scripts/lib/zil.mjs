@@ -278,6 +278,7 @@ export function extractDirections(dungeonSrc) {
 const PSEUDO_OBJECT_NAMES = new Set([
   'IT', // DESC "random object" — pronoun anaphora (it/them/her/him)
   'ADVENTURER', // DESC "cretin" — the player avatar
+  'ME', // DESC "you" — the player self-reference (me/myself/self/cretin)
   'INTNUM', // DESC "number" — the parser's number interface (TOOLBIT)
   'INTDIR', // DESC "direction" — the parser's direction interface (TOOLBIT)
   'PSEUDO-OBJECT', // DESC "pseudo" — parser placeholder

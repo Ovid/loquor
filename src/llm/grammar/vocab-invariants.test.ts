@@ -112,8 +112,10 @@ describe('vocab invariants (regeneration regression gate)', () => {
       const canon = new Set(v.nouns.map(n => n.canonical))
       for (const ghost of [
         'number',
+        'direction',
         'random object',
         'cretin',
+        'you',
         'pseudo',
         'such thing',
         'zzmgck',

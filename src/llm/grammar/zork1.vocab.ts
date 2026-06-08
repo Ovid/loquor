@@ -740,7 +740,6 @@ export const ZORK1_VOCAB: Vocab = {
       synonyms: ['button', 'switch'],
       adjectives: ['yellow'],
     },
-    { canonical: 'you', synonyms: ['cretin', 'me', 'myself', 'self'] },
     {
       canonical: "zork owner's manual",
       synonyms: ['manual', 'paper', 'piece'],

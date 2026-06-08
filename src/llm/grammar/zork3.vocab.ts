@@ -470,7 +470,6 @@ export const ZORK3_VOCAB: Vocab = {
       synonyms: ['panel', 'wall'],
       adjectives: ['yellow'],
     },
-    { canonical: 'you', synonyms: ['cretin', 'me', 'myself', 'self'] },
     { canonical: 'zorkmid' },
   ],
   takeAck: TAKE_ACK,

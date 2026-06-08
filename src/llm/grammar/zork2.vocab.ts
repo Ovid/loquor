@@ -807,7 +807,6 @@ export const ZORK2_VOCAB: Vocab = {
       synonyms: ['bat', 'club'],
       adjectives: ['baseball', 'wooden'],
     },
-    { canonical: 'you', synonyms: ['cretin', 'me', 'myself', 'self'] },
     { canonical: 'zorkmid' },
   ],
   takeAck: TAKE_ACK,

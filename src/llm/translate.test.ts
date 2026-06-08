@@ -7,6 +7,7 @@ import {
   splitClauses,
   clauseFailed,
 } from './translate'
+import { META_COMMANDS } from './meta'
 import type { Scene } from './scene/types'
 import type { Vocab } from './grammar/types'
 import {
@@ -243,5 +244,23 @@ describe('clauseFailed', () => {
 
   it('tolerates a vocab with no failurePat', () => {
     expect(clauseFailed('It is already open.', vocab)).toBe(false)
+  })
+})
+
+describe('meta-command source', () => {
+  it('routes parser buzzwords again/g raw', () => {
+    expect(isMetaCommand('again')).toBe(true)
+    expect(isMetaCommand('g')).toBe(true)
+  })
+  it('keeps inventory as an in-world (non-meta) verb', () => {
+    expect(isMetaCommand('inventory')).toBe(false)
+  })
+  it('still bypasses the classic session verbs', () => {
+    expect(isMetaCommand('save')).toBe(true)
+    expect(isMetaCommand('SCORE.')).toBe(true)
+  })
+  it('exposes a deduped, lowercase list', () => {
+    expect(META_COMMANDS).toContain('restart')
+    expect(new Set(META_COMMANDS).size).toBe(META_COMMANDS.length)
   })
 })

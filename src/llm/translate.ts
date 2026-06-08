@@ -2,6 +2,7 @@
 import type { TranslateResult } from './types'
 import type { Scene } from './scene/types'
 import type { Vocab } from './grammar/types'
+import { META_COMMANDS } from './meta'
 
 /**
  * The abstain sentinel: the model emits `{"verb":"__UNKNOWN__"}` (and the grammar
@@ -29,24 +30,10 @@ export function splitClauses(english: string): string[] {
 
 // Z-machine meta-verbs that are not in-world actions: they have no canonical
 // game-command translation and must bypass the model entirely (sent raw to the
-// interpreter). Without this, the 1.5B model — reluctant to abstain — translates
-// "restart" into a plausible-but-wrong action like "open door" (systematic-
-// debugging). Match only the BARE verb so a real intent like "save the egg"
-// still reaches the translator.
-const META_COMMANDS = new Set([
-  'restart',
-  'save',
-  'restore',
-  'quit',
-  'version',
-  'script',
-  'unscript',
-  'verbose',
-  'brief',
-  'superbrief',
-  'diagnose',
-  'score',
-])
+// interpreter). The list is the shared source in ./meta so the vocab generator
+// subtracts exactly this set from verbsOnly. Match only the BARE verb so a real
+// intent like "save the egg" still reaches the translator.
+const META = new Set(META_COMMANDS)
 
 /** True when the raw English is a bare Z-machine meta-command (restart, save…). */
 export function isMetaCommand(english: string): boolean {
@@ -54,7 +41,7 @@ export function isMetaCommand(english: string): boolean {
     .trim()
     .toLowerCase()
     .replace(/[!.?]+$/, '')
-  return META_COMMANDS.has(norm)
+  return META.has(norm)
 }
 
 // The interpreter's yes/no confirmation prompts (restart, quit, restore-overwrite)

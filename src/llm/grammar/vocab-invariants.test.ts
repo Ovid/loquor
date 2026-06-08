@@ -18,6 +18,11 @@ const meta = new Set(META_COMMANDS)
 describe('vocab invariants (regeneration regression gate)', () => {
   it.each(games)('%s: no meta verb leaks into verbsOnly', (_name, v) => {
     expect(v.verbsOnly.filter(x => meta.has(x))).toEqual([])
+    // Explicit pin for the head/synonym divergence the membership filter alone
+    // missed: ZIL is <SYNTAX SUPER = V-SUPER-BRIEF> + <SYNONYM SUPER SUPERBRIEF>,
+    // so the canonical verb head is 'super' (not the 'superbrief' synonym). 'super'
+    // must be in META_COMMANDS so it is subtracted here, not silently emittable.
+    expect(v.verbsOnly).not.toContain('super')
   })
 
   it.each(games)(

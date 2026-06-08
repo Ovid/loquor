@@ -32,7 +32,6 @@ export const ZORK3_VOCAB: Vocab = {
     'skip',
     'stand',
     'stay',
-    'super',
     'swim',
     'treasure',
     'wait',

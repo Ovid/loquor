@@ -11,6 +11,11 @@
 // <SYNTAX> rule), routed raw so "again"/"g" repeat the previous turn.
 // 'inventory' is deliberately NOT here: it is a real in-world verb-only action
 // (<SYNTAX INVENTORY = V-INVENTORY>) and stays emittable in verbsOnly.
+// 'super' AND 'superbrief': the ZIL rule is <SYNTAX SUPER = V-SUPER-BRIEF> with
+// <SYNONYM SUPER SUPERBRIEF> (gsyntax.zil:44-45). The generator canonicalises the
+// SYNTAX *head* ('super'), so 'super' — not 'superbrief' — is what would otherwise
+// land in verbsOnly; both are listed so the verb is subtracted from the grammar
+// AND a typed "super"/"superbrief" is routed raw.
 export const META_COMMANDS: readonly string[] = [
   'restart',
   'save',
@@ -21,6 +26,7 @@ export const META_COMMANDS: readonly string[] = [
   'unscript',
   'verbose',
   'brief',
+  'super',
   'superbrief',
   'diagnose',
   'score',

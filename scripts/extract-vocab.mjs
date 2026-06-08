@@ -27,6 +27,9 @@ function readMetaSet() {
   const block = text.match(/META_COMMANDS[^=]*=\s*\[([\s\S]*?)\]/)
   const set = new Set()
   if (block) for (const m of block[1].matchAll(/['"]([^'"]+)['"]/g)) set.add(m[1].toLowerCase())
+  if (set.size === 0) {
+    throw new Error('readMetaSet: parsed 0 commands from src/llm/meta.ts — META_COMMANDS regex did not match; aborting to avoid silently leaking meta verbs into verbsOnly')
+  }
   return set
 }
 

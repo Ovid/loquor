@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   parseCommand,
   isMetaCommand,
+  metaAlias,
   isConfirmationPrompt,
   isDisambiguationPrompt,
   splitClauses,
@@ -120,6 +121,29 @@ describe('isMetaCommand', () => {
     // a genuine in-game intent that must still reach the translator.
     for (const g of ['open the mailbox', 'take it', 'save the egg', 'north'])
       expect(isMetaCommand(g)).toBe(false)
+  })
+
+  it('routes $-/#-prefixed debug commands as meta (UAT F6)', () => {
+    // The vocab generator drops $/# debug verbs from the grammar (zil.mjs), so
+    // they have no emittable translation; they must bypass the model and be sent
+    // raw to the interpreter (UAT F6: `$verify` leaked into the LLM -> `look`).
+    for (const m of ['$verify', '$VERIFY', '#command', '$ve']) {
+      expect(isMetaCommand(m)).toBe(true)
+    }
+  })
+})
+
+describe('metaAlias', () => {
+  it('maps a localized command word to its English canonical (UAT F5)', () => {
+    expect(metaAlias('inventaire')).toBe('inventory') // fr
+    expect(metaAlias('Inventar')).toBe('inventory') // de
+    expect(metaAlias('inventario')).toBe('inventory') // es / it
+    expect(metaAlias('inventaire.')).toBe('inventory') // trailing punctuation
+  })
+
+  it('returns null for English input and genuine game actions', () => {
+    for (const g of ['inventory', 'i', 'open mailbox', 'va au sud'])
+      expect(metaAlias(g)).toBeNull()
   })
 })
 

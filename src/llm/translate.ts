@@ -2,7 +2,7 @@
 import type { TranslateResult } from './types'
 import type { Scene } from './scene/types'
 import type { Vocab } from './grammar/types'
-import { META_COMMANDS } from './meta'
+import { META_COMMANDS, META_ALIASES } from './meta'
 
 /**
  * The abstain sentinel: the model emits `{"verb":"__UNKNOWN__"}` (and the grammar
@@ -35,13 +35,32 @@ export function splitClauses(english: string): string[] {
 // intent like "save the egg" still reaches the translator.
 const META = new Set(META_COMMANDS)
 
-/** True when the raw English is a bare Z-machine meta-command (restart, save…). */
+/** True when the raw English is a bare Z-machine meta-command (restart, save…)
+ * or a $-/#-prefixed debug command ($verify, #command). The latter are dropped
+ * from the grammar by the vocab generator, so they have no emittable translation
+ * and must be sent raw to the interpreter (UAT F6). */
 export function isMetaCommand(english: string): boolean {
   const norm = english
     .trim()
     .toLowerCase()
     .replace(/[!.?]+$/, '')
+  if (/^[$#]/.test(norm)) return true
   return META.has(norm)
+}
+
+/**
+ * Map a localized command word (e.g. French "inventaire") to the English the
+ * interpreter understands ("inventory"), to be sent raw — bypassing the model so
+ * a known non-English command can't be mistranslated (UAT F5). Returns null for
+ * English input and anything not in the seed alias table. Match is on the bare
+ * word only, so a real intent ("inventaire de la maison") still reaches the model.
+ */
+export function metaAlias(english: string): string | null {
+  const norm = english
+    .trim()
+    .toLowerCase()
+    .replace(/[!.?]+$/, '')
+  return META_ALIASES[norm] ?? null
 }
 
 // The interpreter's yes/no confirmation prompts (restart, quit, restore-overwrite)

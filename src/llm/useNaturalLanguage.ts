@@ -17,11 +17,13 @@ import { buildPrompt, viewToContext } from './prompt'
 import {
   parseCommand,
   isMetaCommand,
+  metaAlias,
   isConfirmationPrompt,
   isDisambiguationPrompt,
   splitClauses,
   clauseFailed,
 } from './translate'
+import { parseDirection } from './directions'
 import { readNlPref, writeNlPref } from './nlpref'
 
 export interface UseNaturalLanguageArgs {
@@ -266,6 +268,15 @@ export function useNaturalLanguage(
         sendLine(english)
         return
       }
+      // A localized command word (e.g. French "inventaire") is sent to the
+      // interpreter as its English canonical ("inventory"), bypassing the model so
+      // a known non-English command can't be mistranslated (UAT F5).
+      const alias = metaAlias(english)
+      if (alias) {
+        lastCommandRef.current = null
+        sendLine(alias)
+        return
+      }
       // The game's own prompts are read as line input too: a yes/no confirmation
       // (restart/quit/restore) or a parser disambiguation ("Which door…?"). The
       // player's reply answers the interpreter and must not be translated — else
@@ -293,6 +304,16 @@ export function useNaturalLanguage(
         clause: string,
         scene: Scene,
       ): Promise<{ result: TranslateResult; raw: string }> => {
+        // Direction fast-path: movement is a closed, multilingual set resolved
+        // deterministically in code — correct in every supported language and with
+        // no model round-trip (UAT F8). Applies to single commands and to each
+        // clause of a compound. `raw` is synthetic, only for the [nl debug] log.
+        const dir = parseDirection(clause, vocab.movement)
+        if (dir)
+          return {
+            result: { kind: 'command', text: dir },
+            raw: `{"verb":"${dir}"}`,
+          }
         const grammar = buildGrammar(vocab, scene)
         const base = getContext()
         const ctx: PromptContext = {
@@ -300,7 +321,7 @@ export function useNaturalLanguage(
           inScope: scene.inScope.map(o => o.canonical),
           antecedent: scene.antecedent,
         }
-        const raw = await generateRaw(buildPrompt(clause, ctx), grammar)
+        const raw = await generateRaw(buildPrompt(clause, ctx, vocab), grammar)
         return { result: parseCommand(raw, scene, vocab), raw }
       }
 
@@ -355,6 +376,12 @@ export function useNaturalLanguage(
         const total = clauses.length
         const limit = Math.min(total, MAX_CLAUSES)
         let done = 0
+        // Track the room across clauses: a turn that CHANGES ROOMS is a successful
+        // move, not a no-op, so the absence/failure detector must be suppressed for
+        // it. Otherwise ordinary room flavor text ("There is no door here.") trips
+        // ABSENCE_PAT (\bno\s+\w+\b) and truncates the sequence right after a move
+        // succeeds (systematic-debugging; exposed once movement started working).
+        let prevLocation = getContext().location
         // TEMP compound diagnostics — why a sequence stopped (set at each break,
         // logged once below). Mirrors the single-path [nl debug]; remove together
         // once translation quality is tuned.
@@ -409,13 +436,17 @@ export function useNaturalLanguage(
           }
 
           const vc = viewToContext(turn.view)
+          // A non-empty location that differs from the prior clause's = a successful
+          // move; its new room description is success output, not a failure to scan.
+          const roomChanged = vc.location !== '' && vc.location !== prevLocation
+          prevLocation = vc.location
           // The hook owns observe during a sequence (decision 9).
           tracker.observe({
             location: vc.location,
             outputText: vc.recentOutput,
             lastCommand: lastCommandRef.current,
           })
-          if (clauseFailed(vc.recentOutput, vocab)) {
+          if (!roomChanged && clauseFailed(vc.recentOutput, vocab)) {
             stopReason = 'in-game-failure'
             break // no-op / absence
           }

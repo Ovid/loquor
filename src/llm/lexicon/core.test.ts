@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest'
 import { fold } from './fold'
 import { FR_CORE } from './fr.core'
 import { DE_CORE } from './de.core'
+import { ES_CORE } from './es.core'
 import type { CoreLexicon } from './types'
 
 /** Every stored string field of a core lexicon — keys AND values. Canonical
@@ -25,10 +26,10 @@ function storedStrings(core: CoreLexicon): string[] {
   ]
 }
 
-// Task 7 (es) adds its tuple here.
 describe.each<[string, CoreLexicon]>([
   ['fr', FR_CORE],
   ['de', DE_CORE],
+  ['es', ES_CORE],
 ])('%s core lexicon folded-storage invariant', (_lang, core) => {
   it('fold() is a no-op on every stored string (idempotent store)', () => {
     for (const k of storedStrings(core)) {
@@ -113,5 +114,21 @@ describe('de core lexicon', () => {
     expect(DE_CORE.verbs['greife']).toBe('take') // greifen = grasp/seize; attack only via 'greife … an'
     expect(DE_CORE.verbs['lausche']).toBe('listen to') // bare 'listen' is not in extracted vocab
     expect(DE_CORE.metaAliases['inventar']).toBe('inventory')
+  })
+})
+
+describe('es core lexicon', () => {
+  it('covers core verbs incl. attached-clitic imperatives as idiom data', () => {
+    expect(ES_CORE.verbs['toma']).toBe('take')
+    expect(ES_CORE.verbs['coge']).toBe('take')
+    expect(ES_CORE.verbs['abre']).toBe('open')
+    expect(ES_CORE.verbs['suelta']).toBe('drop')
+    expect(ES_CORE.verbs['deja']).toBe('drop')
+  })
+  it('meta aliases include inventario (F5)', () => {
+    expect(ES_CORE.metaAliases['inventario']).toBe('inventory')
+  })
+  it('no particle verbs', () => {
+    expect(ES_CORE.particleVerbs).toEqual([])
   })
 })

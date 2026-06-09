@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest'
 import { fold } from './fold'
 import { FR_CORE } from './fr.core'
+import { DE_CORE } from './de.core'
 import type { CoreLexicon } from './types'
 
 /** Every stored string field of a core lexicon — keys AND values. Canonical
@@ -24,17 +25,17 @@ function storedStrings(core: CoreLexicon): string[] {
   ]
 }
 
-// Tasks 6–7 (de, es) add their tuples here.
-describe.each<[string, CoreLexicon]>([['fr', FR_CORE]])(
-  '%s core lexicon folded-storage invariant',
-  (_lang, core) => {
-    it('fold() is a no-op on every stored string (idempotent store)', () => {
-      for (const k of storedStrings(core)) {
-        expect(fold(k)).toBe(k)
-      }
-    })
-  },
-)
+// Task 7 (es) adds its tuple here.
+describe.each<[string, CoreLexicon]>([
+  ['fr', FR_CORE],
+  ['de', DE_CORE],
+])('%s core lexicon folded-storage invariant', (_lang, core) => {
+  it('fold() is a no-op on every stored string (idempotent store)', () => {
+    for (const k of storedStrings(core)) {
+      expect(fold(k)).toBe(k)
+    }
+  })
+})
 
 describe('fr core lexicon', () => {
   it('covers every UAT-discovered verb trap', () => {
@@ -62,5 +63,53 @@ describe('fr core lexicon', () => {
 
   it('has no particle verbs (French idioms are contiguous)', () => {
     expect(FR_CORE.particleVerbs).toEqual([])
+  })
+})
+
+describe('de core lexicon', () => {
+  it('separable verbs are particle patterns, never bare-stem verb entries', () => {
+    expect(DE_CORE.particleVerbs).toContainEqual({
+      verb: 'schalte',
+      particle: 'ein',
+      to: 'turn on',
+    })
+    expect(DE_CORE.particleVerbs).toContainEqual({
+      verb: 'schalte',
+      particle: 'aus',
+      to: 'turn off',
+    })
+    expect(DE_CORE.particleVerbs).toContainEqual({
+      verb: 'mach',
+      particle: 'auf',
+      to: 'open',
+    })
+    expect(DE_CORE.particleVerbs).toContainEqual({
+      verb: 'hebe',
+      particle: 'auf',
+      to: 'take',
+    })
+    // The bare stem must NOT be a verb entry — 'mach' alone ≈ make (spec §5.1)
+    expect(DE_CORE.verbs['mach']).toBeUndefined()
+    expect(DE_CORE.verbs['schalte']).toBeUndefined()
+  })
+  it('particles come from the closed set', () => {
+    const allowed = new Set([
+      'ein',
+      'aus',
+      'an',
+      'auf',
+      'zu',
+      'ab',
+      'um',
+      'hoch',
+      'runter',
+    ])
+    for (const p of DE_CORE.particleVerbs)
+      expect(allowed.has(p.particle)).toBe(true)
+  })
+  it('covers core verbs + meta aliases', () => {
+    expect(DE_CORE.verbs['nimm']).toBe('take')
+    expect(DE_CORE.verbs['offne']).toBe('open') // folded öffne
+    expect(DE_CORE.metaAliases['inventar']).toBe('inventory')
   })
 })

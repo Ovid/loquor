@@ -65,6 +65,22 @@ describe('ModelDownloadModal', () => {
     expect(screen.queryByText(/remaining/)).toBeNull()
   })
 
+  it('discloses BOTH third-party hosts (S9: CLAUDE.md disclosure accuracy)', () => {
+    // engine.webllm.ts fetches model weights from huggingface.co AND the
+    // model-lib WASM from raw.githubusercontent.com; the modal must name both.
+    render(
+      <ModelDownloadModal
+        open
+        progress={null}
+        onAccept={vi.fn()}
+        onDecline={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    )
+    expect(screen.getByText(/Hugging Face/)).toBeInTheDocument()
+    expect(screen.getByText(/GitHub/)).toBeInTheDocument()
+  })
+
   it('exposes the dialog with an accessible name', () => {
     render(
       <ModelDownloadModal

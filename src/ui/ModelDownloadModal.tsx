@@ -33,9 +33,10 @@ export function ModelDownloadModal({
         <h2 id="nl-modal-title">Natural-language input</h2>
         <p>
           The first time, this fetches a language model (a sizable, one-time
-          download) from a third-party host (Hugging Face). After that it runs
-          entirely on your device — offline and private — and is cached, so it
-          is not downloaded again.
+          download) from third-party hosts: the model weights from Hugging Face
+          and a small support library from GitHub. After that it runs entirely
+          on your device — offline and private — and is cached, so it is not
+          downloaded again.
         </p>
         {downloading ? (
           <>

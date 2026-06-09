@@ -8,10 +8,13 @@
 // model's job), the closed direction set is worth maintaining by hand.
 
 // Strip diacritics + lowercase + trailing punctuation so "Süd-Ost!" == "sud-ost".
+// Apostrophes (ASCII or typographic) become spaces so the French elided article
+// splits off: "l'est" → "l est" → LEAD strips "l" → "est" (review C2).
 function normalize(input: string): string {
   return input
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
+    .replace(/['’]/g, ' ')
     .toLowerCase()
     .replace(/[!.?]+$/, '')
     .trim()

@@ -38,6 +38,15 @@ describe('parseDirection', () => {
     expect(parseDirection('monte', MOVE)).toBe('up')
   })
 
+  it('handles the French elided article l’est/l’ouest (review C2)', () => {
+    // prompt.ts advertises "vers l’est" as deterministically handled; the
+    // apostrophe (ASCII or typographic) must not glue the article to the noun.
+    expect(parseDirection("vers l'est", MOVE)).toBe('east')
+    expect(parseDirection('vers l’est', MOVE)).toBe('east')
+    expect(parseDirection("va à l'ouest", MOVE)).toBe('west')
+    expect(parseDirection("l'est", MOVE)).toBe('east')
+  })
+
   it('maps German and Spanish directions', () => {
     expect(parseDirection('geh nach norden', MOVE)).toBe('north')
     expect(parseDirection('südosten', MOVE)).toBe('southeast')

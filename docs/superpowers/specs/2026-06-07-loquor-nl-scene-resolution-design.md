@@ -37,9 +37,16 @@ optional**.
    player most plausibly means, on both the direct and indirect object slots.
 2. **Dynamic, per-turn vocabulary** — the model can only name objects actually in
    scope this turn, so it cannot reference absent things.
-3. **Stronger abstain** — when the layer is unsure (object out of scope, pronoun
-   unresolvable, malformed output), it abstains and passes the raw English to
-   Zork's own parser instead of emitting a confident wrong command.
+3. **Stronger abstain — two distinct mechanisms, only one of which is new
+   strength.** (a) **Deterministic validator abstains** (object out of scope,
+   malformed output, arity/prep incoherence) are new, total, and fully in our
+   control. (b) **Model-elective abstain** on ambiguity (ambiguous/absent pronoun
+   antecedent) still depends on the model voluntarily choosing `__UNKNOWN__`; it is
+   *no stronger* than the prior pass except that the in-scope-only noun set bounds
+   a wrong guess to an object that is at least present. We do **not** ship a
+   confidence/logprob-gated abstain (see "Open questions / future"). Either way, a
+   layer-side abstain passes the raw English to Zork's own parser instead of
+   emitting a confident wrong command.
 4. **Two-object commands** — `unlock grating with key`, `put coffin in case`,
    `give amulet to troll` — the commands that actually solve the game.
 
@@ -70,6 +77,14 @@ optional**.
    "direct strings to prove it out; add the JSON seam for anything shippable").
 5. **Abstain defers to Zork.** Any validation failure → pass the raw English
    through; Zork's own parser (including its own "it" tracking) handles it.
+6. **Pronouns are resolved by the model, not the validator.** The GBNF `noun`
+   production carries only in-scope canonical nouns (no pronoun terminal), so the
+   model maps "it"/"le"/"la"/"them" → the antecedent's canonical noun using the
+   prompt's antecedent hint; on ambiguous/absent antecedent it emits `__UNKNOWN__`.
+   The validator never resolves pronouns (there is no pronoun-resolution step in
+   `parseCommand`). The cost: model-elective abstain on ambiguity is only as strong
+   as the model — a gate criterion measures whether the 1.5B model actually chooses
+   `__UNKNOWN__` on a genuinely ambiguous pronoun rather than guessing.
 
 ## Architecture & per-turn data flow
 
@@ -87,18 +102,27 @@ English ─► Scene (from the running tracker)
       engine.generate(messages, grammar) ─► JSON  {verb, object?, prep?, indirect?}
             ▼
       parseCommand(json, scene, vocab) ─► TranslateResult
-            │  • resolve pronouns → antecedent   • each slot in-scope?   • verb/prep/arity coherent?
+            │  • each slot in-scope?   • verb/prep/arity coherent?   • __UNKNOWN__?
             ├─ command ─► echoLocal(english) + sendLine("unlock grating with key")
             └─ abstain  ─► sendLine(english)            ← raw to Zork's own parser
 ```
 
+**Pronoun resolution is the MODEL's job, not the validator's (locked decision 6).**
+The dynamic GBNF restricts the `object`/`indirect` slots to in-scope **canonical**
+nouns — there is no pronoun terminal — so the model can never emit a literal "it".
+The prompt names the antecedent ("most recently mentioned: leaflet") and the model
+maps the pronoun to that canonical noun directly. When the antecedent is ambiguous
+or absent, the model is instructed to emit the `__UNKNOWN__` abstain rather than
+guess. The validator therefore never sees a pronoun; it only validates canonicals.
+
 Worked examples:
 
-- `prends-le`, scene `{inScope:[mailbox, leaflet], antecedent:leaflet}` →
-  `{"verb":"take","object":"leaflet"}` → `take leaflet`. (The motivating bug.)
+- `prends-le`, scene `{inScope:[mailbox, leaflet], antecedent:leaflet}` → the model
+  resolves "le"→leaflet from the prompt hint → `{"verb":"take","object":"leaflet"}`
+  → `take leaflet`. (The motivating bug.)
 - `unlock it with the key`, scene `{inScope:[grating, key], antecedent:grating}` →
-  `{"verb":"unlock","object":"grating","prep":"with","indirect":"key"}` →
-  `unlock grating with key`.
+  model resolves "it"→grating → `{"verb":"unlock","object":"grating","prep":"with","indirect":"key"}`
+  → `unlock grating with key`.
 
 ## Components
 
@@ -133,20 +157,38 @@ export interface SceneProvider {
 
 `tracker.ts` — `TextSceneTracker implements SceneProvider`. State transition is a
 pure `reduceScene(prev: SceneState, event, vocab) → SceneState`; the class is a
-thin stateful wrapper so the hook can call `observe`/`scene`. Rules:
+thin stateful wrapper so the hook can call `observe`/`scene`. `reduceScene` is
+**idempotent**: re-applying the same `(location, outputText, lastCommand)` triple
+is a no-op (the hook dedups too, but the reducer must not corrupt scope/antecedent
+if called twice on identical content). Rules:
 
 - **Room change** (`location` differs from prior) → drop non-carried objects;
-  keep carried ones; clear antecedent unless re-mentioned.
+  keep carried ones; clear antecedent unless re-mentioned this turn.
 - **Object mention** — a known vocab noun/synonym/adjective phrase appears in
-  `outputText` → it enters scope and becomes the antecedent (latest wins; ties
-  broken by appearance order, last one wins).
-- **Take** — `lastCommand` is `take X` and `outputText` matches a "taken"
-  acknowledgement → mark X `carried`.
-- **Drop** — `lastCommand` is `drop X` and a "dropped" acknowledgement → unset
+  `outputText` → it enters scope. **Matching is word-boundary (token), not raw
+  substring** (so `door` does not match `trapdoor`, `egg` not `begged`,
+  `troll` not `controlled`); multi-word/adjective phrases use **longest-match-wins**.
+  A per-game **negation/absence** pattern (`absencePat`, sibling to
+  `takeAck`/`dropAck`) **suppresses** a mention so absent objects never enter scope
+  (e.g. "there is no lamp here", "the trophy case is empty", "you can't see any
+  troll"). False-positive precision is a tested property (see Testing) and a gate
+  criterion (zero absent objects in-scope across N real-transcript turns).
+- **Antecedent precedence (three tiers, highest wins).** After reducing a turn,
+  the antecedent is chosen as: (1) **revealed-in-output** — the newest object
+  *mentioned* in this turn's `outputText` (latest wins; ties by appearance order,
+  last one wins); else (2) **player's-just-acted object** — the direct object of a
+  **successful** `lastCommand` (ack matched / no failure), so `take lamp` → "Taken."
+  makes `lamp` the antecedent even though prose never names it; else (3) the
+  **prior antecedent** carries over. This handles both `open mailbox / take it`
+  (tier 1 reveal) and `take lamp / turn it on` (tier 2 acted-object).
+- **Take** — `lastCommand` is `take X` and `outputText` matches `takeAck` → mark X
+  `carried`.
+- **Drop** — `lastCommand` is `drop X` and `outputText` matches `dropAck` → unset
   `carried`; X leaves scope when the room is next left.
 
-The take/drop acknowledgement phrases are game-specific; they live in the per-game
-vocab (`takeAck` / `dropAck` patterns), not hard-coded in the tracker.
+The acknowledgement and absence phrases are game-specific; they live in the
+per-game vocab (`takeAck` / `dropAck` / `absencePat`), not hard-coded in the
+tracker.
 
 ### Vocabulary + dynamic grammar (`src/llm/grammar/`)
 
@@ -169,6 +211,7 @@ export interface Vocab {
   nouns: NounEntry[]
   takeAck: RegExp            // recognises a successful take in output text
   dropAck: RegExp            // recognises a successful drop
+  absencePat: RegExp         // suppresses a mention (negation/absence: "no <noun>", "<noun> is empty", "can't see")
 }
 ```
 
@@ -204,12 +247,13 @@ export interface Vocab {
 1. Parse the GBNF-guaranteed JSON `{verb, object?, prep?, indirect?}`.
    (Malformed/empty → abstain — defensive; GBNF should prevent it.)
 2. Verb `__UNKNOWN__` → abstain.
-3. Resolve any pronoun slot value to `scene.antecedent`; if a pronoun has no
-   antecedent → abstain.
-4. Validate each named object is in `scene.inScope` (by canonical) → else abstain.
-5. Arity/prep coherence: `verbs2` require both `prep` and `indirect`; `verbs1`
+3. Validate each named object is in `scene.inScope` (by canonical) → else abstain.
+   (There is **no** pronoun-resolution step: under locked decision 6 the model has
+   already mapped any pronoun to a canonical in-scope noun, so the validator only
+   ever sees canonicals. A pronoun in the JSON is impossible under the GBNF.)
+4. Arity/prep coherence: `verbs2` require both `prep` and `indirect`; `verbs1`
    forbid them → else abstain.
-6. Serialize to the canonical string, skipping null slots:
+5. Serialize to the canonical string, skipping null slots:
    `take leaflet` / `unlock grating with key` / `put coffin in case`.
 
 `ABSTAIN` stays the single shared sentinel.
@@ -218,42 +262,84 @@ export interface Vocab {
 
 `PromptContext` gains `inScope: string[]` and `antecedent: string | null`.
 `buildPrompt` lists the in-scope objects and the antecedent ("most recently
-mentioned: leaflet"), and instructs the model to emit one single-line JSON command
-object or the `__UNKNOWN__` abstain. The review-S12 untrusted-text delimiting of
-game output is retained.
+mentioned: leaflet"), and instructs the model to (a) map any pronoun
+("it"/"them"/"le"/"la") to the **antecedent's canonical noun** and emit that noun
+in the slot — never a literal pronoun (the GBNF forbids it anyway); (b) emit the
+`__UNKNOWN__` abstain when the antecedent is **ambiguous or absent** rather than
+guessing an in-scope object; and (c) emit one single-line JSON command object
+otherwise. The review-S12 untrusted-text delimiting of game output is retained.
 
-### Hook (`src/llm/useNaturalLanguage.ts`)
+### Hook (`src/llm/useNaturalLanguage.ts`) — args & seam deltas
 
-Owns a `SceneProvider`. On each `ViewState` update it builds a `SceneEvent`
-(location, output block since last input, last canonical command) and calls
-`observe`. On `translate(english)`: `scene = provider.scene()` →
-`buildGrammar(vocab, scene)` + `buildPrompt(english, ctx, scene)` →
-`engine.generate(messages, grammar, signal)` → `parseCommand(raw, scene, vocab)` →
-command (`echoLocal` + `sendLine(canonical)`) or abstain (`sendLine(english)`).
-The watchdog, pending-lock, notice, and persistence behavior are unchanged.
+The hook's public args change: **`grammar: string | null` is replaced by
+`vocab: Vocab | null`** (the hook builds the grammar per turn). It owns a
+`SceneProvider`.
+
+**Observe seam (turn-boundary, not per-render).** The tracker must observe **once
+per turn**, gated on the same signal `viewToContext` already uses — a *new*
+line-input request / new `input` line (the bridge's documented turn boundary), not
+on every `ViewState` re-render. The event's `outputText` is the block since the
+last input (reuse the existing derivation). The hook keeps a **`lastCommandRef`**:
+set to the canonical command when `translate` sends one, left **null on abstain /
+raw pass-through**, and the event carries it so take/drop/acted-object attribution
+pairs the *output* with the command that produced it. After observing a turn, the
+latch is cleared/advanced. Duplicate `(location, outputText, lastCommand)` triples
+are deduped here (and `reduceScene` is idempotent as a backstop).
+
+On `translate(english)`: `scene = provider.scene()` → `buildGrammar(vocab, scene)`
++ `buildPrompt(english, ctx, scene)` → `engine.generate(messages, grammar, signal)`
+→ `parseCommand(raw, scene, vocab)` → command (`echoLocal` + `sendLine(canonical)`,
+**and set `lastCommandRef`**) or abstain (`sendLine(english)`, `lastCommandRef`
+stays null). The watchdog, pending-lock, notice, and persistence behavior are
+unchanged.
+
+### Changed wiring (`src/ui/Terminal.tsx`)
+
+- `grammarForSignature(signature)` → **`vocabForSignature(signature)`**; the memo
+  yields `Vocab | null` and is passed as the hook's `vocab` prop.
+- A **new observe seam**: Terminal feeds turn-boundary view updates into the hook
+  (e.g. an effect keyed on the line-input-request / latest `input` line) so the
+  tracker's `observe` runs once per turn. This is the one genuinely new bit of
+  Terminal integration and carries its own test.
 
 ### Unchanged
 
-`engine.webllm.ts`, `engine.fake.ts` interface (fake just returns JSON strings
-now), the GlkOte bridge, the VM engine, capability gating, `nlpref`, and all UI
-components (`NlToggle`, `ModelDownloadModal`, `Scrollback`, `StatusBar`,
-`Terminal` wiring).
+`engine.webllm.ts`, the `engine.fake.ts` *interface* (fake now returns JSON
+strings), the GlkOte bridge, the VM engine, capability gating, `nlpref`, the
+watchdog/pending-lock/notice/persistence internals of the hook, and the UI
+components `NlToggle`, `ModelDownloadModal`, `Scrollback`, `StatusBar`. (Terminal's
+NL *wiring* changes per "Changed wiring" above — it is **not** unchanged.)
 
 ## Testing
 
 Unit (sandbox, fake engine):
 
-- **tracker** — room change drops non-carried / keeps carried; mention adds +
-  sets antecedent; take marks carried; drop unsets; reset clears.
+- **tracker** — room change drops non-carried / keeps carried; mention adds to
+  scope; take marks carried; drop unsets; reset clears; `reduceScene` idempotent on
+  a duplicate `(location, outputText, lastCommand)` triple.
+- **tracker mention precision** — word-boundary matching rejects the false-positive
+  classes (`door`⊄`trapdoor`, `egg`⊄`begged`, `troll`⊄`controlled`); `absencePat`
+  suppresses negated/absent mentions ("there is no lamp here", "the case is empty",
+  "you can't see any troll") so they never enter scope; longest-match-wins on an
+  adjective phrase.
+- **tracker antecedent precedence** — tier 1 revealed-in-output wins
+  (`open mailbox`→reveal leaflet ⇒ antecedent leaflet); tier 2 acted-object on a
+  successful `lastCommand` with no prose mention (`take lamp`→"Taken." ⇒ antecedent
+  lamp); tier 3 prior antecedent carries over when neither fires.
 - **buildGrammar** — in-scope nouns appear as JSON-string terminals; abstain
-  production always present; empty scope yields no `noun` alternatives.
-- **parseCommand** — pronoun → antecedent; out-of-scope object → abstain;
-  two-object serialize; `verbs2` missing `prep`/`indirect` → abstain; malformed
-  JSON → abstain.
+  production always present; empty scope yields no `noun` alternatives; **no pronoun
+  terminal is ever emitted** (pronouns are the model's job, not the grammar's).
+- **parseCommand** — out-of-scope object → abstain; two-object serialize; `verbs2`
+  missing `prep`/`indirect` → abstain; `verbs1` *with* `prep`/`indirect` → abstain;
+  `__UNKNOWN__` verb → abstain; malformed JSON → abstain. (No pronoun-resolution
+  test — there is no such step under locked decision 6.)
 - **prompt** — in-scope list + antecedent present; untrusted-text delimiting kept.
 - **hook** — replays the French transcript with a scripted JSON engine:
-  `open mailbox` → mention leaflet → `prends-le` resolves to `take leaflet`.
-- **corpora** — extended with two-object, pronoun, and should-abstain cases.
+  `open mailbox` → observe leaflet → `prends-le` (model emits `{"verb":"take",
+  "object":"leaflet"}`) → `take leaflet`. Also asserts the observe seam fires
+  **once per turn** (not per render) and `lastCommandRef` is null after an abstain.
+- **corpora** — extended with two-object, pronoun (both `open mailbox / take it`
+  and `take lamp / turn it on`), and **should-abstain-on-ambiguous-pronoun** cases.
 
 Deferred to the **manual walking-skeleton gate** (needs real WebGPU; same gate as
 the prior pass):
@@ -261,8 +347,15 @@ the prior pass):
 - Does the small (1.5B) model emit well-formed JSON slots under the JSON GBNF, and
   at what latency vs. the single-token command path? Tune `WATCHDOG_MS`; escalate
   to the 8B model or narrow scope if it misses.
-- The take/drop tracker keys off game phrasing (`takeAck`/`dropAck`) — confirm on
-  real transcripts; the `SceneProvider` seam is the escape hatch if brittle.
+- **Does the model resolve pronouns from the antecedent hint, and — the load-
+  bearing question for goal #1/#3 — does it actually emit `__UNKNOWN__` on a
+  genuinely ambiguous pronoun rather than guessing an in-scope object?** If it
+  guesses, the cheap lever is a few-shot ambiguous→`__UNKNOWN__` example in the
+  prompt; measure lift.
+- The tracker keys off game phrasing (`takeAck`/`dropAck`/`absencePat`) — confirm
+  on real transcripts. **Gate criterion:** across N real Zork I turns the in-scope
+  set contains **zero absent objects** (no false-positive or negated mentions). The
+  `SceneProvider` seam is the escape hatch if the text heuristic stays brittle.
 
 ## Open questions / future
 
@@ -276,3 +369,9 @@ the prior pass):
   Zork's "Which door?".
 - **Plurality** — distinct "them" handling vs. "it" (currently both resolve to the
   single antecedent).
+- **Confidence/logprob-gated abstain.** Model-elective abstain on ambiguity
+  (goal #3b) is only as strong as the model's willingness to choose `__UNKNOWN__`.
+  A token-logprob gate ("if the top-2 in-scope nouns are within ε, abstain") would
+  make ambiguity-abstain deterministic, but needs token-level logprobs from WebLLM
+  that may not be exposed. Out of scope this pass; named here so the gate's
+  expectations are honest.

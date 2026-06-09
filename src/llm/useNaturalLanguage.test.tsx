@@ -665,6 +665,42 @@ describe('useNaturalLanguage', () => {
     expect(hook.result.current.notice).toBe('Ran 1 of 2 actions.')
   })
 
+  it('compound: a successful move into a room whose description contains absence phrasing ("no door") does NOT stop the sequence', async () => {
+    // Regression: the absence pattern (\bno\s+\w+\b) matches ordinary room flavor
+    // text like "There is no door here." So a movement clause that SUCCEEDS — and
+    // therefore prints a new room description — was being misread as an in-game
+    // failure and truncating the sequence. A turn that CHANGES ROOMS is a success,
+    // not a no-op, regardless of negations in the new description.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      completions: { north: '{"verb":"north"}' },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const northOfHouse = viewState(
+      'North of House',
+      [
+        'North of House',
+        'There is no door here, and all the windows are boarded up.',
+      ],
+      'north',
+    )
+    const forestPath = viewState(
+      'Forest Path',
+      ['Forest Path', 'This is a path winding through a dimly lit forest.'],
+      'north',
+    )
+    const { hook, sendLine } = setup({
+      engine,
+      awaitTurn: turnScript([northOfHouse, forestPath]),
+    })
+    await reachOn(hook)
+    await act(async () => {
+      await hook.result.current.translate('north and north')
+    })
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['north', 'north'])
+    expect(hook.result.current.notice).toBeNull()
+  })
+
   it('compound: stops when a clause lands on a disambiguation prompt', async () => {
     const engine = new FakeLlmEngine({
       cached: true,

@@ -3,7 +3,7 @@
 - **Date:** 2026-06-08
 - **Status:** Design (approved in brainstorming; pending spec review)
 - **Branch:** `ovid/more-parser-work`
-- **Companion plan:** `docs/superpowers/plans/2026-06-08-loquor-nl-vocab-extraction.md` (to be written)
+- **Companion plan:** `docs/superpowers/plans/2026-06-08-loquor-nl-vocab-extraction.md` (written; alignment-checked 2026-06-08)
 
 ## Context
 
@@ -32,8 +32,11 @@ spec defines a reproducible extraction that regenerates the three vocab files fr
 
 ## Non-goals
 
-- No change to the `Vocab` type, `buildGrammar`, `buildPrompt`, the scene tracker, or the
-  compound loop. This is a **data** change behind the existing interfaces.
+- No change to the `Vocab` type, `buildGrammar`, the scene tracker, or the compound loop. This
+  is primarily a **data** change behind the existing interfaces. **One deliberate exception:**
+  `buildPrompt` is amended to decouple the prompt's guidance verb list from the full grammar verb
+  set (see "Grammar verbs vs. prompt verbs" below) — without it, full extraction risks regressing
+  the very translation quality this spec targets.
 - No change to the hand-authored runtime regex patterns (`takeAck`, `dropAck`, `absencePat`,
   `failurePat`) in `patterns.ts` — they are tuned for game *output* parsing, not vocabulary,
   and are preserved verbatim.
@@ -43,8 +46,10 @@ spec defines a reproducible extraction that regenerates the three vocab files fr
 
 ## Locked decisions (from brainstorming)
 
-1. **Full verb extraction** — the complete parser verb set per game (not a curated subset),
-   surfaced in both grammar and prompt.
+1. **Full verb extraction** — the complete parser verb set per game (not a curated subset)
+   feeds the **grammar** (full validity). The **prompt** surfaces a smaller common-verb core as
+   guidance (revised during spec review — see "Grammar verbs vs. prompt verbs"); the grammar, not
+   the prompt, is the hard gate.
 2. **All three games** in this pass.
 3. **Per-game verb gating** — honor `<COND (<==? ,ZORK-NUMBER N> …)>` so game-specific
    verbs land only in the right game.
@@ -86,8 +91,15 @@ spec defines a reproducible extraction that regenerates the three vocab files fr
 A standalone Node ESM dev tool (run via `node` / a `make` target; not part of the app build).
 For each game `N ∈ {1,2,3}`:
 
-1. **Read** that game's ZIL from `zorkN/` (read-only): `gsyntax.zil`, `gverbs.zil`,
-   `Ndungeon.zil`, `gglobals.zil`.
+1. **Read** that game's ZIL from `zorkN/` (read-only) by **exact filename, never a glob**:
+   `gsyntax.zil`, `<N>dungeon.zil` (`1dungeon.zil` / `2dungeon.zil` / `3dungeon.zil`), and
+   `gglobals.zil`. **Note:** `zork3/` also ships a stale `dungeon.zil` (950 lines, missing the
+   `WATER` object and others) alongside the canonical `3dungeon.zil` (960 lines, the one
+   `zork3.zil` actually `<INSERT-FILE "3DUNGEON">`s) — a `*dungeon.zil` glob would read both and
+   corrupt the Zork III nouns, so the source filename is pinned per game.
+   `gverbs.zil` is **intentionally not read**: gating is purely `gsyntax.zil`'s `ZORK-NUMBER`
+   conditionals, and "is the routine defined" is not a usable per-game filter (see findings), so
+   `gverbs.zil` contributes nothing to extraction.
 2. **Tokenize ZIL forms** with a small bracket-aware scanner (it does not need a full ZIL
    interpreter — only to walk `<…>` forms, `(…)` groups, and `"…"` strings).
 3. **Resolve `ZORK-NUMBER` conditionals**: when entering a `<COND …>`, include only the
@@ -99,12 +111,37 @@ For each game `N ∈ {1,2,3}`:
      `nw`→`northwest`, `se`→`southeast`, `sw`→`southwest`). (`enter`/`exit` remain verb-only
      verbs, matching their `V-ENTER`/`V-EXIT` syntax.)
    - `verbsOnly` — `<SYNTAX VERB = V-…>` canonicals, **minus the meta set** (display/session
-     verbs that bypass the model: verbose, brief, super(brief), diagnose, inventory, quit,
-     restart, restore, save, score, script, unscript, version, `$verify`, and any `#…`/`$…`
-     debug verbs). Meta verbs continue to be handled by `isMetaCommand` in `translate.ts`.
+     verbs that bypass the model). **The meta set MUST be a single shared source of truth** —
+     export the `META_COMMANDS` set from `translate.ts` (or a small shared module) and have the
+     generator import the *same* set it subtracts. Otherwise any verb in
+     `(excluded-from-verbsOnly ∖ META_COMMANDS)` falls through a crack: it is unexpressible by
+     the grammar **and** not bypassed by `isMetaCommand`, forcing the reluctant-to-abstain 1.5B
+     into a wrong in-scope action — the exact failure class this spec exists to kill.
+
+     Two casualties exist today and MUST be handled explicitly, not silently dropped:
+     - `inventory` is a legitimate player-typed command (`<SYNTAX INVENTORY = V-INVENTORY>`,
+       `<SYNONYM INVENTORY I>`) and is **not** in the current `META_COMMANDS`. It must stay in
+       `verbsOnly` (do **not** add it to the excluded set), or be added to `META_COMMANDS` — but
+       not removed from both. Keep it emittable.
+     - `again` (`g`/"repeat") is in today's hand-curated `verbsOnly` but has **no** `<SYNTAX
+       AGAIN …>` rule (it is parser-internal), so the generator will not produce it, and it is
+       not in `META_COMMANDS`. Add it back to `verbsOnly` manually (a documented post-extraction
+       supplement) or to `META_COMMANDS`.
+
+     The generator MUST emit a **reconciliation diff** at the end of each run:
+     verbs present in the current committed `verbsOnly` but absent from the generated output, and
+     any verb in `(excluded ∖ META_COMMANDS)`. The diff is reviewed before committing so a
+     regression of this class is visible, never silent. The `$verify` / `#…` / `$…` debug verbs
+     are excluded from the grammar (desired) and are never player-typed, so their absence from
+     `META_COMMANDS` is harmless.
    - `verbs1` / `verbs2` — per the SYNTAX shapes above, with multiword particles preserved.
-   - `preps` — the prep `<SYNONYM WITH …>` block canonicals (`with`, `in`, `on`, `under`, `to`,
-     `through`, …) plus any preposition observed between two `OBJECT`s.
+   - `preps` — the prep `<SYNONYM WITH …>` block **canonicals** (the first token of each prep
+     SYNONYM block: `with`, `in`, `on`, `under` in `gsyntax.zil:20-23`) **plus** any preposition
+     observed between two `OBJECT`s (adds `to` from rules like `APPLY OBJECT TO OBJECT`). Reading
+     the SYNONYM blocks (not only inter-object usage) is what keeps a declared-but-particle-only
+     prep like `under` ("look under") from being dropped. Note `through`/`thru` are synonyms *of*
+     `with` inside `<SYNONYM WITH USING THROUGH THRU>`, so they collapse to `with`, not separate
+     preps — matching the current committed `['with','in','on','to','under']`.
    - `nouns` — every `<OBJECT …>` in `Ndungeon.zil` + `gglobals.zil`, mapped to
      `{ canonical, synonyms?, adjectives? }`. Skip pseudo-globals with no usable surface form
      (no `DESC` and no `SYNONYM`, e.g. parser sentinels like `NOT-HERE-OBJECT`).
@@ -124,6 +161,26 @@ never need the ZIL.
   → gated verbs are correctly partitioned; the shared (ungated) verbs are faithfully shared,
   as in the original parser.
 - Three independent output files → three independent grammars/prompts; no shared mutable data.
+
+### Grammar verbs vs. prompt verbs (decoupled)
+
+`Vocab` feeds two distinct consumers with different needs:
+
+- **`buildGrammar`** *constrains* output — it gets the **full** extracted verb set, so any valid
+  command (e.g. `climb tree`) is expressible. This is the headline fix.
+- **`buildPrompt`** *guides* the model — today it inlines `verbsOnly + verbs1 + verbs2` as the
+  "Allowed action verbs (use ONLY these…)" line on **every** inference. After full extraction
+  that list grows to ~130 entries (including oddities like `climb with`, `look behind`). For a
+  quantized 1.5B model, a 130-item "choose only from these" list is a known way to *degrade*
+  selection accuracy.
+
+Therefore the two are decoupled: the grammar enforces the full set (validity), while the prompt
+lists a **smaller common-verb core** as guidance. The model may still emit any grammar-valid
+verb — the prompt is guidance, not a hard gate; the grammar is the gate. Implementation: a
+bounded prompt-verb list (e.g. the curated common core, or a capped slice) consumed by
+`buildPrompt`, leaving the grammar to read the full lists. This pulls the previously
+out-of-scope "trim the prompt verb list" follow-up into scope, because it is the same risk that
+threatens this PR's own success metric.
 
 ## Testing
 
@@ -145,6 +202,14 @@ in isolation; the generated output is asserted against known facts.
   `verbs1` includes `climb`.
 - A Zork II-only gated verb is **absent** from Zork I's vocab (cross-game isolation).
 - Each game's `movement` contains the eight compass directions + `up`/`down`.
+- **`inventory` is still emittable** (present in `verbsOnly` or in the shared `META_COMMANDS`,
+  never in the gap between them) — the anti-fall-through assertion for Issue 1.
+- **Zork III sourced from `3dungeon.zil`, not the stale `dungeon.zil`:** Zork III `nouns`
+  includes `water` (present only in `3dungeon.zil`) — fails loudly if the wrong file is read.
+- **Reconciliation diff is empty/reviewed:** no verb in the current committed `verbsOnly` is
+  silently absent from the regenerated output without an explicit decision.
+- **Prompt-verb core stays bounded:** `buildPrompt`'s "allowed verbs" line uses the small core,
+  not the full ~130-verb set (Issue 2).
 
 **Regression:** the existing `buildGrammar`, `prompt`, scene-tracker, and hook test suites
 must stay green against the regenerated vocab (run `make all`). Where an existing test pinned
@@ -168,9 +233,18 @@ deleted along with the other TEMP NL diagnostics.
   any form it cannot classify is logged and skipped (never silently miscategorized), and the
   log is reviewed before committing the generated files.
 - **Non-determinism** producing noisy diffs. Mitigation: sort + dedupe all output lists.
+  Deterministic *ordering* is not enough — the committed artifacts are `.ts` files and the repo
+  gates on `make all` (which runs **format**). The generated source MUST be **Prettier-canonical**
+  so a fresh regenerate is a no-op diff: either the generator runs its emitted output through the
+  project's Prettier config as its final step, or `make extract-vocab` chains into `make format`
+  and the committed file is the post-format output. A test asserts the committed files are
+  Prettier-clean (regenerate + format yields no diff), so formatter drift can't silently break the
+  re-runnability guarantee.
 
 ## Out of scope / follow-ups
 
-- Trimming the prompt's verb list to a digestible core (deferred per decision 1).
+- ~~Trimming the prompt's verb list to a digestible core (deferred per decision 1).~~ **Pulled
+  into scope** — see "Grammar verbs vs. prompt verbs (decoupled)"; the grammar takes the full set
+  but the prompt's guidance list stays a small core.
 - Scene-tracker rehydrate-on-reload and the pronoun-antecedent wobble (tracked separately in
   the NL deferred-followups notes).

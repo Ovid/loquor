@@ -329,6 +329,14 @@ describe('clauseFailed', () => {
     expect(clauseFailed(leaflet, v, 'read leaflet')).toBe(false)
   })
 
+  it('flags an adjective-prefixed absence of the acted object (review C6)', () => {
+    // Old capture grabbed only "small", which names no vocab noun → the failed
+    // clause was treated as a success and the sequence over-ran.
+    expect(
+      clauseFailed("You can't see any small mailbox here.", v, 'open mailbox'),
+    ).toBe(true)
+  })
+
   it('still flags an absence that names the acted object', () => {
     expect(
       clauseFailed("You can't see any leaflet here!", v, 'read leaflet'),

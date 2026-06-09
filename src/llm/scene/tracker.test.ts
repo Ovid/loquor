@@ -79,6 +79,24 @@ describe('reduceScene — mentions', () => {
     expect(s.inScope.map(o => o.canonical)).toEqual([])
     expect(s.antecedent).toBeNull()
   })
+
+  it('suppresses an adjective-prefixed absent object (review C6)', () => {
+    // The old single-word capture grabbed the ADJECTIVE ("small"/"brass"),
+    // resolved nothing, and the full surface form re-entered scope via
+    // mentions() — the exact misclassification the tracker exists to prevent.
+    const s = reduceScene(
+      emptySceneState,
+      ev({ outputText: 'There is no small mailbox here.' }),
+      vocab,
+    )
+    expect(s.inScope.map(o => o.canonical)).toEqual([])
+    const z = reduceScene(
+      emptySceneState,
+      ev({ outputText: "You can't see any brass lantern here." }),
+      ZORK1_VOCAB,
+    )
+    expect(z.inScope.map(o => o.canonical)).not.toContain('brass lantern')
+  })
 })
 
 describe('reduceScene — shared synonym resolves generically (F3)', () => {

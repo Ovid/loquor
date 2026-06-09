@@ -16,5 +16,10 @@ export const DROP_ACK = /^\s*(?:[^:\n]*:\s*)?dropped\.?\s*$/im
 // otherwise a mistranslated "close it" → "close door" → "already closed" keeps
 // re-electing `door` as "it", a self-reinforcing loop (systematic-debugging).
 export const FAILURE_PAT = /\bis already\b|\bcan(?:'t|not)\s+be\b/i
+// The "no X" / "can't see X" captures span up to THREE words (same line only):
+// a single-word capture grabbed the ADJECTIVE of "no small mailbox" / "any
+// brass lantern", which resolves to no canonical, so the explicitly-absent
+// object leaked back into scope (review C6). Consumers resolve the captured
+// phrase against the vocab's surface forms / the acted object's words.
 export const ABSENCE_PAT =
-  /\bno\s+([a-z]+)\b|\b([a-z]+)\s+is\s+empty\b|can(?:'t|not)\s+see\s+(?:any\s+|a\s+)?([a-z]+)\b/gi
+  /\bno\s+([a-z]+(?:[^\S\n]+[a-z]+){0,2})\b|\b([a-z]+)\s+is\s+empty\b|can(?:'t|not)\s+see\s+(?:any\s+|a\s+)?([a-z]+(?:[^\S\n]+[a-z]+){0,2})\b/gi

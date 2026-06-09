@@ -57,31 +57,21 @@ function surfaceForms(
   return forms.sort((a, b) => b.phrase.length - a.phrase.length)
 }
 
-/** Map every surface word → canonical (for absence lookup + acted-object). A
- * shared synonym maps to itself (generic), matching surfaceForms. */
-function surfaceToCanonical(vocab: Vocab): Map<string, string> {
-  const ambiguous = ambiguousSynonyms(vocab.nouns)
-  const m = new Map<string, string>()
-  for (const n of vocab.nouns) {
-    m.set(n.canonical.toLowerCase(), n.canonical)
-    for (const s of n.synonyms ?? []) {
-      const k = s.toLowerCase()
-      m.set(k, ambiguous.has(k) ? k : n.canonical)
-    }
-  }
-  return m
-}
-
 /** Canonicals named inside an absence/negation clause this turn. */
 function suppressed(text: string, vocab: Vocab): Set<string> {
-  const map = surfaceToCanonical(vocab)
+  const forms = surfaceForms(vocab.nouns) // longest first
   const out = new Set<string>()
   const re = new RegExp(vocab.absencePat.source, vocab.absencePat.flags)
   let m: RegExpExecArray | null
   while ((m = re.exec(text)) !== null) {
-    const word = (m.slice(1).find(g => g !== undefined) ?? '').toLowerCase()
-    const canon = map.get(word)
-    if (canon) out.add(canon)
+    const phrase = (m.slice(1).find(g => g !== undefined) ?? '').toLowerCase()
+    // The capture is a short phrase ("small mailbox here"); take the LONGEST
+    // surface form at its start, so an adjective-prefixed absent object resolves
+    // to its canonical instead of leaking back into scope via mentions() (C6).
+    const hit = forms.find(
+      f => phrase === f.phrase || phrase.startsWith(f.phrase + ' '),
+    )
+    if (hit) out.add(hit.canonical)
     if (m.index === re.lastIndex) re.lastIndex++ // guard against zero-width
   }
   return out

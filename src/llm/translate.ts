@@ -131,8 +131,11 @@ export function clauseFailed(
   const relevant = commandObjectWords(command, vocab)
   let m: RegExpExecArray | null
   while ((m = absence.exec(recentOutput)) !== null) {
-    const word = (m.slice(1).find(g => g !== undefined) ?? '').toLowerCase()
-    if (relevant.has(word)) return true
+    // The capture is a short phrase ("small mailbox here") so an adjective-
+    // prefixed absence still reaches its noun (C6): the absence is about the
+    // acted object iff ANY captured word names it.
+    const phrase = (m.slice(1).find(g => g !== undefined) ?? '').toLowerCase()
+    if (phrase.split(/\s+/).some(w => relevant.has(w))) return true
     if (m.index === absence.lastIndex) absence.lastIndex++ // zero-width guard
   }
   return false

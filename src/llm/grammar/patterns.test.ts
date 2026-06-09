@@ -37,8 +37,31 @@ describe('shared output patterns', () => {
       }
       return out
     }
-    expect(grab('There is no lamp here.')).toContain('lamp')
+    expect(grab('There is no lamp here.')[0]).toMatch(/^lamp\b/)
     expect(grab('The trophy case is empty.')).toContain('case')
-    expect(grab("You can't see any troll here.")).toContain('troll')
+    expect(grab("You can't see any troll here.")[0]).toMatch(/^troll\b/)
+  })
+
+  it('ABSENCE_PAT captures span adjective-prefixed objects (review C6)', () => {
+    const grab = (s: string): string[] => {
+      const re = new RegExp(ABSENCE_PAT.source, ABSENCE_PAT.flags)
+      const out: string[] = []
+      let m: RegExpExecArray | null
+      while ((m = re.exec(s)) !== null) {
+        out.push(m.slice(1).find(g => g !== undefined) ?? '')
+        if (m.index === re.lastIndex) re.lastIndex++
+      }
+      return out
+    }
+    // The capture must reach past the adjective to the noun, so consumers can
+    // resolve "small mailbox" / "brass lantern" instead of the bare adjective.
+    expect(grab('There is no small mailbox here.')[0]).toContain('mailbox')
+    expect(grab("You can't see any brass lantern here.")[0]).toContain(
+      'lantern',
+    )
+    // …but must not run across a line break into unrelated prose.
+    expect(grab('There is no lamp\nThe troll snarls.')[0]).not.toContain(
+      'troll',
+    )
   })
 })

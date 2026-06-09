@@ -66,7 +66,13 @@ export type NlState =
   | { phase: 'unavailable'; reasons: string[] } // no capable device (offer override)
   | { phase: 'disabled' } // capable, but this game has no grammar (silent — no override)
   | { phase: 'off'; installed: boolean }
-  | { phase: 'downloading'; loaded: number; total: number }
+  | {
+      phase: 'downloading'
+      loaded: number
+      total: number
+      /** Estimated seconds remaining, or null until a rate is known. */
+      etaSeconds: number | null
+    }
   | { phase: 'on' }
 
 /** Re-export for hook consumers that thread the live view in. */

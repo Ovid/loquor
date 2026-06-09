@@ -1,15 +1,19 @@
 import type { LoadProgress } from '../llm/types'
-import { pct as toPct } from '../llm/progress'
+import { pct as toPct, formatEta } from '../llm/progress'
 
 export function ModelDownloadModal({
   open,
   progress,
+  etaSeconds = null,
   onAccept,
   onDecline,
   onCancel,
 }: {
   open: boolean
   progress: LoadProgress | null
+  /** Estimated seconds remaining for the download (computed by the NL hook), or
+   * null when not yet estimable. */
+  etaSeconds?: number | null
   onAccept: () => void
   onDecline: () => void
   onCancel: () => void
@@ -17,6 +21,7 @@ export function ModelDownloadModal({
   if (!open) return null
   const downloading = progress !== null
   const pct = progress ? toPct(progress.loaded, progress.total) : 0
+  const eta = formatEta(etaSeconds)
   return (
     <div
       className="modal-backdrop"
@@ -28,15 +33,17 @@ export function ModelDownloadModal({
         <h2 id="nl-modal-title">Natural-language input</h2>
         <p>
           The first time, this fetches a language model (a sizable, one-time
-          download) from a third-party host (Hugging Face). After that it runs
-          entirely on your device — offline and private — and is cached, so it
-          is not downloaded again.
+          download) from third-party hosts: the model weights from Hugging Face
+          and a small support library from GitHub. After that it runs entirely
+          on your device — offline and private — and is cached, so it is not
+          downloaded again.
         </p>
         {downloading ? (
           <>
             <progress value={pct} max={100} />
             <p>
               {pct}% — {progress!.text}
+              {eta ? ` · ${eta}` : ''}
             </p>
             <button className="sw" type="button" onClick={onCancel}>
               Cancel

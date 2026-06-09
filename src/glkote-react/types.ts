@@ -26,6 +26,12 @@ export interface ViewState {
   nextId: number
 }
 
+/** Result of GlkOteBridge.awaitTurn() — how the turn settled (locked decision 8). */
+export interface TurnResult {
+  view: ViewState
+  reason: 'line' | 'key' | 'end'
+}
+
 export const emptyView: ViewState = {
   status: null,
   lines: [],

@@ -45,6 +45,9 @@ describe('App', () => {
   it('surfaces a load error (instead of crashing) when the story file 404s', async () => {
     // fetch resolves with ok:false on a 404 — it does NOT reject. Without a
     // guard this fed an HTML error body into the VM; now it must surface.
+    // The load failure is logged deliberately; mock it so EXPECTED errors
+    // don't pollute test output (an unexpected one elsewhere still prints).
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => ({
@@ -60,11 +63,14 @@ describe('App', () => {
     )
     // Still on the landing screen, not crashed into a blank/garbage VM.
     expect(screen.getByText('Loquor')).toBeInTheDocument()
+    expect(errSpy).toHaveBeenCalledWith('story load failed', expect.anything())
+    errSpy.mockRestore()
   })
 
   it('rejects a body too short to be a story file', async () => {
     // fetch can succeed (ok:true) yet return a truncated/garbage body; the
     // length guard must catch it before it reaches the VM.
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => ({
@@ -78,5 +84,7 @@ describe('App', () => {
     await waitFor(() =>
       expect(screen.getByText(/could not be loaded/i)).toBeInTheDocument(),
     )
+    expect(errSpy).toHaveBeenCalledWith('story load failed', expect.anything())
+    errSpy.mockRestore()
   })
 })

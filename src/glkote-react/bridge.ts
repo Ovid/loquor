@@ -5,6 +5,7 @@ import type {
   GlkOteInitIface,
   GlkOteUpdate,
   ViewState,
+  TurnResult,
 } from './types'
 
 const METRICS = {
@@ -46,6 +47,8 @@ export class GlkOteBridge implements GlkOteDisplay {
    * for a future display-injected [MORE] marker if the UI ever needs it.
    */
   private charIsMore = false
+  /** Pending awaitTurn() resolvers, drained at the next turn boundary. */
+  private turnResolvers: Array<(r: TurnResult) => void> = []
   /** Latches once onEnd has fired so a trailing update can't re-fire it. */
   private endedFired = false
   /** Once disposed (e.g. a StrictMode throwaway engine), ignore VM updates. */
@@ -103,15 +106,26 @@ export class GlkOteBridge implements GlkOteDisplay {
       this.charIsMore = (req as any)?.type === 'char' && isMorePrompt(arg)
     this.view = reduce(this.view, arg)
     this.onState(this.view)
-    // Turn boundary: the VM is now waiting for a line of input. Fire the seam
-    // AFTER onState so observers see the settled post-turn view. The native
-    // autosave (glkapi do_vm_autosave) fires at this same point independently.
-    if ((req as any)?.type === 'line') this.onTurn?.()
+    // Turn boundary handling. The line path still fires onTurn AFTER onState so
+    // observers see the settled view; the native autosave fires here too.
+    const reqType = (req as { type?: string } | undefined)?.type
+    if (reqType === 'line') {
+      this.onTurn?.()
+      this.resolveTurn('line')
+    } else if (reqType === 'char' && this.charIsMore) {
+      // Page through MORE transparently, but only when a sequence is awaiting a
+      // turn — otherwise leave the existing (Terminal-effect) MORE handling alone.
+      if (this.turnResolvers.length > 0) this.ackMore()
+    } else if (this.awaitingKey()) {
+      // A genuine single-key prompt: no clean line boundary for a next command.
+      this.resolveTurn('key')
+    }
     // `ended` latches true in the reducer, so guard against re-firing onEnd on
     // every subsequent update.
     if (this.view.ended && !this.endedFired) {
       this.endedFired = true
       this.onEnd?.()
+      this.resolveTurn('end')
     }
   }
 
@@ -198,6 +212,26 @@ export class GlkOteBridge implements GlkOteDisplay {
    */
   awaitingKey(): boolean {
     return this.view.inputRequest === 'char' && !this.charIsMore
+  }
+
+  /**
+   * Resolve at the next turn boundary with the settled view and how it ended
+   * (locked decision 8). Registers a resolver that update() drains. Used by the
+   * NL compound-command loop to wait one clause's turn before issuing the next.
+   */
+  awaitTurn(): Promise<TurnResult> {
+    return new Promise<TurnResult>(resolve => {
+      this.turnResolvers.push(resolve)
+    })
+  }
+
+  /** Drain and settle all pending awaitTurn() resolvers with the current view. */
+  private resolveTurn(reason: TurnResult['reason']) {
+    if (this.turnResolvers.length === 0) return
+    const resolvers = this.turnResolvers
+    this.turnResolvers = []
+    const result: TurnResult = { view: this.view, reason }
+    for (const resolve of resolvers) resolve(result)
   }
 }
 

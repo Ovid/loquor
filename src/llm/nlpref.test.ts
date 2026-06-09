@@ -28,6 +28,9 @@ describe('nlpref', () => {
   })
 
   it('ignores malformed / wrong-typed stored values (validates like useTheme)', () => {
+    // The unreadable-JSON warn is the NEXT test's contract; silence it here so
+    // expected warns don't pollute test output.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     expect(readNlPref(fakeStore({ 'loquor.nl': 'not json' }))).toEqual({
       enabled: false,
       declined: false,
@@ -35,6 +38,7 @@ describe('nlpref', () => {
     expect(readNlPref(fakeStore({ 'loquor.nl': '{"enabled":"yes"}' }))).toEqual(
       { enabled: false, declined: false },
     )
+    warn.mockRestore()
   })
 
   it('warns (does not silently fall back) when stored JSON is unreadable', () => {

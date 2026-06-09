@@ -19,6 +19,7 @@ import { vocabForSignature } from '../llm/grammar/index'
 import { viewToContext } from '../llm/prompt'
 import { useNaturalLanguage } from '../llm/useNaturalLanguage'
 import { WebLlmEngine } from '../llm/engine.webllm'
+import { selectedModelId } from '../llm/modelSelection'
 import type { CapabilityResult, LoadProgress } from '../llm/types'
 
 const WATCHDOG_MS = 8000 // starting value; tune at the gate
@@ -42,8 +43,10 @@ export function Terminal({
   const engineRef = useRef<ZMachine | null>(null)
   const viewRef = useRef<ViewState>(emptyView)
   const inputRef = useRef<HTMLInputElement>(null)
-  // One stable LLM engine instance for this Terminal (created once, lazily).
-  const [llmEngine] = useState(() => new WebLlmEngine())
+  // One stable LLM engine instance for this Terminal (created once, lazily). The
+  // model id honors a ?model=full / VITE_LLM_MODEL override (else the default),
+  // so the 8B multilingual model can be A/B tested without a rebuild.
+  const [llmEngine] = useState(() => new WebLlmEngine(selectedModelId()))
 
   // Keep a ref to the latest view so the NL hook's getContext() can read it at
   // translate-time. Written in an effect (not during render) per react-hooks/refs.
@@ -111,6 +114,9 @@ export function Terminal({
     getContext,
     echoLocal: t => engineRef.current?.echoLocal(t),
     sendLine: t => engineRef.current?.sendLine(t),
+    awaitTurn: () =>
+      engineRef.current?.awaitTurn() ??
+      Promise.resolve({ view: viewRef.current, reason: 'line' as const }),
     watchdogMs: WATCHDOG_MS,
   })
 
@@ -119,6 +125,10 @@ export function Terminal({
   // exactly once per turn (reduceScene dedups identical re-renders). Only meaningful
   // while NL is on, but observing harmlessly seeds the scene even when off.
   useEffect(() => {
+    // During a compound sequence the hook owns observe (in-order, per-clause);
+    // defer so an intermediate view isn't observed with a mismatched last command
+    // (locked decision 9).
+    if (nl.isSequencing()) return
     if (view.inputRequest === 'line') nl.observe(view)
   }, [view, nl])
 
@@ -172,6 +182,9 @@ export function Terminal({
       <ModelDownloadModal
         open={nl.modalOpen || nl.state.phase === 'downloading'}
         progress={dlProgress}
+        etaSeconds={
+          nl.state.phase === 'downloading' ? nl.state.etaSeconds : null
+        }
         onAccept={nl.requestDownload}
         onDecline={nl.declineDownload}
         onCancel={nl.cancelDownload}

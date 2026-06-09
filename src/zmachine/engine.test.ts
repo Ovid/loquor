@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { ZMachine } from './engine'
+import { isConfirmationPrompt } from '../llm/translate'
 import type { ViewState } from '../glkote-react/types'
 
 describe('ZMachine', () => {
@@ -31,6 +32,42 @@ describe('ZMachine', () => {
       .lines.map(l => l.text)
       .join('\n')
     expect(after.toLowerCase()).toContain('mailbox')
+  })
+
+  // UAT F10 reported `restart` as a silent no-op. Real-VM probing proved that is
+  // NOT an engine bug: restart prints a confirmation that is read as LINE input
+  // (not a single-key char prompt), isConfirmationPrompt matches it (so the NL
+  // layer passes the "Y" reply raw, not to the model), and "y" resets the game.
+  // Autosave is NOT re-read on restart, so a persisting Dialog cannot mask the
+  // reset. This pins the engine contract the NL restart path depends on.
+  it('restart confirms via LINE input and resets to West of House on "y" (UAT F10)', async () => {
+    const states: ViewState[] = []
+    const store = new Map<string, unknown>()
+    const engine = new ZMachine({
+      dialog: {
+        streaming: false,
+        autosave_read: (s: string) => store.get(s) ?? null,
+        autosave_write: (s: string, snap: unknown) =>
+          snap == null ? store.delete(s) : store.set(s, snap),
+        preload: async () => {},
+        hasSave: async (s: string) => store.has(s),
+      } as any,
+      onState: v => states.push(v),
+    })
+    await engine.boot(new Uint8Array(readFileSync('public/games/zork1.z3')))
+
+    engine.sendLine('north') // move to a distinct room
+    engine.sendLine('restart')
+
+    const prompt = states.at(-1)!
+    const promptText = prompt.lines.map(l => l.text).join('\n')
+    expect(prompt.inputRequest).toBe('line') // a line reply, NOT a char keypress
+    expect(promptText).toMatch(/do you wish to restart/i)
+    // The NL layer keys off this: it passes "Y" raw rather than translating it.
+    expect(isConfirmationPrompt(promptText)).toBe(true)
+
+    engine.sendLine('y')
+    expect(states.at(-1)!.status?.location).toBe('West of House')
   })
 })
 

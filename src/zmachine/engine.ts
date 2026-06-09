@@ -7,7 +7,7 @@ import { ZVM } from 'ifvms'
 import ZVMDispatch from 'ifvms/src/zvm/dispatch.js'
 import { getGlk } from './glk'
 import { GlkOteBridge } from '../glkote-react/bridge'
-import type { ViewState } from '../glkote-react/types'
+import type { ViewState, TurnResult } from '../glkote-react/types'
 import { signature } from './signature'
 
 /**
@@ -193,5 +193,10 @@ export class ZMachine {
 
   awaitingKey() {
     return this.bridge.awaitingKey()
+  }
+
+  /** Resolve at the next turn boundary (locked decision 8). Pass-through to the bridge. */
+  awaitTurn(): Promise<TurnResult> {
+    return this.bridge.awaitTurn()
   }
 }

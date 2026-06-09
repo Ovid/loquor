@@ -8,19 +8,47 @@ import type {
   SceneState,
 } from './types'
 import { emptySceneState } from './types'
+import { refusalApplies } from '../translate'
 
 function esc(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-/** Surface phrases (canonical, synonyms, adjective+canonical), longest first. */
+/** Synonyms shared by 2+ distinct objects (e.g. "window" owned by both
+ * KITCHEN-WINDOW and BOARDED-WINDOW). Too generic to pin to one canonical:
+ * resolving the bare word to an arbitrary owner over-specifies and corrupts the
+ * command (UAT F3: `open window` -> `open boarded window`, rejected). Such a
+ * synonym instead resolves to ITSELF, so we emit "window" and let the Z-machine
+ * parser disambiguate by room. An explicit adjective ("boarded window") still
+ * resolves to the specific canonical via the canonical/adjective surface forms. */
+function ambiguousSynonyms(nouns: NounEntry[]): Set<string> {
+  const owners = new Map<string, number>()
+  for (const n of nouns)
+    for (const s of n.synonyms ?? []) {
+      const k = s.toLowerCase()
+      owners.set(k, (owners.get(k) ?? 0) + 1)
+    }
+  const out = new Set<string>()
+  for (const [k, c] of owners) if (c >= 2) out.add(k)
+  return out
+}
+
+/** Surface phrases (canonical, synonyms, adjective+canonical), longest first. A
+ * synonym shared across objects maps to itself (generic) rather than an owner. */
 function surfaceForms(
   nouns: NounEntry[],
 ): { phrase: string; canonical: string }[] {
+  const ambiguous = ambiguousSynonyms(nouns)
   const forms: { phrase: string; canonical: string }[] = []
   for (const n of nouns) {
-    for (const base of [n.canonical, ...(n.synonyms ?? [])])
-      forms.push({ phrase: base.toLowerCase(), canonical: n.canonical })
+    forms.push({ phrase: n.canonical.toLowerCase(), canonical: n.canonical })
+    for (const s of n.synonyms ?? []) {
+      const phrase = s.toLowerCase()
+      forms.push({
+        phrase,
+        canonical: ambiguous.has(phrase) ? phrase : n.canonical,
+      })
+    }
     for (const adj of n.adjectives ?? [])
       forms.push({
         phrase: `${adj} ${n.canonical}`.toLowerCase(),
@@ -30,26 +58,21 @@ function surfaceForms(
   return forms.sort((a, b) => b.phrase.length - a.phrase.length)
 }
 
-/** Map every surface word → canonical (for absence lookup + acted-object). */
-function surfaceToCanonical(vocab: Vocab): Map<string, string> {
-  const m = new Map<string, string>()
-  for (const n of vocab.nouns) {
-    m.set(n.canonical.toLowerCase(), n.canonical)
-    for (const s of n.synonyms ?? []) m.set(s.toLowerCase(), n.canonical)
-  }
-  return m
-}
-
 /** Canonicals named inside an absence/negation clause this turn. */
 function suppressed(text: string, vocab: Vocab): Set<string> {
-  const map = surfaceToCanonical(vocab)
+  const forms = surfaceForms(vocab.nouns) // longest first
   const out = new Set<string>()
   const re = new RegExp(vocab.absencePat.source, vocab.absencePat.flags)
   let m: RegExpExecArray | null
   while ((m = re.exec(text)) !== null) {
-    const word = (m.slice(1).find(g => g !== undefined) ?? '').toLowerCase()
-    const canon = map.get(word)
-    if (canon) out.add(canon)
+    const phrase = (m.slice(1).find(g => g !== undefined) ?? '').toLowerCase()
+    // The capture is a short phrase ("small mailbox here"); take the LONGEST
+    // surface form at its start, so an adjective-prefixed absent object resolves
+    // to its canonical instead of leaking back into scope via mentions() (C6).
+    const hit = forms.find(
+      f => phrase === f.phrase || phrase.startsWith(f.phrase + ' '),
+    )
+    if (hit) out.add(hit.canonical)
     if (m.index === re.lastIndex) re.lastIndex++ // guard against zero-width
   }
   return out
@@ -159,8 +182,10 @@ export function reduceScene(
     // object and must not promote its acted object to "it" — otherwise one
     // mistranslated pronoun self-reinforces every following turn. This is the
     // "failed" half of the precedence rule above (previously only "suppressed"
-    // was enforced; the no-op case leaked through).
-    const failed = vocab.failurePat?.test(event.outputText) ?? false
+    // was enforced; the no-op case leaked through). Scoped to the acted object
+    // (review C8) so a refusal aimed at an unrelated object doesn't count —
+    // shared with clauseFailed so both sites agree on "this command failed".
+    const failed = refusalApplies(event.outputText, vocab, event.lastCommand)
     const obj = directObject(event.lastCommand, vocab)
     if (
       obj &&

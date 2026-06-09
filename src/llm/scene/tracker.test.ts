@@ -3,6 +3,7 @@ import { reduceScene, TextSceneTracker } from './tracker'
 import { emptySceneState } from './types'
 import type { SceneEvent } from './types'
 import type { Vocab } from '../grammar/types'
+import { ZORK1_VOCAB } from '../grammar/zork1.vocab'
 import {
   TAKE_ACK,
   DROP_ACK,
@@ -77,6 +78,60 @@ describe('reduceScene — mentions', () => {
     )
     expect(s.inScope.map(o => o.canonical)).toEqual([])
     expect(s.antecedent).toBeNull()
+  })
+
+  it('suppresses an adjective-prefixed absent object (review C6)', () => {
+    // The old single-word capture grabbed the ADJECTIVE ("small"/"brass"),
+    // resolved nothing, and the full surface form re-entered scope via
+    // mentions() — the exact misclassification the tracker exists to prevent.
+    const s = reduceScene(
+      emptySceneState,
+      ev({ outputText: 'There is no small mailbox here.' }),
+      vocab,
+    )
+    expect(s.inScope.map(o => o.canonical)).toEqual([])
+    const z = reduceScene(
+      emptySceneState,
+      ev({ outputText: "You can't see any brass lantern here." }),
+      ZORK1_VOCAB,
+    )
+    expect(z.inScope.map(o => o.canonical)).not.toContain('brass lantern')
+  })
+})
+
+describe('reduceScene — shared synonym resolves generically (F3)', () => {
+  // Zork I has KITCHEN-WINDOW and BOARDED-WINDOW, both SYNONYM WINDOW. At Behind
+  // House the text says only "window" (the referent is the kitchen window). The
+  // bare shared synonym must enter scope AS "window" — not be auto-pinned to an
+  // arbitrary owner (alphabetically-first "boarded window"), which corrupted even
+  // valid English `open window` -> `open boarded window` (UAT F3). The Z-machine
+  // parser disambiguates "open window" by room; our job is not to over-specify.
+  it('a synonym shared by 2+ objects enters scope as the bare generic noun', () => {
+    const s = reduceScene(
+      emptySceneState,
+      ev({
+        location: 'Behind House',
+        outputText:
+          'You are behind the white house. In one corner of the house there is a small window which is slightly ajar.',
+      }),
+      ZORK1_VOCAB,
+    )
+    const canon = s.inScope.map(o => o.canonical)
+    expect(canon).toContain('window')
+    expect(canon).not.toContain('boarded window')
+    expect(canon).not.toContain('kitchen window')
+  })
+
+  it('an explicit adjective still resolves to the specific canonical', () => {
+    const s = reduceScene(
+      emptySceneState,
+      ev({
+        location: 'South of House',
+        outputText: 'The boarded window is firmly nailed and cannot be opened.',
+      }),
+      ZORK1_VOCAB,
+    )
+    expect(s.inScope.map(o => o.canonical)).toContain('boarded window')
   })
 })
 

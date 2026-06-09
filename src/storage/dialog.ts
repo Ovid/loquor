@@ -5,8 +5,11 @@ const key = (sig: string) => `autosave:${sig}`
 // Diagnostic logging for the autosave path. The reducer/engine work in tests
 // (fake-indexeddb), so a "starts over on return" report is environment-specific;
 // these logs make the save→persist→preload→read boundaries visible in the
-// browser console (filter by "[autosave]"). Cheap; safe to keep.
-const alog = (...args: unknown[]) => console.info('[autosave]', ...args)
+// browser console (filter by "[autosave]"). Cheap; safe to keep. Silent under
+// vitest so test output only shows unexpected problems.
+const alog = (...args: unknown[]) => {
+  if (import.meta.env.MODE !== 'test') console.info('[autosave]', ...args)
+}
 
 /** Walk `value` and return the path of the first structured-clone-rejecting node. */
 function uncloneablePath(value: unknown): string {

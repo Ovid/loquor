@@ -80,6 +80,13 @@ class WatchdogTimeout extends Error {
 /** Safety cap: at most this many clauses run per compound input (locked decision 6). */
 const MAX_CLAUSES = 8
 
+/** TEMP [nl debug] diagnostics, dev builds only — release builds must not spam
+ * the console or leak player input (review). Remove with the call sites once
+ * translation quality is tuned. */
+function nlDebug(...debugArgs: unknown[]): void {
+  if (import.meta.env.DEV) console.log(...debugArgs)
+}
+
 export function useNaturalLanguage(
   args: UseNaturalLanguageArgs,
 ): UseNaturalLanguage {
@@ -368,7 +375,7 @@ export function useNaturalLanguage(
           const { result, raw } = await generateClause(english, scene)
           // TEMP gate diagnostics — what the scene fed the model vs. what it emitted.
           // Remove once translation quality is tuned.
-          console.log(
+          nlDebug(
             '[nl debug]',
             JSON.stringify({
               english,
@@ -418,7 +425,7 @@ export function useNaturalLanguage(
           // TEMP per-clause diagnostics — what the live scene fed the model for this
           // clause vs. what it emitted. Mirrors the single-command [nl debug] so a
           // compound sequence is not a black box. Remove once quality is tuned.
-          console.log(
+          nlDebug(
             '[nl debug] clause',
             JSON.stringify({
               i,
@@ -484,7 +491,7 @@ export function useNaturalLanguage(
           }
         }
         if (stopReason)
-          console.log(
+          nlDebug(
             '[nl debug] sequence stop',
             JSON.stringify({ stopReason, done, total }),
           )

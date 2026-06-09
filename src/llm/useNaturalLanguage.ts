@@ -134,7 +134,7 @@ export function useNaturalLanguage(
 
   // Probe the ON-DISK cache (survives reloads) for the installed/not-installed
   // distinction — distinct from isLoaded() (in-memory, this session only) — and,
-  // in the same async callback, restore the player's prior "enabled" choice once
+  // in the same async callback, restore the player's prior language choice once
   // the model is known cached. (Don't auto-enable against an uncached model — that
   // would re-prompt.) Doing this in the async callback (not synchronously in the
   // effect body) avoids react-hooks/set-state-in-effect while preserving behavior.
@@ -151,7 +151,7 @@ export function useNaturalLanguage(
         if (cancelled) return
         const cached = c || engine.isLoaded()
         setInstalled(cached)
-        if (cached && readNlPref().enabled) {
+        if (cached && readNlPref().language !== 'off') {
           setInternal(prev => (prev.phase === 'off' ? { phase: 'on' } : prev))
         }
       })
@@ -184,7 +184,7 @@ export function useNaturalLanguage(
     setInternal({ phase: 'downloading', loaded: 0, total: 0, etaSeconds: null })
     // True once this load is no longer the active one — aborted (cancel) or
     // superseded by a newer requestDownload. A load that resolves on/around the
-    // abort tick must NOT flip the state back to 'on' or persist enabled against
+    // abort tick must NOT flip the state back to 'on' or persist a language against
     // the player's cancel (review I2).
     const stale = () => ac.signal.aborted || abortRef.current !== ac
     engine
@@ -207,7 +207,7 @@ export function useNaturalLanguage(
         // probe effect needn't re-run on the phase change to discover it (S6).
         setInstalled(true)
         setInternal({ phase: 'on' })
-        writeNlPref({ enabled: true })
+        writeNlPref({ language: 'en' })
       })
       .catch(err => {
         if (stale() || (err as Error).name === 'AbortError') {
@@ -227,22 +227,22 @@ export function useNaturalLanguage(
   const declineDownload = useCallback(() => {
     setModalOpen(false)
     setInternal({ phase: 'off' })
-    // Clear `enabled` alongside `declined`: an explicit "Not now" must not leave
-    // a stale enabled:true that the isCached effect later auto-restores to 'on'
+    // Reset `language` alongside `declined`: an explicit "Not now" must not leave
+    // a stale active language that the isCached effect later auto-restores to 'on'
     // once the model happens to be cached (review inline comment).
-    writeNlPref({ declined: true, enabled: false })
+    writeNlPref({ declined: true, language: 'off' })
   }, [])
 
   const toggle = useCallback(() => {
     if (!available || !hasVocab) return
     if (internal.phase === 'on') {
       setInternal({ phase: 'off' }) // off is instant; model stays cached
-      writeNlPref({ enabled: false })
+      writeNlPref({ language: 'off' })
       return
     }
     if (installed) {
       setInternal({ phase: 'on' }) // cached → enable without re-download
-      writeNlPref({ enabled: true })
+      writeNlPref({ language: 'en' })
     } else {
       setModalOpen(true)
     }

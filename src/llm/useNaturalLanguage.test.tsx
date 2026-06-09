@@ -242,7 +242,7 @@ describe('useNaturalLanguage', () => {
     )
     act(() => hook.result.current.toggle()) // not installed → opens modal
     act(() => hook.result.current.declineDownload())
-    expect(readNlPref().enabled).toBe(false)
+    expect(readNlPref().language).toBe('off')
     expect(readNlPref().declined).toBe(true)
   })
 
@@ -270,7 +270,7 @@ describe('useNaturalLanguage', () => {
     act(() => hook.result.current.cancelDownload())
     await waitFor(() => expect(hook.result.current.state.phase).toBe('off'))
     expect(hook.result.current.notice).toBeNull()
-    expect(readNlPref().enabled).toBe(false)
+    expect(readNlPref().language).toBe('off')
     resolveLoad()
   })
 
@@ -294,13 +294,13 @@ describe('useNaturalLanguage', () => {
       resolveLoad()
     })
     expect(hook.result.current.state.phase).toBe('off')
-    expect(readNlPref().enabled).toBe(false)
+    expect(readNlPref().language).toBe('off')
   })
 
   it('restores the enabled choice on remount when the model is cached', async () => {
     const a = setup({ engine: new FakeLlmEngine({ cached: true }) })
-    await reachOn(a.hook) // persists enabled=true
-    expect(readNlPref().enabled).toBe(true)
+    await reachOn(a.hook) // persists language='en'
+    expect(readNlPref().language).toBe('en')
     a.hook.unmount()
     const b = setup({ engine: new FakeLlmEngine({ cached: true }) })
     await waitFor(() => expect(b.hook.result.current.state.phase).toBe('on'))

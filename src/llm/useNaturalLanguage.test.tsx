@@ -811,7 +811,11 @@ describe('useNaturalLanguage', () => {
     expect(hook.result.current.notice).toBeNull()
   })
 
-  it('compound: a localized alias clause is routed as its English canonical (review C4)', async () => {
+  it('compound: localized alias path is DORMANT until Task 21 wires the active core', async () => {
+    // metaAlias is now core-lexicon-driven (Task 8) and the hook passes `null`
+    // until Task 21 passes the active core lexicon, so "inventaire" falls
+    // through to the model (which abstains here) and the sequence truncates.
+    // Task 21 restores the review-C4 behavior: ['north', 'inventory'], no notice.
     const engine = new FakeLlmEngine({
       cached: true,
       default: '{"verb":"__UNKNOWN__"}',
@@ -821,21 +825,16 @@ describe('useNaturalLanguage', () => {
       ['north', 'North of House'],
       'north',
     )
-    const invView = viewState(
-      'North of House',
-      ['inventory', 'You are empty-handed.'],
-      'inventory',
-    )
     const { hook, sendLine } = setup({
       engine,
-      awaitTurn: turnScript([northView, invView]),
+      awaitTurn: turnScript([northView]),
     })
     await reachOn(hook)
     await act(async () => {
       await hook.result.current.translate('va au nord et inventaire')
     })
-    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['north', 'inventory'])
-    expect(hook.result.current.notice).toBeNull()
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['north'])
+    expect(hook.result.current.notice).toBe('Ran 1 of 2 actions.')
   })
 
   it('compound: first clause untranslatable → raw-send the whole input, no notice', async () => {

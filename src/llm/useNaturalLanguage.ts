@@ -306,8 +306,10 @@ export function useNaturalLanguage(
       }
       // A localized command word (e.g. French "inventaire") is sent to the
       // interpreter as its English canonical ("inventory"), bypassing the model so
-      // a known non-English command can't be mistranslated (UAT F5).
-      const alias = metaAlias(english)
+      // a known non-English command can't be mistranslated (UAT F5). Dormant
+      // until the active core lexicon is wired through.
+      // TODO(Task 21): pass the active core lexicon
+      const alias = metaAlias(english, null)
       if (alias) {
         lastCommandRef.current = null
         sendLine(alias)
@@ -429,7 +431,10 @@ export function useNaturalLanguage(
           // subtracted from the grammar, so feeding "go north and save"'s
           // second clause to the model could only abstain and kill the
           // sequence as "Ran 1 of 2 actions."
-          const metaText = isMetaCommand(clause) ? clause : metaAlias(clause)
+          // TODO(Task 21): pass the active core lexicon
+          const metaText = isMetaCommand(clause)
+            ? clause
+            : metaAlias(clause, null)
           if (metaText) {
             result = { kind: 'command', text: metaText }
             raw = '(meta: routed raw)'

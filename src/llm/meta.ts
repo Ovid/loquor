@@ -33,17 +33,3 @@ export const META_COMMANDS: readonly string[] = [
   'again',
   'g',
 ]
-
-// Localized command words → the English the interpreter understands, sent raw
-// (bypassing the model). A deterministic floor for the most common non-English
-// command words so a typo-free localized command can't be mistranslated (UAT F5:
-// French "inventaire" -> "look" on the small model). This is intentionally a
-// SEED, not exhaustive: broad command localization across languages is the
-// model's job — this just guarantees the highest-frequency words. Keys are
-// lowercased; match is on the bare word only (see metaAlias).
-export const META_ALIASES: Readonly<Record<string, string>> = {
-  // inventory
-  inventaire: 'inventory', // fr
-  inventar: 'inventory', // de
-  inventario: 'inventory', // es / it
-}

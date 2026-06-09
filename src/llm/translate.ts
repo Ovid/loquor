@@ -2,7 +2,9 @@
 import type { TranslateResult } from './types'
 import type { Scene } from './scene/types'
 import type { Vocab } from './grammar/types'
-import { META_COMMANDS, META_ALIASES } from './meta'
+import { META_COMMANDS } from './meta'
+import type { CoreLexicon } from './lexicon/types'
+import { fold } from './lexicon/fold'
 
 /**
  * The abstain sentinel: the model emits `{"verb":"__UNKNOWN__"}` (and the grammar
@@ -57,13 +59,20 @@ export function isMetaCommand(english: string): boolean {
 
 /**
  * Map a localized command word (e.g. French "inventaire") to the English the
- * interpreter understands ("inventory"), to be sent raw — bypassing the model so
- * a known non-English command can't be mistranslated (UAT F5). Returns null for
- * English input and anything not in the seed alias table. Match is on the bare
- * word only, so a real intent ("inventaire de la maison") still reaches the model.
+ * interpreter understands, via the ACTIVE language's core lexicon (spec §5.1 —
+ * supersedes the META_ALIASES seed, whose entries now live in each core's
+ * metaAliases). Bare-word match only, diacritic-folded, so a real intent
+ * ("inventaire de la maison") still reaches the translator. No core (language
+ * en/off) → null.
  */
-export function metaAlias(english: string): string | null {
-  return META_ALIASES[normalizeBareCommand(english)] ?? null
+export function metaAlias(
+  english: string,
+  core: CoreLexicon | null,
+): string | null {
+  if (!core) return null
+  const norm = fold(normalizeBareCommand(english))
+  if (norm.includes(' ')) return null
+  return core.metaAliases[norm] ?? null
 }
 
 // The interpreter's yes/no confirmation prompts (restart, quit, restore-overwrite)

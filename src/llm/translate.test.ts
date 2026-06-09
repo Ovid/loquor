@@ -9,6 +9,7 @@ import {
   clauseFailed,
 } from './translate'
 import { META_COMMANDS } from './meta'
+import { FR_CORE } from './lexicon/fr.core'
 import type { Scene } from './scene/types'
 import type { Vocab } from './grammar/types'
 import {
@@ -164,17 +165,17 @@ describe('isMetaCommand', () => {
   })
 })
 
-describe('metaAlias', () => {
-  it('maps a localized command word to its English canonical (UAT F5)', () => {
-    expect(metaAlias('inventaire')).toBe('inventory') // fr
-    expect(metaAlias('Inventar')).toBe('inventory') // de
-    expect(metaAlias('inventario')).toBe('inventory') // es / it
-    expect(metaAlias('inventaire.')).toBe('inventory') // trailing punctuation
+describe('metaAlias (core-lexicon-driven)', () => {
+  it('maps a localized bare command via the active core lexicon', () => {
+    expect(metaAlias('inventaire', FR_CORE)).toBe('inventory')
+    expect(metaAlias('Diagnostic!', FR_CORE)).toBe('diagnose')
   })
-
-  it('returns null for English input and genuine game actions', () => {
-    for (const g of ['inventory', 'i', 'open mailbox', 'va au sud'])
-      expect(metaAlias(g)).toBeNull()
+  it('folds diacritics before lookup', () => {
+    expect(metaAlias('Inventâire', FR_CORE)).toBe('inventory')
+  })
+  it('returns null with no core (English session) or for non-meta input', () => {
+    expect(metaAlias('inventaire', null)).toBeNull()
+    expect(metaAlias('inventaire de la maison', FR_CORE)).toBeNull()
   })
 })
 

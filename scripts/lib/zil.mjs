@@ -227,11 +227,23 @@ export function extractVerbsAndPreps(forms, N, metaSet) {
 
   // Prep-class declarations: <SYNONYM WITH …>/<SYNONYM IN …>/… The block head is
   // the canonical prep; union it into preps so declared-but-not-inter-object preps
-  // (e.g. `under`) survive. Non-prep SYNONYM heads (verb/noun synonyms) are skipped.
+  // (e.g. `under`) survive. Non-prep SYNONYM heads are verb/direction synonym
+  // blocks whose members we retain (NL v2 §9).
+  const verbSynonyms = new Set()
   for (const f of active) {
     if (headAtom(f) !== 'SYNONYM') continue
     const head = atomAt(f, 1).toLowerCase()
-    if (PREP_HEADS.has(head)) preps.add(head)
+    if (PREP_HEADS.has(head)) {
+      preps.add(head)
+      continue
+    }
+    // Verb/direction synonym block: members are parser dictionary words the
+    // Z-machine accepts wherever the head is accepted (ulysses, fight, i, q,
+    // n/s/e/w …). Retained so stage-4 vocab passthrough recognizes them.
+    for (let i = 2; i < f.items.length; i++) {
+      const it = f.items[i]
+      if (it.t === 'atom') verbSynonyms.add(it.v.toLowerCase())
+    }
   }
 
   return {
@@ -239,6 +251,7 @@ export function extractVerbsAndPreps(forms, N, metaSet) {
     verbs1: sortUniq(verbs1),
     verbs2: sortUniq(verbs2),
     preps: sortUniq(preps),
+    verbSynonyms: sortUniq(verbSynonyms),
     excludedMeta: sortUniq(excludedMeta),
   }
 }
@@ -360,6 +373,7 @@ export const ZORK${N}_VOCAB: Vocab = {
   verbs1: ${arr(vocab.verbs1)},
   verbs2: ${arr(vocab.verbs2)},
   preps: ${arr(vocab.preps)},
+  verbSynonyms: ${arr(vocab.verbSynonyms)},
   nouns: [
 ${vocab.nouns.map(noun).join('\n')}
   ],

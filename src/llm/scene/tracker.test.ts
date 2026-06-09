@@ -17,6 +17,7 @@ const vocab: Vocab = {
   verbs1: ['take', 'drop', 'open', 'read', 'turn on'],
   verbs2: ['unlock', 'put'],
   preps: ['with', 'in'],
+  verbSynonyms: [],
   nouns: [
     { canonical: 'mailbox', synonyms: ['box'], adjectives: ['small'] },
     { canonical: 'leaflet' },

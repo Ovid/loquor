@@ -23,6 +23,7 @@ const TEST_VOCAB: Vocab = {
   verbs1: ['take', 'open'],
   verbs2: ['unlock'],
   preps: ['with'],
+  verbSynonyms: [],
   nouns: [{ canonical: 'mailbox' }, { canonical: 'leaflet' }],
   takeAck: TAKE_ACK,
   dropAck: DROP_ACK,

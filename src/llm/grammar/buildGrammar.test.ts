@@ -10,6 +10,7 @@ const vocab: Vocab = {
   verbs1: ['take', 'open'],
   verbs2: ['unlock', 'put'],
   preps: ['with', 'in'],
+  verbSynonyms: [],
   nouns: [{ canonical: 'mailbox' }, { canonical: 'leaflet' }],
   takeAck: TAKE_ACK,
   dropAck: DROP_ACK,

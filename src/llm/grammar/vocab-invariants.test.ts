@@ -130,3 +130,24 @@ describe('vocab invariants (regeneration regression gate)', () => {
     expect(ZORK3_VOCAB.verbs1).not.toContain('kill')
   })
 })
+
+describe('verbSynonyms (NL v2 §9)', () => {
+  it('zork1 retains verb synonyms from gsyntax SYNONYM blocks', () => {
+    // <SYNONYM ODYSSEUS ULYSSES> — magic word must pass stage 4 in both spellings
+    expect(ZORK1_VOCAB.verbSynonyms).toContain('ulysses')
+    // <SYNONYM ATTACK FIGHT HURT INJURE HIT>
+    expect(ZORK1_VOCAB.verbSynonyms).toContain('fight')
+    // <SYNONYM INVENTORY I> / <SYNONYM QUIT Q> — bare abbreviations pass raw
+    expect(ZORK1_VOCAB.verbSynonyms).toContain('i')
+    expect(ZORK1_VOCAB.verbSynonyms).toContain('q')
+  })
+  it('verbSynonyms excludes prep-block members and is lowercase-sorted-unique', () => {
+    for (const g of [ZORK1_VOCAB, ZORK2_VOCAB, ZORK3_VOCAB]) {
+      // 'using'/'thru' belong to the WITH prep block, not verb synonyms
+      expect(g.verbSynonyms).not.toContain('using')
+      expect(g.verbSynonyms).toEqual(
+        [...new Set(g.verbSynonyms.map(s => s.toLowerCase()))].sort(),
+      )
+    }
+  })
+})

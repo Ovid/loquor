@@ -27,6 +27,7 @@ const vocab: Vocab = {
   // the first-list-wins misclassification (review C1).
   verbs2: ['unlock', 'put', 'open'],
   preps: ['with', 'in'],
+  verbSynonyms: [],
   nouns: [
     { canonical: 'grating' },
     { canonical: 'key' },

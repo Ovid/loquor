@@ -25,12 +25,15 @@ export function estimateRemainingSeconds(
 ): number | null {
   if (samples.length < 2) return null
   const latest = samples[samples.length - 1]
+  // A non-finite sample (WebLLM reporting non-numeric progress) must yield null,
+  // not propagate NaN into state (review S7).
+  if (!Number.isFinite(latest.pct)) return null
   if (latest.pct <= 0 || latest.pct >= 100) return null
   const recent = samples.filter(s => s.t >= latest.t - windowMs)
   const first = recent.length >= 2 ? recent[0] : samples[0]
   const dPct = latest.pct - first.pct
   const dT = latest.t - first.t
-  if (dPct <= 0 || dT <= 0) return null
+  if (!Number.isFinite(dPct) || dPct <= 0 || dT <= 0) return null
   const remainingPct = 100 - latest.pct
   return Math.round((remainingPct / dPct) * dT) / 1000
 }
@@ -40,7 +43,10 @@ export function formatEta(seconds: number | null): string | null {
   if (seconds === null || !Number.isFinite(seconds) || seconds <= 0) return null
   if (seconds < 60) return `~${Math.round(seconds)}s remaining`
   if (seconds < 3600) return `~${Math.round(seconds / 60)} min remaining`
-  const h = Math.floor(seconds / 3600)
-  const m = Math.round((seconds % 3600) / 60)
+  // Round to whole minutes FIRST, then split — rounding the remainder directly
+  // can yield m === 60 ("~1h 60m") near an hour boundary (review).
+  const totalMinutes = Math.round(seconds / 60)
+  const h = Math.floor(totalMinutes / 60)
+  const m = totalMinutes % 60
   return `~${h}h ${m}m remaining`
 }

@@ -45,6 +45,22 @@ describe('estimateRemainingSeconds', () => {
     ).toBe(70)
   })
 
+  it('returns null instead of NaN when a sample pct is non-finite (S7)', () => {
+    // WebLLM can report non-numeric progress; NaN must not leak into state.
+    expect(
+      estimateRemainingSeconds([
+        { pct: 10, t: 0 },
+        { pct: NaN, t: 5_000 },
+      ]),
+    ).toBeNull()
+    expect(
+      estimateRemainingSeconds([
+        { pct: NaN, t: 0 },
+        { pct: 50, t: 5_000 },
+      ]),
+    ).toBeNull()
+  })
+
   it('returns null when stalled (no forward progress) or already done', () => {
     expect(
       estimateRemainingSeconds([
@@ -72,5 +88,10 @@ describe('formatEta', () => {
     expect(formatEta(45)).toBe('~45s remaining')
     expect(formatEta(90)).toBe('~2 min remaining')
     expect(formatEta(3700)).toBe('~1h 2m remaining')
+  })
+
+  it('carries a rounded-up 60m into the hour (never "~1h 60m")', () => {
+    // 7170s = 1h 59.5m: minutes round to 60 and must carry.
+    expect(formatEta(7170)).toBe('~2h 0m remaining')
   })
 })

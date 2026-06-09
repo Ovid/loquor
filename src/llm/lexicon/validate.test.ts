@@ -65,3 +65,16 @@ describe('lexicon build-time validation (spec §5.2)', () => {
     expect(nounLexicon('fr', 'no-such-sig')).toBeNull()
   })
 })
+
+describe('coverage (spec §5.2 — every vocab noun has an entry per language)', () => {
+  // Tasks 11/12 append the de/es rows to this table.
+  it.each([
+    ['fr', ZORK1_SIG, ZORK1_VOCAB, 'zork1'],
+    ['fr', ZORK2_SIG, ZORK2_VOCAB, 'zork2'],
+    ['fr', ZORK3_SIG, ZORK3_VOCAB, 'zork3'],
+  ] as const)('%s covers %s (#%#)', (lang, sig, vocab, _name) => {
+    const lex = nounLexicon(lang as LexLang, sig)!
+    const missing = vocab.nouns.map(n => n.canonical).filter(c => !(c in lex))
+    expect(missing).toEqual([])
+  })
+})

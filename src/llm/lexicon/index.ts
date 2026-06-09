@@ -96,24 +96,57 @@ export const KNOWN_COLLISIONS: Record<
     [ZORK1_SIG]: [
       'a',
       'air', // 'pompe a air' token vs 'blast of air' synonym 'air'
+      'bracelet', // FR bracelet = EN 'bracelet' (sapphire bracelet); no FR alternative
       'd', // elided d' ('pot d or') vs the movement abbreviation 'd' (down)
       'examine',
+      'figurine', // FR figurine = EN 'figurine' (jade figurine); same word
+      'grue', // proper noun kept as-is vs 'lurking grue' synonym 'grue'
+      'guide', // FR guide = EN 'guide' (tour guidebook); same word
+      'inscription', // FR inscription = EN 'inscription' (prayer/engravings)
+      'jade', // 'figurine de jade' token vs the 'jade' adjective; same word
       'l',
       'pot', // FR pot (pot d or) vs 'pot of gold' synonym 'pot'
+      'sandwich', // FR sandwich = EN 'sandwich' (lunch); the normal FR word
+      'table', // FR table = EN 'table' (kitchen table / attic table)
+      'trident', // FR trident = EN 'trident' (crystal trident); same word
     ],
     [ZORK2_SIG]: [
       'a',
+      'air', // FR air = EN 'air' ('blast of air' synonym); same word
+      'brochure', // FR brochure = EN 'brochure' (bank brochure); same word
+      'cage', // FR cage = EN 'cage' (mangled/steel cages); same word
+      'cube', // FR cube = EN 'cube' (large stone cube); same word
       'd', // elided d' ('pochette d allumettes')
       'dragon', // FR dragon vs 'huge red dragon' synonym 'dragon'
       'examine',
+      'gnome', // FR gnome = EN 'gnome' (gnome of zurich / volcano gnome)
+      'grue', // proper noun kept as-is vs 'lurking grue' / repellent 'grue'
+      'instructions', // FR instructions = EN 'instructions' (green paper)
       'l',
+      'menhir', // FR menhir = EN 'menhir' (the word IS French/Breton)
+      'orange', // 'gateau orange' token vs the cake's 'orange' adjective
+      'passage', // FR passage vs EN 'passage' (synonym of 'tunnel') — both lexicon-mapped
+      'piece', // FR piece (coin, 'piece d or') vs 'bank brochure' synonym 'piece'
+      'portrait', // FR portrait = EN 'portrait' (flathead portrait); same word
+      'rose', // FR rose = EN 'rose' (perfect rose); same word
+      'serpent', // FR serpent = EN 'serpent' (sea serpents); same word
+      'sphere', // FR sphere = EN 'sphere' (crystal spheres); same word
+      'statuette', // FR statuette = EN 'statuette' (golden dragon); same word
+      'table', // FR table = EN 'table' (oblong/dusty tables); same word
+      'zorkmid', // currency proper noun vs the 'zorkmid' bills adjective
+      'zurich', // 'gnome de zurich' token vs the EN 'zurich' synonym
     ],
     [ZORK3_SIG]: [
       'a',
+      'air', // FR air = EN 'air' ('blast of air' synonym); same word
       'bronze', // 'porte de bronze' token vs the 'bronze door' adjective
+      'debris', // FR debris = EN 'debris' ('dust and debris'); same word
       'examine',
+      'grue', // proper noun kept as-is vs 'lurking grue' synonym 'grue'
       'l',
+      'passage', // FR passage vs EN 'passage' (synonym of 'tunnel') — both lexicon-mapped
       'rose', // 'rose des vents' token vs 'compass rose' synonym 'rose'
+      'statue', // FR statue = EN 'statue' (guardians of zork); same word
     ],
   },
   de: {

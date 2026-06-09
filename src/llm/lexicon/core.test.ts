@@ -110,6 +110,8 @@ describe('de core lexicon', () => {
   it('covers core verbs + meta aliases', () => {
     expect(DE_CORE.verbs['nimm']).toBe('take')
     expect(DE_CORE.verbs['offne']).toBe('open') // folded öffne
+    expect(DE_CORE.verbs['greife']).toBe('take') // greifen = grasp/seize; attack only via 'greife … an'
+    expect(DE_CORE.verbs['lausche']).toBe('listen to') // bare 'listen' is not in extracted vocab
     expect(DE_CORE.metaAliases['inventar']).toBe('inventory')
   })
 })

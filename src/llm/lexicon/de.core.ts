@@ -84,8 +84,8 @@ export const DE_CORE: CoreLexicon = {
     schwenke: 'wave',
     schuttle: 'wave', // schüttle folded; shake≈wave per UAT F-N decision
     winke: 'wave',
-    lauste: 'listen', // seed typo? kept; see lausche
-    lausche: 'listen',
+    lauste: 'listen to', // seed typo variant, kept harmless; see lausche
+    lausche: 'listen to', // bare 'listen' is not in extracted vocab (only 'listen to'/'listen for')
     klingle: 'ring',
     laute: 'ring', // läute folded
     grabe: 'dig',
@@ -95,7 +95,7 @@ export const DE_CORE: CoreLexicon = {
     pumpe: 'inflate',
     // combat & misc
     tote: 'attack', // töte folded
-    greife: 'attack', // see also 'greife … an' (angreifen) particle
+    greife: 'take', // greifen = grasp/seize; attack only via 'greife … an' (angreifen) particle
     kampfe: 'attack', // kämpfe folded
     schlage: 'attack',
     haue: 'attack',

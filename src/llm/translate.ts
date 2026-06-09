@@ -176,21 +176,24 @@ export function parseCommand(
   const is2 = vocab.verbs2.includes(verb)
   if (!isOnly && !is1 && !is2) return { kind: 'abstain' }
 
-  if (isOnly) {
-    if (object !== undefined || prep !== undefined || indirect !== undefined)
+  // Classify by the SHAPE the model emitted, gated by list membership — NOT
+  // first-list-wins. 25 real Zork I verbs (open, take, drop, read…) are in BOTH
+  // verbs1 and verbs2; branching on membership order silently rejected every
+  // valid two-object command for them ("open door with key") (review C1).
+  if (prep !== undefined || indirect !== undefined) {
+    if (!is2) return { kind: 'abstain' }
+    if (object === undefined || prep === undefined || indirect === undefined)
       return { kind: 'abstain' }
-    return { kind: 'command', text: verb }
+    if (!inScope.has(object) || !inScope.has(indirect))
+      return { kind: 'abstain' }
+    if (!vocab.preps.includes(prep)) return { kind: 'abstain' }
+    return { kind: 'command', text: `${verb} ${object} ${prep} ${indirect}` }
   }
-  if (is1) {
-    if (object === undefined || prep !== undefined || indirect !== undefined)
-      return { kind: 'abstain' }
+  if (object !== undefined) {
+    if (!is1) return { kind: 'abstain' }
     if (!inScope.has(object)) return { kind: 'abstain' }
     return { kind: 'command', text: `${verb} ${object}` }
   }
-  // is2
-  if (object === undefined || prep === undefined || indirect === undefined)
-    return { kind: 'abstain' }
-  if (!inScope.has(object) || !inScope.has(indirect)) return { kind: 'abstain' }
-  if (!vocab.preps.includes(prep)) return { kind: 'abstain' }
-  return { kind: 'command', text: `${verb} ${object} ${prep} ${indirect}` }
+  if (!isOnly) return { kind: 'abstain' }
+  return { kind: 'command', text: verb }
 }

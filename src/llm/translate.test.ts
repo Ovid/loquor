@@ -22,7 +22,10 @@ const vocab: Vocab = {
   verbsOnly: ['look', 'inventory'],
   movement: ['north'],
   verbs1: ['take', 'open'],
-  verbs2: ['unlock', 'put'],
+  // 'open' is deliberately in BOTH verbs1 and verbs2: 25 real Zork I verbs
+  // overlap the two lists (open, take, drop, read…), and a disjoint fixture hid
+  // the first-list-wins misclassification (review C1).
+  verbs2: ['unlock', 'put', 'open'],
   preps: ['with', 'in'],
   nouns: [
     { canonical: 'grating' },
@@ -67,6 +70,33 @@ describe('parseCommand', () => {
       kind: 'command',
       text: 'look',
     })
+  })
+
+  it('classifies an overlapping verbs1/verbs2 verb by the emitted shape (C1)', () => {
+    // "open" is in both lists. The two-object emission must take the verbs2
+    // branch ("open the door with the key"), not abstain via the verbs1 check…
+    expect(
+      parseCommand(
+        '{"verb":"open","object":"grating","prep":"with","indirect":"key"}',
+        scene,
+        vocab,
+      ),
+    ).toEqual({ kind: 'command', text: 'open grating with key' })
+    // …and the one-object emission still takes the verbs1 branch.
+    expect(parseCommand('{"verb":"open","object":"grating"}', scene, vocab)).toEqual(
+      { kind: 'command', text: 'open grating' },
+    )
+  })
+
+  it('overlapping verb with a half-formed two-object shape → abstain', () => {
+    // prep present but no indirect: neither a valid verbs1 nor verbs2 shape.
+    expect(
+      parseCommand(
+        '{"verb":"open","object":"grating","prep":"with"}',
+        scene,
+        vocab,
+      ),
+    ).toEqual({ kind: 'abstain' })
   })
 
   it('__UNKNOWN__ verb → abstain', () => {

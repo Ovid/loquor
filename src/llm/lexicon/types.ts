@@ -6,9 +6,9 @@ export type LexLang = Exclude<NlLanguage, 'off' | 'en'>
 
 /** German separable verb: leading verb + clause-final particle (spec §5.1). */
 export interface ParticleVerb {
-  verb: string // e.g. 'schalte'
-  particle: string // e.g. 'ein' — closed set: ein/aus/an/auf/zu/ab/um/hoch/runter
-  to: string // canonical English verb: 'turn on'
+  readonly verb: string // e.g. 'schalte'
+  readonly particle: string // e.g. 'ein' — closed set: ein/aus/an/auf/zu/ab/um/hoch/runter
+  readonly to: string // canonical English verb: 'turn on'
 }
 
 /** Game-independent core lexicon. ALL entries are stored diacritic-folded
@@ -17,7 +17,7 @@ export interface CoreLexicon {
   /** Single-word imperative forms players actually type → canonical verb. */
   verbs: Readonly<Record<string, string>>
   /** Contiguous multiword idioms, matched longest-first: 'laisse tomber' → drop. */
-  verbIdioms: readonly { phrase: string; to: string }[]
+  verbIdioms: readonly { readonly phrase: string; readonly to: string }[]
   /** Discontiguous verb+particle patterns (DE; empty for fr/es). */
   particleVerbs: readonly ParticleVerb[]
   /** Foreign preposition → canonical English prep (must be in vocab.preps). */

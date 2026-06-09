@@ -405,7 +405,23 @@ const EMIT_OVERRIDES = {
 // game-unique combination wins. No unique form → build error naming the
 // colliders. DESC-only sentinels (no synonyms) fall back to the canonical.
 export function computeEmit(entry, all, override) {
-  if (override) return override
+  if (override) {
+    // An override must be spelled from the entry's own dictionary words —
+    // anything else would emit a phrase the Z-parser can't bind to the object.
+    const allowed = new Set([
+      ...entry.synDecl,
+      ...entry.adjDecl,
+      entry.canonical,
+    ])
+    for (const w of override.split(/\s+/))
+      if (!allowed.has(w))
+        throw new Error(
+          `computeEmit: override "${override}" for "${entry.canonical}" uses ` +
+            `"${w}", which is not among its dictionary words ` +
+            `(${[...allowed].join(', ')})`,
+        )
+    return override
+  }
   if (entry.synDecl.length === 0) return entry.canonical
   const others = all.filter(e => e !== entry)
   for (const s of entry.synDecl)
@@ -429,6 +445,10 @@ export function computeEmit(entry, all, override) {
 // SYNONYM if no DESC); sentinels with neither are skipped, as are the parser
 // pseudo-objects named in PSEUDO_OBJECT_NAMES above. Each noun also gets an
 // `emit` — the shortest game-unique parser name (computeEmit, spec §9).
+// N is the game number (1–3) selecting the EMIT_OVERRIDES table; omitted ⇒ no
+// overrides (fixture mode, used by unit tests). Generation-time invariants are
+// enforced here: every override key must match an extracted canonical, and the
+// final emits must be unique within the game.
 export function extractNouns(dungeonSrc, globalsSrc, N) {
   const forms = [...readForms(dungeonSrc), ...readForms(globalsSrc)]
   const out = []
@@ -464,8 +484,36 @@ export function extractNouns(dungeonSrc, globalsSrc, N) {
     out.push({ canonical, synDecl: syn, adjDecl: adj })
   }
 
-  for (const e of out)
-    e.emit = computeEmit(e, out, (EMIT_OVERRIDES[N] ?? {})[e.canonical])
+  const overrides = EMIT_OVERRIDES[N] ?? {}
+  const consumed = new Set()
+  for (const e of out) {
+    const override = overrides[e.canonical]
+    if (override !== undefined) consumed.add(e.canonical)
+    e.emit = computeEmit(e, out, override)
+  }
+
+  // Stale/typo'd override keys would otherwise rot silently as the ZIL data
+  // (or canonical derivation) changes — fail generation, naming them.
+  const unconsumed = Object.keys(overrides).filter(k => !consumed.has(k))
+  if (unconsumed.length > 0)
+    throw new Error(
+      `extractNouns: EMIT_OVERRIDES[${N}] keys matched no object: ` +
+        unconsumed.join(', '),
+    )
+
+  // Final emits must be game-unique strings; a duplicate means two nouns would
+  // send the identical parser phrase (overrides can bypass computeEmit's own
+  // uniqueness search, so check the end result regardless of source).
+  const byEmit = new Map()
+  for (const e of out) {
+    const prev = byEmit.get(e.emit)
+    if (prev !== undefined)
+      throw new Error(
+        `extractNouns: duplicate emit "${e.emit}" for ` +
+          `"${prev}" and "${e.canonical}"`,
+      )
+    byEmit.set(e.emit, e.canonical)
+  }
 
   const entries = out.map(e => {
     const synonyms = sortUniq(e.synDecl.filter(s => s !== e.canonical))

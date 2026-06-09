@@ -75,6 +75,32 @@ export function metaAlias(
   return core.metaAliases[norm] ?? null
 }
 
+/** Every word the game's parser knows (stage-4 passthrough set, spec §4):
+ * verb words (incl. multiword parts), verb synonyms, preps, movement, noun
+ * dictionary synonyms + adjectives, meta commands, and the English articles
+ * the Z-parser accepts. Canonical DESC tokens are NOT included — they are not
+ * parser dictionary words (F-Z). */
+const VOCAB_WORD_SETS = new WeakMap<Vocab, Set<string>>()
+export function vocabWordSet(vocab: Vocab): Set<string> {
+  const cached = VOCAB_WORD_SETS.get(vocab)
+  if (cached) return cached
+  const out = new Set<string>(['the', 'a', 'an'])
+  const addWords = (s: string) => {
+    for (const w of s.toLowerCase().split(/\s+/)) if (w) out.add(w)
+  }
+  for (const v of [...vocab.verbsOnly, ...vocab.verbs1, ...vocab.verbs2])
+    addWords(v)
+  for (const w of [...vocab.movement, ...vocab.preps, ...vocab.verbSynonyms])
+    addWords(w)
+  for (const n of vocab.nouns) {
+    for (const s of n.synonyms ?? []) addWords(s)
+    for (const adj of n.adjectives ?? []) addWords(adj)
+  }
+  for (const m of META_COMMANDS) addWords(m)
+  VOCAB_WORD_SETS.set(vocab, out)
+  return out
+}
+
 // The interpreter's yes/no confirmation prompts (restart, quit, restore-overwrite)
 // are read as ordinary LINE input — there is no engine-level flag distinguishing
 // them from the main command prompt. When the recent output is such a prompt, the

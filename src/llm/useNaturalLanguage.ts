@@ -80,11 +80,13 @@ class WatchdogTimeout extends Error {
 /** Safety cap: at most this many clauses run per compound input (locked decision 6). */
 const MAX_CLAUSES = 8
 
-/** TEMP [nl debug] diagnostics, dev builds only — release builds must not spam
- * the console or leak player input (review). Remove with the call sites once
- * translation quality is tuned. */
+/** TEMP [nl debug] diagnostics, dev browser only — release builds must not spam
+ * the console or leak player input (review), and test runs stay quiet so real
+ * problems stand out. Remove with the call sites once translation quality is
+ * tuned. */
 function nlDebug(...debugArgs: unknown[]): void {
-  if (import.meta.env.DEV) console.log(...debugArgs)
+  if (import.meta.env.DEV && import.meta.env.MODE !== 'test')
+    console.log(...debugArgs)
 }
 
 export function useNaturalLanguage(

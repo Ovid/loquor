@@ -181,6 +181,9 @@ describe('useNaturalLanguage', () => {
   })
 
   it('generate failure falls back to raw pass-through with a notice', async () => {
+    // The hook logs genuine generate failures deliberately ([nl] translation
+    // failed); mock it so the expected error doesn't pollute test output.
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const { hook, sendLine } = setup({
       engine: new FakeLlmEngine({ failGenerate: true }),
     })
@@ -190,6 +193,11 @@ describe('useNaturalLanguage', () => {
     })
     expect(sendLine).toHaveBeenCalledWith('take lantern')
     expect(hook.result.current.notice).toBeTruthy()
+    expect(errSpy).toHaveBeenCalledWith(
+      '[nl] translation failed:',
+      expect.anything(),
+    )
+    errSpy.mockRestore()
   })
 
   it('a watchdog timeout falls back to raw pass-through with a notice', async () => {

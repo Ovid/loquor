@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { detectCapability } from './capability'
 
 const adapter = (over = {}) => ({
@@ -70,6 +70,9 @@ describe('detectCapability', () => {
   })
 
   it('a probe that throws → none, never crashes', async () => {
+    // The probe failure is warned deliberately; mock it so the expected warn
+    // doesn't pollute test output.
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const r = await detectCapability({
       navigator: {
         gpu: {
@@ -81,6 +84,8 @@ describe('detectCapability', () => {
     })
     expect(r.tier).toBe('none')
     expect(r.reasons).toContain('probe-error')
+    expect(warnSpy).toHaveBeenCalled()
+    warnSpy.mockRestore()
   })
 
   it('override bumps a detected none up to small', async () => {

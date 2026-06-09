@@ -7,10 +7,17 @@
 // (never fetched). Accepts the `small`/`full` aliases, e.g. `?model=full`.
 import { resolveModelId } from './models'
 
-/** Extract a `model` value from a URL query string, or null if absent. */
+/** Extract a `model` value from a URL query string, or null if absent or
+ * malformed (decodeURIComponent throws URIError on bad percent-encoding like
+ * `?model=%` — a hand-typed query string must not crash the render). */
 export function parseModelParam(search: string): string | null {
   const m = /[?&]model=([^&]+)/.exec(search)
-  return m ? decodeURIComponent(m[1]) : null
+  if (!m) return null
+  try {
+    return decodeURIComponent(m[1])
+  } catch {
+    return null
+  }
 }
 
 /** The model id to load this run, honoring the URL override then the env var. */

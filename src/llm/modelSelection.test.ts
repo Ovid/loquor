@@ -19,4 +19,11 @@ describe('parseModelParam', () => {
     expect(parseModelParam('')).toBe(null)
     expect(parseModelParam('?other=1')).toBe(null)
   })
+
+  it('treats malformed percent-encoding as no override instead of throwing', () => {
+    // decodeURIComponent throws URIError on these; a hand-typed bad query string
+    // must not crash the Terminal render (review).
+    expect(parseModelParam('?model=%')).toBe(null)
+    expect(parseModelParam('?model=%E0%A4%A')).toBe(null)
+  })
 })

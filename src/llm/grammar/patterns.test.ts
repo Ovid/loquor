@@ -23,7 +23,9 @@ describe('shared output patterns', () => {
 
   it('DROP_ACK does not match narrative "dropped" (review C7)', () => {
     expect(DROP_ACK.test('sword: Dropped.')).toBe(true)
-    expect(DROP_ACK.test('The thief dropped a jewel-encrusted egg.')).toBe(false)
+    expect(DROP_ACK.test('The thief dropped a jewel-encrusted egg.')).toBe(
+      false,
+    )
   })
 
   it('ABSENCE_PAT captures the absent noun across phrasings', () => {

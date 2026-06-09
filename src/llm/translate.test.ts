@@ -83,9 +83,9 @@ describe('parseCommand', () => {
       ),
     ).toEqual({ kind: 'command', text: 'open grating with key' })
     // …and the one-object emission still takes the verbs1 branch.
-    expect(parseCommand('{"verb":"open","object":"grating"}', scene, vocab)).toEqual(
-      { kind: 'command', text: 'open grating' },
-    )
+    expect(
+      parseCommand('{"verb":"open","object":"grating"}', scene, vocab),
+    ).toEqual({ kind: 'command', text: 'open grating' })
   })
 
   it('overlapping verb with a half-formed two-object shape → abstain', () => {
@@ -352,9 +352,9 @@ describe('clauseFailed', () => {
   })
 
   it('flags a refusal whose sentence names the acted object (review C8)', () => {
-    expect(clauseFailed('The grating cannot be moved.', v, 'open grating')).toBe(
-      true,
-    )
+    expect(
+      clauseFailed('The grating cannot be moved.', v, 'open grating'),
+    ).toBe(true)
   })
 
   it('ignores a refusal about an UNRELATED object (review C8)', () => {
@@ -362,7 +362,11 @@ describe('clauseFailed', () => {
     // moved.") must not truncate a sequence whose own action succeeded —
     // the same asymmetry the F2/R3 absence scoping fixed.
     expect(
-      clauseFailed('You pick up the leaflet.\nThe grating cannot be moved.', v, 'take leaflet'),
+      clauseFailed(
+        'You pick up the leaflet.\nThe grating cannot be moved.',
+        v,
+        'take leaflet',
+      ),
     ).toBe(false)
   })
 

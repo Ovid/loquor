@@ -142,7 +142,10 @@ export function refusalApplies(
   const nouns = nounSurfaceWords(vocab)
   for (const sentence of recentOutput.split(/[.!?\n]+/)) {
     if (!pat.test(sentence)) continue
-    const words = sentence.toLowerCase().split(/[^a-z']+/).filter(Boolean)
+    const words = sentence
+      .toLowerCase()
+      .split(/[^a-z']+/)
+      .filter(Boolean)
     const named = words.filter(w => nouns.has(w))
     if (named.length === 0) return true // pronoun refusal → about the acted object
     if (named.some(w => relevant.has(w))) return true

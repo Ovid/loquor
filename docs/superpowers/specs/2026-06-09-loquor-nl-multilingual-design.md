@@ -184,12 +184,15 @@ export const FR_ZORK1_NOUNS: Readonly<Record<string, string[]>> = {
 }
 ```
 
-**Build-time validation** (extends `scripts/extract-vocab.mjs` or a sibling
-check script): every key must be a vocab canonical (unknown key = build
-error); a coverage report lists vocab nouns with no entry per language; a
-**collision report** lists every lexicon source word (core or noun,
-diacritic-folded) that is also a game-vocab dictionary word, so the stage-4
-guard's overlaps are reviewed in the data diff rather than discovered in play.
+**Build-time validation** (committed Vitest gates in
+`src/llm/lexicon/validate.test.ts`, enforced by `make test`/`make all` — not
+by `make extract-vocab`, which only regenerates the vocab): every key must be
+a vocab canonical (unknown key = red gate); a coverage gate fails on any vocab
+noun with no entry per language; a **collision gate** asserts set-equality
+between lexicon source words (core or noun, diacritic-folded) that are also
+game-vocab dictionary words and a reviewed `KNOWN_COLLISIONS` table, so the
+stage-4 guard's overlaps are reviewed in the data diff rather than discovered
+in play.
 Authoring: generated against the full extracted vocab (seeded with every
 UAT-discovered trap: `clé`, `lampe`, `pose`, `trappe`, `vitrine`, `or`, …),
 reviewed as plain diffs.
@@ -207,8 +210,9 @@ failure class this design exists to kill.)
 
 ## 6. The deterministic parser (`src/llm/lexicon/parse.ts`)
 
-1. **Normalize:** lowercase, NFC, diacritic-fold (so the UAT typo `decends`
-   and `descends` both match), strip terminal punctuation.
+1. **Normalize:** lowercase, NFD diacritic-fold (decompose, strip combining
+   marks — so the UAT typo `decends` and `descends` both match), strip
+   terminal punctuation.
 2. **Tokenize**, match **multiword phrases longest-first** (idioms, multiword
    nouns like `boite aux lettres`), strip articles.
 3. **Map:** leading verb via core lexicon — including the discontiguous
@@ -330,7 +334,7 @@ Opening the small mailbox reveals a leaflet.
 | Pronoun with no antecedent | LLM; if it abstains, see above |
 | Queue overflow | Newest line dropped with visible notice |
 | Interactive prompt mid-queue/sequence | Stop + flush queue with notice |
-| Lexicon key not in vocab | Build-time error (`make extract-vocab` / check script) |
+| Lexicon key not in vocab | Test-gate error (`lexicon/validate.test.ts` via `make test`/`make all`) |
 
 ## 14. Testing
 
@@ -359,8 +363,9 @@ src/llm/lexicon/
   types.ts            CoreLexicon / NounLexicon types
   fr.core.ts de.core.ts es.core.ts
   fr.zork{1,2,3}.ts de.zork{1,2,3}.ts es.zork{1,2,3}.ts
-  index.ts            lookup by (language, story signature)
+  index.ts            lookup by (language, story signature); KNOWN_COLLISIONS
   parse.ts            deterministic parser (normalize/tokenize/map/assemble)
+  validate.test.ts    key/coverage/collision gates (run by make test)
 src/llm/
   pipeline change in useNaturalLanguage.ts (stage order, queue, abstain notice)
   prompt.ts           rewritten prompt + per-language few-shots
@@ -371,5 +376,7 @@ src/llm/
 src/ui/
   NlToggle.tsx → language picker; Scrollback.tsx prefix rendering; queue chip
 scripts/
-  extract-vocab.mjs   emit form + verb synonyms; lexicon validation/coverage
+  extract-vocab.mjs   emit form + verb synonyms (emit-uniqueness failure stays
+                      a hard extraction error; lexicon validation/coverage
+                      live in src/llm/lexicon/validate.test.ts)
 ```

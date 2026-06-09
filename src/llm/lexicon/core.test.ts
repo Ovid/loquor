@@ -2,6 +2,39 @@
 import { describe, it, expect } from 'vitest'
 import { fold } from './fold'
 import { FR_CORE } from './fr.core'
+import type { CoreLexicon } from './types'
+
+/** Every stored string field of a core lexicon — keys AND values. Canonical
+ * English targets ('wind up', 'turn off') must also be fold-idempotent
+ * (lowercase ASCII), so they are included. */
+function storedStrings(core: CoreLexicon): string[] {
+  return [
+    ...Object.keys(core.verbs),
+    ...Object.values(core.verbs),
+    ...core.verbIdioms.flatMap(v => [v.phrase, v.to]),
+    ...core.particleVerbs.flatMap(p => [p.verb, p.particle, p.to]),
+    ...Object.keys(core.preps),
+    ...Object.values(core.preps),
+    ...core.articles,
+    ...core.pronounsDirect,
+    ...core.pronounsContainer,
+    ...core.pronounsSelf,
+    ...Object.keys(core.metaAliases),
+    ...Object.values(core.metaAliases),
+  ]
+}
+
+// Tasks 6–7 (de, es) add their tuples here.
+describe.each<[string, CoreLexicon]>([['fr', FR_CORE]])(
+  '%s core lexicon folded-storage invariant',
+  (_lang, core) => {
+    it('fold() is a no-op on every stored string (idempotent store)', () => {
+      for (const k of storedStrings(core)) {
+        expect(fold(k)).toBe(k)
+      }
+    })
+  },
+)
 
 describe('fr core lexicon', () => {
   it('covers every UAT-discovered verb trap', () => {
@@ -25,21 +58,6 @@ describe('fr core lexicon', () => {
     expect(FR_CORE.metaAliases['diagnostic']).toBe('diagnose')
     expect(FR_CORE.metaAliases['sauvegarde']).toBe('save')
     expect(FR_CORE.metaAliases['recommence']).toBe('restart')
-  })
-
-  it('all keys/phrases are stored folded (no diacritics, lowercase)', () => {
-    const all = [
-      ...Object.keys(FR_CORE.verbs),
-      ...FR_CORE.verbIdioms.map(v => v.phrase),
-      ...Object.keys(FR_CORE.preps),
-      ...FR_CORE.articles,
-      ...Object.keys(FR_CORE.metaAliases),
-    ]
-    for (const k of all) {
-      expect(k).toBe(k.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase())
-      // And the real fold() must be a no-op on stored data (idempotent store).
-      expect(fold(k)).toBe(k)
-    }
   })
 
   it('has no particle verbs (French idioms are contiguous)', () => {

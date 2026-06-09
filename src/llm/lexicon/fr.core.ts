@@ -14,7 +14,7 @@ export const FR_CORE: CoreLexicon = {
     // take
     prends: 'take',
     prenez: 'take',
-    prend: 'take',
+    prend: 'take', // deliberate -s-drop typo variant, highest-traffic verb only
     ramasse: 'take',
     ramassez: 'take',
     attrape: 'take',
@@ -29,6 +29,7 @@ export const FR_CORE: CoreLexicon = {
     lachez: 'drop',
     laisse: 'drop', // 'laisse tomber' idiom wins when present (longest-first)
     laissez: 'drop',
+    // throw
     jette: 'throw',
     jetez: 'throw',
     lance: 'throw',

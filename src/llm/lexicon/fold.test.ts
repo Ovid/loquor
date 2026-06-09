@@ -16,6 +16,10 @@ describe('fold', () => {
   it('splits curly-apostrophe elisions (U+2019)', () => {
     expect(fold('l’épée')).toBe('l epee')
   })
+  it('folds œ/æ ligatures (NFD does not decompose them)', () => {
+    expect(fold('jette un œil à')).toBe('jette un oeil a')
+    expect(fold('Œuf')).toBe('oeuf')
+  })
   it('folds ß to ss so schließe/schliesse match', () => {
     expect(fold('schließe')).toBe('schliesse')
     expect(fold('SCHLIESSE')).toBe(fold('schließe'))

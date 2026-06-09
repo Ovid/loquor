@@ -190,14 +190,36 @@ export const KNOWN_COLLISIONS: Record<
     ],
   },
   es: {
-    [ZORK1_SIG]: ['a', 'come', 'examine'],
+    [ZORK1_SIG]: [
+      'a',
+      'come',
+      'control', // 'panel de control' token vs the EN 'control' synonym; same object
+      'examine',
+      'grue', // proper noun kept as-is vs 'lurking grue' synonym 'grue'
+      'jade', // 'figurilla de jade' token vs the 'jade' adjective; same word
+      'manual', // ES manual = EN 'manual' (zork owner's manual); same word
+      'panel', // ES panel = EN 'panel' (control panel synonym); same object
+    ],
     [ZORK2_SIG]: [
       'a',
       'collar', // ES collar (necklace) vs 'gigantic dog collar' word 'collar'
       'come',
+      'diploma', // ES diploma = EN 'diploma' ('degree' synonym); same object
       'dragon', // ES dragón (folded) vs 'huge red dragon' synonym 'dragon'
       'examine',
+      'grue', // proper noun kept as-is vs 'lurking grue' / repellent 'grue'
+      'menhir', // ES menhir = EN 'menhir'; same word, same object
+      'triangular', // 'boton triangular' token vs the EN 'triangular' adjective; same object
+      'violin', // ES violín (folded) = EN 'violin' (fancy violin); same object
+      'zorkmid', // currency proper noun vs the 'zorkmid' bills adjective
+      'zurich', // 'gnomo de zurich' token vs the EN 'zurich' synonym
     ],
-    [ZORK3_SIG]: ['a', 'come', 'examine'],
+    [ZORK3_SIG]: [
+      'a',
+      'come',
+      'examine',
+      'grue', // proper noun kept as-is vs 'lurking grue' synonym 'grue'
+      'panel', // ES panel = EN 'panel' (the panel canonicals); same objects
+    ],
   },
 }

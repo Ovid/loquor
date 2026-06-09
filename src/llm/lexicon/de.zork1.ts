@@ -108,7 +108,8 @@ export const DE_ZORK1: NounLexicon = {
   'set of teeth': ['zahne'],
   shovel: ['schaufel', 'spaten'],
   skeleton: ['skelett', 'knochen', 'gerippe'],
-  // 'schlussel' is deliberately ambiguous (the DE cle-class trap): both keys.
+  // 'schlussel' is deliberately ambiguous (the DE cle-class trap): shared
+  // with 'wrench' (Schraubenschlüssel) — Zork I's only other schlussel.
   'skeleton key': ['schlussel', 'dietrich'],
   'small mailbox': ['briefkasten'],
   'small piece of vitreous slag': ['schlacke', 'glasschlacke'],

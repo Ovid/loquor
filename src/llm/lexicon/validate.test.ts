@@ -75,11 +75,14 @@ const COVERED = [
   { lang: 'de', sig: ZORK1_SIG, vocab: ZORK1_VOCAB, name: 'zork1' },
   { lang: 'de', sig: ZORK2_SIG, vocab: ZORK2_VOCAB, name: 'zork2' },
   { lang: 'de', sig: ZORK3_SIG, vocab: ZORK3_VOCAB, name: 'zork3' },
+  { lang: 'es', sig: ZORK1_SIG, vocab: ZORK1_VOCAB, name: 'zork1' },
+  { lang: 'es', sig: ZORK2_SIG, vocab: ZORK2_VOCAB, name: 'zork2' },
+  { lang: 'es', sig: ZORK3_SIG, vocab: ZORK3_VOCAB, name: 'zork3' },
 ] as const
 
 describe('coverage (spec §5.2 — every vocab noun has an entry per language)', () => {
   it.each(COVERED)('$lang covers $name', ({ lang, sig, vocab }) => {
-    const lex = nounLexicon(lang as LexLang, sig)
+    const lex = nounLexicon(lang, sig)
     expect(lex).not.toBeNull()
     const missing = vocab.nouns.map(n => n.canonical).filter(c => !(c in lex!))
     expect(missing).toEqual([])
@@ -89,7 +92,7 @@ describe('coverage (spec §5.2 — every vocab noun has an entry per language)',
   it.each(COVERED)(
     '$lang/$name keys follow the vocab canonical order',
     ({ lang, sig, vocab }) => {
-      const lex = nounLexicon(lang as LexLang, sig)
+      const lex = nounLexicon(lang, sig)
       expect(lex).not.toBeNull()
       expect(Object.keys(lex!)).toEqual(
         vocab.nouns.map(n => n.canonical).filter(c => c in lex!),

@@ -214,6 +214,23 @@ describe('splitClauses', () => {
     ])
   })
 
+  it('splits on German "und" and Spanish "y" (review C3)', () => {
+    // directions.ts and meta.ts cover de/es; the compound path must too.
+    expect(splitClauses('geh nach norden und nimm die lampe')).toEqual([
+      'geh nach norden',
+      'nimm die lampe',
+    ])
+    expect(splitClauses('ve al norte y toma la lámpara')).toEqual([
+      've al norte',
+      'toma la lámpara',
+    ])
+  })
+
+  it('does not false-split words containing "und"/"y"', () => {
+    expect(splitClauses('look under the rug')).toEqual(['look under the rug'])
+    expect(splitClauses('say xyzzy')).toEqual(['say xyzzy'])
+  })
+
   it('splits on "." and ";" punctuation', () => {
     expect(splitClauses('open mailbox. read leaflet')).toEqual([
       'open mailbox',

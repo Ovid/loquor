@@ -13,17 +13,18 @@ import { META_COMMANDS, META_ALIASES } from './meta'
 export const ABSTAIN = '__UNKNOWN__'
 
 /**
- * Split a compound English/French instruction into ordered clauses. Separators are
- * the sequential words `and`/`then`/`et`/`puis`/`ensuite` (each surrounded by
- * whitespace so substrings like "sand"/"strengthen" never trip it) and the
- * sentence punctuation `.`/`;`. Commas are NOT separators (locked decision 1). A
- * single clause (no separator) returns a length-1 array — the caller treats that
- * as "not compound" and uses the existing single-command path. Pure, total,
- * vocab-free.
+ * Split a compound instruction into ordered clauses. Separators are the
+ * sequential words `and`/`then` (en), `et`/`puis`/`ensuite` (fr), `und` (de),
+ * `y` (es) — each surrounded by whitespace so substrings like "sand"/"under"/
+ * "xyzzy" never trip it — and the sentence punctuation `.`/`;`. The de/es words
+ * match the languages directions.ts/meta.ts cover (review C3). Commas are NOT
+ * separators (locked decision 1). A single clause (no separator) returns a
+ * length-1 array — the caller treats that as "not compound" and uses the
+ * existing single-command path. Pure, total, vocab-free.
  */
 export function splitClauses(english: string): string[] {
   return english
-    .split(/\s+(?:and|then|et|puis|ensuite)\s+|\s*[.;]\s*/i)
+    .split(/\s+(?:and|then|et|puis|ensuite|und|y)\s+|\s*[.;]\s*/i)
     .map(clause => clause.trim())
     .filter(clause => clause.length > 0)
 }

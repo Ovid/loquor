@@ -46,7 +46,11 @@ export const FR_ZORK2: NounLexicon = {
   // 'cle' is deliberately ambiguous (the FR cle-class trap): both keys.
   'delicate gold key': ['cle', 'cle en or', 'cle doree'],
   demon: ['demon'],
-  'diamond shaped window': ['fenetre en losange', 'fenetre brillante', 'fenetre'],
+  'diamond shaped window': [
+    'fenetre en losange',
+    'fenetre brillante',
+    'fenetre',
+  ],
   'diamond stand': ['socle de diamant', 'socle'],
   'door made of oak': ['porte en chene', 'porte de chene', 'porte'],
   'door partly covered in cobwebs': ['porte aux toiles d araignee', 'porte'],
@@ -62,7 +66,11 @@ export const FR_ZORK2: NounLexicon = {
   'gigantic dog collar': ['collier', 'collier de chien'],
   glacier: ['glacier'],
   'gnome of zurich': ['gnome', 'gnome de zurich'],
-  'golden dragon statuette': ['statuette', 'dragon dore', 'statuette de dragon'],
+  'golden dragon statuette': [
+    'statuette',
+    'dragon dore',
+    'statuette de dragon',
+  ],
   'green book': ['livre vert', 'livre'],
   'green piece of paper': ['instructions', 'papier vert', 'papier'],
   ground: ['sol', 'terre'],

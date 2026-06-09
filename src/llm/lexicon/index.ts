@@ -155,22 +155,38 @@ export const KNOWN_COLLISIONS: Record<
       'diagnose',
       'gold', // DE Gold ('topf voll gold') vs 'pot of gold' synonym 'gold'
       'grab',
+      'grue', // proper noun kept as-is vs 'lurking grue' synonym 'grue'
+      'hand', // DE Hand = EN 'hand' ('pair of hands' synonym); same word
       'in',
+      'nest', // DE Nest = EN 'nest' ("bird's nest" synonym); same word
       'sack', // DE Sack vs 'brown sack' synonym 'sack'
+      'sand', // DE Sand = EN 'sand'; same word, same object
     ],
     [ZORK2_SIG]: [
       'an',
+      'baby', // 'baby seeschlange' token vs the EN 'baby' adjective; same object
       'diagnose',
       'grab',
+      'grue', // proper noun kept as-is vs 'lurking grue' / repellent 'grue'
+      'hand', // DE Hand = EN 'hand' ('pair of hands' synonym); same word
       'hole', // holen imperative (→ take) vs 'keyhole'/'slot' synonym 'hole'
       'in',
+      'menhir', // DE Menhir = EN 'menhir'; same word, same object
+      'rose', // DE Rose = EN 'rose' (perfect rose); same word, same object
+      'safe', // DE Safe = EN 'safe' (the bank 'box' synonym); same object
+      'statuette', // DE Statuette = EN 'statuette' (golden dragon); same word
+      'zorkmid', // currency proper noun vs the 'zorkmid' bills adjective
+      'zurich', // 'gnom von zurich' token vs the EN 'zurich' synonym
     ],
     [ZORK3_SIG]: [
       'an',
       'diagnose',
       'grab',
+      'grue', // proper noun kept as-is vs 'lurking grue' synonym 'grue'
+      'hand', // DE Hand = EN 'hand' ('pair of hands' synonym); same word
       'hole', // holen imperative vs the 'hole' canonical's dictionary word
       'in',
+      'statue', // DE Statue = EN 'statue' (guardians of zork); same word
     ],
   },
   es: {

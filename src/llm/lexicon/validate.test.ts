@@ -66,15 +66,34 @@ describe('lexicon build-time validation (spec §5.2)', () => {
   })
 })
 
+// Language/game pairs whose noun lexicon is FULLY authored. Task 12 appends
+// the es rows. Shared by the coverage gate and the canonical-order gate.
+const COVERED = [
+  { lang: 'fr', sig: ZORK1_SIG, vocab: ZORK1_VOCAB, name: 'zork1' },
+  { lang: 'fr', sig: ZORK2_SIG, vocab: ZORK2_VOCAB, name: 'zork2' },
+  { lang: 'fr', sig: ZORK3_SIG, vocab: ZORK3_VOCAB, name: 'zork3' },
+  { lang: 'de', sig: ZORK1_SIG, vocab: ZORK1_VOCAB, name: 'zork1' },
+  { lang: 'de', sig: ZORK2_SIG, vocab: ZORK2_VOCAB, name: 'zork2' },
+  { lang: 'de', sig: ZORK3_SIG, vocab: ZORK3_VOCAB, name: 'zork3' },
+] as const
+
 describe('coverage (spec §5.2 — every vocab noun has an entry per language)', () => {
-  // Tasks 11/12 append the de/es rows to this table.
-  it.each([
-    ['fr', ZORK1_SIG, ZORK1_VOCAB, 'zork1'],
-    ['fr', ZORK2_SIG, ZORK2_VOCAB, 'zork2'],
-    ['fr', ZORK3_SIG, ZORK3_VOCAB, 'zork3'],
-  ] as const)('%s covers %s (#%#)', (lang, sig, vocab, _name) => {
-    const lex = nounLexicon(lang as LexLang, sig)!
-    const missing = vocab.nouns.map(n => n.canonical).filter(c => !(c in lex))
+  it.each(COVERED)('$lang covers $name', ({ lang, sig, vocab }) => {
+    const lex = nounLexicon(lang as LexLang, sig)
+    expect(lex).not.toBeNull()
+    const missing = vocab.nouns.map(n => n.canonical).filter(c => !(c in lex!))
     expect(missing).toEqual([])
   })
+  // The lexicon headers promise vocab-canonical entry order; enforce it so the
+  // files stay navigable side-by-side with the vocab and with each other.
+  it.each(COVERED)(
+    '$lang/$name keys follow the vocab canonical order',
+    ({ lang, sig, vocab }) => {
+      const lex = nounLexicon(lang as LexLang, sig)
+      expect(lex).not.toBeNull()
+      expect(Object.keys(lex!)).toEqual(
+        vocab.nouns.map(n => n.canonical).filter(c => c in lex!),
+      )
+    },
+  )
 })

@@ -207,6 +207,8 @@ export function useNaturalLanguage(
         // probe effect needn't re-run on the phase change to discover it (S6).
         setInstalled(true)
         setInternal({ phase: 'on' })
+        // 'en' is a placeholder until the language-picker task supplies the
+        // player's chosen language.
         writeNlPref({ language: 'en' })
       })
       .catch(err => {
@@ -242,6 +244,8 @@ export function useNaturalLanguage(
     }
     if (installed) {
       setInternal({ phase: 'on' }) // cached → enable without re-download
+      // 'en' is a placeholder until the language-picker task supplies the
+      // player's chosen language.
       writeNlPref({ language: 'en' })
     } else {
       setModalOpen(true)

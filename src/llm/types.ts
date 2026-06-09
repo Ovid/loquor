@@ -2,8 +2,13 @@
 import type { ViewState } from '../glkote-react/types'
 
 /** Picker languages. 'off' disables the NL layer (locked decision 3). */
-export type NlLanguage = 'off' | 'en' | 'fr' | 'de' | 'es'
+export const NL_LANGUAGES = ['off', 'en', 'fr', 'de', 'es'] as const
+export type NlLanguage = (typeof NL_LANGUAGES)[number]
 export type ActiveLanguage = Exclude<NlLanguage, 'off'>
+
+export function isNlLanguage(v: unknown): v is NlLanguage {
+  return (NL_LANGUAGES as readonly unknown[]).includes(v)
+}
 
 /** Device capability tier. `none` = NL not offered. */
 export type Tier = 'none' | 'small' | 'full'

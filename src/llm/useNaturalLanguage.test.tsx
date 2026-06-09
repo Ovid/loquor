@@ -297,7 +297,7 @@ describe('useNaturalLanguage', () => {
     expect(readNlPref().language).toBe('off')
   })
 
-  it('restores the enabled choice on remount when the model is cached', async () => {
+  it('restores the chosen language on remount when the model is cached', async () => {
     const a = setup({ engine: new FakeLlmEngine({ cached: true }) })
     await reachOn(a.hook) // persists language='en'
     expect(readNlPref().language).toBe('en')

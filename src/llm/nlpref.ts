@@ -1,9 +1,8 @@
 // Validated localStorage persistence for the NL language picker + "declined".
 // Mirrors src/ui/useTheme.ts (read-validate-fallback, swallow write errors).
-import type { NlLanguage } from './types'
+import { isNlLanguage, type NlLanguage } from './types'
 
 const KEY = 'loquor.nl'
-const LANGUAGES: readonly NlLanguage[] = ['off', 'en', 'fr', 'de', 'es']
 
 export interface NlPref {
   language: NlLanguage
@@ -18,8 +17,8 @@ export function readNlPref(store: Storage = localStorage): NlPref {
     const parsed = JSON.parse(raw) as Record<string, unknown>
     const declined =
       typeof parsed.declined === 'boolean' ? parsed.declined : false
-    if (LANGUAGES.includes(parsed.language as NlLanguage))
-      return { language: parsed.language as NlLanguage, declined }
+    if (isNlLanguage(parsed.language))
+      return { language: parsed.language, declined }
     // Legacy v1 shape { enabled, declined }: enabled:true means the player was
     // typing SOMETHING the model translated — English is the only safe mapping.
     if (typeof parsed.enabled === 'boolean')

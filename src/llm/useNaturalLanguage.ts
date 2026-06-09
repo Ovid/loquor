@@ -277,6 +277,11 @@ export function useNaturalLanguage(
 
   const translate = useCallback(
     async (english: string) => {
+      // A translation is already in flight — drop this one rather than orphan a
+      // second inference (review I4 concurrency guard). At the TOP so a
+      // mid-flight submit can't slip through the early raw-send paths either
+      // (review S4 — unreachable today via the disabled input; defense in depth).
+      if (translatingRef.current) return
       const tracker = trackerRef.current
       // NL off / disabled / unavailable → behave exactly like the first pass.
       if (internal.phase !== 'on' || vocab === null || tracker === null) {
@@ -316,9 +321,6 @@ export function useNaturalLanguage(
         sendLine(english)
         return
       }
-      // A translation is already in flight — drop this one rather than orphan a
-      // second inference (review I4 concurrency guard).
-      if (translatingRef.current) return
       translatingRef.current = true
       setPending(true)
       setNotice(null)

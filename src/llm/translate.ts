@@ -36,15 +36,21 @@ export function splitClauses(english: string): string[] {
 // intent like "save the egg" still reaches the translator.
 const META = new Set(META_COMMANDS)
 
+/** Shared bare-command normalization: trim + lowercase + strip trailing `!.?`
+ * so "SAVE." matches "save" (review S2 — was duplicated per matcher). */
+function normalizeBareCommand(s: string): string {
+  return s
+    .trim()
+    .toLowerCase()
+    .replace(/[!.?]+$/, '')
+}
+
 /** True when the raw English is a bare Z-machine meta-command (restart, save…)
  * or a $-/#-prefixed debug command ($verify, #command). The latter are dropped
  * from the grammar by the vocab generator, so they have no emittable translation
  * and must be sent raw to the interpreter (UAT F6). */
 export function isMetaCommand(english: string): boolean {
-  const norm = english
-    .trim()
-    .toLowerCase()
-    .replace(/[!.?]+$/, '')
+  const norm = normalizeBareCommand(english)
   if (/^[$#]/.test(norm)) return true
   return META.has(norm)
 }
@@ -57,11 +63,7 @@ export function isMetaCommand(english: string): boolean {
  * word only, so a real intent ("inventaire de la maison") still reaches the model.
  */
 export function metaAlias(english: string): string | null {
-  const norm = english
-    .trim()
-    .toLowerCase()
-    .replace(/[!.?]+$/, '')
-  return META_ALIASES[norm] ?? null
+  return META_ALIASES[normalizeBareCommand(english)] ?? null
 }
 
 // The interpreter's yes/no confirmation prompts (restart, quit, restore-overwrite)

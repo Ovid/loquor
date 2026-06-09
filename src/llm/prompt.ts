@@ -116,10 +116,13 @@ export function buildPrompt(
     `Allowed action verbs (use ONLY these for actions): ${promptVerbs.join(', ')}.`,
     'Never use "move" to change rooms — "move" only means physically shoving an in-scope object (e.g. "move rug"). To travel, emit the direction itself as the verb.',
   )
-  // Raw recent game text is deliberately NOT included: it biased the verb (the
+  // Raw recent OUTPUT text is deliberately NOT included: it biased the verb (the
   // model echoed "open" from "Opening the mailbox…") and was a prompt-injection
   // surface (review S12). The scene tracker's in-scope list + antecedent above
-  // supply the grounding the model actually needs.
+  // supply the grounding the model actually needs. Note: the status-line
+  // `location` above IS game-derived text (short, but raw), so the injection
+  // mitigation is partial — acceptable because story files are trusted/vendored
+  // (review S8); drop `location` too if untrusted stories are ever loaded.
 
   return [
     { role: 'system', content: lines.join('\n') },

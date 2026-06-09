@@ -1,14 +1,14 @@
 // src/llm/lexicon/de.core.ts
-// German core lexicon. STORED FOLDED (umlauts stripped: 'offne', 'schiess').
+// German core lexicon. STORED FOLDED (umlauts stripped: 'offne', 'schliess').
 // German imperatives split separable prefixes to the clause end
 // ('schalte die Laterne EIN') — those are particleVerbs, matched as leading
 // verb + clause-final particle (spec §5.1); the bare stem is NOT listed in
 // `verbs` so it can never match without its particle.
 // Conjugation is data, not stemming: list the du-imperative plus the
-// Sie/infinitive form players actually type. Some overlap between `verbs`
-// and `particleVerbs` stems is deliberate (lege/leg/zieh/ziehe/binde): the
-// bare stem has a legitimate meaning of its own and particle patterns are
-// matched first, so 'leg den hut ab' → drop while 'leg den hut' → put.
+// Sie/infinitive form players actually type. Stems may appear in BOTH `verbs`
+// and `particleVerbs` — the invariant is that any such stem has a legitimate
+// bare meaning of its own, and particle patterns are matched first
+// (e.g. lege/greife/zieh): 'leg den hut ab' → drop while 'leg den hut' → put.
 // NOTE on 'inflate': the v3 Z-machine truncates dictionary words to 6 chars,
 // so the extracted vocab stores 'inflat'; 'inflate' is the in-game spelling
 // players (and the spec'd tests) use, and the Z-parser accepts it.

@@ -231,7 +231,7 @@ export const ES_CORE: CoreLexicon = {
     meter: 'put',
     coloca: 'put',
     colocar: 'put',
-    introduce: 'put',
+    introduce: 'put', // tú imperative of introducir; coincides with the English word, harmless
     espera: 'wait',
     esperad: 'wait',
     esperar: 'wait',
@@ -316,15 +316,30 @@ export const ES_CORE: CoreLexicon = {
     { phrase: 'prende fuego a', to: 'burn' }, // mirrors fr 'mets le feu a'
   ],
   particleVerbs: [],
+  // NOTE (personal-`a` hazard, for the deterministic parser — Task 13):
+  // Spanish marks animate DIRECT objects with `a`/`al` ('ataca al troll',
+  // 'sigue al ladron') — the same surface form as the indirect-object prep
+  // ('da la espada al troll'). A naive prep-split on `a`/`al` would emit
+  // wrong commands like 'attack to troll'. The parser MUST treat a prep
+  // split that leaves NO direct object before the prep as a personal-`a`
+  // direct object — i.e. `<verb> a/al <noun>` with nothing before the prep
+  // → translate as `<verb> <noun>` — or fall through to the LLM. Documented
+  // here only; the parser does not exist yet.
   preps: {
     con: 'with',
     en: 'in',
     a: 'to',
+    // `al` = a+el contraction. `del` (de+el) is deliberately ABSENT: it falls
+    // to the LLM. Any future `del` addition must consider the personal-`a`
+    // interaction above ('huye del troll' vs prep-split misfires).
     al: 'to',
     sobre: 'on',
     bajo: 'under',
     hacia: 'to',
     de: 'from',
+    // `dentro` is dual-role: listed here as a prep AND in pronounsContainer
+    // ('ponlo dentro'). As a prep it surfaces as 'dentro de X' — two preps in
+    // sequence ('dentro' + 'de') — which a naive single-prep split mishandles.
     dentro: 'in',
     desde: 'from',
   },

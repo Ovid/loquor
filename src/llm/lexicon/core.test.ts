@@ -118,12 +118,19 @@ describe('de core lexicon', () => {
 })
 
 describe('es core lexicon', () => {
-  it('covers core verbs incl. attached-clitic imperatives as idiom data', () => {
+  it('covers core imperative verbs', () => {
     expect(ES_CORE.verbs['toma']).toBe('take')
     expect(ES_CORE.verbs['coge']).toBe('take')
     expect(ES_CORE.verbs['abre']).toBe('open')
     expect(ES_CORE.verbs['suelta']).toBe('drop')
     expect(ES_CORE.verbs['deja']).toBe('drop')
+  })
+  it('pins the documented collision decisions', () => {
+    expect(ES_CORE.verbs['toca']).toBe('ring') // bell-ringing beats touch; 'palpa' is touch
+    expect(ES_CORE.verbs['tira']).toBe('throw') // regional decision; Peninsular pull is the idiom
+    expect(ES_CORE.verbIdioms).toContainEqual({ phrase: 'tira de', to: 'pull' })
+    expect(ES_CORE.verbs['nada']).toBe('swim') // also 'nothing', unambiguous as leading imperative
+    expect(ES_CORE.verbs['dale']).toBe('give') // attached clitic kept from seed
   })
   it('meta aliases include inventario (F5)', () => {
     expect(ES_CORE.metaAliases['inventario']).toBe('inventory')

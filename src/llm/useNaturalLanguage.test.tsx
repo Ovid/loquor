@@ -771,6 +771,61 @@ describe('useNaturalLanguage', () => {
     vi.useRealTimers()
   })
 
+  it('compound: a meta clause is routed raw, not fed to the model (review C4)', async () => {
+    // Meta verbs are subtracted from the grammar, so the model can only abstain
+    // on "save" — the documented "always routed raw" contract must hold per
+    // clause: "go north and save" runs both, never "Ran 1 of 2 actions."
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const generateSpy = vi.spyOn(engine, 'generate')
+    const northView = viewState(
+      'North of House',
+      ['north', 'North of House'],
+      'north',
+    )
+    const savedView = viewState('North of House', ['save', 'Ok.'], 'save')
+    const { hook, sendLine } = setup({
+      engine,
+      awaitTurn: turnScript([northView, savedView]),
+    })
+    await reachOn(hook)
+    await act(async () => {
+      await hook.result.current.translate('go north and save')
+    })
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['north', 'save'])
+    expect(generateSpy).not.toHaveBeenCalled() // direction fast-path + meta raw
+    expect(hook.result.current.notice).toBeNull()
+  })
+
+  it('compound: a localized alias clause is routed as its English canonical (review C4)', async () => {
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const northView = viewState(
+      'North of House',
+      ['north', 'North of House'],
+      'north',
+    )
+    const invView = viewState(
+      'North of House',
+      ['inventory', 'You are empty-handed.'],
+      'inventory',
+    )
+    const { hook, sendLine } = setup({
+      engine,
+      awaitTurn: turnScript([northView, invView]),
+    })
+    await reachOn(hook)
+    await act(async () => {
+      await hook.result.current.translate('va au nord et inventaire')
+    })
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['north', 'inventory'])
+    expect(hook.result.current.notice).toBeNull()
+  })
+
   it('compound: first clause untranslatable → raw-send the whole input, no notice', async () => {
     const { hook, echoLocal, sendLine } = setup({
       engine: new FakeLlmEngine({

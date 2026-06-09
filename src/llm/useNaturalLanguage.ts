@@ -416,11 +416,22 @@ export function useNaturalLanguage(
           const scene = tracker.scene()
           let result: TranslateResult
           let raw: string
-          try {
-            ;({ result, raw } = await generateClause(clause, scene))
-          } catch (err) {
-            stopReason = `generate-error: ${String(err)}`
-            break // untranslatable (timeout/error) → stop (locked decision 4)
+          // Meta verbs / localized aliases keep their "always routed raw"
+          // contract inside a compound too (review C4): meta verbs are
+          // subtracted from the grammar, so feeding "go north and save"'s
+          // second clause to the model could only abstain and kill the
+          // sequence as "Ran 1 of 2 actions."
+          const metaText = isMetaCommand(clause) ? clause : metaAlias(clause)
+          if (metaText) {
+            result = { kind: 'command', text: metaText }
+            raw = '(meta: routed raw)'
+          } else {
+            try {
+              ;({ result, raw } = await generateClause(clause, scene))
+            } catch (err) {
+              stopReason = `generate-error: ${String(err)}`
+              break // untranslatable (timeout/error) → stop (locked decision 4)
+            }
           }
           // TEMP per-clause diagnostics — what the live scene fed the model for this
           // clause vs. what it emitted. Mirrors the single-command [nl debug] so a
@@ -442,7 +453,9 @@ export function useNaturalLanguage(
           }
 
           if (done === 0) echoLocal(english) // echo the full English once (decision 5)
-          lastCommandRef.current = result.text
+          // Meta clauses don't latch: like the single path, a meta command has
+          // no in-world acted object to attribute take/drop/antecedent to.
+          lastCommandRef.current = metaText ? null : result.text
           // Register the turn listener BEFORE sendLine: the VM runs the turn
           // SYNCHRONOUSLY inside sendLine (accept → VM → bridge.update →
           // resolveTurn), so awaitTurn must already be pending or the boundary
@@ -473,6 +486,7 @@ export function useNaturalLanguage(
           })
           if (
             !roomChanged &&
+            !metaText && // meta output (score report, "Ok.") is not in-world failure text
             clauseFailed(
               vc.recentOutput,
               vocab,

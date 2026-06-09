@@ -10,13 +10,14 @@ import {
   KNOWN_COLLISIONS,
 } from './index'
 import { vocabWordSet } from '../translate'
+import { fold } from './fold'
 import type { LexLang } from './types'
 import type { Vocab } from '../grammar/types'
 
-const GAMES: [string, Vocab][] = [
-  [ZORK1_SIG, ZORK1_VOCAB],
-  [ZORK2_SIG, ZORK2_VOCAB],
-  [ZORK3_SIG, ZORK3_VOCAB],
+const GAMES: [string, string, Vocab][] = [
+  ['zork1', ZORK1_SIG, ZORK1_VOCAB],
+  ['zork2', ZORK2_SIG, ZORK2_VOCAB],
+  ['zork3', ZORK3_SIG, ZORK3_VOCAB],
 ]
 const LANGS: LexLang[] = ['fr', 'de', 'es']
 
@@ -26,24 +27,37 @@ describe('lexicon build-time validation (spec §5.2)', () => {
   })
   it('every noun-lexicon key is a vocab canonical (unknown key = build error)', () => {
     for (const lang of LANGS)
-      for (const [sig, vocab] of GAMES) {
+      for (const [name, sig, vocab] of GAMES) {
         const lex = nounLexicon(lang, sig)
         expect(lex).not.toBeNull()
         const canonicals = new Set(vocab.nouns.map(n => n.canonical))
         const unknown = Object.keys(lex!).filter(k => !canonicals.has(k))
-        expect(unknown, `${lang}/${sig.slice(0, 8)} unknown keys`).toEqual([])
+        expect(unknown, `${lang}/${name} unknown keys`).toEqual([])
+      }
+  })
+  // VALUES only: keys are English vocab canonicals and legitimately contain
+  // hyphens ('jewel-encrusted egg'), so a fold-idempotence gate on keys would
+  // false-positive.
+  it('every noun-lexicon VALUE is fold-idempotent (stored pre-folded)', () => {
+    for (const lang of LANGS)
+      for (const [name, sig] of GAMES) {
+        const lex = nounLexicon(lang, sig)
+        expect(lex).not.toBeNull()
+        for (const [canonical, words] of Object.entries(lex!))
+          for (const w of words)
+            expect(fold(w), `${lang}/${name} '${canonical}' → '${w}'`).toBe(w)
       }
   })
   // DEVIATION from the plan's per-language list: noun lexicons are per-game,
   // so KNOWN_COLLISIONS is keyed (language, signature) — see lexicon/index.ts.
   it('collisions between lexicon words and game vocab match KNOWN_COLLISIONS exactly', () => {
     for (const lang of LANGS)
-      for (const [sig, vocab] of GAMES) {
+      for (const [name, sig, vocab] of GAMES) {
         const overlap = [...lexiconWordSet(lang, sig)]
           .filter(w => vocabWordSet(vocab).has(w))
           .sort()
-        expect(overlap, `${lang}/${sig.slice(0, 8)}`).toEqual(
-          [...(KNOWN_COLLISIONS[lang]?.[sig] ?? [])].sort(),
+        expect(overlap, `${lang}/${name}`).toEqual(
+          [...(KNOWN_COLLISIONS[lang][sig] ?? [])].sort(),
         )
       }
   })

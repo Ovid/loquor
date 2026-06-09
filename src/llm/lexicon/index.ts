@@ -37,9 +37,11 @@ export function nounLexicon(lang: LexLang, sig: string): NounLexicon | null {
 
 /**
  * Every SOURCE word of the active language's lexicon (folded, split to single
- * tokens). The stage-4 vocab-passthrough guard: a token in this set does NOT
- * count as "already game vocab" when the picker ≠ English (spec §4 collision
- * guard) — it must go through the lexicon parse instead.
+ * tokens). This is the set the stage-4 vocab-passthrough guard CONSUMES: a
+ * token in this set does NOT count as "already game vocab" when the picker
+ * ≠ English (spec §4 collision guard) — it must go through the lexicon parse
+ * instead. The three pronoun arrays are deliberately excluded: pronouns
+ * resolve against the scene, never passthrough-shaped.
  */
 export function lexiconWordSet(lang: LexLang, sig: string): Set<string> {
   const out = new Set<string>()

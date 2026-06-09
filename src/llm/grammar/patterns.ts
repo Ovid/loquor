@@ -3,8 +3,13 @@
 // "Taken." / "Dropped." and the same negation forms; per-game vocab references
 // these (and may override). ABSENCE_PAT's first defined capture group is the
 // absent noun word.
-export const TAKE_ACK = /\btaken\b/i
-export const DROP_ACK = /\bdropped\b/i
+// The ack is a standalone LINE — "Taken." / "Dropped." — or the multi-object
+// form "item: Taken.". A bare word-boundary match also hit narrative prose
+// ("The thief has taken the egg from you.", "You have already taken
+// everything."), falsely marking objects carried (review C7). recentOutput is
+// newline-joined (viewToContext), so line anchors are reliable.
+export const TAKE_ACK = /^\s*(?:[^:\n]*:\s*)?taken\.?\s*$/im
+export const DROP_ACK = /^\s*(?:[^:\n]*:\s*)?dropped\.?\s*$/im
 // A command that executed but had NO effect on its object (a no-op / refusal),
 // e.g. "It is already open.", "It is already closed.", "The door cannot be
 // opened." Such a turn must NOT promote its acted object to the antecedent —

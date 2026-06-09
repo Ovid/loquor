@@ -11,7 +11,10 @@ const vocab: Vocab = {
   verbs2: ['unlock', 'put'],
   preps: ['with', 'in'],
   verbSynonyms: [],
-  nouns: [{ canonical: 'mailbox' }, { canonical: 'leaflet' }],
+  nouns: [
+    { canonical: 'mailbox', emit: 'mailbox' },
+    { canonical: 'leaflet', emit: 'leaflet' },
+  ],
   takeAck: TAKE_ACK,
   dropAck: DROP_ACK,
   absencePat: ABSENCE_PAT,

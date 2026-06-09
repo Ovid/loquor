@@ -106,6 +106,7 @@ describe('extractNouns', () => {
     const tree = nouns.find(n => n.canonical === 'tree')
     expect(tree).toEqual({
       canonical: 'tree',
+      emit: 'tree', // 'tree' is unique vs the window object -> bare synonym wins
       synonyms: ['branch'],
       adjectives: ['large', 'storm'],
     })

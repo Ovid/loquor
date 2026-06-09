@@ -131,6 +131,49 @@ describe('vocab invariants (regeneration regression gate)', () => {
   })
 })
 
+describe('emit forms (NL v2 §9, F-Z)', () => {
+  const games = [ZORK1_VOCAB, ZORK2_VOCAB, ZORK3_VOCAB]
+  it('every noun has a non-empty emit built from its own dictionary words', () => {
+    for (const g of games)
+      for (const n of g.nouns) {
+        expect(n.emit.length).toBeGreaterThan(0)
+        // `synonyms` excludes a synonym equal to the canonical (existing
+        // generator behavior), but the emit may legitimately BE that word
+        // (e.g. zork1 'water', zork3 'lamp' via EMIT_OVERRIDES) — so the
+        // canonical itself also counts as an "own" dictionary word here.
+        const own = new Set([
+          n.canonical,
+          ...(n.synonyms ?? []),
+          ...(n.adjectives ?? []),
+        ])
+        // An object whose only SYNONYM equals its canonical drops the
+        // synonyms array but can still emit an adjective pair (zork1
+        // FRONT-DOOR: DESC "door", SYNONYM DOOR, ADJ FRONT -> 'front door'),
+        // so adjectives also select the membership branch.
+        if (n.synonyms?.length || n.adjectives?.length)
+          for (const w of n.emit.split(' ')) expect(own.has(w)).toBe(true)
+        else expect(n.emit).toBe(n.canonical) // DESC-only sentinel fallback
+      }
+  })
+  it('emit forms are unique within a game', () => {
+    for (const g of games) {
+      const emits = g.nouns.map(n => n.emit)
+      expect(new Set(emits).size).toBe(emits.length)
+    }
+  })
+  it('zork1: the pump emits its unique bare synonym, not the DESC (F-Z)', () => {
+    const pump = ZORK1_VOCAB.nouns.find(
+      n => n.canonical === 'hand-held air pump',
+    )
+    expect(pump?.emit).toBe('pump') // SYNONYM PUMP AIR-PUMP TOOL TOOLS — 'pump' is unique
+  })
+  it('zork1: trap door avoids the shared "door" synonym', () => {
+    const trap = ZORK1_VOCAB.nouns.find(n => n.canonical === 'trap door')
+    // SYNONYM DOOR TRAPDOOR TRAP-DOOR COVER: 'door' is shared, 'trapdoor' is unique
+    expect(trap?.emit).toBe('trapdoor')
+  })
+})
+
 describe('verbSynonyms (NL v2 §9)', () => {
   it('zork1 retains verb synonyms from gsyntax SYNONYM blocks', () => {
     // <SYNONYM ODYSSEUS ULYSSES> — magic word must pass stage 4 in both spellings

@@ -29,9 +29,9 @@ const vocab: Vocab = {
   preps: ['with', 'in'],
   verbSynonyms: [],
   nouns: [
-    { canonical: 'grating' },
-    { canonical: 'key' },
-    { canonical: 'leaflet' },
+    { canonical: 'grating', emit: 'grating' },
+    { canonical: 'key', emit: 'key' },
+    { canonical: 'leaflet', emit: 'leaflet' },
   ],
   takeAck: TAKE_ACK,
   dropAck: DROP_ACK,

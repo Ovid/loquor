@@ -67,7 +67,7 @@ function main() {
     const globals = readFileSync(join(ROOT, `zork${N}/gglobals.zil`), 'utf8')
 
     const vp = extractVerbsAndPreps(readForms(gsyntax), N, meta)
-    const nouns = extractNouns(dungeon, globals)
+    const nouns = extractNouns(dungeon, globals, N)
     const movement = extractDirections(dungeon)
     const vocab = { ...vp, movement, nouns }
 

@@ -1,6 +1,7 @@
 // src/llm/grammar/types.ts
 export interface NounEntry {
-  canonical: string // grammar-canonical noun, e.g. "mailbox"
+  canonical: string // stable lexicon key, e.g. "hand-held air pump" (ZIL DESC)
+  emit: string // shortest parser-accepted name, e.g. "pump" — what we SEND
   synonyms?: string[] // game-dictionary surface forms that map to canonical
   adjectives?: string[] // optional, for future disambiguation + phrase mentions
 }

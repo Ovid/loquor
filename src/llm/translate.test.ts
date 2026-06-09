@@ -346,8 +346,28 @@ describe('clauseFailed', () => {
     )
   })
 
-  it('still flags a refusal (failurePat) regardless of object', () => {
+  it('flags a pronoun refusal ("It is already…") for the acted object', () => {
+    // The refusal sentence names no vocab noun → it is about the acted object.
     expect(clauseFailed('It is already open.', v, 'open grating')).toBe(true)
+  })
+
+  it('flags a refusal whose sentence names the acted object (review C8)', () => {
+    expect(clauseFailed('The grating cannot be moved.', v, 'open grating')).toBe(
+      true,
+    )
+  })
+
+  it('ignores a refusal about an UNRELATED object (review C8)', () => {
+    // A turn whose output refuses something else ("The grating cannot be
+    // moved.") must not truncate a sequence whose own action succeeded —
+    // the same asymmetry the F2/R3 absence scoping fixed.
+    expect(
+      clauseFailed('You pick up the leaflet.\nThe grating cannot be moved.', v, 'take leaflet'),
+    ).toBe(false)
+  })
+
+  it('keeps the blanket refusal behavior when no command is given', () => {
+    expect(clauseFailed('The grating cannot be moved.', v)).toBe(true)
   })
 })
 

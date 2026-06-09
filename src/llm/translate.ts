@@ -107,6 +107,47 @@ function commandObjectWords(command: string, vocab: Vocab): Set<string> {
   return out
 }
 
+/** Lowercased surface words of every vocab noun (canonical tokens + synonyms). */
+function nounSurfaceWords(vocab: Vocab): Set<string> {
+  const out = new Set<string>()
+  for (const n of vocab.nouns) {
+    for (const w of n.canonical.toLowerCase().split(/\s+/)) out.add(w)
+    for (const s of n.synonyms ?? [])
+      for (const w of s.toLowerCase().split(/\s+/)) out.add(w)
+  }
+  return out
+}
+
+/**
+ * True when the output contains an in-game refusal (`failurePat`) ABOUT the
+ * acted object. Without a command the check is blanket. With one, a refusal
+ * counts only when its SENTENCE either names the acted object or names no vocab
+ * noun at all — a pronoun refusal ("It is already open.") attributes to the
+ * acted object, but a refusal about an unrelated object must not register
+ * against a clause whose own action succeeded (review C8; the same asymmetry
+ * the F2/R3 absence scoping fixed). Shared with the scene tracker's antecedent
+ * gate so both sites agree on what "this clause failed" means.
+ */
+export function refusalApplies(
+  recentOutput: string,
+  vocab: Vocab,
+  command?: string,
+): boolean {
+  const pat = vocab.failurePat
+  if (!pat) return false
+  if (!command) return pat.test(recentOutput)
+  const relevant = commandObjectWords(command, vocab)
+  const nouns = nounSurfaceWords(vocab)
+  for (const sentence of recentOutput.split(/[.!?\n]+/)) {
+    if (!pat.test(sentence)) continue
+    const words = sentence.toLowerCase().split(/[^a-z']+/).filter(Boolean)
+    const named = words.filter(w => nouns.has(w))
+    if (named.length === 0) return true // pronoun refusal → about the acted object
+    if (named.some(w => relevant.has(w))) return true
+  }
+  return false
+}
+
 /**
  * True when a clause's turn output signals an in-game no-op/refusal (`failurePat`,
  * e.g. "It is already open.") or an absence (`absencePat`, e.g. "You can't see any
@@ -115,17 +156,17 @@ function commandObjectWords(command: string, vocab: Vocab): Set<string> {
  * is built per call — `.test()` on the shared one is stateful (mirrors
  * tracker.ts's suppressed()).
  *
- * When `command` is given, an absence only counts if the absent noun NAMES the
+ * When `command` is given, an absence/refusal only counts if it is ABOUT the
  * object the clause acted on — otherwise narrative "No X" text (e.g. the leaflet
- * body's "No computer should be without one!") falsely truncates the sequence
- * (UAT F2/R3). A refusal (`failurePat`) still counts regardless of object.
+ * body's "No computer should be without one!") or a refusal aimed at another
+ * object falsely truncates the sequence (UAT F2/R3; review C8).
  */
 export function clauseFailed(
   recentOutput: string,
   vocab: Vocab,
   command?: string,
 ): boolean {
-  if (vocab.failurePat?.test(recentOutput)) return true
+  if (refusalApplies(recentOutput, vocab, command)) return true
   const absence = new RegExp(vocab.absencePat.source, vocab.absencePat.flags)
   if (!command) return absence.test(recentOutput)
   const relevant = commandObjectWords(command, vocab)

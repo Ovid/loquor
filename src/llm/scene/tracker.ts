@@ -8,6 +8,7 @@ import type {
   SceneState,
 } from './types'
 import { emptySceneState } from './types'
+import { refusalApplies } from '../translate'
 
 function esc(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -181,8 +182,10 @@ export function reduceScene(
     // object and must not promote its acted object to "it" — otherwise one
     // mistranslated pronoun self-reinforces every following turn. This is the
     // "failed" half of the precedence rule above (previously only "suppressed"
-    // was enforced; the no-op case leaked through).
-    const failed = vocab.failurePat?.test(event.outputText) ?? false
+    // was enforced; the no-op case leaked through). Scoped to the acted object
+    // (review C8) so a refusal aimed at an unrelated object doesn't count —
+    // shared with clauseFailed so both sites agree on "this command failed".
+    const failed = refusalApplies(event.outputText, vocab, event.lastCommand)
     const obj = directObject(event.lastCommand, vocab)
     if (
       obj &&

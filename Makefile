@@ -4,7 +4,7 @@
 # Prettier (format). Targets call tools via `npx`. Run `make install` first.
 
 .DEFAULT_GOAL := help
-.PHONY: all install ensure-deps dev build preview typecheck test cover lint format loc extract-vocab extract-strings help
+.PHONY: all install ensure-deps dev build preview typecheck test cover lint format loc extract-vocab extract-strings capture-walkthrough help
 
 all: lint format typecheck test ## Full CI pass: lint, format, typecheck, test
 
@@ -73,6 +73,9 @@ extract-vocab: ## Regenerate src/llm/grammar/zork{1,2,3}.vocab.ts from the vendo
 
 extract-strings: ## Decode the Zork I string inventory → scripts/out/zork1.strings.json (derived)
 	node scripts/extract-strings.mjs
+
+capture-walkthrough: ## Re-capture the seeded Zork I walkthrough fixture (committed)
+	node scripts/capture-walkthrough.mjs --seed 1
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'

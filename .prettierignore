@@ -17,6 +17,7 @@ vendor/
 
 # Captured protocol fixtures (generated output) + their notes — leave as-is.
 tests/fixtures/
+src/test/zork1.walkthrough.en.json
 
 # Build output and deps.
 dist/

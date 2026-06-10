@@ -1,0 +1,399 @@
+# Zork I full-win walkthrough (output-translation spec §7.3).
+# Replayed by scripts/capture-walkthrough.mjs against a seeded VM
+# (Math.random = mulberry32(seed)), so combat rounds are deterministic.
+# '#' lines and blank lines are ignored. Route verified against the
+# vendored ZIL source (zork1/1dungeon.zil room exits, 1actions.zil puzzles).
+
+# --- Above ground: egg, house, attic (rope + knife), garlic ---
+north
+north
+up
+take egg
+down
+south
+east
+open window
+enter window
+open sack
+west
+take lamp
+take sword
+move rug
+open trap door
+open case
+east
+turn on lamp
+up
+take rope
+take knife
+down
+turn off lamp
+west
+
+# --- Cellar + troll ---
+turn on lamp
+down
+north
+kill troll with sword
+kill troll with sword
+kill troll with sword
+kill troll with sword
+kill troll with sword
+kill troll with sword
+kill troll with sword
+kill troll with sword
+drop sword
+
+# --- Maze: coins + skeleton key ---
+west
+south
+east
+up
+take coins
+take key
+southwest
+east
+south
+southeast
+
+# --- Cyclops + thief (give egg, then kill with knife) ---
+odysseus
+up
+give egg to thief
+kill thief with knife
+kill thief with knife
+kill thief with knife
+kill thief with knife
+kill thief with knife
+kill thief with knife
+kill thief with knife
+kill thief with knife
+drop knife
+drop key
+take egg
+take canary
+take chalice
+down
+east
+east
+turn off lamp
+put coins in case
+put chalice in case
+put egg in case
+
+# --- Gallery: painting (thief dead, trap door stays workable) ---
+open trap door
+turn on lamp
+down
+south
+east
+take painting
+west
+north
+up
+turn off lamp
+put painting in case
+
+# --- Trip A: dam (drain), temple, torch, hades skull ---
+turn on lamp
+down
+north
+east
+east
+north
+northeast
+northwest
+east
+north
+take matches
+north
+take wrench
+take screwdriver
+push yellow button
+south
+south
+turn bolt with wrench
+drop wrench
+south
+southwest
+south
+southeast
+east
+tie rope to railing
+down
+take torch
+turn off lamp
+south
+take bell
+south
+take candles
+take book
+down
+down
+ring bell
+take candles
+light match
+light candles with match
+read book
+drop book
+drop candles
+south
+take skull
+north
+up
+north
+touch mirror
+north
+west
+down
+up
+put skull in case
+drop matches
+drop screwdriver
+
+# --- Trip B1: loud room bar (echo trick) ---
+down
+north
+east
+east
+east
+echo
+take bar
+west
+west
+west
+south
+up
+put bar in case
+
+# --- Trip B2: reservoir trunk + trident ---
+down
+north
+east
+east
+north
+northeast
+northwest
+north
+take trunk
+north
+north
+take trident
+up
+north
+north
+west
+down
+up
+put trunk in case
+put trident in case
+
+# --- Trip C: coal mine (jade, bracelet, coal -> diamond) ---
+take screwdriver
+east
+take garlic
+west
+down
+north
+east
+east
+south
+south
+touch mirror
+north
+west
+north
+west
+north
+take jade
+east
+turn on lamp
+put torch in basket
+put screwdriver in basket
+north
+down
+take bracelet
+east
+northeast
+southeast
+southwest
+down
+down
+south
+take coal
+north
+up
+up
+north
+east
+south
+north
+up
+south
+put coal in basket
+lower basket
+north
+down
+east
+northeast
+southeast
+southwest
+down
+down
+west
+drop all
+west
+take coal
+take screwdriver
+take torch
+south
+open lid
+put coal in machine
+close lid
+turn switch with screwdriver
+open lid
+take diamond
+north
+put diamond in basket
+put torch in basket
+drop screwdriver
+east
+take lamp
+take garlic
+take canary
+take jade
+take bracelet
+east
+up
+up
+north
+east
+south
+north
+up
+south
+raise basket
+take diamond
+take torch
+turn off lamp
+west
+south
+east
+south
+down
+up
+put jade in case
+put bracelet in case
+put diamond in case
+drop garlic
+
+# --- Trip D: coffin + sceptre via pray (torch only: load limit) ---
+drop canary
+drop lamp
+down
+north
+east
+east
+southeast
+east
+down
+south
+down
+take coffin
+up
+south
+pray
+east
+south
+east
+enter window
+west
+open coffin
+take sceptre
+put coffin in case
+put torch in case
+
+# --- Trip E: boat (buoy/emerald, scarab, rainbow pot of gold) ---
+take canary
+take lamp
+turn on lamp
+down
+north
+east
+east
+north
+northeast
+northwest
+north
+north
+take pump
+south
+south
+east
+down
+inflate plastic with pump
+drop pump
+put sceptre in boat
+enter boat
+launch
+look
+look
+look
+look
+look
+look
+look
+look
+look
+look
+take buoy
+east
+get out of boat
+take sceptre
+open buoy
+take emerald
+drop buoy
+take shovel
+northeast
+dig sand with shovel
+dig sand with shovel
+dig sand with shovel
+dig sand with shovel
+drop shovel
+take scarab
+southwest
+south
+south
+wave sceptre
+west
+west
+take pot of gold
+southwest
+up
+up
+northwest
+north
+wind canary
+take bauble
+south
+west
+enter window
+west
+put emerald in case
+put scarab in case
+put pot of gold in case
+put canary in case
+put bauble in case
+put sceptre in case
+
+# --- The map appears; go win ---
+take map
+east
+east
+south
+west
+southwest
+enter barrow
+
+# End the session cleanly (captures the exit-update shape for the fixture).
+quit

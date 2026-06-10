@@ -23,6 +23,20 @@
 // - Keep Infocom's wit (the cyclops «aime beaucoup les gens», the narrator's
 //   asides about walking on rainbows) — never flatten a joke.
 export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
+  // ── Banner block (printed at boot). Legal/serial lines stay near-verbatim:
+  //    the copyright notice and trademark are legal text; release/serial
+  //    numbers identify the story file. ────────────────────────────────────
+  'ZORK I: The Great Underground Empire':
+    'ZORK I : Le Grand Empire Souterrain',
+  'Infocom interactive fiction - a fantasy story':
+    'Fiction interactive Infocom - une histoire fantastique',
+  'Copyright (c) 1981, 1982, 1983, 1984, 1985, 1986 Infocom, Inc. All rights reserved.':
+    'Copyright (c) 1981, 1982, 1983, 1984, 1985, 1986 Infocom, Inc. Tous droits réservés.',
+  'ZORK is a registered trademark of Infocom, Inc.':
+    "ZORK est une marque déposée d'Infocom, Inc.",
+  'Release 119 / Serial number 880429':
+    'Version 119 / Numéro de série 880429',
+
   // ── Rooms — titles (these are also the status-bar lookups) ─────────────
   'West of House': "À l'ouest de la maison",
   'North of House': 'Au nord de la maison',

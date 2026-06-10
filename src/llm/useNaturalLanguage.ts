@@ -10,6 +10,7 @@ import type {
   TranslateResult,
   ViewContext,
 } from './types'
+import { EngineGate } from './engineGate'
 import type { ViewState, TurnResult } from '../glkote-react/types'
 import type { Vocab } from './grammar/types'
 import type { Scene, SceneEvent } from './scene/types'
@@ -47,6 +48,10 @@ export interface UseNaturalLanguageArgs {
   /** Story signature of the running game — selects the per-game noun lexicon
    * for the active non-English language (spec §5.2). */
   signature: string
+  /** Shared engine gate (output-translation spec §6). Optional so existing
+   * tests need no change; Terminal passes ONE instance shared with the
+   * output-translation hook. Input work runs at 'input' priority. */
+  gate?: EngineGate
 }
 
 /** A line waiting in the F-A queue. `id` is monotonic and never reused — the
@@ -148,7 +153,11 @@ export function useNaturalLanguage(
     awaitTurn,
     watchdogMs,
     signature,
+    gate: gateArg,
   } = args
+  // One stable fallback gate when the caller doesn't supply a shared one.
+  const [fallbackGate] = useState(() => new EngineGate())
+  const engineGate = gateArg ?? fallbackGate
   const [internal, setInternal] = useState<Internal>({ phase: 'off' })
   const [installed, setInstalled] = useState(false)
   const [pending, setPending] = useState(false)
@@ -370,45 +379,51 @@ export function useNaturalLanguage(
   // orphaned generate) or the underlying error on failure. Shared by the single-
   // command path and the per-clause compound loop.
   const generateRaw = useCallback(
-    async (messages: ChatMessages, grammar: string): Promise<string> => {
-      const ac = new AbortController()
-      let watchdogId: ReturnType<typeof setTimeout>
-      try {
-        if (!engine.isLoaded()) {
-          // [M] Bound the lazy load (reload session, model cached on disk but
-          // not in memory) with its own generous watchdog — see
-          // LOAD_WATCHDOG_MS. Same reject-then-abort ordering as the
-          // generate watchdog below.
-          let loadId: ReturnType<typeof setTimeout>
-          const loadWatchdog = new Promise<never>((_, rej) => {
-            loadId = setTimeout(() => {
+    (messages: ChatMessages, grammar: string): Promise<string> =>
+      // The watchdogs start INSIDE the gate: time spent queued behind an
+      // output-translation generation must not burn the input watchdog.
+      engineGate.run('input', async () => {
+        const ac = new AbortController()
+        let watchdogId: ReturnType<typeof setTimeout>
+        try {
+          if (!engine.isLoaded()) {
+            // [M] Bound the lazy load (reload session, model cached on disk but
+            // not in memory) with its own generous watchdog — see
+            // LOAD_WATCHDOG_MS. Same reject-then-abort ordering as the
+            // generate watchdog below.
+            let loadId: ReturnType<typeof setTimeout>
+            const loadWatchdog = new Promise<never>((_, rej) => {
+              loadId = setTimeout(() => {
+                rej(new WatchdogTimeout())
+                ac.abort()
+              }, LOAD_WATCHDOG_MS)
+            })
+            try {
+              await Promise.race([
+                engine.load(() => {}, ac.signal),
+                loadWatchdog,
+              ])
+            } finally {
+              clearTimeout(loadId!)
+            }
+          }
+          const watchdog = new Promise<never>((_, rej) => {
+            watchdogId = setTimeout(() => {
+              // Reject FIRST so the watchdog wins the race (keeping the "timed out"
+              // notice accurate), THEN abort the now-orphaned generate.
               rej(new WatchdogTimeout())
               ac.abort()
-            }, LOAD_WATCHDOG_MS)
+            }, watchdogMs)
           })
-          try {
-            await Promise.race([engine.load(() => {}, ac.signal), loadWatchdog])
-          } finally {
-            clearTimeout(loadId!)
-          }
+          return await Promise.race([
+            engine.generate(messages, grammar, ac.signal),
+            watchdog,
+          ])
+        } finally {
+          clearTimeout(watchdogId!)
         }
-        const watchdog = new Promise<never>((_, rej) => {
-          watchdogId = setTimeout(() => {
-            // Reject FIRST so the watchdog wins the race (keeping the "timed out"
-            // notice accurate), THEN abort the now-orphaned generate.
-            rej(new WatchdogTimeout())
-            ac.abort()
-          }, watchdogMs)
-        })
-        return await Promise.race([
-          engine.generate(messages, grammar, ac.signal),
-          watchdog,
-        ])
-      } finally {
-        clearTimeout(watchdogId!)
-      }
-    },
-    [engine, watchdogMs],
+      }),
+    [engine, watchdogMs, engineGate],
   )
 
   const translate = useCallback(

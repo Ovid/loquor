@@ -3,6 +3,7 @@ import { renderHook, act, waitFor } from '@testing-library/react'
 import { useNaturalLanguage } from './useNaturalLanguage'
 import { FakeLlmEngine } from './engine.fake'
 import { readNlPref } from './nlpref'
+import { EngineGate } from './engineGate'
 import type { CapabilityResult } from './types'
 import type { Vocab } from './grammar/types'
 import {
@@ -1842,5 +1843,54 @@ describe('NL v2 pipeline stages (spec §4)', () => {
     expect(generateSpy).not.toHaveBeenCalled()
     expect(echoLocal).toHaveBeenCalledTimes(1)
     expect(hook.result.current.notice).toBeNull()
+  })
+})
+
+describe('EngineGate integration (output-translation spec §6)', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('translation completes after a held output-priority gate task releases', async () => {
+    // A shared EngineGate is held by a queued output-priority task. An LLM-
+    // stage input line is submitted while the gate is held; after the output
+    // task releases, the input waiter runs and the translation completes.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const sharedGate = new EngineGate()
+    const { hook, echoLocal, sendLine } = setup({ engine, gate: sharedGate })
+    await reachOn(hook)
+    act(() =>
+      hook.result.current.observe(
+        viewState('West of House', ['There is a small mailbox here.']),
+      ),
+    )
+
+    // Hold the gate with an output-priority task (simulates the output-
+    // translation hook occupying the engine).
+    let releaseOutput!: () => void
+    const outputDone = sharedGate.run('output', () => {
+      return new Promise<void>(res => {
+        releaseOutput = res
+      })
+    })
+
+    // Submit a line that reaches the LLM stage — it must queue behind the
+    // held output task and still complete once the output task releases.
+    let translateDone!: Promise<void>
+    act(() => {
+      translateDone = hook.result.current.translate('open the mailbox')
+    })
+
+    // Release the output gate holder.
+    act(() => releaseOutput())
+    await act(async () => {
+      await outputDone
+      await translateDone
+    })
+
+    expect(echoLocal).toHaveBeenCalledWith('open the mailbox')
+    expect(sendLine).toHaveBeenCalledWith('open mailbox')
   })
 })

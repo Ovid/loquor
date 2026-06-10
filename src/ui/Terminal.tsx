@@ -20,6 +20,7 @@ import { viewToContext } from '../llm/prompt'
 import { useNaturalLanguage } from '../llm/useNaturalLanguage'
 import { WebLlmEngine } from '../llm/engine.webllm'
 import { selectedModelId } from '../llm/modelSelection'
+import { EngineGate } from '../llm/engineGate'
 import type { CapabilityResult, LoadProgress } from '../llm/types'
 
 const WATCHDOG_MS = 8000 // starting value; tune at the gate
@@ -47,6 +48,9 @@ export function Terminal({
   // model id honors a ?model=full / VITE_LLM_MODEL override (else the default),
   // so the 8B multilingual model can be A/B tested without a rebuild.
   const [llmEngine] = useState(() => new WebLlmEngine(selectedModelId()))
+  // One gate arbitrating the single engine between the NL input layer and the
+  // output-translation fallback (input preempts; output-translation spec §6).
+  const [gate] = useState(() => new EngineGate())
 
   // Keep a ref to the latest view so the NL hook's getContext() can read it at
   // translate-time. Written in an effect (not during render) per react-hooks/refs.
@@ -119,6 +123,7 @@ export function Terminal({
       Promise.resolve({ view: viewRef.current, reason: 'line' as const }),
     watchdogMs: WATCHDOG_MS,
     signature, // Task 21 consumes it (per-game noun lexicons); '' until boot resolves
+    gate,
   })
 
   // Turn-boundary scene observation: when the VM is waiting for a line of input,

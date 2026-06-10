@@ -52,17 +52,21 @@ export function NlLanguagePicker({
   return (
     <label className="nl-toggle">
       Language:{' '}
-      <select
-        className="sw"
-        value={value}
-        onChange={e => onSelect(e.target.value as NlLanguage)}
-      >
-        {OPTIONS.map(o => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
+      {/* Wrapper draws the brass chevron (::after) over the de-chromed
+          native select — a background-image can't use theme tokens. */}
+      <span className="nl-select">
+        <select
+          className="sw"
+          value={value}
+          onChange={e => onSelect(e.target.value as NlLanguage)}
+        >
+          {OPTIONS.map(o => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </span>
       {chip}
     </label>
   )

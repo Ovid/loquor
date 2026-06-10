@@ -1191,6 +1191,42 @@ describe('NL v2 pipeline stages (spec §4)', () => {
     expect(hook.result.current.notice).toBeNull()
   })
 
+  it('stage 8: a compound whose FIRST clause hits an engine error is labeled a translator failure, not an abstain (Task 21 review)', async () => {
+    // 'frobnicate la trappe' misses every deterministic stage and reaches the
+    // LLM, which blows up. done === 0, but the player did nothing wrong — the
+    // notice must say the translator failed, not "try simpler wording".
+    const { hook, sendLine } = await setupFr({
+      engine: new FakeLlmEngine({ cached: true, failGenerate: true }),
+    })
+    await act(async () => {
+      await hook.result.current.translate(
+        'frobnicate la trappe et ouvre la trappe',
+      )
+    })
+    expect(sendLine).not.toHaveBeenCalled() // non-EN abstain policy: nothing sent
+    expect(hook.result.current.notice).toMatch(/translation failed/i)
+    expect(hook.result.current.notice).not.toMatch(/couldn.t translate/i)
+  })
+
+  it('stage 8: a compound whose FIRST clause times out is labeled a timeout (Task 21 review)', async () => {
+    const engine = new FakeLlmEngine({ cached: true, generateDelayMs: 10000 })
+    const { hook, sendLine } = await setupFr({ engine, watchdogMs: 1000 })
+    vi.useFakeTimers()
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate(
+        'frobnicate la trappe et ouvre la trappe',
+      )
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1100)
+      await p
+    })
+    expect(sendLine).not.toHaveBeenCalled()
+    expect(hook.result.current.notice).toMatch(/timed out/i)
+    vi.useRealTimers()
+  })
+
   it("per-clause independence: 'prends la lampe et ouvre la trappe' runs both clauses deterministically — ZERO LLM calls", async () => {
     const engine = new FakeLlmEngine({
       cached: true,

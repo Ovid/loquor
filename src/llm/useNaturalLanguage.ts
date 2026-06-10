@@ -225,6 +225,10 @@ export function useNaturalLanguage(
     }
   }, [language, signature])
 
+  // The GBNF grammar is a pure function of the FULL vocab (NL v2 §7) — build it
+  // once per game instead of once per LLM clause (Task 21 review).
+  const grammar = useMemo(() => (vocab ? buildGrammar(vocab) : null), [vocab])
+
   const requestDownload = useCallback(() => {
     setNotice(null)
     setModalOpen(false)
@@ -348,6 +352,10 @@ export function useNaturalLanguage(
         sendLine(english)
         return
       }
+      // Past the guard, `internal` is narrowed to the 'on' variant — capture the
+      // active language once so the later stages need no dead `language === 'off'`
+      // defensiveness (Task 21 review).
+      const activeLang = internal.language
       // STAGE 1 (spec §4): the game is asking. The interpreter's yes/no
       // confirmations (restart/quit/restore) and the parser's disambiguation
       // questions ("Which door…?") are read as ordinary LINE input, so the
@@ -432,17 +440,17 @@ export function useNaturalLanguage(
         }
         // 7. LLM fallback. NL v2 §7: the grammar is the FULL vocab — scope
         // feeds the prompt hint below, never the grammar or the validator.
-        const grammar = buildGrammar(vocab)
         const base = getContext()
         const ctx: PromptContext = {
           ...base,
           inScope: scene.inScope.map(o => o.canonical),
           antecedent: scene.antecedent,
         }
-        const activeLang: ActiveLanguage = language === 'off' ? 'en' : language
         const raw = await generateRaw(
           buildPrompt(clause, ctx, vocab, activeLang),
-          grammar,
+          // Non-null: translate early-returned when vocab was null, and the
+          // memo is built from that same vocab.
+          grammar!,
         )
         return { result: parseCommand(raw, vocab), raw, stage: 'llm' }
       }
@@ -487,6 +495,10 @@ export function useNaturalLanguage(
         // logged once below). Remove together with the per-clause [nl debug]
         // once translation quality is tuned.
         let stopReason: string | null = null
+        // The engine error (or watchdog timeout) that stopped a compound mid-
+        // flight, kept as the ERROR OBJECT so stage 8 can label the notice
+        // without sniffing message strings (review S5 / Task 21 review).
+        let stopError: unknown = null
         for (let i = 0; i < limit; i++) {
           const clause = clauses[i]
           const scene = tracker.scene()
@@ -501,6 +513,7 @@ export function useNaturalLanguage(
             // sequence (locked decision 4).
             if (total === 1) throw err
             stopReason = `generate-error: ${String(err)}`
+            stopError = err
             break
           }
           // TEMP per-clause diagnostics — what the live scene fed the stage vs.
@@ -599,8 +612,17 @@ export function useNaturalLanguage(
           // "I don't know the word …" AND burn a game turn — send NOTHING and
           // show a styled notice instead.
           lastCommandRef.current = null
-          if (language === 'en' || language === 'off') {
+          if (activeLang === 'en') {
             sendLine(english)
+          } else if (stopError !== null) {
+            // The translator broke (timeout/engine error) — don't blame the
+            // player's wording (Task 21 review). Nothing was sent: the non-EN
+            // abstain policy still holds.
+            setNotice(
+              stopError instanceof WatchdogTimeout
+                ? 'Translation timed out — nothing sent.'
+                : 'Translation failed — nothing sent.',
+            )
           } else {
             setNotice(
               'Couldn’t translate — try simpler wording, or quote a command: "open mailbox"',
@@ -633,10 +655,10 @@ export function useNaturalLanguage(
       }
     },
     [
-      internal.phase,
-      language,
+      internal,
       lex,
       vocab,
+      grammar,
       getContext,
       echoLocal,
       sendLine,

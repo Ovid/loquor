@@ -70,7 +70,7 @@ describe('Terminal', () => {
     nlOverride = {
       state: { phase: 'on', language: 'en' },
       pending: true,
-      queued: ['take the lamp'],
+      queued: [{ id: 0, text: 'take the lamp' }],
     }
     try {
       render(

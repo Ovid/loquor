@@ -1078,7 +1078,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
     act(() => {
       void hook.result.current.translate('north')
     })
-    expect(hook.result.current.queued).toEqual(['north'])
+    expect(hook.result.current.queued.map(q => q.text)).toEqual(['north'])
     await act(async () => {
       await p
     })
@@ -1087,6 +1087,46 @@ describe('input queue (NL v2 §11, F-A)', () => {
       'north', // direction fast-path, run from the queue
     ])
     expect(hook.result.current.queued).toEqual([])
+  })
+
+  it('queued lines carry stable unique ids — never reused across drains (React keys)', async () => {
+    // The Terminal keys queued rows by id. The queue drains FIFO via shift(),
+    // so an index key would re-point the same DOM node at a DIFFERENT line as
+    // the front is removed; ids must be unique and never recycled.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      generateDelayMs: 50,
+      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const { hook } = setup({ engine })
+    await reachOn(hook)
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate('open the mailbox')
+    })
+    act(() => {
+      void hook.result.current.translate('north')
+      void hook.result.current.translate('look')
+    })
+    const firstIds = hook.result.current.queued.map(q => q.id)
+    expect(new Set(firstIds).size).toBe(2)
+    await act(async () => {
+      await p
+    })
+    expect(hook.result.current.queued).toEqual([])
+    act(() => {
+      p = hook.result.current.translate('open the mailbox')
+    })
+    act(() => {
+      void hook.result.current.translate('east')
+    })
+    // A fresh line never reuses an id an earlier queued line rendered under.
+    for (const q of hook.result.current.queued)
+      expect(firstIds).not.toContain(q.id)
+    await act(async () => {
+      await p
+    })
   })
 
   it('caps the queue at 4 — overflow drops the NEWEST with a notice', async () => {
@@ -1109,7 +1149,12 @@ describe('input queue (NL v2 §11, F-A)', () => {
       void hook.result.current.translate('four')
       void hook.result.current.translate('five') // overflow → dropped
     })
-    expect(hook.result.current.queued).toEqual(['one', 'two', 'three', 'four'])
+    expect(hook.result.current.queued.map(q => q.text)).toEqual([
+      'one',
+      'two',
+      'three',
+      'four',
+    ])
     expect(hook.result.current.notice).toMatch(/queue full/i)
     expect(hook.result.current.notice).toContain('five')
     await act(async () => {
@@ -1151,7 +1196,10 @@ describe('input queue (NL v2 §11, F-A)', () => {
       void hook.result.current.translate('north')
       void hook.result.current.translate('look')
     })
-    expect(hook.result.current.queued).toEqual(['north', 'look'])
+    expect(hook.result.current.queued.map(q => q.text)).toEqual([
+      'north',
+      'look',
+    ])
     await act(async () => {
       await p
     })
@@ -1197,7 +1245,10 @@ describe('input queue (NL v2 §11, F-A)', () => {
       void hook.result.current.translate('north')
       void hook.result.current.translate('look')
     })
-    expect(hook.result.current.queued).toEqual(['north', 'look'])
+    expect(hook.result.current.queued.map(q => q.text)).toEqual([
+      'north',
+      'look',
+    ])
     await act(async () => {
       await p
     })
@@ -1240,7 +1291,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
     act(() => {
       void hook.result.current.translate('north') // the lone queued line
     })
-    expect(hook.result.current.queued).toEqual(['north'])
+    expect(hook.result.current.queued.map(q => q.text)).toEqual(['north'])
     await act(async () => {
       await p
     })
@@ -1276,7 +1327,9 @@ describe('input queue (NL v2 §11, F-A)', () => {
     act(() => {
       void hook.result.current.translate('ouvre la trappe') // queues
     })
-    expect(hook.result.current.queued).toEqual(['ouvre la trappe'])
+    expect(hook.result.current.queued.map(q => q.text)).toEqual([
+      'ouvre la trappe',
+    ])
     await act(async () => {
       await p
     })

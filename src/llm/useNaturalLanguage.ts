@@ -49,6 +49,14 @@ export interface UseNaturalLanguageArgs {
   signature: string
 }
 
+/** A line waiting in the F-A queue. `id` is monotonic and never reused — the
+ * Terminal keys queued rows on it, and the queue drains from the FRONT
+ * (shift), so an index key would re-point a DOM node at a different line. */
+export interface QueuedLine {
+  id: number
+  text: string
+}
+
 export interface UseNaturalLanguage {
   state: NlState
   pending: boolean
@@ -62,7 +70,7 @@ export interface UseNaturalLanguage {
   translate: (english: string) => Promise<void>
   /** Lines typed while a translation was in flight, waiting FIFO (F-A).
    * Rendered dimmed with a 'queued' chip; drained one at a time. */
-  queued: string[]
+  queued: QueuedLine[]
   /** Feed a turn-boundary ViewState to the scene tracker (once per turn). */
   observe: (view: ViewState) => void
   /** True while a compound sequence is mid-flight (Terminal's observe effect defers to the hook). */
@@ -146,8 +154,9 @@ export function useNaturalLanguage(
   const translatingRef = useRef(false)
   // F-A input queue: ref is the source of truth (translate mutates it inside an
   // async drain); `queued` mirrors it into render state for the Terminal.
-  const queueRef = useRef<string[]>([])
-  const [queued, setQueued] = useState<string[]>([])
+  const queueRef = useRef<QueuedLine[]>([])
+  const queueIdRef = useRef(0)
+  const [queued, setQueued] = useState<QueuedLine[]>([])
   const syncQueue = useCallback(() => setQueued([...queueRef.current]), [])
   // The canonical command we last sent (for take/drop/acted-object attribution).
   // Set when translate emits a command; stays null through an abstain / raw send.
@@ -364,7 +373,7 @@ export function useNaturalLanguage(
           setNotice(`Queue full — dropped: "${english}"`)
           return
         }
-        queueRef.current.push(english)
+        queueRef.current.push({ id: queueIdRef.current++, text: english })
         syncQueue()
         return
       }
@@ -742,7 +751,7 @@ export function useNaturalLanguage(
             setNotice('Queue cleared — the game needs an answer first.')
             break
           }
-          line = queueRef.current.shift()
+          line = queueRef.current.shift()?.text
           fromQueue = true
           syncQueue()
           // TURN-BOUNDARY AWAIT between drained lines (§11): before running a

@@ -163,11 +163,12 @@ export function Terminal({
         onActivate={() => inputRef.current?.focus()}
       >
         {/* Lines typed ahead while a translation runs (F-A): dimmed, chipped,
-            drained FIFO by the hook. Index keys are fine — the list only ever
-            shifts from the front or clears. */}
-        {nl.queued.map((q, i) => (
-          <p key={`q-${i}`} className="nl-source">
-            <span className="you">you</span> {q}
+            drained FIFO by the hook. Keyed on the hook's monotonic id — the
+            queue shifts from the FRONT, so index keys would re-point a node
+            at a different line. */}
+        {nl.queued.map(q => (
+          <p key={q.id} className="nl-source">
+            <span className="you">you</span> {q.text}
             <span className="chip">queued</span>
           </p>
         ))}

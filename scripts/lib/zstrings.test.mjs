@@ -8,7 +8,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const buf = new Uint8Array(
   readFileSync(resolve(repoRoot, 'public/games/zork1.z3')),
 )
-// Extraction over the whole file is a few seconds; do it once.
+// Extraction over the whole file takes a few hundred ms; do it once.
 const lines = displayLines(extractStrings(buf))
 
 describe('z-machine v3 string extraction (spec §4)', () => {

@@ -5,9 +5,9 @@
 // header 0x18; may not nest); 4/5 = one-char shifts to A1/A2; A2 char 6 = a
 // 10-bit ZSCII literal, char 7 = newline.
 //
-// Extraction strategy: two anchored passes instead of a byte-granular brute
-// scan. The brute scan found every true string but also decoded millions of
-// mid-instruction byte offsets into plausible-looking garbage, flooding the
+// Extraction strategy: object-table names plus two anchored passes instead
+// of a byte-granular brute scan. The brute scan found every true string but
+// also decoded mid-instruction byte offsets into plausible garbage, flooding the
 // shape-filtered inventory with ~2.6k entries (target: <2k policed by the
 // ignore list). Anchored extraction trades theoretical completeness (computed
 // string addresses — rare in Infocom v3 games) for a clean inventory:
@@ -87,7 +87,7 @@ export function decodeZString(buf, addr, opts = {}) {
 
 const PRINTABLE = /^[\x20-\x7e\n]*$/
 
-/** Heuristic text filter for the brute scan: printable, mostly letters. */
+/** Heuristic text filter for the anchored scans: printable, mostly letters. */
 export function looksLikeText(s) {
   if (s.length < 4) return false
   if (!PRINTABLE.test(s)) return false

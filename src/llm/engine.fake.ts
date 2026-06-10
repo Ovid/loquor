@@ -16,6 +16,9 @@ export interface FakeOptions {
 export class FakeLlmEngine implements LlmEngine {
   private loaded = false
   private opts: FakeOptions
+  /** generate() invocation count — the UAT regression suite (Task 24) asserts
+   * deterministic pipeline stages never consult the model. */
+  generateCalls = 0
   constructor(opts: FakeOptions = {}) {
     this.opts = opts
   }
@@ -45,6 +48,7 @@ export class FakeLlmEngine implements LlmEngine {
     _grammar: string,
     signal?: AbortSignal,
   ): Promise<string> {
+    this.generateCalls++
     // Faithful to WebLlmEngine: generating before the weights are in memory
     // throws. A cached model auto-restored to 'on' across a page reload is NOT
     // loaded until load() runs this session, so the hook must load before it

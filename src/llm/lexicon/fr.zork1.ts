@@ -132,7 +132,7 @@ export const FR_ZORK1: NounLexicon = {
   'white house': ['maison', 'maison blanche'],
   'wooden door': ['porte en bois', 'porte'],
   'wooden ladder': ['echelle'],
-  'wooden railing': ['rambarde', 'balustrade'],
+  'wooden railing': ['rambarde', 'balustrade', 'rampe'], // 'rampe' = UAT F9 wording
   wrench: ['cle', 'cle a molette', 'cle anglaise'],
   'yellow button': ['bouton jaune', 'bouton'],
   "zork owner's manual": ['manuel', 'mode d emploi'],

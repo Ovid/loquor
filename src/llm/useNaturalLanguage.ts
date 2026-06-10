@@ -60,6 +60,9 @@ export interface UseNaturalLanguage {
   declineDownload: () => void
   cancelDownload: () => void
   translate: (english: string) => Promise<void>
+  /** Lines typed while a translation was in flight, waiting FIFO (F-A).
+   * Rendered dimmed with a 'queued' chip; drained one at a time. */
+  queued: string[]
   /** Feed a turn-boundary ViewState to the scene tracker (once per turn). */
   observe: (view: ViewState) => void
   /** True while a compound sequence is mid-flight (Terminal's observe effect defers to the hook). */
@@ -90,6 +93,10 @@ class WatchdogTimeout extends Error {
 
 /** Safety cap: at most this many clauses run per compound input (locked decision 6). */
 const MAX_CLAUSES = 8
+
+/** F-A input queue (NL v2 §11): at most this many lines wait behind an
+ * in-flight translation. Overflow drops the NEWEST line with a notice. */
+const QUEUE_CAP = 4
 
 /** Which pipeline stage produced a clause's command (spec §4 stages 3–7). */
 type Stage = 'meta' | 'alias' | 'vocab' | 'direction' | 'lexicon' | 'llm'
@@ -133,9 +140,15 @@ export function useNaturalLanguage(
   const [notice, setNotice] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
-  // Guards against a second translate running concurrently. `pending` (state)
-  // also disables the input, but a ref closes the same-tick window synchronously.
+  // Guards against a second translate running concurrently; a line that arrives
+  // while this is set QUEUES instead (F-A). A ref (vs. `pending` state) closes
+  // the same-tick window synchronously.
   const translatingRef = useRef(false)
+  // F-A input queue: ref is the source of truth (translate mutates it inside an
+  // async drain); `queued` mirrors it into render state for the Terminal.
+  const queueRef = useRef<string[]>([])
+  const [queued, setQueued] = useState<string[]>([])
+  const syncQueue = useCallback(() => setQueued([...queueRef.current]), [])
   // The canonical command we last sent (for take/drop/acted-object attribution).
   // Set when translate emits a command; stays null through an abstain / raw send.
   const lastCommandRef = useRef<string | null>(null)
@@ -340,11 +353,21 @@ export function useNaturalLanguage(
 
   const translate = useCallback(
     async (english: string) => {
-      // A translation is already in flight — drop this one rather than orphan a
-      // second inference (review I4 concurrency guard). At the TOP so a
-      // mid-flight submit can't slip through the early raw-send paths either
-      // (review S4 — unreachable today via the disabled input; defense in depth).
-      if (translatingRef.current) return
+      // A translation is already in flight — QUEUE this line instead of dropping
+      // it (F-A, NL v2 §11): the input stays enabled while NL is on, so typing
+      // ahead is normal play, not an anomaly. FIFO, cap 4; overflow drops the
+      // NEWEST line with a visible notice so input is never silently lost. At
+      // the TOP so a mid-flight submit can't slip through the early raw-send
+      // paths either (review S4).
+      if (translatingRef.current) {
+        if (queueRef.current.length >= QUEUE_CAP) {
+          setNotice(`Queue full — dropped: "${english}"`)
+          return
+        }
+        queueRef.current.push(english)
+        syncQueue()
+        return
+      }
       const tracker = trackerRef.current
       // NL off / disabled / unavailable → behave exactly like the first pass.
       if (internal.phase !== 'on' || vocab === null || tracker === null) {
@@ -356,34 +379,6 @@ export function useNaturalLanguage(
       // active language once so the later stages need no dead `language === 'off'`
       // defensiveness (Task 21 review).
       const activeLang = internal.language
-      // STAGE 1 (spec §4): the game is asking. The interpreter's yes/no
-      // confirmations (restart/quit/restore) and the parser's disambiguation
-      // questions ("Which door…?") are read as ordinary LINE input, so the
-      // player's reply answers the INTERPRETER and must not be translated —
-      // else "Y" → "look" (restart never confirms) or "wooden door" gets
-      // mangled. Checked before the clause split so a reply containing "and"
-      // is never split either.
-      const recentOutput = getContext().recentOutput
-      if (
-        isConfirmationPrompt(recentOutput) ||
-        isDisambiguationPrompt(recentOutput)
-      ) {
-        lastCommandRef.current = null
-        sendLine(english)
-        return
-      }
-      // STAGE 2 (locked decision 8): a fully-quoted line ("…", «…», „…“, “…”)
-      // is the escape hatch — send the unquoted text verbatim, bypassing every
-      // translation stage. No echo, no latch: the player typed the command.
-      const quoted = unquote(english)
-      if (quoted) {
-        lastCommandRef.current = null
-        sendLine(quoted)
-        return
-      }
-      translatingRef.current = true
-      setPending(true)
-      setNotice(null)
 
       // Run ONE clause through the deterministic-first stages 3–7 (spec §4)
       // against the given live scene. `raw` is synthetic for the deterministic
@@ -471,12 +466,49 @@ export function useNaturalLanguage(
         }
       }
 
-      try {
+      // Run ONE LINE through the full pipeline (stages 1–8). Returns 'flush'
+      // when the game raised an interactive prompt: queued lines were typed
+      // BEFORE the player saw that question, so the drain must discard them
+      // rather than feed them to it (F-A). Errors propagate to the per-line
+      // catch in the drain below.
+      const runLine = async (
+        line: string,
+        fromQueue: boolean,
+      ): Promise<'ok' | 'flush'> => {
+        // STAGE 1 (spec §4): the game is asking. The interpreter's yes/no
+        // confirmations (restart/quit/restore) and the parser's disambiguation
+        // questions ("Which door…?") are read as ordinary LINE input, so the
+        // player's reply answers the INTERPRETER and must not be translated —
+        // else "Y" → "look" (restart never confirms) or "wooden door" gets
+        // mangled. Checked before the clause split so a reply containing "and"
+        // is never split either. A QUEUED line cannot be such a reply — the
+        // player hadn't seen the question when they typed it — so it signals a
+        // flush instead of answering.
+        const recentOutput = getContext().recentOutput
+        if (
+          isConfirmationPrompt(recentOutput) ||
+          isDisambiguationPrompt(recentOutput)
+        ) {
+          lastCommandRef.current = null
+          if (fromQueue) return 'flush'
+          sendLine(line)
+          return 'ok'
+        }
+        // STAGE 2 (locked decision 8): a fully-quoted line ("…", «…», „…“, “…”)
+        // is the escape hatch — send the unquoted text verbatim, bypassing every
+        // translation stage. No echo, no latch: the player typed the command.
+        const quoted = unquote(line)
+        if (quoted) {
+          lastCommandRef.current = null
+          sendLine(quoted)
+          return 'ok'
+        }
+
         // UNIFIED CLAUSE LOOP: a single command is the degenerate total===1
         // case of the compound machinery (locked decisions 1–9). Only when
         // total>1 does the hook own the turn boundary (awaitTurn + observe);
         // a single command leaves the turn to Terminal's observe effect.
-        const clauses = splitClauses(english)
+        const clauses = splitClauses(line)
         const total = clauses.length
         if (total > 1) inSequenceRef.current = true
         const limit = Math.min(total, MAX_CLAUSES)
@@ -537,7 +569,7 @@ export function useNaturalLanguage(
           }
 
           if (!echoed && TRANSLATED_STAGES.has(stage)) {
-            echoLocal(english)
+            echoLocal(line)
             echoed = true
           }
           // Meta/alias clauses don't latch: a meta command has no in-world
@@ -613,7 +645,7 @@ export function useNaturalLanguage(
           // show a styled notice instead.
           lastCommandRef.current = null
           if (activeLang === 'en') {
-            sendLine(english)
+            sendLine(line)
           } else if (stopError !== null) {
             // The translator broke (timeout/engine error) — don't blame the
             // player's wording (Task 21 review). Nothing was sent: the non-EN
@@ -632,22 +664,56 @@ export function useNaturalLanguage(
           // Truncated sequence → make it visible (decision 7).
           setNotice(`Ran ${done} of ${total} actions.`)
         }
-      } catch (err) {
-        lastCommandRef.current = null
-        // A genuine generate failure (vs. a benign watchdog timeout) is otherwise
-        // swallowed by the notice below, leaving the root cause invisible — e.g. an
-        // invalid grammar the model's grammar compiler rejects. Log it so it is
-        // diagnosable from the console; timeouts stay quiet to avoid noise.
-        if (!(err instanceof WatchdogTimeout))
-          console.error('[nl] translation failed:', err)
-        // Watchdog or generate error: never wedge the turn. Surface a visible
-        // notice so a timeout is distinguishable from a normal abstain.
-        setNotice(
-          err instanceof WatchdogTimeout
-            ? 'Translation timed out — sent as typed.'
-            : 'Translation failed — sent as typed.',
-        )
-        sendLine(english)
+        // A mid-sequence interactive prompt must flush the queue too (F-A):
+        // whatever the player typed ahead, the game is now asking a question.
+        return stopReason === 'interactive-prompt' ? 'flush' : 'ok'
+      }
+
+      translatingRef.current = true
+      setPending(true)
+      setNotice(null)
+      try {
+        // DRAIN (F-A): run the typed line, then any lines queued meanwhile,
+        // one at a time through the FULL pipeline. Notice policy: cleared once
+        // here at drain start — a notice set by an earlier line (abstain,
+        // truncation) deliberately survives later lines unless they set their
+        // own.
+        let line: string | undefined = english
+        let fromQueue = false
+        while (line !== undefined) {
+          let outcome: 'ok' | 'flush' = 'ok'
+          try {
+            outcome = await runLine(line, fromQueue)
+          } catch (err) {
+            // PER-LINE error handling — the pre-queue single-line contract,
+            // kept per line so an engine error on one line cannot silently
+            // abandon the rest of the queue. A genuine generate failure (vs. a
+            // benign watchdog timeout) is logged so the root cause stays
+            // diagnosable; either way the line falls back to a raw send with a
+            // visible notice, and the drain continues.
+            lastCommandRef.current = null
+            if (!(err instanceof WatchdogTimeout))
+              console.error('[nl] translation failed:', err)
+            setNotice(
+              err instanceof WatchdogTimeout
+                ? 'Translation timed out — sent as typed.'
+                : 'Translation failed — sent as typed.',
+            )
+            sendLine(line)
+          }
+          // A compound that stopped mid-sequence leaves this set; reset it per
+          // line so Terminal's observe effect resumes for later queued lines.
+          inSequenceRef.current = false
+          if (outcome === 'flush' && queueRef.current.length > 0) {
+            queueRef.current = []
+            syncQueue()
+            setNotice('Queue cleared — the game needs an answer first.')
+            break
+          }
+          line = queueRef.current.shift()
+          fromQueue = true
+          syncQueue()
+        }
       } finally {
         translatingRef.current = false
         setPending(false)
@@ -665,6 +731,7 @@ export function useNaturalLanguage(
       generateRaw,
       awaitTurn,
       watchdogMs,
+      syncQueue,
     ],
   )
 
@@ -698,6 +765,7 @@ export function useNaturalLanguage(
     declineDownload,
     cancelDownload,
     translate,
+    queued,
     observe,
     isSequencing,
   }

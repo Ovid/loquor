@@ -1051,6 +1051,154 @@ describe('useNaturalLanguage', () => {
   })
 })
 
+describe('input queue (NL v2 §11, F-A)', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('a line typed mid-translation queues and runs after it, FIFO', async () => {
+    // Line 1 takes the slow LLM path; 'north' arrives while it is in flight.
+    // F-A: it must QUEUE (visible via result.current.queued), then drain
+    // through the full pipeline once line 1 finishes — never be dropped.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      generateDelayMs: 50,
+      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const { hook, sendLine } = setup({ engine })
+    await reachOn(hook)
+    act(() =>
+      hook.result.current.observe(
+        viewState('West of House', ['There is a small mailbox here.']),
+      ),
+    )
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate('open the mailbox')
+    })
+    act(() => {
+      void hook.result.current.translate('north')
+    })
+    expect(hook.result.current.queued).toEqual(['north'])
+    await act(async () => {
+      await p
+    })
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual([
+      'open mailbox',
+      'north', // direction fast-path, run from the queue
+    ])
+    expect(hook.result.current.queued).toEqual([])
+  })
+
+  it('caps the queue at 4 — overflow drops the NEWEST with a notice', async () => {
+    const engine = new FakeLlmEngine({
+      cached: true,
+      generateDelayMs: 50,
+      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const { hook } = setup({ engine })
+    await reachOn(hook)
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate('open the mailbox') // in flight
+    })
+    act(() => {
+      void hook.result.current.translate('one')
+      void hook.result.current.translate('two')
+      void hook.result.current.translate('three')
+      void hook.result.current.translate('four')
+      void hook.result.current.translate('five') // overflow → dropped
+    })
+    expect(hook.result.current.queued).toEqual(['one', 'two', 'three', 'four'])
+    expect(hook.result.current.notice).toMatch(/queue full/i)
+    expect(hook.result.current.notice).toContain('five')
+    await act(async () => {
+      await p
+    })
+    expect(hook.result.current.queued).toEqual([])
+  })
+
+  it('flushes the queue (with a notice) when the game raises an interactive prompt', async () => {
+    // Line 1's turn leaves a yes/no confirmation on screen. The queued lines
+    // were typed BEFORE the player saw that question, so none of them may
+    // become its answer: the whole queue is cleared with a notice.
+    let output = ''
+    const getContext = () => ({
+      location: 'West of House',
+      recentOutput: output,
+    })
+    const sendLine = vi.fn((_text: string) => {
+      output = 'Do you wish to restart? (Y is affirmative): '
+    })
+    const engine = new FakeLlmEngine({
+      cached: true,
+      generateDelayMs: 50,
+      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const { hook } = setup({ engine, getContext, sendLine })
+    await reachOn(hook)
+    act(() =>
+      hook.result.current.observe(
+        viewState('West of House', ['There is a small mailbox here.']),
+      ),
+    )
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate('open the mailbox')
+    })
+    act(() => {
+      void hook.result.current.translate('north')
+      void hook.result.current.translate('look')
+    })
+    expect(hook.result.current.queued).toEqual(['north', 'look'])
+    await act(async () => {
+      await p
+    })
+    // Only line 1's command was ever sent; the queued lines were flushed.
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['open mailbox'])
+    expect(hook.result.current.queued).toEqual([])
+    expect(hook.result.current.notice).toMatch(/queue cleared/i)
+  })
+
+  it('an abstain notice does NOT flush the queue — the next line still runs', async () => {
+    // fr: line 1 abstains (styled notice, nothing sent — stage 8). That is NOT
+    // an interactive prompt, so queued line 2 still drains and runs.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      generateDelayMs: 50,
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const { hook, sendLine } = setup({
+      engine,
+      vocab: ZORK1_VOCAB,
+      signature: ZORK1_SIG,
+    })
+    await waitFor(() =>
+      expect(hook.result.current.state).toEqual({
+        phase: 'off',
+        installed: true,
+      }),
+    )
+    act(() => hook.result.current.setLanguage('fr'))
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate('blorple le ciel') // LLM → abstain
+    })
+    act(() => {
+      void hook.result.current.translate('ouvre la trappe') // queues
+    })
+    expect(hook.result.current.queued).toEqual(['ouvre la trappe'])
+    await act(async () => {
+      await p
+    })
+    // Line 2 drained through the deterministic lexicon stage and ran.
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['open trapdoor'])
+    // Line 1's abstain notice survives (line 2 set none); no "queue cleared".
+    expect(hook.result.current.notice).toMatch(/couldn.t translate/i)
+  })
+})
+
 describe('NL v2 pipeline stages (spec §4)', () => {
   beforeEach(() => localStorage.clear())
 
@@ -1090,7 +1238,10 @@ describe('NL v2 pipeline stages (spec §4)', () => {
   it('stage 2: a fully-quoted line is sent verbatim — the model is never consulted', async () => {
     // The default completion would happily "translate" anything; proving the
     // quote bypassed it requires the spy, not just the sendLine text.
-    const engine = new FakeLlmEngine({ cached: true, default: '{"verb":"look"}' })
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"look"}',
+    })
     const generateSpy = vi.spyOn(engine, 'generate')
     const { hook, echoLocal, sendLine } = setup({ engine })
     await reachOn(hook)
@@ -1107,7 +1258,10 @@ describe('NL v2 pipeline stages (spec §4)', () => {
     // dictionary words, so the line IS already a game command: send it as
     // typed, skip inference entirely, and do NOT echo (the transcript already
     // shows the player's own words).
-    const engine = new FakeLlmEngine({ cached: true, default: '{"verb":"look"}' })
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"look"}',
+    })
     const generateSpy = vi.spyOn(engine, 'generate')
     const { hook, echoLocal, sendLine } = setup({ engine })
     await reachOn(hook)

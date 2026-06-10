@@ -4,6 +4,24 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { Terminal } from './Terminal'
 import { WebLlmEngine } from '../llm/engine.webllm'
+import type { UseNaturalLanguage } from '../llm/useNaturalLanguage'
+
+// Passthrough mock: the real hook runs for every test, but a test can overlay
+// specific fields (e.g. a non-empty queue) that are otherwise unreachable
+// without a live LLM. Reset nlOverride to null after use.
+let nlOverride: Partial<UseNaturalLanguage> | null = null
+vi.mock('../llm/useNaturalLanguage', async importOriginal => {
+  const mod = await importOriginal<typeof import('../llm/useNaturalLanguage')>()
+  return {
+    ...mod,
+    useNaturalLanguage: (
+      ...hookArgs: Parameters<typeof mod.useNaturalLanguage>
+    ) => {
+      const real = mod.useNaturalLanguage(...hookArgs)
+      return nlOverride ? { ...real, ...nlOverride } : real
+    },
+  }
+})
 
 const bytes = new Uint8Array(readFileSync('public/games/zork1.z3'))
 describe('Terminal', () => {
@@ -46,6 +64,34 @@ describe('Terminal', () => {
       expect(spy).toHaveBeenCalledWith('boot failed', expect.anything()),
     )
     spy.mockRestore()
+  })
+
+  it('renders queued lines with a "queued" chip and keeps the input enabled (F-A)', async () => {
+    nlOverride = {
+      state: { phase: 'on', language: 'en' },
+      pending: true,
+      queued: ['take the lamp'],
+    }
+    try {
+      render(
+        <Terminal
+          storyBytes={bytes}
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
+      )
+      await waitFor(
+        () => expect(screen.getByText('queued')).toBeInTheDocument(),
+        { timeout: 8000 },
+      )
+      expect(screen.getByText(/take the lamp/)).toBeInTheDocument()
+      // F-A: while NL is on, a mid-translation line queues — the input field
+      // must stay ENABLED even though a translation is pending.
+      const input = screen.getByPlaceholderText('type a command…')
+      expect(input).not.toBeDisabled()
+    } finally {
+      nlOverride = null
+    }
   })
 
   it('unloads the LLM engine when it unmounts (no resource leak)', async () => {

@@ -162,6 +162,15 @@ export function Terminal({
         lines={view.lines}
         onActivate={() => inputRef.current?.focus()}
       >
+        {/* Lines typed ahead while a translation runs (F-A): dimmed, chipped,
+            drained FIFO by the hook. Index keys are fine — the list only ever
+            shifts from the front or clears. */}
+        {nl.queued.map((q, i) => (
+          <p key={`q-${i}`} className="nl-source">
+            <span className="you">you</span> {q}
+            <span className="chip">queued</span>
+          </p>
+        ))}
         {nl.pending && <p className="nl-thinking">…thinking</p>}
         {nl.notice && <p className="nl-notice">{nl.notice}</p>}
         <CommandInput
@@ -174,7 +183,9 @@ export function Terminal({
             // swallow the turn if it ever happens (review S11).
             else console.warn('submit ignored: engine not ready')
           }}
-          disabled={nl.pending}
+          // F-A: while NL is on, the field stays ENABLED during a translation —
+          // typed-ahead lines queue instead of being locked out.
+          disabled={nl.pending && nl.state.phase !== 'on'}
           awaitingKey={view.inputRequest === 'char'}
           awaitingLine={view.inputRequest === 'line'}
           onKey={key => engineRef.current?.sendChar(key)}

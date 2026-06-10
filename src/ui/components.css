@@ -190,6 +190,25 @@
   opacity: 0.65;
   font-style: italic;
 }
+/* Worded 'you' label for the player's pre-translation line (NL v2 §12). */
+.you {
+  display: inline-block;
+  min-width: 2.4em;
+  margin-right: 6px;
+  font-size: 0.78em;
+  letter-spacing: 0.08em;
+  font-style: normal;
+  color: var(--text-dim);
+}
+/* 'queued' chip on lines waiting for the translator (NL v2 §11). */
+.chip {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border: 1px solid var(--text-dim);
+  border-radius: 8px;
+  font-size: 0.72em;
+  color: var(--text-dim);
+}
 
 /* Transient "…thinking" while a translation is in flight. */
 .nl-thinking {

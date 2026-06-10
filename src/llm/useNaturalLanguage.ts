@@ -164,10 +164,9 @@ export function useNaturalLanguage(
         setInstalled(cached)
         const pref = readNlPref()
         if (cached && pref.language !== 'off') {
+          const lang = pref.language // narrowed to ActiveLanguage; survives the closure
           setInternal(prev =>
-            prev.phase === 'off'
-              ? { phase: 'on', language: pref.language as ActiveLanguage }
-              : prev,
+            prev.phase === 'off' ? { phase: 'on', language: lang } : prev,
           )
         }
       })

@@ -298,8 +298,14 @@ describe('useNaturalLanguage', () => {
 
   it("setLanguage('off') turns the layer off and persists 'off'", async () => {
     const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
+    // Wait for the async isCached() probe (installed: true), not just the
+    // initial pre-probe 'off' state — otherwise setLanguage('fr') races the
+    // probe and takes the download-modal branch instead of activating.
     await waitFor(() =>
-      expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
+      expect(hook.result.current.state).toEqual({
+        phase: 'off',
+        installed: true,
+      }),
     )
     act(() => hook.result.current.setLanguage('fr'))
     expect(hook.result.current.state).toEqual({ phase: 'on', language: 'fr' })

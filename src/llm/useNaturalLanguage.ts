@@ -475,9 +475,9 @@ export function useNaturalLanguage(
       // check and the scene tracker see the SETTLED output, not the stale view
       // ref (which only updates after a React re-render). An unawaited boundary
       // settles harmlessly: the bridge resolves every registered listener at
-      // the turn and raceTurn clears its own timer on settle. (Boxed, not a
-      // bare `let`: outer-flow CFA ignores closure assignments and would pin a
-      // `let` to its null initializer; property narrowing resets per call.)
+      // the turn and raceTurn clears its own timer on settle. (Boxed rather
+      // than a bare `let` to make the shared mutable turn-boundary state —
+      // written by `sendTracked`, awaited by the loops below — explicit.)
       const turnBox: { pending: Promise<TurnResult | 'timeout'> | null } = {
         pending: null,
       }

@@ -283,3 +283,46 @@ feed the corpus.
 - **App chrome i18n** (separate effort).
 - **Echo-hiding polish toggle** (hide/restyle the English canonical echo).
 - **Self-hosting model weights** (pre-existing follow-up; unchanged).
+
+### Execution notes (2026-06-11)
+
+Decisions and conscious deferrals recorded during the v1 implementation:
+
+- **Extraction is anchor-based, not a brute scan.** `scripts/extract-strings.mjs`
+  follows the object table, packed-address word lists, and inline `0xB2`/`0xB3`
+  print opcodes — not every byte sequence that decodes as valid Z-chars. This
+  means computed-address strings (rare in Infocom v3) could be missed; the
+  walkthrough coverage gate and the string-inventory gate together cover the
+  gameplay path and the static table independently, giving two orthogonal nets.
+
+- **Status bar label tolerance.** The ifvms z3 runtime emits `Turns:` (not
+  `Moves:`); `statusTranslate` accepts both labels for robustness against older
+  fixtures and other v3 titles. Score values are unsigned 16-bit from the VM
+  (death's −10 arrives as 65526 in the raw right-side string); the parser
+  handles both signed and unsigned representations.
+
+- **LLM ignore list.** A handful of composition classes are deliberately left to
+  the LLM fallback rather than templated, with recorded reasons: unbounded parser
+  echoes (`"What do you want to …?"`, `"Which … do you mean …?"` — the slot
+  content is the player's own typed token, making these effectively {raw}
+  templates with unlimited variation); the CR-less tie-up sentence that glues
+  directly to the wake-up sentence (the bridge delivers them as a single line,
+  making the boundary undetectable at the matcher level); and multi-item reveal
+  lists where the reducer's append logic can produce non-canonical line shapes.
+  All three classes are tracked in `src/translate/corpus/zork1.extraction-ignore.ts`
+  with their rationale so UAT sessions can audit the ignore list directly.
+
+- **Overlay resolution tagging.** The overlay hook stores each resolved entry
+  tagged with its corpus source (`string`, `template`, `object`, `llm`) and the
+  normalized English basis. This was lint-driven (the discriminated union forced
+  explicit source tracking) but is functionally equivalent to the spec's
+  epoch-reset design: re-translation after a language switch or restore re-runs
+  the same pure lookup and produces the same result without any stored epoch.
+
+- **`watchdogMs` is injectable on the output hook** (via options, mirroring the
+  input hook's existing test seam). Vitest fakes use a 0 ms watchdog so fallback
+  timeout tests run without real timers.
+
+- **Manual browser smoke deferred to UAT.** The execution environment has no
+  browser; end-to-end visual verification (shimmer appearance, status bar
+  rendering, language-switch mid-game) is deferred to the next UAT session.

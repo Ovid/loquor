@@ -12,7 +12,7 @@ import { emptyView, type ViewState } from '../glkote-react/types'
 import { StatusBar } from './StatusBar'
 import { Scrollback } from './Scrollback'
 import { CommandInput } from './CommandInput'
-import { NlToggle } from './NlToggle'
+import { NlLanguagePicker } from './NlLanguagePicker'
 import { ModelDownloadModal } from './ModelDownloadModal'
 import { detectCapability } from '../llm/capability'
 import { vocabForSignature } from '../llm/grammar/index'
@@ -118,6 +118,7 @@ export function Terminal({
       engineRef.current?.awaitTurn() ??
       Promise.resolve({ view: viewRef.current, reason: 'line' as const }),
     watchdogMs: WATCHDOG_MS,
+    signature, // Task 21 consumes it (per-game noun lexicons); '' until boot resolves
   })
 
   // Turn-boundary scene observation: when the VM is waiting for a line of input,
@@ -150,9 +151,9 @@ export function Terminal({
         onChangeStory={onChangeStory}
         themeToggle={themeToggle}
         nlToggle={
-          <NlToggle
+          <NlLanguagePicker
             state={nl.state}
-            onToggle={nl.toggle}
+            onSelect={nl.setLanguage}
             onOverride={() => setOverride(true)}
           />
         }

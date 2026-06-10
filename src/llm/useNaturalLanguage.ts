@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
+  ActiveLanguage,
   CapabilityResult,
   ChatMessages,
   LlmEngine,
+  NlLanguage,
   NlState,
   PromptContext,
   TranslateResult,
@@ -37,6 +39,11 @@ export interface UseNaturalLanguageArgs {
   sendLine: (text: string) => void
   awaitTurn: () => Promise<TurnResult>
   watchdogMs: number
+  /**
+   * Story signature of the running game. Not consumed yet — Task 21 uses it to
+   * select the per-game noun lexicon for the active language.
+   */
+  signature: string
 }
 
 export interface UseNaturalLanguage {
@@ -44,7 +51,8 @@ export interface UseNaturalLanguage {
   pending: boolean
   notice: string | null
   modalOpen: boolean
-  toggle: () => void
+  /** Pick a language ('off' disables the layer). Sticky via writeNlPref. */
+  setLanguage: (lang: NlLanguage) => void
   requestDownload: () => void
   declineDownload: () => void
   cancelDownload: () => void
@@ -63,7 +71,7 @@ type Internal =
       total: number
       etaSeconds: number | null
     }
-  | { phase: 'on' }
+  | { phase: 'on'; language: ActiveLanguage }
 
 /**
  * Watchdog-timeout sentinel — distinguishes a translation timeout from a genuine
@@ -121,6 +129,9 @@ export function useNaturalLanguage(
   // remaining. Reset at the start of each requestDownload; sampled in its progress
   // callback (a side-effect context — keeps the timing out of render).
   const dlSamplesRef = useRef<ProgressSample[]>([])
+  // The language the player picked when the model wasn't cached yet — the
+  // download modal flow activates THIS language once the load resolves.
+  const pendingLangRef = useRef<ActiveLanguage>('en')
 
   const available = capability.tier !== 'none'
   const hasVocab = vocab !== null
@@ -151,8 +162,13 @@ export function useNaturalLanguage(
         if (cancelled) return
         const cached = c || engine.isLoaded()
         setInstalled(cached)
-        if (cached && readNlPref().language !== 'off') {
-          setInternal(prev => (prev.phase === 'off' ? { phase: 'on' } : prev))
+        const pref = readNlPref()
+        if (cached && pref.language !== 'off') {
+          setInternal(prev =>
+            prev.phase === 'off'
+              ? { phase: 'on', language: pref.language as ActiveLanguage }
+              : prev,
+          )
         }
       })
       .catch(() => {})
@@ -171,7 +187,8 @@ export function useNaturalLanguage(
         total: internal.total,
         etaSeconds: internal.etaSeconds,
       }
-    if (internal.phase === 'on') return { phase: 'on' }
+    if (internal.phase === 'on')
+      return { phase: 'on', language: internal.language }
     return { phase: 'off', installed }
   }, [available, hasVocab, capability.reasons, internal, installed])
 
@@ -206,10 +223,9 @@ export function useNaturalLanguage(
         // The model is now loaded (hence cached) — mark installed directly so the
         // probe effect needn't re-run on the phase change to discover it (S6).
         setInstalled(true)
-        setInternal({ phase: 'on' })
-        // 'en' is a placeholder until the language-picker task supplies the
-        // player's chosen language.
-        writeNlPref({ language: 'en' })
+        // Activate the language the player picked when they triggered the modal.
+        setInternal({ phase: 'on', language: pendingLangRef.current })
+        writeNlPref({ language: pendingLangRef.current })
       })
       .catch(err => {
         if (stale() || (err as Error).name === 'AbortError') {
@@ -235,22 +251,26 @@ export function useNaturalLanguage(
     writeNlPref({ declined: true, language: 'off' })
   }, [])
 
-  const toggle = useCallback(() => {
-    if (!available || !hasVocab) return
-    if (internal.phase === 'on') {
-      setInternal({ phase: 'off' }) // off is instant; model stays cached
-      writeNlPref({ language: 'off' })
-      return
-    }
-    if (installed) {
-      setInternal({ phase: 'on' }) // cached → enable without re-download
-      // 'en' is a placeholder until the language-picker task supplies the
-      // player's chosen language.
-      writeNlPref({ language: 'en' })
-    } else {
-      setModalOpen(true)
-    }
-  }, [available, hasVocab, internal.phase, installed])
+  const setLanguage = useCallback(
+    (lang: NlLanguage) => {
+      if (!available || !hasVocab) return
+      if (lang === 'off') {
+        setInternal({ phase: 'off' }) // off is instant; model stays cached
+        writeNlPref({ language: 'off' })
+        return
+      }
+      if (installed || engine.isLoaded()) {
+        setInternal({ phase: 'on', language: lang }) // cached → no re-download
+        writeNlPref({ language: lang })
+      } else {
+        // No model yet: remember the choice and ask permission to download.
+        // requestDownload activates pendingLangRef.current once the load lands.
+        pendingLangRef.current = lang
+        setModalOpen(true)
+      }
+    },
+    [available, hasVocab, installed, engine],
+  )
 
   // One bounded inference: load the model if it isn't resident yet, then race
   // generate() against a watchdog. Throws WatchdogTimeout on timeout (aborting the
@@ -597,7 +617,7 @@ export function useNaturalLanguage(
     pending,
     notice,
     modalOpen,
-    toggle,
+    setLanguage,
     requestDownload,
     declineDownload,
     cancelDownload,

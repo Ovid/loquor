@@ -69,6 +69,7 @@ function setup(over: Partial<Parameters<typeof useNaturalLanguage>[0]> = {}) {
       sendLine,
       awaitTurn: async () => ({ view: emptyView, reason: 'line' as const }),
       watchdogMs: 5000,
+      signature: 'test-signature', // consumed by Task 21 (per-game lexicons)
       ...over,
     }),
   )
@@ -227,7 +228,7 @@ describe('useNaturalLanguage', () => {
     await waitFor(() =>
       expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
     )
-    act(() => hook.result.current.toggle()) // not installed → opens modal
+    act(() => hook.result.current.setLanguage('en')) // not installed → opens modal
     expect(hook.result.current.modalOpen).toBe(true)
     act(() => hook.result.current.declineDownload())
     expect(hook.result.current.modalOpen).toBe(false)
@@ -240,10 +241,74 @@ describe('useNaturalLanguage', () => {
     await waitFor(() =>
       expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
     )
-    act(() => hook.result.current.toggle()) // not installed → opens modal
+    act(() => hook.result.current.setLanguage('en')) // not installed → opens modal
     act(() => hook.result.current.declineDownload())
     expect(readNlPref().language).toBe('off')
     expect(readNlPref().declined).toBe(true)
+  })
+
+  it('setLanguage on a cached model activates that language and persists it', async () => {
+    const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
+    await waitFor(() =>
+      expect(hook.result.current.state).toEqual({
+        phase: 'off',
+        installed: true,
+      }),
+    )
+    act(() => hook.result.current.setLanguage('fr'))
+    expect(hook.result.current.state).toEqual({ phase: 'on', language: 'fr' })
+    expect(readNlPref().language).toBe('fr')
+    expect(hook.result.current.modalOpen).toBe(false) // cached → no re-prompt
+  })
+
+  it('setLanguage with no cached model opens the modal; accepting activates THAT language', async () => {
+    const { hook } = setup() // not cached
+    await waitFor(() =>
+      expect(hook.result.current.state).toEqual({
+        phase: 'off',
+        installed: false,
+      }),
+    )
+    act(() => hook.result.current.setLanguage('de'))
+    expect(hook.result.current.modalOpen).toBe(true)
+    expect(hook.result.current.state.phase).toBe('off') // nothing active yet
+    act(() => hook.result.current.requestDownload())
+    await waitFor(() =>
+      expect(hook.result.current.state).toEqual({
+        phase: 'on',
+        language: 'de',
+      }),
+    )
+    expect(readNlPref().language).toBe('de')
+  })
+
+  it('boot restore: a stored language reactivates against a cached model', async () => {
+    localStorage.setItem(
+      'loquor.nl',
+      JSON.stringify({ language: 'es', declined: false }),
+    )
+    const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
+    await waitFor(() =>
+      expect(hook.result.current.state).toEqual({
+        phase: 'on',
+        language: 'es',
+      }),
+    )
+  })
+
+  it("setLanguage('off') turns the layer off and persists 'off'", async () => {
+    const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
+    )
+    act(() => hook.result.current.setLanguage('fr'))
+    expect(hook.result.current.state).toEqual({ phase: 'on', language: 'fr' })
+    act(() => hook.result.current.setLanguage('off'))
+    expect(hook.result.current.state).toEqual({
+      phase: 'off',
+      installed: true,
+    })
+    expect(readNlPref().language).toBe('off')
   })
 
   it('cancelDownload aborts an in-flight load, reverts to off, persists nothing', async () => {

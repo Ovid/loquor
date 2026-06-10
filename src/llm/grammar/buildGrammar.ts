@@ -1,6 +1,5 @@
 // src/llm/grammar/buildGrammar.ts
 import type { Vocab } from './types'
-import type { Scene } from '../scene/types'
 import { ABSTAIN } from '../translate'
 
 // XGrammar's EBNF parser (W3C XML notation; see web-llm's Grammar.fromEBNF doc)
@@ -23,13 +22,16 @@ const CLOSE = '"}"'
 const ABSTAIN_TERM = `"{${DQ}verb${DQ}:${DQ}${ABSTAIN}${DQ}}"`
 
 /**
- * Build a JSON-shaped GBNF for this turn. The `noun` production is filled from
- * `scene.inScope` (canonicals only — no pronoun terminal; the model resolves
- * pronouns itself per locked decision 6). When scope is empty, only verb-only /
- * movement / abstain are producible, so the model cannot invent an object.
+ * Build a JSON-shaped GBNF for this turn. The `noun` production is the FULL
+ * game vocab's emit forms (NL v2 §7): the model can always name any real
+ * object; a wrong-room object gets the Z-machine's own honest "You can't see
+ * any X here!". Scope is a prompt HINT only — never a constraint (the v1
+ * scene-driven grammar was the root cause of the wrong-object-snap class,
+ * UAT F-F/F-Q/F-H). No pronoun terminal: the model resolves pronouns itself
+ * per locked decision 6.
  */
-export function buildGrammar(vocab: Vocab, scene: Scene): string {
-  const nouns = scene.inScope.map(o => o.canonical)
+export function buildGrammar(vocab: Vocab): string {
+  const nouns = vocab.nouns.map(n => n.emit)
   const hasNouns = nouns.length > 0
   const hasV2 = hasNouns && vocab.verbs2.length > 0
 

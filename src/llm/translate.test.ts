@@ -10,7 +10,6 @@ import {
 } from './translate'
 import { META_COMMANDS } from './meta'
 import { FR_CORE } from './lexicon/fr.core'
-import type { Scene } from './scene/types'
 import type { Vocab } from './grammar/types'
 import {
   TAKE_ACK,
@@ -33,25 +32,18 @@ const vocab: Vocab = {
     { canonical: 'grating', emit: 'grating' },
     { canonical: 'key', emit: 'key' },
     { canonical: 'leaflet', emit: 'leaflet' },
+    // In the vocab but never "in scope" anywhere in these tests: under NL v2 §7
+    // parseCommand is vocab-gated, scope-free — naming it must still validate.
+    { canonical: 'trap door', emit: 'trapdoor' },
   ],
   takeAck: TAKE_ACK,
   dropAck: DROP_ACK,
   absencePat: ABSENCE_PAT,
 }
-const scene: Scene = {
-  inScope: [
-    { canonical: 'grating' },
-    { canonical: 'key' },
-    { canonical: 'leaflet' },
-  ],
-  antecedent: 'leaflet',
-}
 
-describe('parseCommand', () => {
+describe('parseCommand (vocab-gated, scope-free)', () => {
   it('serializes a single-object command', () => {
-    expect(
-      parseCommand('{"verb":"take","object":"leaflet"}', scene, vocab),
-    ).toEqual({
+    expect(parseCommand('{"verb":"take","object":"leaflet"}', vocab)).toEqual({
       kind: 'command',
       text: 'take leaflet',
     })
@@ -61,17 +53,40 @@ describe('parseCommand', () => {
     expect(
       parseCommand(
         '{"verb":"unlock","object":"grating","prep":"with","indirect":"key"}',
-        scene,
         vocab,
       ),
     ).toEqual({ kind: 'command', text: 'unlock grating with key' })
   })
 
   it('serializes a verb-only command', () => {
-    expect(parseCommand('{"verb":"look"}', scene, vocab)).toEqual({
+    expect(parseCommand('{"verb":"look"}', vocab)).toEqual({
       kind: 'command',
       text: 'look',
     })
+  })
+
+  it('accepts an object that is in vocab but NOT in scope (honest Z-machine failure downstream)', () => {
+    // NL v2 §7: scope is a prompt hint only. A wrong-room object passes through
+    // and gets the Z-machine's own "You can't see any trapdoor here!".
+    expect(parseCommand('{"verb":"open","object":"trapdoor"}', vocab)).toEqual({
+      kind: 'command',
+      text: 'open trapdoor',
+    })
+  })
+
+  it('rejects an object not in the vocab emit set', () => {
+    expect(parseCommand('{"verb":"open","object":"zeppelin"}', vocab)).toEqual({
+      kind: 'abstain',
+    })
+  })
+
+  it('rejects an indirect object not in the vocab emit set', () => {
+    expect(
+      parseCommand(
+        '{"verb":"unlock","object":"grating","prep":"with","indirect":"zeppelin"}',
+        vocab,
+      ),
+    ).toEqual({ kind: 'abstain' })
   })
 
   it('classifies an overlapping verbs1/verbs2 verb by the emitted shape (C1)', () => {
@@ -80,65 +95,53 @@ describe('parseCommand', () => {
     expect(
       parseCommand(
         '{"verb":"open","object":"grating","prep":"with","indirect":"key"}',
-        scene,
         vocab,
       ),
     ).toEqual({ kind: 'command', text: 'open grating with key' })
     // …and the one-object emission still takes the verbs1 branch.
-    expect(
-      parseCommand('{"verb":"open","object":"grating"}', scene, vocab),
-    ).toEqual({ kind: 'command', text: 'open grating' })
+    expect(parseCommand('{"verb":"open","object":"grating"}', vocab)).toEqual({
+      kind: 'command',
+      text: 'open grating',
+    })
   })
 
   it('overlapping verb with a half-formed two-object shape → abstain', () => {
     // prep present but no indirect: neither a valid verbs1 nor verbs2 shape.
     expect(
-      parseCommand(
-        '{"verb":"open","object":"grating","prep":"with"}',
-        scene,
-        vocab,
-      ),
+      parseCommand('{"verb":"open","object":"grating","prep":"with"}', vocab),
     ).toEqual({ kind: 'abstain' })
   })
 
   it('__UNKNOWN__ verb → abstain', () => {
-    expect(parseCommand('{"verb":"__UNKNOWN__"}', scene, vocab)).toEqual({
+    expect(parseCommand('{"verb":"__UNKNOWN__"}', vocab)).toEqual({
       kind: 'abstain',
     })
   })
 
-  it('out-of-scope object → abstain', () => {
-    const s: Scene = { inScope: [{ canonical: 'key' }], antecedent: null }
-    expect(
-      parseCommand('{"verb":"take","object":"grating"}', s, vocab),
-    ).toEqual({ kind: 'abstain' })
-  })
-
   it('verbs2 missing prep/indirect → abstain', () => {
-    expect(
-      parseCommand('{"verb":"unlock","object":"grating"}', scene, vocab),
-    ).toEqual({ kind: 'abstain' })
+    expect(parseCommand('{"verb":"unlock","object":"grating"}', vocab)).toEqual(
+      { kind: 'abstain' },
+    )
   })
 
   it('verbs1 carrying prep/indirect → abstain', () => {
     expect(
       parseCommand(
         '{"verb":"take","object":"key","prep":"with","indirect":"grating"}',
-        scene,
         vocab,
       ),
     ).toEqual({ kind: 'abstain' })
   })
 
   it('unknown verb → abstain', () => {
-    expect(
-      parseCommand('{"verb":"frobnicate","object":"key"}', scene, vocab),
-    ).toEqual({ kind: 'abstain' })
+    expect(parseCommand('{"verb":"frobnicate","object":"key"}', vocab)).toEqual(
+      { kind: 'abstain' },
+    )
   })
 
   it('malformed JSON → abstain', () => {
-    expect(parseCommand('not json', scene, vocab)).toEqual({ kind: 'abstain' })
-    expect(parseCommand('', scene, vocab)).toEqual({ kind: 'abstain' })
+    expect(parseCommand('not json', vocab)).toEqual({ kind: 'abstain' })
+    expect(parseCommand('', vocab)).toEqual({ kind: 'abstain' })
   })
 })
 

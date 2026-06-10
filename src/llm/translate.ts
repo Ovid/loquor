@@ -1,6 +1,5 @@
 // src/llm/translate.ts
 import type { TranslateResult } from './types'
-import type { Scene } from './scene/types'
 import type { Vocab } from './grammar/types'
 import { META_COMMANDS } from './meta'
 import type { CoreLexicon } from './lexicon/types'
@@ -230,16 +229,15 @@ interface RawCmd {
 }
 
 /**
- * Validate the GBNF-guaranteed JSON command against the scene and serialize the
- * canonical command string. Pure + total. No pronoun resolution: under locked
- * decision 6 the model has already mapped pronouns to in-scope canonicals, so a
- * pronoun can never appear here.
+ * Validate the GBNF-guaranteed JSON command against the VOCAB and serialize the
+ * canonical command string. Pure + total. Scope-free (NL v2 §7): objects are
+ * gated on the vocab's emit set only, so an in-vocab-but-out-of-scope object
+ * passes through and earns the Z-machine's own honest "You can't see any X
+ * here!" — scope is a prompt hint, never a validation constraint. No pronoun
+ * resolution: under locked decision 6 the model has already mapped pronouns to
+ * canonicals, so a pronoun can never appear here.
  */
-export function parseCommand(
-  rawJson: string,
-  scene: Scene,
-  vocab: Vocab,
-): TranslateResult {
+export function parseCommand(rawJson: string, vocab: Vocab): TranslateResult {
   let cmd: RawCmd
   try {
     cmd = JSON.parse(rawJson.trim()) as RawCmd
@@ -253,7 +251,7 @@ export function parseCommand(
   const object = typeof cmd.object === 'string' ? cmd.object : undefined
   const prep = typeof cmd.prep === 'string' ? cmd.prep : undefined
   const indirect = typeof cmd.indirect === 'string' ? cmd.indirect : undefined
-  const inScope = new Set(scene.inScope.map(o => o.canonical))
+  const emits = new Set(vocab.nouns.map(n => n.emit))
 
   const isOnly = vocab.verbsOnly.includes(verb) || vocab.movement.includes(verb)
   const is1 = vocab.verbs1.includes(verb)
@@ -268,14 +266,13 @@ export function parseCommand(
     if (!is2) return { kind: 'abstain' }
     if (object === undefined || prep === undefined || indirect === undefined)
       return { kind: 'abstain' }
-    if (!inScope.has(object) || !inScope.has(indirect))
-      return { kind: 'abstain' }
+    if (!emits.has(object) || !emits.has(indirect)) return { kind: 'abstain' }
     if (!vocab.preps.includes(prep)) return { kind: 'abstain' }
     return { kind: 'command', text: `${verb} ${object} ${prep} ${indirect}` }
   }
   if (object !== undefined) {
     if (!is1) return { kind: 'abstain' }
-    if (!inScope.has(object)) return { kind: 'abstain' }
+    if (!emits.has(object)) return { kind: 'abstain' }
     return { kind: 'command', text: `${verb} ${object}` }
   }
   if (!isOnly) return { kind: 'abstain' }

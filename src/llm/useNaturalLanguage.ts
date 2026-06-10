@@ -349,7 +349,9 @@ export function useNaturalLanguage(
             result: { kind: 'command', text: dir },
             raw: `{"verb":"${dir}"}`,
           }
-        const grammar = buildGrammar(vocab, scene)
+        // NL v2 §7: the grammar is the FULL vocab — scope feeds the prompt
+        // hint below, never the grammar or the validator.
+        const grammar = buildGrammar(vocab)
         const base = getContext()
         const ctx: PromptContext = {
           ...base,
@@ -357,7 +359,7 @@ export function useNaturalLanguage(
           antecedent: scene.antecedent,
         }
         const raw = await generateRaw(buildPrompt(clause, ctx, vocab), grammar)
-        return { result: parseCommand(raw, scene, vocab), raw }
+        return { result: parseCommand(raw, vocab), raw }
       }
 
       // Bounded wait for the clause's turn boundary: race awaitTurn() against a

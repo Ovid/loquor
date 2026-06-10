@@ -4,7 +4,8 @@
 // captured as raw GlkOte update objects by scripts/capture-walkthrough.mjs
 // (`make capture-walkthrough`). CI never replays the VM — we only fold the
 // committed updates through the reducer. The strict zero-miss coverage gate
-// over these lines lands with the FR string corpus (Task 17).
+// over these lines is live (Task 17); the off-path string inventory has its
+// own gate in inventory.test.ts.
 import { describe, it, expect } from 'vitest'
 import updates from '../../test/zork1.walkthrough.en.json'
 import { reduce } from '../../glkote-react/reduce'
@@ -29,7 +30,7 @@ describe('walkthrough fixture (spec §7.3)', () => {
     expect(lines.some(l => l.text.includes('Inside the Barrow'))).toBe(true)
   })
 
-  it('reports walkthrough misses (authoring aid — replaced by the strict gate)', () => {
+  it('ZERO misses on the golden path — "instant is required" as a test (spec §7.3)', () => {
     const c = compileCorpus(ZORK1_FR)
     const misses = new Set<string>()
     for (const l of walkthroughLines()) {
@@ -37,8 +38,6 @@ describe('walkthrough fixture (spec §7.3)', () => {
       const en = normalize(splitIndent(l.text).body)
       if (en && en !== '>' && matchLine(c, en) === null) misses.add(en)
     }
-    console.log(`[corpus] walkthrough misses: ${misses.size}`)
-    for (const m of [...misses].slice(0, 40)) console.log('  MISS:', m)
-    expect(misses.size).toBeGreaterThanOrEqual(0) // report-only while authoring
+    expect([...misses]).toEqual([])
   })
 })

@@ -559,7 +559,10 @@ describe('UAT regression rows (pipeline-level, real Zork I data)', () => {
         expect(sent).toEqual([]) // F-R policy: no raw foreign leak, no turn burned
         expect(hook.result.current.notice).toMatch(/couldn.t translate/i)
       } else {
-        expect(sent.at(-1)).toBe(c.expectSent)
+        // Exact-array assert: every non-null row is single-clause, so this
+        // also catches EXTRA sends (the F-S silent-turn-burn failure class).
+        expect(sent).toEqual([c.expectSent])
+        expect(hook.result.current.notice).toBeNull()
       }
       if (!c.llmAllowed) expect(engine.generateCalls).toBe(0)
     })

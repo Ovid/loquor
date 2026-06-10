@@ -767,6 +767,56 @@ describe('useNaturalLanguage', () => {
     expect(hook.result.current.notice).toBe('Ran 1 of 2 actions.')
   })
 
+  it('compound: an engine error on the FIRST clause is noticed and logged even for English ([B])', async () => {
+    // Stage 8 used to check activeLang==='en' before stopError: an EN
+    // compound whose first clause hit a genuine engine error took the bare
+    // raw-send branch — no notice, no console.error (mid-compound errors
+    // never propagate to the drain's catch). The failure then looked exactly
+    // like a deliberate abstain fallback.
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const engine = new FakeLlmEngine({ cached: true, failGenerate: true })
+    const { hook, sendLine } = setup({ engine })
+    await reachOn(hook)
+    await act(async () => {
+      await hook.result.current.translate('sing a ditty and dance a jig')
+    })
+    // EN still raw-sends (Zork chains compounds natively) — but labeled:
+    expect(sendLine).toHaveBeenCalledWith('sing a ditty and dance a jig')
+    expect(hook.result.current.notice).toMatch(/translation failed/i)
+    expect(errSpy).toHaveBeenCalledWith(
+      '[nl] translation failed:',
+      expect.anything(),
+    )
+    errSpy.mockRestore()
+  })
+
+  it('compound: a mid-sequence engine error labels the truncation notice ([B])', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const engine = new FakeLlmEngine({ cached: true, failGenerate: true })
+    // Clause 1 never reaches the engine (stage-5 direction); clause 2 does.
+    const movedView = viewState(
+      'North of House',
+      ['north', 'You are facing the north side of a white house.'],
+      'north',
+    )
+    const { hook, sendLine } = setup({
+      engine,
+      awaitTurn: turnScript([movedView]),
+    })
+    await reachOn(hook)
+    await act(async () => {
+      await hook.result.current.translate('north and xyzzy the grue')
+    })
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['north'])
+    expect(hook.result.current.notice).toMatch(/translation failed/i)
+    expect(hook.result.current.notice).toMatch(/ran 1 of 2/i)
+    expect(errSpy).toHaveBeenCalledWith(
+      '[nl] translation failed:',
+      expect.anything(),
+    )
+    errSpy.mockRestore()
+  })
+
   // INVERTED for UAT F-G (NL v2 §10): "It is already open." is a SOFT no-op —
   // the player's plan is already satisfied, so the compound sequence must keep
   // going. (This test previously asserted the old stop-on-no-op behavior.)

@@ -674,32 +674,58 @@ export function useNaturalLanguage(
             JSON.stringify({ stopReason, done, total }),
           )
 
+        // A genuine engine error mid-compound never propagates to the drain's
+        // catch (total>1 swallows it above), so it is logged HERE, before any
+        // branching, to keep the "generate failures stay diagnosable"
+        // contract on every path ([B]).
+        if (stopError !== null && !(stopError instanceof WatchdogTimeout))
+          console.error('[nl] translation failed:', stopError)
+
         if (done === 0) {
           // STAGE 8 — abstain policy (spec §4, UAT F-R). English: the raw line
           // goes to the Z-parser, whose own error message is genuinely useful.
           // Non-English: raw French/German/Spanish would only earn a useless
           // "I don't know the word …" AND burn a game turn — send NOTHING and
-          // show a styled notice instead.
+          // show a styled notice instead. Engine errors are checked FIRST
+          // ([B]): EN still raw-sends, but a translator failure must not
+          // masquerade as a deliberate abstain — it gets the failure notice.
           lastCommandRef.current = null
-          if (activeLang === 'en') {
-            sendTracked(line)
-          } else if (stopError !== null) {
+          if (stopError !== null) {
             // The translator broke (timeout/engine error) — don't blame the
-            // player's wording (Task 21 review). Nothing was sent: the non-EN
-            // abstain policy still holds.
-            setNotice(
-              stopError instanceof WatchdogTimeout
-                ? 'Translation timed out — nothing sent.'
-                : 'Translation failed — nothing sent.',
-            )
+            // player's wording (Task 21 review).
+            const timedOut = stopError instanceof WatchdogTimeout
+            if (activeLang === 'en') {
+              sendTracked(line)
+              setNotice(
+                timedOut
+                  ? 'Translation timed out — sent as typed.'
+                  : 'Translation failed — sent as typed.',
+              )
+            } else {
+              // Nothing was sent: the non-EN abstain policy still holds.
+              setNotice(
+                timedOut
+                  ? 'Translation timed out — nothing sent.'
+                  : 'Translation failed — nothing sent.',
+              )
+            }
+          } else if (activeLang === 'en') {
+            sendTracked(line)
           } else {
             setNotice(
               'Couldn’t translate — try simpler wording, or quote a command: "open mailbox"',
             )
           }
         } else if (done < total) {
-          // Truncated sequence → make it visible (decision 7).
-          setNotice(`Ran ${done} of ${total} actions.`)
+          // Truncated sequence → make it visible (decision 7); an engine
+          // error labels the notice so it can't pass for a quiet stop ([B]).
+          setNotice(
+            stopError === null
+              ? `Ran ${done} of ${total} actions.`
+              : stopError instanceof WatchdogTimeout
+                ? `Translation timed out — ran ${done} of ${total} actions.`
+                : `Translation failed — ran ${done} of ${total} actions.`,
+          )
         }
         // A mid-sequence interactive prompt must flush the queue too (F-A):
         // whatever the player typed ahead, the game is now asking a question.

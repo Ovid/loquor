@@ -39,7 +39,7 @@ suite pinning every UAT-1/UAT-2 finding. Sources of truth, in priority order:
 6. `docs/notes.md` — the deferred LLM/grammar roadmap (post-first-NL-pass ideas).
 
 Read the relevant spec/plan before writing code. NL-layer work happens on
-feature branches (currently `ovid/more-parser-work`); **execute plans with
+feature branches; **execute plans with
 `superpowers:subagent-driven-development` or `superpowers:executing-plans`.**
 
 ## Read-only vendored directories (NEVER modify)

@@ -45,7 +45,7 @@ export class FakeLlmEngine implements LlmEngine {
 
   async generate(
     prompt: ChatMessages,
-    _grammar: string,
+    _grammar: string | null,
     signal?: AbortSignal,
   ): Promise<string> {
     this.generateCalls++

@@ -39,7 +39,9 @@ export interface LlmEngine {
   ): Promise<void>
   generate(
     prompt: ChatMessages,
-    grammar: string,
+    /** GBNF grammar for constrained decoding, or null for plain text
+     * (output-translation fallback, spec §6). */
+    grammar: string | null,
     signal?: AbortSignal,
   ): Promise<string>
   unload(): Promise<void>

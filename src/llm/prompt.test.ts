@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { viewToContext, buildPrompt } from './prompt'
+import { parseCommand } from './translate'
 import { emptyView } from '../glkote-react/types'
 import type { ViewState } from '../glkote-react/types'
 import type { PromptContext } from './types'
@@ -73,8 +74,27 @@ describe('buildPrompt', () => {
       'en',
     )
     expect(msgs[0].content).toContain('mailbox')
-    expect(msgs[0].content).toContain('leaflet')
+    // The canonical 'leaflet' is rendered in its EMIT form (see the emit-form
+    // hint test below) — but the hint lines themselves must be present.
+    expect(msgs[0].content).toContain('advertisement')
     expect(msgs[0].content.toLowerCase()).toContain('most recently mentioned')
+  })
+
+  it('renders hint lines in emit forms — the only nouns the grammar can produce', () => {
+    // The grammar only accepts emit forms (buildGrammar maps n.emit, parseCommand
+    // rejects everything else), so a hint naming the canonical 'leaflet' or
+    // 'hand-held air pump' would steer the model toward unproducible outputs.
+    const msgs = buildPrompt(
+      'take it',
+      ctx({ inScope: ['hand-held air pump'], antecedent: 'leaflet' }),
+      ZORK1_VOCAB,
+      'en',
+    )
+    const sys = msgs[0].content
+    expect(sys).toContain('advertisement')
+    expect(sys).toContain('pump')
+    expect(sys).not.toContain('leaflet')
+    expect(sys).not.toContain('hand-held air pump')
   })
 
   it('instructs the model to keep the player’s verb and only map the pronoun', () => {
@@ -179,6 +199,13 @@ describe('buildPrompt (NL v2 §7)', () => {
           expect(m.content).not.toContain('\n')
           const o = JSON.parse(m.content) as { verb?: unknown }
           expect(typeof o.verb).toBe('string')
+          // Every few-shot must survive the REAL validator: the grammar only
+          // produces emit forms, so a few-shot demonstrating a non-emit noun
+          // (e.g. canonical 'leaflet' instead of emit 'advertisement') would be
+          // teaching the model an output it can never actually produce.
+          expect(parseCommand(m.content, ZORK1_VOCAB)).toMatchObject({
+            kind: 'command',
+          })
         }
   })
 

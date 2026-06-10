@@ -71,8 +71,10 @@ const PROMPT_VERB_CORE = [
 
 // Few-shots per language (spec §7): a drop-verb (the F-M/F-Q inverse-verb
 // trap), a two-object "X avec Y" ordering (UAT F7), and a pronoun. Assistant
-// turns are EXACTLY the JSON the grammar produces. Nouns use Zork I emit
-// forms — for other games they are guidance only; the grammar gates validity.
+// turns are EXACTLY the JSON the grammar produces, validated against
+// parseCommand(·, ZORK1_VOCAB) in prompt.test.ts — so nouns are Zork I EMIT
+// forms (e.g. 'advertisement', not the canonical 'leaflet'). For other games
+// they are guidance only; the grammar gates validity.
 const FEWSHOTS: Record<ActiveLanguage, ChatMessages> = {
   en: [
     { role: 'user', content: 'put the sword down' },
@@ -86,7 +88,7 @@ const FEWSHOTS: Record<ActiveLanguage, ChatMessages> = {
     // EN pronouns ALWAYS reach the LLM (stage 4 rejects 'it'), so the pronoun
     // few-shot matters most here (spec §7: drop-verb, two-object, pronoun).
     { role: 'user', content: 'take it' },
-    { role: 'assistant', content: '{"verb":"take","object":"leaflet"}' },
+    { role: 'assistant', content: '{"verb":"take","object":"advertisement"}' },
   ],
   fr: [
     { role: 'user', content: 'pose l’épée' },
@@ -98,7 +100,7 @@ const FEWSHOTS: Record<ActiveLanguage, ChatMessages> = {
         '{"verb":"attack","object":"troll","prep":"with","indirect":"sword"}',
     },
     { role: 'user', content: 'prends-le' },
-    { role: 'assistant', content: '{"verb":"take","object":"leaflet"}' },
+    { role: 'assistant', content: '{"verb":"take","object":"advertisement"}' },
   ],
   de: [
     { role: 'user', content: 'lass das Schwert fallen' },
@@ -110,7 +112,7 @@ const FEWSHOTS: Record<ActiveLanguage, ChatMessages> = {
         '{"verb":"attack","object":"troll","prep":"with","indirect":"sword"}',
     },
     { role: 'user', content: 'nimm ihn' },
-    { role: 'assistant', content: '{"verb":"take","object":"leaflet"}' },
+    { role: 'assistant', content: '{"verb":"take","object":"advertisement"}' },
   ],
   es: [
     { role: 'user', content: 'suelta la espada' },
@@ -122,7 +124,7 @@ const FEWSHOTS: Record<ActiveLanguage, ChatMessages> = {
         '{"verb":"attack","object":"troll","prep":"with","indirect":"sword"}',
     },
     { role: 'user', content: 'tómalo' },
-    { role: 'assistant', content: '{"verb":"take","object":"leaflet"}' },
+    { role: 'assistant', content: '{"verb":"take","object":"advertisement"}' },
   ],
 }
 
@@ -145,15 +147,21 @@ export function buildPrompt(
     'If you cannot tell which object a pronoun means, if the verb you need is not in the allowed list, or the input is not a game action you can express, output {"verb":"__UNKNOWN__"}.',
   ]
   if (ctx.location) lines.push(`Current location: ${ctx.location}`)
+  // Hints arrive as CANONICAL names (scene tracker keys), but the grammar only
+  // accepts EMIT forms — so hints must name objects the model can actually
+  // output (the canonical 'leaflet' is unproducible; the hint must say
+  // 'advertisement'). Fall back to the raw string when no noun matches.
+  const toEmit = (name: string): string =>
+    vocab.nouns.find(n => n.canonical === name)?.emit ?? name
   // NL v2 §7: scope is a HINT, never a constraint — the grammar is full-vocab
   // (Task 15), so the model may name any game object the player did.
   if (ctx.inScope.length)
     lines.push(
-      `Objects present or carried (a hint — other objects exist too): ${ctx.inScope.join(', ')}`,
+      `Objects present or carried (a hint — other objects exist too): ${ctx.inScope.map(toEmit).join(', ')}`,
     )
   if (ctx.antecedent)
     lines.push(
-      `Most recently mentioned (resolve pronouns to this): ${ctx.antecedent}`,
+      `Most recently mentioned (resolve pronouns to this): ${toEmit(ctx.antecedent)}`,
     )
   // Movement & verb guidance (H1 fix). The prompt above lists in-scope OBJECTS but,
   // without this, never the verbs or the directions — so the model mapped "go"/"allez"

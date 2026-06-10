@@ -332,6 +332,8 @@ describe('NL v2 §8 — scope demoted, tracker contract pinned (F-AA/F-T)', () =
     t.observe(
       ev({ location: 'Kitchen', outputText: 'Taken.', lastCommand: 'take lamp' }),
     )
+    // pins the take-without-prior-mention push branch (reduceScene's inScope.push)
+    expect(t.scene().inScope.find(o => o.canonical === 'lamp')?.carried).toBe(true)
     t.observe(
       ev({ location: 'Kitchen', outputText: 'Dropped.', lastCommand: 'drop lamp' }),
     )

@@ -24,7 +24,12 @@ import {
   isDisambiguationPrompt,
   splitClauses,
   clauseFailed,
+  unquote,
+  isVocabPassthrough,
 } from './translate'
+import { coreLexicon, nounLexicon, lexiconWordSet } from './lexicon/index'
+import { parseLexicon } from './lexicon/parse'
+import type { LexLang } from './lexicon/types'
 import { parseDirection } from './directions'
 import { pct as toPct, estimateRemainingSeconds } from './progress'
 import type { ProgressSample } from './progress'
@@ -39,10 +44,8 @@ export interface UseNaturalLanguageArgs {
   sendLine: (text: string) => void
   awaitTurn: () => Promise<TurnResult>
   watchdogMs: number
-  /**
-   * Story signature of the running game. Not consumed yet — Task 21 uses it to
-   * select the per-game noun lexicon for the active language.
-   */
+  /** Story signature of the running game — selects the per-game noun lexicon
+   * for the active non-English language (spec §5.2). */
   signature: string
 }
 
@@ -88,6 +91,19 @@ class WatchdogTimeout extends Error {
 /** Safety cap: at most this many clauses run per compound input (locked decision 6). */
 const MAX_CLAUSES = 8
 
+/** Which pipeline stage produced a clause's command (spec §4 stages 3–7). */
+type Stage = 'meta' | 'alias' | 'vocab' | 'direction' | 'lexicon' | 'llm'
+
+/** Stages whose output DIFFERS from the player's typed words: these echo the
+ * original input once as a UI-only nl-source line. Passthrough stages ('meta',
+ * 'alias', 'vocab') send the player's own words (or a fixed canonical), so the
+ * transcript needs no echo — today's contract, kept per stage. */
+const TRANSLATED_STAGES: ReadonlySet<Stage> = new Set([
+  'direction',
+  'lexicon',
+  'llm',
+])
+
 /** TEMP [nl debug] diagnostics, dev browser only — release builds must not spam
  * the console or leak player input (review), and test runs stay quiet so real
  * problems stand out. Remove with the call sites once translation quality is
@@ -109,6 +125,7 @@ export function useNaturalLanguage(
     sendLine,
     awaitTurn,
     watchdogMs,
+    signature,
   } = args
   const [internal, setInternal] = useState<Internal>({ phase: 'off' })
   const [installed, setInstalled] = useState(false)
@@ -190,6 +207,23 @@ export function useNaturalLanguage(
       return { phase: 'on', language: internal.language }
     return { phase: 'off', installed }
   }, [available, hasVocab, capability.reasons, internal, installed])
+
+  // The active picker language ('off' while the layer is off/downloading) and,
+  // for non-English languages, the deterministic lexicons keyed by (language,
+  // story signature). `lex` is null for en/off: stage 6 is skipped and stage 4
+  // needs no collision guard (spec §4). nouns may be null for an unknown
+  // signature — the core stages (alias, collision guard) still apply.
+  const language: NlLanguage =
+    internal.phase === 'on' ? internal.language : 'off'
+  const lex = useMemo(() => {
+    if (language !== 'fr' && language !== 'de' && language !== 'es') return null
+    const lang: LexLang = language
+    return {
+      core: coreLexicon(lang),
+      nouns: nounLexicon(lang, signature),
+      words: lexiconWordSet(lang, signature),
+    }
+  }, [language, signature])
 
   const requestDownload = useCallback(() => {
     setNotice(null)
@@ -314,31 +348,13 @@ export function useNaturalLanguage(
         sendLine(english)
         return
       }
-      // Z-machine meta-verbs (restart, save, quit…) are not in-world actions and
-      // have no canonical translation — send them straight to the interpreter
-      // rather than let the model invent a wrong command for them. Mirrors the
-      // abstain path: no echo, no command latch.
-      if (isMetaCommand(english)) {
-        lastCommandRef.current = null
-        sendLine(english)
-        return
-      }
-      // A localized command word (e.g. French "inventaire") is sent to the
-      // interpreter as its English canonical ("inventory"), bypassing the model so
-      // a known non-English command can't be mistranslated (UAT F5). Dormant
-      // until the active core lexicon is wired through.
-      // TODO(Task 21): pass the active core lexicon
-      const alias = metaAlias(english, null)
-      if (alias) {
-        lastCommandRef.current = null
-        sendLine(alias)
-        return
-      }
-      // The game's own prompts are read as line input too: a yes/no confirmation
-      // (restart/quit/restore) or a parser disambiguation ("Which door…?"). The
-      // player's reply answers the interpreter and must not be translated — else
-      // "Y" → "look" (restart never confirms) or "wooden door" gets mangled. Pass
-      // it raw so Zork's own parser handles the reply.
+      // STAGE 1 (spec §4): the game is asking. The interpreter's yes/no
+      // confirmations (restart/quit/restore) and the parser's disambiguation
+      // questions ("Which door…?") are read as ordinary LINE input, so the
+      // player's reply answers the INTERPRETER and must not be translated —
+      // else "Y" → "look" (restart never confirms) or "wooden door" gets
+      // mangled. Checked before the clause split so a reply containing "and"
+      // is never split either.
       const recentOutput = getContext().recentOutput
       if (
         isConfirmationPrompt(recentOutput) ||
@@ -348,28 +364,74 @@ export function useNaturalLanguage(
         sendLine(english)
         return
       }
+      // STAGE 2 (locked decision 8): a fully-quoted line ("…", «…», „…“, “…”)
+      // is the escape hatch — send the unquoted text verbatim, bypassing every
+      // translation stage. No echo, no latch: the player typed the command.
+      const quoted = unquote(english)
+      if (quoted) {
+        lastCommandRef.current = null
+        sendLine(quoted)
+        return
+      }
       translatingRef.current = true
       setPending(true)
       setNotice(null)
 
-      // Translate one clause against the given live scene, returning the parsed
-      // result. Shared by the single-command path and the per-clause compound loop.
-      const generateClause = async (
+      // Run ONE clause through the deterministic-first stages 3–7 (spec §4)
+      // against the given live scene. `raw` is synthetic for the deterministic
+      // stages — only the [nl debug] log consumes it.
+      const runClause = async (
         clause: string,
         scene: Scene,
-      ): Promise<{ result: TranslateResult; raw: string }> => {
-        // Direction fast-path: movement is a closed, multilingual set resolved
-        // deterministically in code — correct in every supported language and with
-        // no model round-trip (UAT F8). Applies to single commands and to each
-        // clause of a compound. `raw` is synthetic, only for the [nl debug] log.
+      ): Promise<{ result: TranslateResult; raw: string; stage: Stage }> => {
+        // 3. Z-machine meta-verbs (restart, save, quit…) are not in-world
+        // actions and have no canonical translation — route them raw so the
+        // model can't invent a wrong command for them. A localized command
+        // word (fr "inventaire") maps to its English canonical via the ACTIVE
+        // core lexicon (UAT F5), again bypassing the model.
+        if (isMetaCommand(clause))
+          return {
+            result: { kind: 'command', text: clause },
+            raw: '(meta)',
+            stage: 'meta',
+          }
+        const alias = metaAlias(clause, lex?.core ?? null)
+        if (alias)
+          return {
+            result: { kind: 'command', text: alias },
+            raw: '(alias)',
+            stage: 'alias',
+          }
+        // 4. Every token is already a word the game's parser knows → send the
+        // clause verbatim, no inference (the F-H killer). COLLISION GUARD: a
+        // token that is also an active-lexicon word disqualifies passthrough —
+        // the clause must go through the lexicon parse instead (spec §4).
+        if (isVocabPassthrough(clause, vocab, lex?.words ?? null))
+          return {
+            result: { kind: 'command', text: clause.trim() },
+            raw: '(vocab)',
+            stage: 'vocab',
+          }
+        // 5. Direction fast-path: movement is a closed, multilingual set
+        // resolved deterministically in code — correct in every supported
+        // language and with no model round-trip (UAT F8).
         const dir = parseDirection(clause, vocab.movement)
         if (dir)
           return {
             result: { kind: 'command', text: dir },
             raw: `{"verb":"${dir}"}`,
+            stage: 'direction',
           }
-        // NL v2 §7: the grammar is the FULL vocab — scope feeds the prompt
-        // hint below, never the grammar or the validator.
+        // 6. Deterministic lexicon parse (spec §6) — strict, never guesses; a
+        // miss falls through to the model. Only runs when this game has a
+        // noun lexicon for the active language.
+        if (lex?.nouns) {
+          const r = parseLexicon(clause, lex.core, lex.nouns, vocab, scene)
+          if (r.kind === 'command')
+            return { result: r, raw: '(lexicon)', stage: 'lexicon' }
+        }
+        // 7. LLM fallback. NL v2 §7: the grammar is the FULL vocab — scope
+        // feeds the prompt hint below, never the grammar or the validator.
         const grammar = buildGrammar(vocab)
         const base = getContext()
         const ctx: PromptContext = {
@@ -377,12 +439,12 @@ export function useNaturalLanguage(
           inScope: scene.inScope.map(o => o.canonical),
           antecedent: scene.antecedent,
         }
-        // TODO(Task 21): active language
+        const activeLang: ActiveLanguage = language === 'off' ? 'en' : language
         const raw = await generateRaw(
-          buildPrompt(clause, ctx, vocab, 'en'),
+          buildPrompt(clause, ctx, vocab, activeLang),
           grammar,
         )
-        return { result: parseCommand(raw, vocab), raw }
+        return { result: parseCommand(raw, vocab), raw, stage: 'llm' }
       }
 
       // Bounded wait for the clause's turn boundary: race awaitTurn() against a
@@ -402,40 +464,19 @@ export function useNaturalLanguage(
       }
 
       try {
+        // UNIFIED CLAUSE LOOP: a single command is the degenerate total===1
+        // case of the compound machinery (locked decisions 1–9). Only when
+        // total>1 does the hook own the turn boundary (awaitTurn + observe);
+        // a single command leaves the turn to Terminal's observe effect.
         const clauses = splitClauses(english)
-
-        if (clauses.length <= 1) {
-          // SINGLE-COMMAND PATH (unchanged behavior).
-          const scene = tracker.scene()
-          const { result, raw } = await generateClause(english, scene)
-          // TEMP gate diagnostics — what the scene fed the model vs. what it emitted.
-          // Remove once translation quality is tuned.
-          nlDebug(
-            '[nl debug]',
-            JSON.stringify({
-              english,
-              antecedent: scene.antecedent,
-              inScope: scene.inScope.map(o => o.canonical),
-              raw,
-              result,
-            }),
-          )
-          if (result.kind === 'command') {
-            lastCommandRef.current = result.text // latch for the next observe()
-            echoLocal(english)
-            sendLine(result.text)
-          } else {
-            lastCommandRef.current = null // abstain → raw send, no acted-object
-            sendLine(english) // abstain → game's own parser handles it
-          }
-          return
-        }
-
-        // COMPOUND PATH (locked decisions 1–9).
-        inSequenceRef.current = true
         const total = clauses.length
+        if (total > 1) inSequenceRef.current = true
         const limit = Math.min(total, MAX_CLAUSES)
         let done = 0
+        // Echo the player's input ONCE, before the first clause an actual
+        // TRANSLATION produced (decision 5). Passthrough stages keep today's
+        // no-echo contract — the transcript already shows the typed words.
+        let echoed = false
         // Track the room across clauses: a turn that CHANGES ROOMS is a successful
         // move, not a no-op, so the absence/failure detector must be suppressed for
         // it. Otherwise ordinary room flavor text ("There is no door here.") trips
@@ -443,7 +484,7 @@ export function useNaturalLanguage(
         // succeeds (systematic-debugging; exposed once movement started working).
         let prevLocation = getContext().location
         // TEMP compound diagnostics — why a sequence stopped (set at each break,
-        // logged once below). Mirrors the single-path [nl debug]; remove together
+        // logged once below). Remove together with the per-clause [nl debug]
         // once translation quality is tuned.
         let stopReason: string | null = null
         for (let i = 0; i < limit; i++) {
@@ -451,34 +492,26 @@ export function useNaturalLanguage(
           const scene = tracker.scene()
           let result: TranslateResult
           let raw: string
-          // Meta verbs / localized aliases keep their "always routed raw"
-          // contract inside a compound too (review C4): meta verbs are
-          // subtracted from the grammar, so feeding "go north and save"'s
-          // second clause to the model could only abstain and kill the
-          // sequence as "Ran 1 of 2 actions."
-          // TODO(Task 21): pass the active core lexicon
-          const metaText = isMetaCommand(clause)
-            ? clause
-            : metaAlias(clause, null)
-          if (metaText) {
-            result = { kind: 'command', text: metaText }
-            raw = '(meta: routed raw)'
-          } else {
-            try {
-              ;({ result, raw } = await generateClause(clause, scene))
-            } catch (err) {
-              stopReason = `generate-error: ${String(err)}`
-              break // untranslatable (timeout/error) → stop (locked decision 4)
-            }
+          let stage: Stage
+          try {
+            ;({ result, raw, stage } = await runClause(clause, scene))
+          } catch (err) {
+            // Single command: surface through the outer catch (timeout/failure
+            // notice + raw send — unchanged contract). Mid-compound: stop the
+            // sequence (locked decision 4).
+            if (total === 1) throw err
+            stopReason = `generate-error: ${String(err)}`
+            break
           }
-          // TEMP per-clause diagnostics — what the live scene fed the model for this
-          // clause vs. what it emitted. Mirrors the single-command [nl debug] so a
-          // compound sequence is not a black box. Remove once quality is tuned.
+          // TEMP per-clause diagnostics — what the live scene fed the stage vs.
+          // what it emitted, and WHICH stage produced it. Remove once quality
+          // is tuned.
           nlDebug(
             '[nl debug] clause',
             JSON.stringify({
               i,
               clause,
+              stage,
               antecedent: scene.antecedent,
               inScope: scene.inScope.map(o => o.canonical),
               raw,
@@ -487,13 +520,24 @@ export function useNaturalLanguage(
           )
           if (result.kind !== 'command') {
             stopReason = 'abstain'
-            break // abstain → stop
+            break // abstain → stop; stage 8 below decides what the player sees
           }
 
-          if (done === 0) echoLocal(english) // echo the full English once (decision 5)
-          // Meta clauses don't latch: like the single path, a meta command has
-          // no in-world acted object to attribute take/drop/antecedent to.
-          lastCommandRef.current = metaText ? null : result.text
+          if (!echoed && TRANSLATED_STAGES.has(stage)) {
+            echoLocal(english)
+            echoed = true
+          }
+          // Meta/alias clauses don't latch: a meta command has no in-world
+          // acted object to attribute take/drop/antecedent to.
+          const isMeta = stage === 'meta' || stage === 'alias'
+          lastCommandRef.current = isMeta ? null : result.text
+
+          if (total === 1) {
+            sendLine(result.text)
+            done++
+            break // single command: Terminal's observe handles the turn
+          }
+
           // Register the turn listener BEFORE sendLine: the VM runs the turn
           // SYNCHRONOUSLY inside sendLine (accept → VM → bridge.update →
           // resolveTurn), so awaitTurn must already be pending or the boundary
@@ -524,7 +568,7 @@ export function useNaturalLanguage(
           })
           if (
             !roomChanged &&
-            !metaText && // meta output (score report, "Ok.") is not in-world failure text
+            !isMeta && // meta output (score report, "Ok.") is not in-world failure text
             clauseFailed(
               vc.recentOutput,
               vocab,
@@ -549,10 +593,19 @@ export function useNaturalLanguage(
           )
 
         if (done === 0) {
-          // First clause untranslatable, nothing ran → raw-send the original input
-          // (today's abstain behavior preserved; decision 4 exception). No notice.
+          // STAGE 8 — abstain policy (spec §4, UAT F-R). English: the raw line
+          // goes to the Z-parser, whose own error message is genuinely useful.
+          // Non-English: raw French/German/Spanish would only earn a useless
+          // "I don't know the word …" AND burn a game turn — send NOTHING and
+          // show a styled notice instead.
           lastCommandRef.current = null
-          sendLine(english)
+          if (language === 'en' || language === 'off') {
+            sendLine(english)
+          } else {
+            setNotice(
+              'Couldn’t translate — try simpler wording, or quote a command: "open mailbox"',
+            )
+          }
         } else if (done < total) {
           // Truncated sequence → make it visible (decision 7).
           setNotice(`Ran ${done} of ${total} actions.`)
@@ -581,6 +634,8 @@ export function useNaturalLanguage(
     },
     [
       internal.phase,
+      language,
+      lex,
       vocab,
       getContext,
       echoLocal,

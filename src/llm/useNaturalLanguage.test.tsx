@@ -13,6 +13,8 @@ import {
 } from './grammar/patterns'
 import { emptyView } from '../glkote-react/types'
 import type { ViewState, BufferLine, TurnResult } from '../glkote-react/types'
+import { ZORK1_SIG } from './grammar/index'
+import { ZORK1_VOCAB } from './grammar/zork1.vocab'
 
 const capable: CapabilityResult = { tier: 'small', reasons: [] }
 const ctx = () => ({ location: 'West of House', recentOutput: '' })
@@ -27,6 +29,17 @@ const TEST_VOCAB: Vocab = {
   nouns: [
     { canonical: 'mailbox', emit: 'mailbox' },
     { canonical: 'leaflet', emit: 'leaflet' },
+    // Task-13-style entry WITH dictionary synonyms/adjectives: these words feed
+    // vocabWordSet, so 'open trap door' is all-vocab (stage-4 passthrough). The
+    // mailbox/leaflet entries above have NO synonyms on purpose — canonical/emit
+    // tokens are not parser dictionary words (F-Z), so 'open mailbox' still
+    // exercises the LLM path in the older tests.
+    {
+      canonical: 'trap door',
+      emit: 'trapdoor',
+      synonyms: ['door', 'trapdoor', 'trap-door'],
+      adjectives: ['trap'],
+    },
   ],
   takeAck: TAKE_ACK,
   dropAck: DROP_ACK,
@@ -925,30 +938,43 @@ describe('useNaturalLanguage', () => {
     expect(hook.result.current.notice).toBeNull()
   })
 
-  it('compound: localized alias path is DORMANT until Task 21 wires the active core', async () => {
-    // metaAlias is now core-lexicon-driven (Task 8) and the hook passes `null`
-    // until Task 21 passes the active core lexicon, so "inventaire" falls
-    // through to the model (which abstains here) and the sequence truncates.
-    // Task 21 restores the review-C4 behavior: ['north', 'inventory'], no notice.
+  it('compound: a localized alias clause routes raw via the ACTIVE core lexicon (review C4, spec §4 stage 3)', async () => {
+    // Task 21 wires the active language's core lexicon into the per-clause
+    // meta/alias stage: with the picker on 'fr', "inventaire" maps to
+    // "inventory" deterministically — no model call, no truncated sequence.
+    // (This test was dormant while the hook passed `null` for the core.)
     const engine = new FakeLlmEngine({
       cached: true,
       default: '{"verb":"__UNKNOWN__"}',
     })
+    const generateSpy = vi.spyOn(engine, 'generate')
     const northView = viewState(
       'North of House',
       ['north', 'North of House'],
       'north',
     )
+    const invView = viewState(
+      'North of House',
+      ['inventory', 'You are empty-handed.'],
+      'inventory',
+    )
     const { hook, sendLine } = setup({
       engine,
-      awaitTurn: turnScript([northView]),
+      awaitTurn: turnScript([northView, invView]),
     })
-    await reachOn(hook)
+    await waitFor(() =>
+      expect(hook.result.current.state).toEqual({
+        phase: 'off',
+        installed: true,
+      }),
+    )
+    act(() => hook.result.current.setLanguage('fr'))
     await act(async () => {
       await hook.result.current.translate('va au nord et inventaire')
     })
-    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['north'])
-    expect(hook.result.current.notice).toBe('Ran 1 of 2 actions.')
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['north', 'inventory'])
+    expect(generateSpy).not.toHaveBeenCalled() // direction fast-path + core alias
+    expect(hook.result.current.notice).toBeNull()
   })
 
   it('compound: first clause untranslatable → raw-send the whole input, no notice', async () => {
@@ -1022,5 +1048,175 @@ describe('useNaturalLanguage', () => {
       await p
     })
     expect(hook.result.current.isSequencing()).toBe(false)
+  })
+})
+
+describe('NL v2 pipeline stages (spec §4)', () => {
+  beforeEach(() => localStorage.clear())
+
+  /**
+   * Activate French against a cached model + REAL Zork I data. The fr noun
+   * lexicon keys onto real zork1 canonicals, so the fr stages must run
+   * end-to-end against ZORK1_VOCAB + ZORK1_SIG ('trappe' → 'trap door' →
+   * emit 'trapdoor'; 'lampe' → 'brass lantern' → emit 'light') — TEST_VOCAB's
+   * fixture nouns would never match the per-game lexicon.
+   */
+  async function setupFr(
+    over: Partial<Parameters<typeof useNaturalLanguage>[0]> = {},
+  ) {
+    const s = setup({
+      engine: new FakeLlmEngine({
+        cached: true,
+        default: '{"verb":"__UNKNOWN__"}',
+      }),
+      vocab: ZORK1_VOCAB,
+      signature: ZORK1_SIG,
+      ...over,
+    })
+    await waitFor(() =>
+      expect(s.hook.result.current.state).toEqual({
+        phase: 'off',
+        installed: true,
+      }),
+    )
+    act(() => s.hook.result.current.setLanguage('fr'))
+    expect(s.hook.result.current.state).toEqual({
+      phase: 'on',
+      language: 'fr',
+    })
+    return s
+  }
+
+  it('stage 2: a fully-quoted line is sent verbatim — the model is never consulted', async () => {
+    // The default completion would happily "translate" anything; proving the
+    // quote bypassed it requires the spy, not just the sendLine text.
+    const engine = new FakeLlmEngine({ cached: true, default: '{"verb":"look"}' })
+    const generateSpy = vi.spyOn(engine, 'generate')
+    const { hook, echoLocal, sendLine } = setup({ engine })
+    await reachOn(hook)
+    await act(async () => {
+      await hook.result.current.translate('"frotz the gnusto"')
+    })
+    expect(sendLine).toHaveBeenCalledWith('frotz the gnusto')
+    expect(echoLocal).not.toHaveBeenCalled()
+    expect(generateSpy).not.toHaveBeenCalled()
+  })
+
+  it('stage 4: all-vocab English goes verbatim to the Z-parser — no LLM round-trip (F-H)', async () => {
+    // 'open' (verbs1) + 'trap' (adjective) + 'door' (synonym) are all parser
+    // dictionary words, so the line IS already a game command: send it as
+    // typed, skip inference entirely, and do NOT echo (the transcript already
+    // shows the player's own words).
+    const engine = new FakeLlmEngine({ cached: true, default: '{"verb":"look"}' })
+    const generateSpy = vi.spyOn(engine, 'generate')
+    const { hook, echoLocal, sendLine } = setup({ engine })
+    await reachOn(hook)
+    await act(async () => {
+      await hook.result.current.translate('open trap door')
+    })
+    expect(sendLine).toHaveBeenCalledWith('open trap door')
+    expect(echoLocal).not.toHaveBeenCalled()
+    expect(generateSpy).not.toHaveBeenCalled()
+  })
+
+  it("stage 4 collision guard: fr picker + a lexicon word ('examine') does NOT pass through — routes via the lexicon", async () => {
+    // 'examine trapdoor' is all-vocab in English, but 'examine' is ALSO a
+    // French core-lexicon verb (a reviewed collision). With the picker on fr
+    // the token must NOT count as passthrough; the clause goes to stage 6,
+    // which is a TRANSLATION — proven by the echo a passthrough never emits.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const generateSpy = vi.spyOn(engine, 'generate')
+    const { hook, echoLocal, sendLine } = await setupFr({ engine })
+    await act(async () => {
+      await hook.result.current.translate('examine trapdoor')
+    })
+    expect(echoLocal).toHaveBeenCalledWith('examine trapdoor')
+    expect(sendLine).toHaveBeenCalledWith('examine trapdoor')
+    expect(generateSpy).not.toHaveBeenCalled()
+  })
+
+  it("stage 6: deterministic lexicon parse — 'ouvre la trappe' → 'open trapdoor', no model call", async () => {
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const generateSpy = vi.spyOn(engine, 'generate')
+    const { hook, echoLocal, sendLine } = await setupFr({ engine })
+    await act(async () => {
+      await hook.result.current.translate('ouvre la trappe')
+    })
+    expect(echoLocal).toHaveBeenCalledWith('ouvre la trappe')
+    expect(sendLine).toHaveBeenCalledWith('open trapdoor')
+    expect(generateSpy).not.toHaveBeenCalled()
+  })
+
+  it('stage 7: a clause the lexicon cannot resolve falls through to the LLM', async () => {
+    const engine = new FakeLlmEngine({
+      cached: true,
+      completions: {
+        'frobnicate la trappe': '{"verb":"open","object":"trapdoor"}',
+      },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const generateSpy = vi.spyOn(engine, 'generate')
+    const { hook, sendLine } = await setupFr({ engine })
+    await act(async () => {
+      await hook.result.current.translate('frobnicate la trappe')
+    })
+    expect(generateSpy).toHaveBeenCalledTimes(1)
+    expect(sendLine).toHaveBeenCalledWith('open trapdoor')
+  })
+
+  it('stage 8 (F-R): non-EN abstain sends NOTHING to the game — styled notice, no turn burned', async () => {
+    const { hook, echoLocal, sendLine } = await setupFr()
+    await act(async () => {
+      await hook.result.current.translate('blorple le ciel')
+    })
+    expect(sendLine).not.toHaveBeenCalled()
+    expect(echoLocal).not.toHaveBeenCalled()
+    expect(hook.result.current.notice).toMatch(/couldn.t translate/i)
+  })
+
+  it('stage 8: EN abstain falls back to the raw line — the Z-parser explains the failure', async () => {
+    const { hook, echoLocal, sendLine } = setup() // default engine abstains
+    await reachOn(hook) // language 'en'
+    await act(async () => {
+      await hook.result.current.translate('frotz the gnusto')
+    })
+    expect(sendLine).toHaveBeenCalledWith('frotz the gnusto')
+    expect(echoLocal).not.toHaveBeenCalled()
+    expect(hook.result.current.notice).toBeNull()
+  })
+
+  it("per-clause independence: 'prends la lampe et ouvre la trappe' runs both clauses deterministically — ZERO LLM calls", async () => {
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const generateSpy = vi.spyOn(engine, 'generate')
+    const took = viewState('West of House', ['Taken.'], 'take light')
+    const opened = viewState(
+      'West of House',
+      ['The door reluctantly opens.'],
+      'open trapdoor',
+    )
+    const { hook, echoLocal, sendLine } = await setupFr({
+      engine,
+      awaitTurn: turnScript([took, opened]),
+    })
+    await act(async () => {
+      await hook.result.current.translate('prends la lampe et ouvre la trappe')
+    })
+    // Real zork1 emits: 'brass lantern' → 'light', 'trap door' → 'trapdoor'.
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual([
+      'take light',
+      'open trapdoor',
+    ])
+    expect(generateSpy).not.toHaveBeenCalled()
+    expect(echoLocal).toHaveBeenCalledTimes(1)
+    expect(hook.result.current.notice).toBeNull()
   })
 })

@@ -358,7 +358,11 @@ export function useNaturalLanguage(
           inScope: scene.inScope.map(o => o.canonical),
           antecedent: scene.antecedent,
         }
-        const raw = await generateRaw(buildPrompt(clause, ctx, vocab), grammar)
+        // TODO(Task 21): active language
+        const raw = await generateRaw(
+          buildPrompt(clause, ctx, vocab, 'en'),
+          grammar,
+        )
         return { result: parseCommand(raw, vocab), raw }
       }
 

@@ -312,12 +312,13 @@ Decisions and conscious deferrals recorded during the v1 implementation:
   All three classes are tracked in `src/translate/corpus/zork1.extraction-ignore.ts`
   with their rationale so UAT sessions can audit the ignore list directly.
 
-- **Overlay resolution tagging.** The overlay hook stores each resolved entry
-  tagged with its corpus source (`string`, `template`, `object`, `llm`) and the
-  normalized English basis. This was lint-driven (the discriminated union forced
-  explicit source tracking) but is functionally equivalent to the spec's
-  epoch-reset design: re-translation after a language switch or restore re-runs
-  the same pure lookup and produces the same result without any stored epoch.
+- **Overlay resolution tagging.** The overlay hook tags its resolution map with
+  the compiled-corpus identity it was built against and stores each entry with
+  the normalized English basis it resolved (`{en, res}`); the display memo
+  ignores a map or entry whose tag/basis no longer matches. This was lint-driven
+  (`react-hooks/set-state-in-effect` forbade the planned synchronous reset) and
+  is behaviorally equivalent to the spec's reset-on-activation design; an
+  epoch counter still guards the in-flight async work.
 
 - **`watchdogMs` is injectable on the output hook** (via options, mirroring the
   input hook's existing test seam). Vitest fakes use a 0 ms watchdog so fallback

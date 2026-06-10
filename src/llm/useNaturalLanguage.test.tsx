@@ -634,19 +634,10 @@ describe('useNaturalLanguage', () => {
     expect(generateSpy).not.toHaveBeenCalled()
   })
 
-  it('observe is idempotent across re-renders of the same turn', async () => {
-    const engine = new FakeLlmEngine({
-      cached: true,
-      default: '{"verb":"__UNKNOWN__"}',
-    })
-    const { hook } = setup({ engine })
-    await reachOn(hook)
-    const v = viewState('West of House', ['A lamp is here.'])
-    act(() => hook.result.current.observe(v))
-    act(() => hook.result.current.observe(v)) // duplicate — must not double-apply
-    // No throw, no corruption; a second identical observe is a no-op by construction.
-    expect(true).toBe(true)
-  })
+  // (A hook-level "observe is idempotent" test used to live here asserting
+  // only expect(true) — vacuous ([R]). The real invariant is pinned at the
+  // reducer level: tracker.test.ts "reducer stays idempotent on duplicate
+  // observes (v1 invariant)".)
 
   it('abstain passes raw English through and does NOT echo or latch a command', async () => {
     const engine = new FakeLlmEngine({

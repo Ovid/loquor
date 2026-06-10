@@ -64,7 +64,10 @@ describe('NlLanguagePicker', () => {
         onOverride={() => {}}
       />,
     )
-    expect(screen.getByText(/installed/)).toBeInTheDocument()
+    // Anchored on the separator ([S]): a bare /installed/ also matches the
+    // "· not installed" chip, so this passed for the wrong render too.
+    expect(screen.getByText(/· installed/)).toBeInTheDocument()
+    expect(screen.queryByText(/not installed/)).toBeNull()
   })
 
   it('shows the not-installed chip when off · not installed', () => {

@@ -65,9 +65,11 @@ function resolveNoun(
         const shared = dictWords(entries[0]).filter(w =>
           rest.every(set => set.has(w)),
         )
-        // The fabricated canonical here is a dictionary WORD, not a vocab
-        // canonical — the F-E guard compares against vocab canonicals
-        // (scene antecedents), so it can never trip on this value.
+        // The fabricated canonical here is a dictionary WORD. Mostly that is
+        // not a vocab canonical, so the F-E guard (which compares scene
+        // antecedents — vocab canonicals) can't trip on it; when the word IS
+        // also a canonical (zork1 'door'), the guard CAN fire and the clause
+        // misses — a safe fall-through to the LLM, never a wrong emit ([Z]).
         if (shared.length > 0) return { emit: shared[0], canonical: shared[0] }
       }
       // (3) never guess → miss (pushback issue 1)

@@ -54,6 +54,15 @@ const vocab: Vocab = {
       synonyms: ['door', 'trapdoor', 'cover'],
       adjectives: ['trap', 'dusty'],
     },
+    // Mirrors zork1's real front-door entry: the canonical IS the dictionary
+    // word, so extraction emits NO synonyms array (regression: review fix 1).
+    { canonical: 'door', emit: 'front door', adjectives: ['boarded', 'front'] },
+    {
+      canonical: 'stone door',
+      emit: 'huge door',
+      synonyms: ['door'],
+      adjectives: ['huge', 'stone'],
+    },
     {
       canonical: 'small mailbox',
       emit: 'mailbox',
@@ -61,6 +70,7 @@ const vocab: Vocab = {
       adjectives: ['small'],
     },
     { canonical: 'sword', emit: 'sword', synonyms: ['sword', 'blade'] },
+    { canonical: 'rope', emit: 'rope', synonyms: ['rope', 'hemp', 'coil'] },
     { canonical: 'troll', emit: 'troll', synonyms: ['troll'] },
     { canonical: 'wrench', emit: 'wrench', synonyms: ['wrench'] },
     {
@@ -84,7 +94,9 @@ const vocab: Vocab = {
 
 const FR_NOUNS: NounLexicon = {
   'brass lantern': ['lampe', 'lanterne'],
-  'trap door': ['trappe'],
+  'trap door': ['trappe', 'porte'],
+  door: ['porte'],
+  'stone door': ['porte'],
   'small mailbox': ['boite aux lettres', 'boite'],
   sword: ['epee'],
   troll: ['troll'],
@@ -97,6 +109,7 @@ const DE_NOUNS: NounLexicon = {
   'brass lantern': ['lampe', 'laterne'],
   'trap door': ['falltur'],
   sword: ['schwert'],
+  rope: ['seil'],
 }
 const ES_NOUNS: NounLexicon = {
   'brass lantern': ['lampara', 'linterna'],
@@ -146,6 +159,19 @@ describe('parseLexicon — French', () => {
       parseLexicon("tue le troll avec l'epee", FR_CORE, FR_NOUNS, vocab, empty),
     ).toEqual({ kind: 'command', text: 'attack troll with sword' })
   })
+  it('two-object: prep-split loop continues past a failed split at an internal prep-lookalike', () => {
+    // 'aux' (→ to) splits first but 'lettres…' resolves to nothing; the loop
+    // must keep going to 'dans' (→ in) instead of bailing on the first prep.
+    expect(
+      parseLexicon(
+        'mets la boite aux lettres dans la vitrine',
+        FR_CORE,
+        FR_NOUNS,
+        vocab,
+        empty,
+      ),
+    ).toEqual({ kind: 'command', text: 'put mailbox in case' })
+  })
   it('two-object command via à-contraction prep (au) still splits', () => {
     // ≥1 object token BEFORE the prep → indirect object, NOT personal-a.
     expect(
@@ -167,6 +193,15 @@ describe('parseLexicon — French', () => {
         scene(['wrench']),
       ),
     ).toEqual({ kind: 'command', text: 'take wrench' })
+  })
+  it('ambiguous noun: shared dictionary word incl. a synonyms-less candidate (spec §5.2 step 2)', () => {
+    // porte → door | stone door | trap door. The plain 'door' entry has NO
+    // synonyms array (its canonical IS the dictionary word, like zork1's
+    // front door), yet all three share 'door' — emit it and let the
+    // Z-parser ask "Which door do you mean?".
+    expect(
+      parseLexicon('ouvre la porte', FR_CORE, FR_NOUNS, vocab, empty),
+    ).toEqual({ kind: 'command', text: 'open door' })
   })
   it('ambiguous noun, no scope, no shared synonym → miss (pushback issue 1)', () => {
     // wrench{wrench} and skeleton key{key} share no dictionary word
@@ -257,6 +292,14 @@ describe('parseLexicon — German separable verbs (pushback issue 3)', () => {
       parseLexicon('mach die falltur', DE_CORE, DE_NOUNS, vocab, empty),
     ).toEqual({ kind: 'miss' })
   })
+  it('particle fires but verb is verbs2-only with one object → safe miss (binde … an)', () => {
+    // 'binde … an' → tie; fixture 'tie' is verbs2-only, and there is only a
+    // direct object here. The strict layer misses (LLM fallback) rather than
+    // emitting a one-object 'tie rope' it cannot vouch for.
+    expect(
+      parseLexicon('binde das seil an', DE_CORE, DE_NOUNS, vocab, empty),
+    ).toEqual({ kind: 'miss' })
+  })
   it('self pronoun → me (untersuche mich)', () => {
     expect(
       parseLexicon('untersuche mich', DE_CORE, DE_NOUNS, vocab, empty),
@@ -297,7 +340,7 @@ describe('parseLexicon — Spanish', () => {
   })
 })
 
-describe('parseLexicon — English via vocab surface forms (spec §6.3)', () => {
+describe('parseLexicon — English via vocab surface forms (spec §6 step 3)', () => {
   it('maps an English synonym phrase to the emit form', () => {
     expect(
       parseLexicon('open trap door', FR_CORE, FR_NOUNS, vocab, empty),

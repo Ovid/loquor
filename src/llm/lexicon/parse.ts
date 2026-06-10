@@ -42,14 +42,34 @@ function resolveNoun(
         const e = byCanonical(vocab, scoped[0])
         return e ? { emit: e.emit, canonical: e.canonical } : null
       }
-      // (2) shared dictionary word across ALL candidates → Z-parser disambiguates
+      // (2) shared dictionary word across ALL candidates → Z-parser
+      // disambiguates. Each entry's dictionary-word set is its synonyms PLUS
+      // its folded canonical/emit when those are single tokens: extraction
+      // omits the synonyms array entirely when the canonical IS the
+      // dictionary word (zork1 'door' → {canonical:'door', emit:'front
+      // door'}), so synonyms alone would leave this step dead for exactly
+      // the entries it exists for. Determinism: synonyms keep their
+      // extraction-sorted order and canonical/emit are appended after, so
+      // the first word of entries[0] shared by ALL candidates always wins.
+      const dictWords = (e: NounEntry): string[] => {
+        const words = (e.synonyms ?? []).map(fold)
+        for (const w of [fold(e.canonical), fold(e.emit)])
+          if (tokenize(w).length === 1 && !words.includes(w)) words.push(w)
+        return words
+      }
       const entries = candidates
         .map(c => byCanonical(vocab, c))
         .filter((e): e is NounEntry => e !== undefined)
-      const shared = (entries[0]?.synonyms ?? []).filter(w =>
-        entries.every(e => (e.synonyms ?? []).includes(w)),
-      )
-      if (shared.length > 0) return { emit: shared[0], canonical: shared[0] }
+      if (entries.length > 0) {
+        const rest = entries.slice(1).map(e => new Set(dictWords(e)))
+        const shared = dictWords(entries[0]).filter(w =>
+          rest.every(set => set.has(w)),
+        )
+        // The fabricated canonical here is a dictionary WORD, not a vocab
+        // canonical — the F-E guard compares against vocab canonicals
+        // (scene antecedents), so it can never trip on this value.
+        if (shared.length > 0) return { emit: shared[0], canonical: shared[0] }
+      }
       // (3) never guess → miss (pushback issue 1)
       return null
     }
@@ -103,7 +123,7 @@ export function parseLexicon(
   let tokens = tokenize(clause)
   if (tokens.length === 0) return MISS
 
-  // --- Verb (spec §6.3): particle pattern → idiom (longest first) → single
+  // --- Verb (spec §6 step 3): particle pattern → idiom (longest first) → single
   // word → English vocab verb (longest first). ---
   let verb: string | null = null
   const particle = core.particleVerbs.find(
@@ -184,12 +204,16 @@ export function parseLexicon(
       : MISS
   }
 
-  // --- Spanish personal-a (the NOTE in es.core.ts preps): `<verb> a/al
-  // <noun>` with NOTHING before the prep marks an animate DIRECT object, not
-  // an indirect one — emit `<verb> <noun>`, never `<verb> to <noun>`. Fires
-  // only when the leading remainder token maps to English 'to' and the rest
-  // resolves as ONE noun; with ≥1 object token before the prep, the split
-  // loop below handles the genuine indirect object instead. Arity allows
+  // --- Personal-a / leading to-prep (the NOTE in es.core.ts preps):
+  // `<verb> a/al <noun>` with NOTHING before the prep marks an animate
+  // DIRECT object, not an indirect one — emit `<verb> <noun>`, never
+  // `<verb> to <noun>`. Although motivated by Spanish, this fires on ANY
+  // language's to-prep: FR `donne au troll` → `give troll`, where the
+  // Z-parser orphan-prompts for the missing object ("What do you want to
+  // give the troll?") — included behavior, not an accident. Fires only when
+  // the leading remainder token maps to English 'to' and the rest resolves
+  // as ONE noun; with ≥1 object token before the prep, the split loop below
+  // handles the genuine indirect object instead. Arity allows
   // verbs1 OR verbs2: animate-object verbs (attack, give …) are often
   // verbs2-only because their canonical syntax carries an instrument
   // ('attack troll with sword'), and the Z-parser accepts the bare form by

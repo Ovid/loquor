@@ -35,6 +35,22 @@ const XLATE_WATCHDOG_MS = 15_000
 
 type Resolution = string | 'pending' | 'english'
 
+/** An overlay entry carries the EN text (basis) it resolved — the display memo
+ * ignores an entry whose basis no longer matches the line's current text, so a
+ * resolution computed from pre-merge text can never render against the merged
+ * line (it would read as a stale/wrong translation). */
+interface OverlayEntry {
+  en: string
+  res: Resolution
+}
+
+/** Expected control-flow stops (queue abandonment, watchdog timeout, empty
+ * model output) degrade to English silently. Anything ELSE in resolve()'s
+ * catch is a real failure and gets console.error'd so a broken engine stays
+ * diagnosable — mirrors useNaturalLanguage's [B] policy and its
+ * WatchdogTimeout sentinel style. */
+class ExpectedXlateStop extends Error {}
+
 export function useOutputTranslation(args: {
   view: ViewState
   language: NlLanguage
@@ -43,8 +59,12 @@ export function useOutputTranslation(args: {
   gate: EngineGate
   /** Tests inject a corpus directly; production resolves via corpusFor. */
   corpusOverride?: TranslationCorpus
+  /** Test-only watchdog override (mirrors useNaturalLanguage's injectable
+   * watchdogMs); production omits it and gets XLATE_WATCHDOG_MS. */
+  watchdogMs?: number
 }): OutputTranslation {
   const { view, language, signature, engine, gate, corpusOverride } = args
+  const watchdogMs = args.watchdogMs ?? XLATE_WATCHDOG_MS
 
   const lang: LexLang | null =
     language === 'fr' || language === 'de' || language === 'es'
@@ -63,19 +83,25 @@ export function useOutputTranslation(args: {
   // corpus starts a fresh map.
   const [overlay, setOverlay] = useState<{
     for: CompiledCorpus | null
-    map: ReadonlyMap<number, Resolution>
+    map: ReadonlyMap<number, OverlayEntry>
   }>(() => ({ for: null, map: new Map() }))
-  // The EN text each overlay/in-flight entry was computed from — an append
-  // merge changes the text and must invalidate the entry (spec §3).
+  // The EN text each in-flight entry was computed from — an append merge
+  // changes the text and must invalidate the entry (spec §3). settle() guards
+  // on it; the overlay entries carry it too (see OverlayEntry) so render can
+  // apply the same invalidation to already-settled values.
   const basisRef = useRef<Map<number, string>>(new Map())
   // Ids on screen when the corpus ACTIVATED (language picked / restore
   // rebuild): the backlog (spec §3). Misses there stay English.
   const backlogRef = useRef<Set<number>>(new Set())
-  const loggedBacklogRef = useRef<Set<number>>(new Set())
   const lastStatusMissRef = useRef<string | null>(null)
   // Stale-async guard: bumped on corpus identity change.
   const epochRef = useRef(0)
 
+  // EFFECT ORDER INVARIANT — do not reorder the three effects below: the
+  // viewRef sync must be declared before the corpus-activation effect (the
+  // backlog snapshot reads viewRef on the same commit), and the activation
+  // effect must precede the fallback effect (epoch bump + backlog snapshot
+  // happen before that commit's misses are scanned).
   const viewRef = useRef(view)
   useEffect(() => {
     viewRef.current = view
@@ -91,7 +117,6 @@ export function useOutputTranslation(args: {
   useEffect(() => {
     epochRef.current++
     backlogRef.current = new Set(viewRef.current.lines.map(l => l.id))
-    loggedBacklogRef.current = new Set()
     basisRef.current = new Map()
     lastStatusMissRef.current = null
   }, [corpus])
@@ -105,19 +130,19 @@ export function useOutputTranslation(args: {
       ? normalize(`${view.status.location} — ${view.status.right}`)
       : undefined
 
-    const put = (id: number, value: Resolution) =>
+    const put = (id: number, en: string, res: Resolution) =>
       setOverlay(prev => ({
         for: corpus,
         map:
           prev.for === corpus
-            ? new Map(prev.map).set(id, value)
-            : new Map([[id, value]]),
+            ? new Map(prev.map).set(id, { en, res })
+            : new Map([[id, { en, res }]]),
       }))
 
     const settle = (id: number, en: string, value: Resolution) => {
       if (epochRef.current !== epoch) return // language/story switched mid-flight
       if (basisRef.current.get(id) !== en) return // append merge superseded us
-      put(id, value)
+      put(id, en, value)
     }
 
     const resolve = async (id: number, en: string) => {
@@ -138,14 +163,15 @@ export function useOutputTranslation(args: {
           // the epoch moved on while we waited for the gate — don't burn GPU
           // on a result nobody will render. (The throw lands in the outer
           // catch; settle() there is an epoch-guarded no-op.)
-          if (epochRef.current !== epoch) throw new Error('xlate abandoned')
+          if (epochRef.current !== epoch)
+            throw new ExpectedXlateStop('xlate abandoned')
           const ac = new AbortController()
           let watchdogId: ReturnType<typeof setTimeout>
           const watchdog = new Promise<never>((_, rej) => {
             watchdogId = setTimeout(() => {
-              rej(new Error('xlate watchdog'))
+              rej(new ExpectedXlateStop('xlate watchdog'))
               ac.abort()
-            }, XLATE_WATCHDOG_MS)
+            }, watchdogMs)
           })
           try {
             return await Promise.race([
@@ -157,10 +183,15 @@ export function useOutputTranslation(args: {
           }
         })
         const out = normalize(text)
-        if (out === '') throw new Error('empty translation')
+        if (out === '') throw new ExpectedXlateStop('empty translation')
         settle(id, en, out)
-        await cacheSet(signature, lang, en, out)
-      } catch {
+        // Persist fire-and-forget: the translation is already on screen — a
+        // cache-write failure (quota, private mode) must not downgrade the
+        // rendered line back to English. Persistence ≠ display.
+        void cacheSet(signature, lang, en, out).catch(() => {})
+      } catch (err) {
+        if (!(err instanceof ExpectedXlateStop))
+          console.error('[xlate] output translation failed:', err)
         settle(id, en, 'english')
       }
     }
@@ -171,22 +202,29 @@ export function useOutputTranslation(args: {
       if (en === '') continue
       if (matchLine(corpus, en) !== null) continue
       if (backlogRef.current.has(l.id)) {
-        if (!loggedBacklogRef.current.has(l.id)) {
-          loggedBacklogRef.current.add(l.id)
+        // Gate on TEXT, not id: an append merge onto a backlog tail line
+        // changes its text — that's a different EN line, so it logs again and
+        // gets a fresh cache consult. The basis is written FIRST so settle()'s
+        // basis guard drops the old text's still-in-flight resolution.
+        if (basisRef.current.get(l.id) !== en) {
+          basisRef.current.set(l.id, en)
           logMiss({ en, game: signature, language: lang, kind: 'backlog', ctx })
           // Backlog rule (spec §3): matcher + CACHE hits only. A fallback
           // translation cached in an earlier session still applies after a
-          // restore rebuild — no shimmer, no generation either way.
-          basisRef.current.set(l.id, en)
-          void cacheGet(signature, lang, en).then(cached => {
-            if (cached !== undefined) settle(l.id, en, cached)
-          })
+          // restore rebuild — no shimmer, no generation either way. Cache
+          // unavailable (private mode, tx abort) ⇒ the line stays English,
+          // which is the documented degradation.
+          void cacheGet(signature, lang, en)
+            .then(cached => {
+              if (cached !== undefined) settle(l.id, en, cached)
+            })
+            .catch(() => {})
         }
         continue
       }
       if (basisRef.current.get(l.id) === en) continue // already handled this text
       basisRef.current.set(l.id, en)
-      put(l.id, 'pending')
+      put(l.id, en, 'pending')
       void resolve(l.id, en)
     }
 
@@ -198,7 +236,7 @@ export function useOutputTranslation(args: {
         logMiss({ en: miss, game: signature, language: lang, kind: 'status' })
       }
     }
-  }, [view, corpus, lang, signature, engine, gate])
+  }, [view, corpus, lang, signature, engine, gate, watchdogMs])
 
   const lines: DisplayLine[] = useMemo(() => {
     if (!corpus || lang === null) return view.lines
@@ -212,10 +250,14 @@ export function useOutputTranslation(args: {
       const hit = matchLine(corpus, en)
       if (hit !== null) return { ...l, text: indent + hit }
       const o = resolved?.get(l.id)
-      if (o === 'pending')
-        return { ...l, text: indent + shimmerLabel(lang), pending: true }
-      if (o !== undefined && o !== 'english') return { ...l, text: indent + o }
-      return l // backlog miss or failure → English
+      // Basis check: an entry resolved from different (pre-merge) text is
+      // stale for THIS text — ignore it (English) until the new text settles.
+      if (o !== undefined && o.en === en) {
+        if (o.res === 'pending')
+          return { ...l, text: indent + shimmerLabel(lang), pending: true }
+        if (o.res !== 'english') return { ...l, text: indent + o.res }
+      }
+      return l // backlog miss, failure, or superseded entry → English
     })
   }, [view.lines, corpus, overlay, lang])
 

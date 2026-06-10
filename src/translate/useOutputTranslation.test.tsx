@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import 'fake-indexeddb/auto'
 import { renderHook, waitFor, act } from '@testing-library/react'
 import { useOutputTranslation } from './useOutputTranslation'
@@ -31,6 +31,7 @@ function setup(opts: {
   language?: NlLanguage
   engine?: FakeLlmEngine
   initial: ViewState
+  watchdogMs?: number
 }) {
   const engine = opts.engine ?? new FakeLlmEngine({ default: 'fallback-fr' })
   const gate = new EngineGate()
@@ -43,6 +44,7 @@ function setup(opts: {
         engine,
         gate,
         corpusOverride: corpus,
+        watchdogMs: opts.watchdogMs,
       }),
     { initialProps: { v: opts.initial, lang: opts.language ?? 'fr' } },
   )
@@ -201,6 +203,72 @@ describe('backlog rule (spec §3: matcher + CACHE hits only)', () => {
     )
     expect(engine.generateCalls).toBe(1) // only the live line generated
     expect(readMisses().some(m => m.kind === 'backlog')).toBe(true)
+  })
+
+  it('an append merge onto a backlog line invalidates the old translation and re-consults the cache', async () => {
+    const engine = new FakeLlmEngine({ default: 'should-not-appear' })
+    await engine.load(() => {}, new AbortController().signal)
+    await cacheSet('test-sig', 'fr', 'Backlog tail.', 'Queue du backlog.')
+    await cacheSet(
+      'test-sig',
+      'fr',
+      'Backlog tail. And more.',
+      'Queue fusionnée.',
+    )
+    const l = line('output', 'Backlog tail.')
+    const { result, rerender } = setup({ engine, initial: view([l]) })
+    // the cached backlog translation settles for the original text
+    await waitFor(() =>
+      expect(result.current.lines[0].text).toBe('Queue du backlog.'),
+    )
+    // append merge: same id, NEW text — the old overlay entry must not render
+    rerender({
+      v: view([{ ...l, text: 'Backlog tail. And more.' }]),
+      lang: 'fr',
+    })
+    expect(result.current.lines[0].text).toBe('Backlog tail. And more.')
+    // the merged text is a different EN line: cache-consulted (and re-logged)
+    await waitFor(() =>
+      expect(result.current.lines[0].text).toBe('Queue fusionnée.'),
+    )
+    expect(engine.generateCalls).toBe(0) // backlog never generates
+    expect(
+      readMisses()
+        .filter(m => m.kind === 'backlog')
+        .map(m => m.en),
+    ).toEqual(['Backlog tail.', 'Backlog tail. And more.'])
+  })
+})
+
+describe('watchdog (spec §6)', () => {
+  it('a wedged generation degrades to English after the watchdog — silently (expected control flow)', async () => {
+    const engine = new FakeLlmEngine({
+      default: 'jamais rendu',
+      generateDelayMs: 10_000, // far beyond the (shortened) watchdog
+    })
+    await engine.load(() => {}, new AbortController().signal)
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { result, rerender } = setup({
+        engine,
+        initial: view([]),
+        watchdogMs: 50,
+      })
+      rerender({ v: view([line('output', 'An unknown line.')]), lang: 'fr' })
+      expect(result.current.lines[0].pending).toBe(true)
+      expect(result.current.lines[0].text).toBe('…traduction')
+      await waitFor(() =>
+        expect(result.current.lines[0].text).toBe('An unknown line.'),
+      )
+      expect(result.current.lines[0].pending).toBeUndefined()
+      expect(readMisses().some(m => m.en === 'An unknown line.')).toBe(true)
+      // a watchdog timeout is expected control flow, not an engine failure
+      expect(
+        errorSpy.mock.calls.filter(c => String(c[0]).includes('[xlate]')),
+      ).toEqual([])
+    } finally {
+      errorSpy.mockRestore()
+    }
   })
 })
 

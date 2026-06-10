@@ -46,7 +46,7 @@ export const FR_ZORK1: NounLexicon = {
   chute: ['glissiere', 'toboggan'],
   cliff: ['falaise', 'corniche', 'rebord'],
   'clove of garlic': ['ail', 'gousse d ail'],
-  'control panel': ['panneau de controle', 'panneau'],
+  'control panel': ['panneau de commande', 'panneau de controle', 'panneau'],
   crack: ['fissure', 'fente'],
   'crystal skull': ['crane', 'crane de cristal'],
   'crystal trident': ['trident', 'trident de cristal'], // FR trident = EN trident (reviewed collision)

@@ -137,9 +137,11 @@ export const ZORK1_FR_OBJECTS: ObjectsTable = {
     bare: "gousse d'ail",
   },
   'control panel': {
-    indef: 'un panneau de contrôle',
-    def: 'le panneau de contrôle',
-    bare: 'panneau de contrôle',
+    // « commande » : terme standard pour la machinerie (le barrage) ;
+    // « contrôle » serait un anglicisme informatique.
+    indef: 'un panneau de commande',
+    def: 'le panneau de commande',
+    bare: 'panneau de commande',
   },
   crack: { indef: 'une fissure', def: 'la fissure', bare: 'fissure' },
   'crystal skull': {
@@ -215,7 +217,7 @@ export const ZORK1_FR_OBJECTS: ObjectsTable = {
   },
   'kitchen window': {
     indef: 'une fenêtre de cuisine',
-    def: 'la fenêtre de cuisine',
+    def: 'la fenêtre de la cuisine',
     bare: 'fenêtre de cuisine',
   },
   'large bag': {

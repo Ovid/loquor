@@ -40,10 +40,11 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
   // participle never agrees with anything (it abbreviates «c'est fait»).
   'Taken.': 'Pris.',
   'Dropped.': 'Posé.',
-  'Opened.': 'Fait.',
+  'Opened.': "C'est ouvert.",
+  'Closed.': "C'est fermé.",
   'Done.': 'Fait.',
   'Click.': 'Clic.',
-  'You are on your own feet again.': 'Vous voilà de nouveau sur vos pieds.',
+  'You are on your own feet again.': 'Vous voilà de nouveau debout.',
   '(magic boat)': '(bateau magique)',
   'Your collection of treasures consists of:':
     'Votre collection de trésors comprend :',
@@ -66,7 +67,7 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
   'You charge, but the troll jumps nimbly aside.':
     "Vous chargez, mais le troll s'écarte d'un bond agile.",
   'The troll swings his axe, but it misses.':
-    'Le troll abat sa hache, mais elle vous manque.',
+    'Le troll abat sa hache, mais elle vous rate.',
   "The troll's weapon is knocked to the floor, leaving him unarmed.":
     "L'arme du troll est projetée au sol, le laissant désarmé.",
   'The troll, disarmed, cowers in terror, pleading for his life in the guttural tongue of the trolls.':
@@ -82,7 +83,7 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
   'There is a suspicious-looking individual, holding a large bag, leaning against one wall. He is armed with a deadly stiletto.':
     "Un individu à l'air louche, tenant un grand sac, est adossé à un mur. Il est armé d'un stylet mortel.",
   "You hear a scream of anguish as you violate the robber's hideaway. Using passages unknown to you, he rushes to its defense.":
-    "Vous entendez un cri d'angoisse au moment où vous violez le repaire du voleur. Par des passages qui vous sont inconnus, il se précipite pour le défendre.",
+    "Vous entendez un cri d'angoisse au moment où vous profanez le repaire du voleur. Par des passages qui vous sont inconnus, il se précipite pour le défendre.",
   'The thief gestures mysteriously, and the treasures in the room suddenly vanish.':
     "Le voleur fait un geste mystérieux, et les trésors de la salle s'évanouissent soudain.",
   'The thief is taken aback by your unexpected generosity, but accepts the jewel-encrusted egg and stops to admire its beauty.':
@@ -117,9 +118,9 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
   // «il aime beaucoup les gens» — the joke (he likes them for dinner) must
   // survive translation.
   'A cyclops, who looks prepared to eat horses (much less mere adventurers), blocks the staircase. From his state of health, and the bloodstains on the walls, you gather that he is not very friendly, though he likes people.':
-    "Un cyclope, qui semble prêt à dévorer des chevaux (alors de simples aventuriers…), bloque l'escalier. À en juger par son état de santé et les taches de sang sur les murs, vous devinez qu'il n'est pas très amical, bien qu'il aime beaucoup les gens.",
+    "Un cyclope, qui semble prêt à dévorer des chevaux (alors, de simples aventuriers…), bloque l'escalier. À en juger par son état de santé et les taches de sang sur les murs, vous devinez qu'il n'est pas très amical, bien qu'il aime beaucoup les gens.",
   "The cyclops, hearing the name of his father's deadly nemesis, flees the room by knocking down the wall on the east of the room.":
-    "Le cyclope, entendant le nom du mortel ennemi de son père, s'enfuit de la salle en défonçant le mur est.",
+    "Le cyclope, entendant le nom de l'ennemi mortel de son père, s'enfuit de la salle en défonçant le mur est.",
 
   // ── PIN LIST (templates-file header, spec §5 escape hatch): full-line
   //    pins that beat the agreement-blind templates for plural objects. ────
@@ -137,6 +138,25 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
   // Irregular listing composition (partitive, no «Un/Une»); the builtin
   // 'A {obj}' template would also compose this, pinned for safety.
   'A quantity of water': "De l'eau",
+
+  // ── OFF-PATH PINS (plan slice 3 — famous lines not hit by the lamp-lit
+  //    walkthrough; added here so the translator is never surprised by them
+  //    in the wild). ────────────────────────────────────────────────────────
+  //
+  // Darkness messages: the Z-machine stores "It is pitch black." and
+  // " You are likely to be eaten by a grue." as TWO separate z-strings.
+  // At runtime the bridge normalises and delivers EITHER the bare darkness
+  // line (e.g. after spray) OR the combined line when the grue sentence is
+  // appended.  Both keys are pinned so the matcher hits on whichever arrives.
+  // The grue stays masculine «un grue» per the objects table (the monster,
+  // not «la grue» the bird).
+  'It is pitch black.': 'Il fait nuit noire.',
+  'It is pitch black. You are likely to be eaten by a grue.':
+    'Il fait nuit noire. Vous risquez fort de vous faire dévorer par un grue.',
+  'It is now pitch black.': 'Il fait maintenant nuit noire.',
+  // Extraction inventory confirms: "It's pitch black in here!" is a
+  // distinct z-string (cave/small-room variant).
+  "It's pitch black in here!": 'Il fait nuit noire ici !',
 
   // ── House & forest props/events ────────────────────────────────────────
   "Beside you on the branch is a small bird's nest.":
@@ -181,7 +201,7 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
   'The way through the gate is barred by evil spirits, who jeer at your attempts to pass.':
     'Le passage du portail est barré par des esprits malins, qui raillent vos tentatives.',
   'The bell suddenly becomes red hot and falls to the ground. The wraiths, as if paralyzed, stop their jeering and slowly turn to face you. On their ashen faces, the expression of a long-forgotten terror takes shape.':
-    "La cloche devient soudain chauffée au rouge et tombe au sol. Les spectres, comme paralysés, cessent leurs railleries et se tournent lentement vers vous. Sur leurs visages cendreux se dessine l'expression d'une terreur oubliée depuis longtemps.",
+    "La cloche, soudain chauffée au rouge, tombe au sol. Les spectres, comme paralysés, cessent leurs railleries et se tournent lentement vers vous. Sur leurs visages cendreux se dessine l'expression d'une terreur oubliée depuis longtemps.",
   'In your confusion, the candles drop to the ground (and they are out).':
     "Dans la confusion, vous laissez tomber les bougies (et elles s'éteignent).",
   'One of the matches starts to burn.': "Une des allumettes s'enflamme.",
@@ -230,7 +250,7 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
   'There are old engravings on the walls here.':
     'Il y a ici de vieilles gravures sur les murs.',
   'The rope drops over the side and comes within ten feet of the floor.':
-    "La corde tombe par-dessus bord et s'arrête à une dizaine de pieds du sol.",
+    "La corde tombe par-dessus bord et s'arrête à moins de dix pieds du sol.",
   'A piece of rope descends from the railing above, ending some five feet above your head.':
     "Un bout de corde descend de la rambarde là-haut et s'arrête à environ cinq pieds au-dessus de votre tête.",
   'Sitting on the pedestal is a flaming torch, made of ivory.':
@@ -240,7 +260,7 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
   'On the altar is a large black book, open to page 569.':
     "Sur l'autel se trouve un grand livre noir, ouvert à la page 569.",
   'A gust of wind blows out your candles!':
-    'Un coup de vent souffle vos bougies !',
+    'Un coup de vent éteint vos bougies !',
 
   // ── Coal mine, bat & machine ───────────────────────────────────────────
   'There is an exquisite jade figurine here.':
@@ -298,9 +318,10 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
     "Soudain, l'arc-en-ciel semble devenir solide et, j'ose le dire, praticable à pied (je crois que ce sont les marches et la rampe qui l'ont trahi).",
   'At the end of the rainbow is a pot of gold.':
     "Au bout de l'arc-en-ciel se trouve un pot d'or.",
-  'The lamp appears a bit dimmer.': 'La lampe semble un peu plus faible.',
+  'The lamp appears a bit dimmer.':
+    'La lampe semble luire un peu plus faiblement.',
   'The canary chirps, slightly off-key, an aria from a forgotten opera. From out of the greenery flies a lovely songbird. It perches on a limb just over your head and opens its beak to sing. As it does so a beautiful brass bauble drops from its mouth, bounces off the top of your head, and lands glimmering in the grass. As the canary winds down, the songbird flies away.':
-    "Le canari gazouille, en chantant légèrement faux, un air d'un opéra oublié. De la verdure surgit un ravissant oiseau chanteur. Il se perche sur une branche juste au-dessus de votre tête et ouvre le bec pour chanter. Ce faisant, une belle babiole en laiton tombe de son bec, rebondit sur le sommet de votre crâne et atterrit en scintillant dans l'herbe. Tandis que le mécanisme du canari s'arrête, l'oiseau chanteur s'envole.",
+    "Le canari gazouille, un peu faux, un air d'un opéra oublié. De la verdure surgit un ravissant oiseau chanteur. Il se perche sur une branche juste au-dessus de votre tête et ouvre le bec pour chanter. Ce faisant, une belle babiole en laiton tombe de son bec, rebondit sur le sommet de votre crâne et atterrit en scintillant dans l'herbe. Tandis que le mécanisme du canari s'arrête, l'oiseau chanteur s'envole.",
   'An almost inaudible voice whispers in your ear, "Look to your treasures for the final secret."':
     "Une voix presque inaudible vous murmure à l'oreille : « Cherchez le dernier secret du côté de vos trésors. »",
   'The ZORK trilogy continues with "ZORK II: The Wizard of Frobozz" and is completed in "ZORK III: The Dungeon Master."':
@@ -437,7 +458,7 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
   'This is a high north-south passage, which forks to the northeast.':
     "C'est un haut passage nord-sud, qui bifurque vers le nord-est.",
   'You are on the south edge of a deep canyon. Passages lead off to the east, northwest and southwest. A stairway leads down. You can hear the sound of flowing water from below.':
-    "Vous êtes sur le bord sud d'un canyon profond. Des passages partent vers l'est, le nord-ouest et le sud-ouest. Un escalier descend. Vous entendez un bruit d'eau courante venant d'en bas.",
+    "Vous êtes sur le bord sud d'un canyon profond. Des passages partent vers l'est, le nord-ouest et le sud-ouest. Un escalier descend. Vous entendez le bruit de l'eau qui coule venant d'en bas.",
   'You are in a long room on the south shore of a large lake, far too deep and wide for crossing.':
     "Vous êtes dans une longue salle sur la rive sud d'un grand lac, bien trop profond et trop large pour être traversé.",
   'There is a path along the stream to the east or west, a steep pathway climbing southwest along the edge of a chasm, and a path leading into a canyon to the southeast.':
@@ -505,7 +526,7 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
   'This is a nondescript part of a coal mine.':
     "C'est une partie quelconque d'une mine de charbon.",
   'This is a very small room. In the corner is a rickety wooden ladder, leading downward. It might be safe to descend. There is also a staircase leading upward.':
-    "C'est une toute petite salle. Dans le coin, une échelle en bois branlante descend. Il devrait être possible de descendre sans danger. Il y a aussi un escalier qui monte.",
+    "C'est une toute petite salle. Dans le coin, une échelle en bois branlante descend. Il n'est sans doute pas trop risqué d'y descendre. Il y a aussi un escalier qui monte.",
   'This is a rather wide room. On one side is the bottom of a narrow wooden ladder. To the west and the south are passages leaving the room.':
     "C'est une salle plutôt large. D'un côté se trouve le bas d'une étroite échelle en bois. À l'ouest et au sud, des passages quittent la salle.",
   'You have come to a dead end in the mine.':
@@ -541,7 +562,7 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
   'You are beneath the walls of the river canyon which may be climbable here. The lesser part of the runoff of Aragain Falls flows by below. To the north is a narrow path.':
     "Vous êtes au pied des parois du canyon de la rivière, qui semblent escaladables ici. Une moindre partie des eaux des chutes Aragain s'écoule en contrebas. Au nord se trouve un chemin étroit.",
   'You are on a ledge about halfway up the wall of the river canyon. You can see from here that the main flow from Aragain Falls twists along a passage which it is impossible for you to enter. Below you is the canyon bottom. Above you is more cliff, which appears climbable.':
-    "Vous êtes sur une corniche, à peu près à mi-hauteur de la paroi du canyon. Vous voyez d'ici que le flot principal des chutes Aragain serpente le long d'un passage où il vous est impossible d'entrer. Sous vous s'étend le fond du canyon. Au-dessus de vous, la falaise continue et semble escaladable.",
+    "Vous êtes sur une corniche, à peu près à mi-hauteur de la paroi du canyon. Vous voyez d'ici que le flot principal des chutes Aragain serpente le long d'un passage où il vous est impossible d'entrer. En contrebas s'étend le fond du canyon. Au-dessus de vous, la falaise continue et semble escaladable.",
   'You are at the top of the Great Canyon on its west wall. From here there is a marvelous view of the canyon and parts of the Frigid River upstream. Across the canyon, the walls of the White Cliffs join the mighty ramparts of the Flathead Mountains to the east. Following the Canyon upstream to the north, Aragain Falls may be seen, complete with rainbow. The mighty Frigid River flows out from a great dark cavern. To the west and south can be seen an immense forest, stretching for miles around. A path leads northwest. It is possible to climb down into the canyon from here.':
     "Vous êtes au sommet du Grand Canyon, sur sa paroi ouest. D'ici, la vue sur le canyon et sur une partie de la rivière Frigid en amont est merveilleuse. De l'autre côté du canyon, les parois des Falaises blanches rejoignent à l'est les puissants remparts des monts Flathead. En remontant le canyon vers le nord, on aperçoit les chutes Aragain, arc-en-ciel compris. La puissante rivière Frigid jaillit d'une grande caverne sombre. À l'ouest et au sud s'étend une immense forêt, à des lieues à la ronde. Un chemin part au nord-ouest. Il est possible de descendre dans le canyon d'ici.",
   'You are standing in front of a massive barrow of stone. In the east face is a huge stone door which is open. You cannot see into the dark of the tomb.':

@@ -26,16 +26,14 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
   // ── Banner block (printed at boot). Legal/serial lines stay near-verbatim:
   //    the copyright notice and trademark are legal text; release/serial
   //    numbers identify the story file. ────────────────────────────────────
-  'ZORK I: The Great Underground Empire':
-    'ZORK I : Le Grand Empire Souterrain',
+  'ZORK I: The Great Underground Empire': 'ZORK I : Le Grand Empire Souterrain',
   'Infocom interactive fiction - a fantasy story':
     'Fiction interactive Infocom - une histoire fantastique',
   'Copyright (c) 1981, 1982, 1983, 1984, 1985, 1986 Infocom, Inc. All rights reserved.':
     'Copyright (c) 1981, 1982, 1983, 1984, 1985, 1986 Infocom, Inc. Tous droits réservés.',
   'ZORK is a registered trademark of Infocom, Inc.':
     "ZORK est une marque déposée d'Infocom, Inc.",
-  'Release 119 / Serial number 880429':
-    'Version 119 / Numéro de série 880429',
+  'Release 119 / Serial number 880429': 'Version 119 / Numéro de série 880429',
 
   // ── Common one-word/stock responses ────────────────────────────────────
   // «Pris.»/«Posé.» read as the curt parser acknowledgements they are; the
@@ -83,7 +81,7 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
     "Quelqu'un portant un grand sac est nonchalamment adossé à l'un des murs. Il ne dit rien, mais il est clair, à son allure, qu'on ne lui prendra ce sac que sur son cadavre.",
   'There is a suspicious-looking individual, holding a large bag, leaning against one wall. He is armed with a deadly stiletto.':
     "Un individu à l'air louche, tenant un grand sac, est adossé à un mur. Il est armé d'un stylet mortel.",
-  'You hear a scream of anguish as you violate the robber\'s hideaway. Using passages unknown to you, he rushes to its defense.':
+  "You hear a scream of anguish as you violate the robber's hideaway. Using passages unknown to you, he rushes to its defense.":
     "Vous entendez un cri d'angoisse au moment où vous violez le repaire du voleur. Par des passages qui vous sont inconnus, il se précipite pour le défendre.",
   'The thief gestures mysteriously, and the treasures in the room suddenly vanish.':
     "Le voleur fait un geste mystérieux, et les trésors de la salle s'évanouissent soudain.",
@@ -122,6 +120,197 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
     "Un cyclope, qui semble prêt à dévorer des chevaux (alors de simples aventuriers…), bloque l'escalier. À en juger par son état de santé et les taches de sang sur les murs, vous devinez qu'il n'est pas très amical, bien qu'il aime beaucoup les gens.",
   "The cyclops, hearing the name of his father's deadly nemesis, flees the room by knocking down the wall on the east of the room.":
     "Le cyclope, entendant le nom du mortel ennemi de son père, s'enfuit de la salle en défonçant le mur est.",
+
+  // ── PIN LIST (templates-file header, spec §5 escape hatch): full-line
+  //    pins that beat the agreement-blind templates for plural objects. ────
+  'There is a pair of candles here (providing light).':
+    'Il y a des bougies ici (allumées).',
+  'A pair of candles (providing light)': 'Des bougies (allumées)',
+  'There is a matchbook here (providing light).':
+    'Il y a des allumettes ici (allumées).',
+  'A matchbook (providing light)': 'Des allumettes (allumées)',
+  // Plural holder for V-FIND («C'est X qui l'a» must become «Ce sont…»).
+  'The number of ghosts has it.': "Ce sont les fantômes qui l'ont.",
+  // 1actions.zil:90 — period, not bang (the bang shape is a template).
+  "You can't see any songbird here.":
+    "Vous ne voyez l'oiseau chanteur nulle part.",
+  // Irregular listing composition (partitive, no «Un/Une»); the builtin
+  // 'A {obj}' template would also compose this, pinned for safety.
+  'A quantity of water': "De l'eau",
+
+  // ── House & forest props/events ────────────────────────────────────────
+  "Beside you on the branch is a small bird's nest.":
+    "À côté de vous, sur la branche, se trouve un petit nid d'oiseau.",
+  "In the bird's nest is a large egg encrusted with precious jewels, apparently scavenged by a childless songbird. The egg is covered with fine gold inlay, and ornamented in lapis lazuli and mother-of-pearl. Unlike most eggs, this one is hinged and closed with a delicate looking clasp. The egg appears extremely fragile.":
+    "Dans le nid d'oiseau se trouve un gros œuf incrusté de joyaux précieux, apparemment chapardé par un oiseau chanteur sans progéniture. L'œuf est couvert de fines incrustations d'or et orné de lapis-lazuli et de nacre. Contrairement à la plupart des œufs, celui-ci est monté sur charnière et fermé par un fermoir d'apparence délicate. L'œuf semble extrêmement fragile.",
+  'You hear in the distance the chirping of a song bird.':
+    "Vous entendez au loin le gazouillis d'un oiseau chanteur.",
+  'With great effort, you open the window far enough to allow entry.':
+    "Au prix d'un grand effort, vous ouvrez la fenêtre juste assez pour pouvoir entrer.",
+  'A bottle is sitting on the table.': 'Une bouteille est posée sur la table.',
+  'On the table is an elongated brown sack, smelling of hot peppers.':
+    'Sur la table se trouve un sac marron tout en longueur, qui sent le piment.',
+  // Two-item reveal (pin list: only {obj}/{obj2} exist; the one-item shape
+  // is templated).
+  'Opening the brown sack reveals a clove of garlic, and a lunch.':
+    "En ouvrant le sac marron, vous découvrez une gousse d'ail et un déjeuner.",
+  'Above the trophy case hangs an elvish sword of great antiquity.':
+    'Au-dessus de la vitrine à trophées est accrochée une épée elfique de la plus haute antiquité.',
+  'A battery-powered brass lantern is on the trophy case.':
+    'Une lampe en laiton à piles est posée sur la vitrine à trophées.',
+  'With a great effort, the rug is moved to one side of the room, revealing the dusty cover of a closed trap door.':
+    "Au prix d'un grand effort, le tapis est poussé sur un côté de la pièce, révélant le panneau poussiéreux d'une trappe fermée.",
+  'The door reluctantly opens to reveal a rickety staircase descending into darkness.':
+    "La porte s'ouvre à contrecœur, révélant un escalier branlant qui s'enfonce dans l'obscurité.",
+  'A large coil of rope is lying in the corner.':
+    'Un grand rouleau de corde traîne dans un coin.',
+  'On a table is a nasty-looking knife.':
+    'Sur une table se trouve un vilain couteau.',
+  'The trap door crashes shut, and you hear someone barring it.':
+    "La trappe se referme avec fracas, et vous entendez quelqu'un la barricader.",
+
+  // ── Maze & Hades ───────────────────────────────────────────────────────
+  'Beside the skeleton is a rusty knife.':
+    'À côté du squelette se trouve un couteau rouillé.',
+  "The deceased adventurer's useless lantern is here.":
+    "La lampe inutile de l'aventurier défunt est ici.",
+  'An old leather bag, bulging with coins, is here.':
+    'Un vieux sac en cuir, gonflé de pièces, est ici.',
+  'There is a silver chalice, intricately engraved, here.':
+    'Il y a ici un calice en argent, finement gravé.',
+  'The way through the gate is barred by evil spirits, who jeer at your attempts to pass.':
+    'Le passage du portail est barré par des esprits malins, qui raillent vos tentatives.',
+  'The bell suddenly becomes red hot and falls to the ground. The wraiths, as if paralyzed, stop their jeering and slowly turn to face you. On their ashen faces, the expression of a long-forgotten terror takes shape.':
+    "La cloche devient soudain chauffée au rouge et tombe au sol. Les spectres, comme paralysés, cessent leurs railleries et se tournent lentement vers vous. Sur leurs visages cendreux se dessine l'expression d'une terreur oubliée depuis longtemps.",
+  'In your confusion, the candles drop to the ground (and they are out).':
+    "Dans la confusion, vous laissez tomber les bougies (et elles s'éteignent).",
+  'One of the matches starts to burn.': "Une des allumettes s'enflamme.",
+  'The candles are lit.': 'Les bougies sont allumées.',
+  'The flames flicker wildly and appear to dance. The earth beneath your feet trembles, and your legs nearly buckle beneath you. The spirits cower at your unearthly power.':
+    'Les flammes vacillent follement et semblent danser. La terre tremble sous vos pieds, et vos jambes manquent de se dérober. Les esprits se recroquevillent devant votre puissance surnaturelle.',
+  'The match has gone out.': "L'allumette s'est éteinte.",
+  'Each word of the prayer reverberates through the hall in a deafening confusion. As the last word fades, a voice, loud and commanding, speaks: "Begone, fiends!" A heart-stopping scream fills the cavern, and the spirits, sensing a greater power, flee through the walls.':
+    "Chaque mot de la prière se répercute dans la salle en une confusion assourdissante. Tandis que le dernier mot s'éteint, une voix forte et impérieuse déclare : « Arrière, démons ! » Un cri à glacer le sang emplit la caverne, et les esprits, sentant une puissance supérieure, s'enfuient à travers les murs.",
+  'Lying in one corner of the room is a beautifully carved crystal skull. It appears to be grinning at you rather nastily.':
+    'Dans un coin de la salle gît un crâne de cristal magnifiquement sculpté. Il semble vous adresser un rictus plutôt mauvais.',
+  'On the ground is a red hot bell.':
+    'Sur le sol se trouve une cloche chauffée au rouge.',
+
+  // ── Gallery, dam & reservoir ───────────────────────────────────────────
+  'Fortunately, there is still one chance for you to be a vandal, for on the far wall is a painting of unparalleled beauty.':
+    "Heureusement, il vous reste une chance de jouer les vandales, car sur le mur du fond se trouve un tableau d'une beauté sans égale.",
+  'The sluice gates on the dam are closed. Behind the dam, there can be seen a wide reservoir. Water is pouring over the top of the now abandoned dam.':
+    "Les vannes du barrage sont fermées. Derrière le barrage, on aperçoit un vaste réservoir. L'eau se déverse par-dessus le barrage, aujourd'hui abandonné.",
+  'There is a control panel here, on which a large metal bolt is mounted. Directly above the bolt is a small green plastic bubble.':
+    'Il y a ici un panneau de commande, sur lequel est monté un gros boulon métallique. Juste au-dessus du boulon se trouve une petite bulle de plastique verte.',
+  'There is a control panel here, on which a large metal bolt is mounted. Directly above the bolt is a small green plastic bubble which is glowing serenely.':
+    'Il y a ici un panneau de commande, sur lequel est monté un gros boulon métallique. Juste au-dessus du boulon se trouve une petite bulle de plastique verte qui luit sereinement.',
+  'Some guidebooks entitled "Flood Control Dam #3" are on the reception desk.':
+    "Des guides touristiques intitulés « Barrage de régulation des crues nº 3 » sont posés sur le comptoir d'accueil.",
+  'There is a matchbook whose cover says "Visit Beautiful FCD#3" here.':
+    'Il y a ici des allumettes dont la pochette proclame « Visitez le magnifique BRC nº 3 ».',
+  'There is an object which looks like a tube of toothpaste here.':
+    'Il y a ici un objet qui ressemble à un tube de dentifrice.',
+  'The sluice gates open and water pours through the dam.':
+    "Les vannes s'ouvrent et l'eau s'engouffre à travers le barrage.",
+  'There is a rumble from deep within the earth and the room shakes.':
+    'Un grondement monte des profondeurs de la terre et la salle tremble.',
+  'On the ground is a large platinum bar.':
+    'Sur le sol se trouve une grosse barre de platine.',
+  'The acoustics of the room change subtly.':
+    "L'acoustique de la salle change subtilement.",
+  'Lying half buried in the mud is an old trunk, bulging with jewels.':
+    'À demi enfouie dans la boue gît une vieille malle, débordant de bijoux.',
+  'There is a slimy stairway leaving the room to the north.':
+    'Un escalier visqueux quitte la salle vers le nord.',
+  "On the shore lies Poseidon's own crystal trident.":
+    'Sur la rive gît le trident de cristal de Poséidon lui-même.',
+
+  // ── Temple, dome & torch ───────────────────────────────────────────────
+  'There are old engravings on the walls here.':
+    'Il y a ici de vieilles gravures sur les murs.',
+  'The rope drops over the side and comes within ten feet of the floor.':
+    "La corde tombe par-dessus bord et s'arrête à une dizaine de pieds du sol.",
+  'A piece of rope descends from the railing above, ending some five feet above your head.':
+    "Un bout de corde descend de la rambarde là-haut et s'arrête à environ cinq pieds au-dessus de votre tête.",
+  'Sitting on the pedestal is a flaming torch, made of ivory.':
+    "Sur le piédestal repose une torche enflammée, taillée dans l'ivoire.",
+  'On the two ends of the altar are burning candles.':
+    "Aux deux extrémités de l'autel brûlent des bougies.",
+  'On the altar is a large black book, open to page 569.':
+    "Sur l'autel se trouve un grand livre noir, ouvert à la page 569.",
+  'A gust of wind blows out your candles!':
+    'Un coup de vent souffle vos bougies !',
+
+  // ── Coal mine, bat & machine ───────────────────────────────────────────
+  'There is an exquisite jade figurine here.':
+    'Il y a ici une exquise figurine de jade.',
+  'In the corner of the room on the ceiling is a large vampire bat who is obviously deranged and holding his nose.':
+    'Au coin du plafond se tient une grande chauve-souris vampire, manifestement dérangée, qui se bouche le nez.',
+  'At the end of the chain is a basket.':
+    'Au bout de la chaîne se trouve un panier.',
+  'From the chain is suspended a basket.':
+    'À la chaîne est suspendu un panier.',
+  'The basket is lowered to the bottom of the shaft.':
+    "Le panier est descendu jusqu'au fond du puits.",
+  'The basket is raised to the top of the shaft.':
+    "Le panier est remonté jusqu'en haut du puits.",
+  'The lid opens.': "Le couvercle s'ouvre.",
+  'The lid closes.': 'Le couvercle se ferme.',
+  'The machine comes to life (figuratively) with a dazzling display of colored lights and bizarre noises. After a few moments, the excitement abates.':
+    "La machine s'anime (au sens figuré) dans un éblouissement de lumières colorées et de bruits bizarres. Au bout de quelques instants, l'agitation retombe.",
+  'The lid opens, revealing a huge diamond.':
+    "Le couvercle s'ouvre, révélant un énorme diamant.",
+  'There is a brass lantern (battery-powered) here.':
+    'Il y a ici une lampe en laiton (à piles).',
+
+  // ── Egypt ──────────────────────────────────────────────────────────────
+  'The solid-gold coffin used for the burial of Ramses II is here.':
+    "Le cercueil en or massif qui servit à l'inhumation de Ramsès II est ici.",
+  'A sceptre, possibly that of ancient Egypt itself, is in the coffin. The sceptre is ornamented with colored enamel, and tapers to a sharp point.':
+    "Un sceptre, peut-être celui de l'Égypte ancienne elle-même, se trouve dans le cercueil. Le sceptre est orné d'émaux colorés et s'effile en une pointe acérée.",
+
+  // ── River, boat & beach ────────────────────────────────────────────────
+  'There is a folded pile of plastic here which has a small valve attached.':
+    "Il y a ici un tas de plastique plié muni d'une petite valve.",
+  'The boat inflates and appears seaworthy.':
+    'Le bateau se gonfle et semble en état de naviguer.',
+  'A tan label is lying inside the boat.':
+    "Une étiquette beige se trouve à l'intérieur du bateau.",
+  'The flow of the river carries you downstream.':
+    "Le courant de la rivière vous emporte vers l'aval.",
+  'There is a red buoy here (probably a warning).':
+    'Il y a ici une bouée rouge (probablement un avertissement).',
+  'The magic boat comes to a rest on the shore.':
+    "Le bateau magique vient s'immobiliser sur le rivage.",
+  'You seem to be digging a hole here.': 'Vous semblez creuser un trou ici.',
+  "The hole is getting deeper, but that's about it.":
+    "Le trou devient plus profond, mais c'est à peu près tout.",
+  'You are surrounded by a wall of sand on all sides.':
+    'Un mur de sable vous entoure de tous côtés.',
+  'You can see a scarab here in the sand.':
+    'Vous apercevez un scarabée ici, dans le sable.',
+
+  // ── Rainbow & endgame ──────────────────────────────────────────────────
+  'A beautiful rainbow can be seen over the falls and to the west.':
+    "Un magnifique arc-en-ciel se déploie au-dessus des chutes, vers l'ouest.",
+  'Suddenly, the rainbow appears to become solid and, I venture, walkable (I think the giveaway was the stairs and bannister).':
+    "Soudain, l'arc-en-ciel semble devenir solide et, j'ose le dire, praticable à pied (je crois que ce sont les marches et la rampe qui l'ont trahi).",
+  'At the end of the rainbow is a pot of gold.':
+    "Au bout de l'arc-en-ciel se trouve un pot d'or.",
+  'The lamp appears a bit dimmer.': 'La lampe semble un peu plus faible.',
+  'The canary chirps, slightly off-key, an aria from a forgotten opera. From out of the greenery flies a lovely songbird. It perches on a limb just over your head and opens its beak to sing. As it does so a beautiful brass bauble drops from its mouth, bounces off the top of your head, and lands glimmering in the grass. As the canary winds down, the songbird flies away.':
+    "Le canari gazouille, en chantant légèrement faux, un air d'un opéra oublié. De la verdure surgit un ravissant oiseau chanteur. Il se perche sur une branche juste au-dessus de votre tête et ouvre le bec pour chanter. Ce faisant, une belle babiole en laiton tombe de son bec, rebondit sur le sommet de votre crâne et atterrit en scintillant dans l'herbe. Tandis que le mécanisme du canari s'arrête, l'oiseau chanteur s'envole.",
+  'An almost inaudible voice whispers in your ear, "Look to your treasures for the final secret."':
+    "Une voix presque inaudible vous murmure à l'oreille : « Cherchez le dernier secret du côté de vos trésors. »",
+  'The ZORK trilogy continues with "ZORK II: The Wizard of Frobozz" and is completed in "ZORK III: The Dungeon Master."':
+    "La trilogie ZORK se poursuit avec « ZORK II : Le Sorcier de Frobozz » et s'achève avec « ZORK III : Le Maître du Donjon ».",
+  'This gives you the rank of Master Adventurer.':
+    'Cela vous confère le rang de Maître Aventurier.',
+  'Would you like to restart the game from the beginning, restore a saved game position, or end this session of the game?':
+    'Voulez-vous recommencer la partie depuis le début, restaurer une partie sauvegardée, ou mettre fin à cette session de jeu ?',
+  // The command words are read verbatim by the Z-machine — never localized.
+  '(Type RESTART, RESTORE, or QUIT):': '(Tapez RESTART, RESTORE ou QUIT) :',
 
   // ── Rooms — titles (these are also the status-bar lookups) ─────────────
   'West of House': "À l'ouest de la maison",

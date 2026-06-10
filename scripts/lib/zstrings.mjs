@@ -1,9 +1,25 @@
-// Z-machine v3 string decoding + brute-force extraction (output-translation
+// Z-machine v3 string decoding + anchored extraction (output-translation
 // spec §4). Pure (bytes in, strings out) so BOTH the extract-strings CLI and
 // the corpus inventory gate (vitest) share it. v3 specifics: 3 z-chars per
 // word, end on the high bit; chars 1-3 = abbreviations (table word-address at
 // header 0x18; may not nest); 4/5 = one-char shifts to A1/A2; A2 char 6 = a
 // 10-bit ZSCII literal, char 7 = newline.
+//
+// Extraction strategy: two anchored passes instead of a byte-granular brute
+// scan. The brute scan found every true string but also decoded millions of
+// mid-instruction byte offsets into plausible-looking garbage, flooding the
+// shape-filtered inventory with ~2.6k entries (target: <2k policed by the
+// ignore list). Anchored extraction trades theoretical completeness (computed
+// string addresses — rare in Infocom v3 games) for a clean inventory:
+//
+//   1. Packed-address anchors: every 16-bit big-endian word in the file treated
+//      as a v3 packed address (×2). If the target falls in [0x40, fileLen-1],
+//      decode there. Catches print_paddr operands and table/property string refs
+//      (Infocom's static string area).
+//   2. Inline print-literal anchors: every byte equal to 0xB2 (print) or 0xB3
+//      (print_ret) — short-form 0OP opcodes whose z-string follows immediately
+//      at byte+1. Catches TELL literals at arbitrary byte alignment (e.g. the
+//      grue string at odd offset 38107).
 const A0 = 'abcdefghijklmnopqrstuvwxyz'
 const A1 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 const A2T = '0123456789.,!?_#\'"/\\-:()' // chars 8..31
@@ -108,20 +124,21 @@ function extractObjectNames(buf) {
 }
 
 /**
- * Brute-force scan of the high-memory area (above the high-memory base pointer
- * stored at header 0x04): inline TELL print-literal strings in z-code start at
- * ARBITRARY byte offsets (not word-aligned), so we must try every byte offset.
- *
- * Every byte that decodes to a passing looksLikeText string is collected; exact
- * duplicates are removed by the Set in extractStrings.  Garbled-prefix artifacts
- * (mid-instruction starts) will be present alongside the clean strings; Task 17's
- * shape filter and ignore list prune them at corpus-build time.
+ * Pass 1 — packed-address anchors: treat every 16-bit big-endian word in the
+ * file as a v3 packed address (multiply by 2). If the resolved address is in
+ * [0x40, fileLen-1] and decodes to a looksLikeText string, keep it. Deduped by
+ * address via a Set before collecting. This catches print_paddr operands and
+ * table/property-stored string references (Infocom's static string area).
  */
-function extractHighMemStrings(buf) {
-  // High-memory base from header byte 0x04
-  const hmem = (buf[0x04] << 8) | buf[0x05]
+function extractPackedAddrStrings(buf) {
+  const seen = new Set()
   const kept = []
-  for (let addr = hmem; addr < buf.length - 1; addr += 1) {
+  for (let i = 0; i + 1 < buf.length; i++) {
+    const word = (buf[i] << 8) | buf[i + 1]
+    const addr = word * 2
+    if (addr < 0x40 || addr >= buf.length - 1) continue
+    if (seen.has(addr)) continue
+    seen.add(addr)
     const r = decodeZString(buf, addr)
     if (r === null) continue
     if (!looksLikeText(r.text)) continue
@@ -131,14 +148,56 @@ function extractHighMemStrings(buf) {
 }
 
 /**
- * Full extraction: object short names (clean, pointer-driven) plus a brute scan
- * of the high-memory narrative strings.  Returns deduplicated raw z-strings
- * (may contain '\n'; use displayLines to split and normalize).
+ * Pass 2 — inline print-literal anchors: scan for the short-form 0OP opcodes
+ * 0xB2 (print) and 0xB3 (print_ret), whose z-string immediate follows at
+ * byte+1. These TELL literals are embedded in z-code at arbitrary byte
+ * alignment (not word-aligned) so packed-address scanning misses them (e.g.
+ * the "likely to be eaten by a grue" string at odd offset 38107). Decoding at
+ * every opcode byte is safe because the opcode is only one byte and the z-string
+ * immediately follows.
+ */
+function extractInlinePrintStrings(buf) {
+  const seen = new Set()
+  const kept = []
+  for (let i = 0; i + 1 < buf.length; i++) {
+    const byte = buf[i]
+    if (byte !== 0xb2 && byte !== 0xb3) continue
+    const addr = i + 1
+    if (seen.has(addr)) continue
+    seen.add(addr)
+    const r = decodeZString(buf, addr)
+    if (r === null) continue
+    if (!looksLikeText(r.text)) continue
+    kept.push(r.text)
+  }
+  return kept
+}
+
+/**
+ * Full extraction: object short names (clean, pointer-driven) + packed-address
+ * anchors (static string area) + inline print-literal anchors (TELL literals at
+ * arbitrary alignment). Returns deduplicated raw z-strings (may contain '\n';
+ * use displayLines to split and normalize).
+ *
+ * Anchored extraction trades theoretical completeness (computed string
+ * addresses — rare in Infocom v3 games — would be missed) for a clean
+ * inventory. The walkthrough coverage gate catches gameplay lines
+ * independently.
  */
 export function extractStrings(buf) {
   const objNames = extractObjectNames(buf)
-  const highMem = extractHighMemStrings(buf)
-  return [...new Set([...objNames, ...highMem])]
+  const packedAddr = extractPackedAddrStrings(buf)
+  const inlinePrint = extractInlinePrintStrings(buf)
+  const all = [...objNames, ...packedAddr, ...inlinePrint]
+  const textSeen = new Set()
+  const deduped = []
+  for (const s of all) {
+    if (!textSeen.has(s)) {
+      textSeen.add(s)
+      deduped.push(s)
+    }
+  }
+  return deduped
 }
 
 /** Split multi-line z-strings into normalized display lines (spec §4): every

@@ -41,4 +41,11 @@ describe('z-machine v3 string extraction (spec §4)', () => {
     expect(decodeZString(new Uint8Array(4).fill(0xff), 0)).not.toBeNull() // end-bit set is *structurally* valid…
     expect(decodeZString(new Uint8Array([0x00, 0x00]), 0)).toBeNull() // …but a never-terminating string is not
   })
+  it('anchored extraction keeps the inventory-gate population manageable (no mid-instruction garbage flood)', () => {
+    const fullLine = s => /^[A-Z"'(]/.test(s) && /[.!?:")]$/.test(s)
+    const roomTitle = s => /^[A-Z][^.!?]{2,40}$/.test(s)
+    const shaped = lines.filter(l => fullLine(l) || roomTitle(l))
+    expect(shaped.length).toBeGreaterThan(800) // the real corpus is in here
+    expect(shaped.length).toBeLessThan(2000) // brute-scan garbage would blow past this
+  })
 })

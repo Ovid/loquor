@@ -10,6 +10,10 @@ export type ObjectsTable = Readonly<Record<string, ObjectForms>>
 
 /** A composing pattern. EN slots: {obj} {obj2} {num} {num2} {raw}. The out
  * side references {obj.<key>} / {obj2.<key>} / {num} / {num2} / {raw}.
+ * Each slot name may appear AT MOST ONCE per template — slots compile to
+ * named regex groups, and a duplicate name throws at corpus compile time
+ * ({obj2}/{num2} exist precisely for a second occurrence). Form keys are
+ * ASCII letters only ([A-Za-z]+).
  * cap: capitalize the first character of the composed result (used by the
  * built-in listing template "A {obj}" → "{obj.indef}"). */
 export interface Template {

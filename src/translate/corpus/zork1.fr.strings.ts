@@ -50,6 +50,79 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
   'Your collection of treasures consists of:':
     'Votre collection de trésors comprend :',
 
+  // ── Combat — sword glow, troll fight ───────────────────────────────────
+  'Your sword is glowing with a faint blue glow.':
+    "Votre épée luit d'une faible lueur bleue.",
+  'Your sword has begun to glow very brightly.':
+    "Votre épée s'est mise à luire très vivement.",
+  'Your sword is no longer glowing.': 'Votre épée ne luit plus.',
+  'A nasty-looking troll, brandishing a bloody axe, blocks all passages out of the room.':
+    "Un troll à l'air mauvais, brandissant une hache ensanglantée, bloque toutes les issues de la salle.",
+  'Clang! Crash! The troll parries.': 'Cling ! Clang ! Le troll pare le coup.',
+  "The troll's mighty blow drops you to your knees.":
+    'Le coup formidable du troll vous jette à genoux.',
+  'You are still recovering from that last blow, so your attack is ineffective.':
+    'Vous vous remettez encore du dernier coup, et votre attaque est inefficace.',
+  "The troll's axe barely misses your ear.":
+    'La hache du troll manque votre oreille de peu.',
+  'You charge, but the troll jumps nimbly aside.':
+    "Vous chargez, mais le troll s'écarte d'un bond agile.",
+  'The troll swings his axe, but it misses.':
+    'Le troll abat sa hache, mais elle vous manque.',
+  "The troll's weapon is knocked to the floor, leaving him unarmed.":
+    "L'arme du troll est projetée au sol, le laissant désarmé.",
+  'The troll, disarmed, cowers in terror, pleading for his life in the guttural tongue of the trolls.':
+    'Le troll, désarmé, se recroqueville de terreur, implorant pour sa vie dans la langue gutturale des trolls.',
+  'The unarmed troll cannot defend himself: He dies.':
+    'Le troll désarmé ne peut pas se défendre : il meurt.',
+  'Almost as soon as the troll breathes his last breath, a cloud of sinister black fog envelops him, and when the fog lifts, the carcass has disappeared.':
+    "À peine le troll a-t-il rendu son dernier souffle qu'un nuage de brume noire et sinistre l'enveloppe, et quand la brume se dissipe, la carcasse a disparu.",
+
+  // ── The thief ──────────────────────────────────────────────────────────
+  'Someone carrying a large bag is casually leaning against one of the walls here. He does not speak, but it is clear from his aspect that the bag will be taken only over his dead body.':
+    "Quelqu'un portant un grand sac est nonchalamment adossé à l'un des murs. Il ne dit rien, mais il est clair, à son allure, qu'on ne lui prendra ce sac que sur son cadavre.",
+  'There is a suspicious-looking individual, holding a large bag, leaning against one wall. He is armed with a deadly stiletto.':
+    "Un individu à l'air louche, tenant un grand sac, est adossé à un mur. Il est armé d'un stylet mortel.",
+  'You hear a scream of anguish as you violate the robber\'s hideaway. Using passages unknown to you, he rushes to its defense.':
+    "Vous entendez un cri d'angoisse au moment où vous violez le repaire du voleur. Par des passages qui vous sont inconnus, il se précipite pour le défendre.",
+  'The thief gestures mysteriously, and the treasures in the room suddenly vanish.':
+    "Le voleur fait un geste mystérieux, et les trésors de la salle s'évanouissent soudain.",
+  'The thief is taken aback by your unexpected generosity, but accepts the jewel-encrusted egg and stops to admire its beauty.':
+    "Le voleur est décontenancé par votre générosité inattendue, mais il accepte l'œuf incrusté de joyaux et s'arrête pour en admirer la beauté.",
+  'The stiletto flashes faster than you can follow, and blood wells from your leg.':
+    'Le stylet jaillit plus vite que votre regard ne peut le suivre, et le sang perle de votre jambe.',
+  'The thief is disarmed by a subtle feint past his guard.':
+    'Le voleur est désarmé par une feinte subtile qui déjoue sa garde.',
+  'The robber, somewhat surprised at this turn of events, nimbly retrieves his stiletto.':
+    'Le brigand, quelque peu surpris par la tournure des événements, ramasse prestement son stylet.',
+  'The quickness of your thrust knocks the thief back, stunned.':
+    'La vivacité de votre botte projette le voleur en arrière, étourdi.',
+  'The thief slowly regains his feet.': 'Le voleur se relève lentement.',
+  'A quick stroke, but the thief is on guard.':
+    'Un coup rapide, mais le voleur est sur ses gardes.',
+  'You dodge as the thief comes in low.':
+    "Vous esquivez l'attaque basse du voleur.",
+  'The thief is staggered, and drops to his knees.':
+    'Le voleur chancelle et tombe à genoux.',
+  'A furious exchange, and the thief is knocked out!':
+    'Un échange furieux, et le voleur est assommé !',
+  'The unconscious thief cannot defend himself: He dies.':
+    'Le voleur inconscient ne peut pas se défendre : il meurt.',
+  'Almost as soon as the thief breathes his last breath, a cloud of sinister black fog envelops him, and when the fog lifts, the carcass has disappeared.':
+    "À peine le voleur a-t-il rendu son dernier souffle qu'un nuage de brume noire et sinistre l'enveloppe, et quand la brume se dissipe, la carcasse a disparu.",
+  'As the thief dies, the power of his magic decreases, and his treasures reappear:':
+    'Tandis que le voleur meurt, le pouvoir de sa magie décline, et ses trésors réapparaissent :',
+  'The chalice is now safe to take.':
+    'Le calice peut maintenant être pris sans danger.',
+
+  // ── The cyclops ────────────────────────────────────────────────────────
+  // «il aime beaucoup les gens» — the joke (he likes them for dinner) must
+  // survive translation.
+  'A cyclops, who looks prepared to eat horses (much less mere adventurers), blocks the staircase. From his state of health, and the bloodstains on the walls, you gather that he is not very friendly, though he likes people.':
+    "Un cyclope, qui semble prêt à dévorer des chevaux (alors de simples aventuriers…), bloque l'escalier. À en juger par son état de santé et les taches de sang sur les murs, vous devinez qu'il n'est pas très amical, bien qu'il aime beaucoup les gens.",
+  "The cyclops, hearing the name of his father's deadly nemesis, flees the room by knocking down the wall on the east of the room.":
+    "Le cyclope, entendant le nom du mortel ennemi de son père, s'enfuit de la salle en défonçant le mur est.",
+
   // ── Rooms — titles (these are also the status-bar lookups) ─────────────
   'West of House': "À l'ouest de la maison",
   'North of House': 'Au nord de la maison',

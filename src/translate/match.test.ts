@@ -181,6 +181,71 @@ describe('real Zork I French corpus smoke (Task 15)', () => {
       matchLine(real, 'A jewel-encrusted egg, with a golden clockwork canary'),
     ).toBe('Un œuf incrusté de joyaux, avec un canari mécanique doré')
   })
+
+  // ── Composed melee/diagnose/state shapes (review fix) — each EN side is
+  //    byte-exact against the ZIL composition it pins down. ────────────────
+  it('villain-disarm composes the player weapon agreement-free («votre arme» dodges it/Elle)', () => {
+    // 1actions.zil TROLL-MELEE LOSE-WEAPON row.
+    expect(
+      matchLine(
+        real,
+        'The axe knocks your sword out of your hand. It falls to the floor.',
+      ),
+    ).toBe(
+      'La hache fait sauter votre épée de votre main. Votre arme tombe au sol.',
+    )
+  })
+  it('hero-melee knockout composes for any villain (masculine set: troll/voleur)', () => {
+    // 1actions.zil HERO-MELEE UNCONSCIOUS row, "The " F-DEF " is knocked out!".
+    expect(matchLine(real, 'The thief is knocked out!')).toBe(
+      'Le voleur est assommé !',
+    )
+  })
+  it('HACK-HACK verb-gerund × HO-HUM suffix composes (gverbs.zil V-KICK)', () => {
+    expect(matchLine(real, 'Kicking the brass lantern has no effect.')).toBe(
+      "Donner des coups de pied dans la lampe en laiton n'a aucun effet.",
+    )
+  })
+  it('V-DIAGNOSE wound line composes the {num} cure counter', () => {
+    expect(
+      matchLine(
+        real,
+        'You have a light wound, which will be cured after 28 moves.',
+      ),
+    ).toBe(
+      'Vous avez une blessure légère, qui sera guérie au bout de 28 tours.',
+    )
+  })
+  it('lamp state pin (examine composes "The lamp " + state)', () => {
+    expect(matchLine(real, 'The lamp is turned off.')).toBe(
+      'La lampe est éteinte.',
+    )
+  })
+  it('throw-at-self death composes {obj} (gverbs.zil V-THROW + JIGS-UP)', () => {
+    expect(
+      matchLine(
+        real,
+        "A terrific throw! The nasty knife hits you squarely in the head. Normally, this wouldn't do much damage, but by incredible mischance, you fall over backwards trying to duck, and break your neck, justice being swift and merciful in the Great Underground Empire.",
+      ),
+    ).toBe(
+      "Un lancer formidable ! Vous recevez le vilain couteau en pleine tête. Normalement, cela ne ferait pas grand mal, mais par une malchance incroyable, vous basculez en arrière en essayant d'esquiver et vous vous brisez la nuque, la justice étant prompte et clémente dans le Grand Empire Souterrain.",
+    )
+  })
+  it('mid-word splice composes: "Your skillful {obj}smanship…" (gverbs.zil cut family)', () => {
+    expect(
+      matchLine(
+        real,
+        'Your skillful swordsmanship slices the painting into innumerable slivers which blow away.',
+      ),
+    ).toBe(
+      "Vous maniez votre épée en virtuose, taillant le tableau en innombrables copeaux qui s'envolent.",
+    )
+  })
+  it('remaining-weapon line composes (VILLAIN-BLOW after LOSE-WEAPON)', () => {
+    expect(matchLine(real, 'Fortunately, you still have a nasty knife.')).toBe(
+      'Heureusement, il vous reste un vilain couteau.',
+    )
+  })
 })
 
 describe('open form keys contract (spec §4, §7.1 — fake declined language)', () => {

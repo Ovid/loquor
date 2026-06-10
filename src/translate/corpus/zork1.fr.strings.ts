@@ -615,6 +615,88 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
   'This gives you the rank of Beginner.':
     'Cela vous confère le rang de Débutant.',
 
+  // ── Composed full-line pins (review fix) — finite compositions whose TELL
+  //    pieces are extraction fragments; every EN side verified against the
+  //    composing ZIL (citations per group). ────────────────────────────────
+  // V-DIAGNOSE prognosis & death-count lines (1actions.zil:4012-:4024).
+  'You can expect death soon.': 'Vous pouvez vous attendre à mourir bientôt.',
+  'You can be killed by one more light wound.':
+    'Une blessure légère de plus peut vous tuer.',
+  'You can be killed by a serious wound.':
+    'Une blessure sérieuse peut vous tuer.',
+  'You can survive one serious wound.':
+    'Vous pouvez survivre à une blessure sérieuse.',
+  'You can survive several wounds.':
+    'Vous pouvez survivre à plusieurs blessures.',
+  'You have been killed once.': 'Vous avez été tué une fois.',
+  'You have been killed twice.': 'Vous avez été tué deux fois.',
+  // Lamp examine states (1actions.zil:2250-:2256); «morte» matches the
+  // existing «La lampe est presque morte» / «Une lampe morte» family.
+  'The lamp is on.': 'La lampe est allumée.',
+  'The lamp is turned off.': 'La lampe est éteinte.',
+  'The lamp has burned out.': 'La lampe est morte.',
+  // Candle states (1actions.zil:2364-:2403).
+  'The candles are already lit.': 'Les bougies sont déjà allumées.',
+  'The candles are burning.': 'Les bougies brûlent.',
+  'The candles are out.': 'Les bougies sont éteintes.',
+  // Chimney examine (1actions.zil:547-:552) and the maintenance-room red
+  // button (1actions.zil:1316-:1323).
+  'The chimney leads upward, and looks climbable.':
+    'La cheminée monte, et semble escaladable.',
+  'The chimney leads downward, and looks climbable.':
+    'La cheminée descend, et semble escaladable.',
+  'The lights within the room shut off.':
+    "Les lumières de la salle s'éteignent.",
+  'The lights within the room come on.': "Les lumières de la salle s'allument.",
+  // Rug raise (1actions.zil:581-:587).
+  'The rug is too heavy to lift.': 'Le tapis est trop lourd pour être soulevé.',
+  'The rug is too heavy to lift, but in trying to take it you have noticed an irregularity beneath it.':
+    'Le tapis est trop lourd pour être soulevé, mais en essayant de le prendre, vous avez remarqué une irrégularité dessous.',
+  // Maintenance-room flood ticker (1actions.zil:1345 × the DROWNINGS table
+  // :1284-:1293 — all nine rungs).
+  'The water level here is now up to your ankles.':
+    "L'eau vous arrive maintenant aux chevilles.",
+  'The water level here is now up to your shin.':
+    "L'eau vous arrive maintenant au tibia.",
+  'The water level here is now up to your knees.':
+    "L'eau vous arrive maintenant aux genoux.",
+  'The water level here is now up to your hips.':
+    "L'eau vous arrive maintenant aux hanches.",
+  'The water level here is now up to your waist.':
+    "L'eau vous arrive maintenant à la taille.",
+  'The water level here is now up to your chest.':
+    "L'eau vous arrive maintenant à la poitrine.",
+  'The water level here is now up to your neck.':
+    "L'eau vous arrive maintenant au cou.",
+  'The water level here is now over your head.':
+    "L'eau vous passe maintenant par-dessus la tête.",
+  'The water level here is now high in your lungs.':
+    "L'eau emplit maintenant vos poumons.",
+  // V-SWIM fixed tail (gverbs.zil:1332 — the {obj} variant is a template).
+  "Swimming isn't usually allowed in the dungeon.":
+    "La baignade n'est généralement pas autorisée dans le donjon.",
+  // Boat re-launch quips (1actions.zil:2742-:2750 — three fixed nouns).
+  'You are on the river, or have you forgotten?':
+    "Vous êtes sur la rivière, l'auriez-vous oublié ?",
+  'You are on the reservoir, or have you forgotten?':
+    "Vous êtes sur le réservoir, l'auriez-vous oublié ?",
+  'You are on the stream, or have you forgotten?':
+    "Vous êtes sur le cours d'eau, l'auriez-vous oublié ?",
+  // STUPID-CONTAINER (1actions.zil:4138-:4150 — coins and jewels only).
+  'There are lots of coins in there.':
+    'Il y a là-dedans des pièces en pagaille.',
+  'There are lots of jewels in there.':
+    'Il y a là-dedans des bijoux en pagaille.',
+  "The coins are safely inside; there's no need to do that.":
+    "Les pièces sont bien à l'abri à l'intérieur ; inutile de faire ça.",
+  "The jewels are safely inside; there's no need to do that.":
+    "Les bijoux sont bien à l'abri à l'intérieur ; inutile de faire ça.",
+  // Kitchen-window look-through (1actions.zil:258-:262 — two fixed views).
+  'You can see a clear area leading towards a forest.':
+    'Vous apercevez une zone dégagée qui mène vers une forêt.',
+  'You can see what appears to be a kitchen.':
+    'Vous apercevez ce qui semble être une cuisine.',
+
   // ── Off-path lines, in story-file extraction order ──────────────────────
   'Nice view, lousy place to jump.':
     'Belle vue, mais piètre endroit pour sauter.',
@@ -723,12 +805,12 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
   'The prayer is inscribed in an ancient script, rarely used today. It seems to be a philippic against small insects, absent-mindedness, and the picking up and dropping of small objects. The final verse consigns trespassers to the land of the dead. All evidence indicates that the beliefs of the ancient Zorkers were obscure.':
     'La prière est rédigée dans une écriture ancienne, rarement employée de nos jours. Elle semble être une philippique contre les petits insectes, les étourderies, et la manie de ramasser et de poser de petits objets. La dernière strophe voue les intrus au royaume des morts. Tout indique que les croyances des anciens Zorkiens étaient obscures.',
   'The door is nailed shut.': 'La porte est clouée.',
-  'Getting tired?': 'Vous fatiguez ?',
+  'Getting tired?': 'Vous vous fatiguez ?',
   'A small leaflet is on the ground.': 'Un petit dépliant est posé sur le sol.',
   '"WELCOME TO ZORK!': '« BIENVENUE DANS ZORK !',
   'ZORK is a game of adventure, danger, and low cunning. In it you will explore some of the most amazing territory ever seen by mortals. No computer should be without one!"':
     "ZORK est un jeu d'aventure, de danger et de basse ruse. Vous y explorerez certains des territoires les plus stupéfiants jamais contemplés par des mortels. Aucun ordinateur ne devrait s'en passer ! »",
-  'The east wall is solid rock.': 'Le mur est est en roche massive.',
+  'The east wall is solid rock.': 'Le mur oriental est en roche massive.',
   "The cyclops doesn't look like he'll let you past.":
     "Le cyclope n'a pas l'air disposé à vous laisser passer.",
   'There is a golden clockwork canary nestled in the egg. It has ruby eyes and a silver beak. Through a crystal window below its left wing you can see intricate machinery inside. It appears to have wound down.':
@@ -1350,8 +1432,10 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
   'The boards are securely fastened.': 'Les planches sont solidement fixées.',
   "Dental hygiene is highly recommended, but I'm not sure what you want to brush them with.":
     "L'hygiène dentaire est hautement recommandée, mais je ne vois pas bien avec quoi vous comptez les brosser.",
+  // «oriental» dodges the «est est» stutter, matching the granite-wall
+  // room description above.
   'The east wall is solid granite here.':
-    'Le mur est est ici en granit massif.',
+    'Le mur oriental est ici en granit massif.',
   'It only SAYS "Granite Wall".': "C'est seulement ÉCRIT « Mur de granit ».",
   "The wall isn't granite.": "Le mur n'est pas en granit.",
   "You can't hear the songbird now.":

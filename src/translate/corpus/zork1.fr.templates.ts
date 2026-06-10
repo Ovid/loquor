@@ -468,4 +468,459 @@ export const ZORK1_FR_TEMPLATES: readonly Template[] = [
     en: 'Look on a {obj}???',
     out: 'Regarder sur {obj.indef} ???',
   },
+
+  // ── HERO-MELEE rows not covered above (1actions.zil:3611-:3648). F-DEF
+  //    is only ever the troll or the thief (CYCLOPS-FCN intercepts ATTACK
+  //    at 1actions.zil:1575 and never reaches HERO-BLOW), so the masculine
+  //    participles and the hard-coded «du {obj.bare}» are provably safe;
+  //    F-WEP is the player's weapon → «votre {obj.bare}» (no agreement
+  //    surface). Exact pins for single villains (troll parries, thief
+  //    staggered…) still win over these by the exact-first rule. ──────────
+  {
+    en: 'Your {obj} misses the {obj2} by an inch.',
+    out: "Votre {obj.bare} manque {obj2.def} d'un pouce.",
+  },
+  {
+    en: 'Clang! Crash! The {obj} parries.',
+    out: 'Cling ! Clang ! {obj.def} pare le coup.',
+  },
+  {
+    en: 'Your {obj} crashes down, knocking the {obj2} into dreamland.',
+    out: "Votre {obj.bare} s'abat, expédiant {obj2.def} au pays des rêves.",
+  },
+  {
+    en: 'The {obj} is battered into unconsciousness.',
+    out: "{obj.def} est roué de coups jusqu'à perdre connaissance.",
+    cap: true,
+  },
+  {
+    en: 'The {obj} is knocked out!',
+    out: '{obj.def} est assommé !',
+    cap: true,
+  },
+  {
+    en: 'The {obj} takes a fatal blow and slumps to the floor dead.',
+    out: "{obj.def} reçoit un coup fatal et s'effondre au sol, mort.",
+    cap: true,
+  },
+  {
+    en: 'The {obj} is struck on the arm; blood begins to trickle down.',
+    out: '{obj.def} est touché au bras ; le sang commence à couler.',
+    cap: true,
+  },
+  {
+    en: "Your {obj} pinks the {obj2} on the wrist, but it's not serious.",
+    out: "Votre {obj.bare} pique {obj2.def} au poignet, mais ce n'est pas grave.",
+  },
+  {
+    en: "The blow lands, making a shallow gash in the {obj}'s arm!",
+    out: 'Le coup porte, ouvrant une entaille superficielle au bras du {obj.bare} !',
+  },
+  {
+    en: 'The {obj} receives a deep gash in his side.',
+    out: '{obj.def} reçoit une profonde entaille au flanc.',
+    cap: true,
+  },
+  {
+    en: 'A savage blow on the thigh! The {obj} is stunned but can still fight!',
+    out: 'Un coup sauvage à la cuisse ! {obj.def} est étourdi mais peut encore se battre !',
+  },
+  {
+    en: 'The {obj} is staggered, and drops to his knees.',
+    out: '{obj.def} chancelle et tombe à genoux.',
+    cap: true,
+  },
+  {
+    en: "The {obj} is momentarily disoriented and can't fight back.",
+    out: '{obj.def} est un instant désorienté et ne peut pas riposter.',
+    cap: true,
+  },
+  {
+    en: "The {obj} is confused and can't fight back.",
+    out: '{obj.def} est déconcerté et ne peut pas riposter.',
+    cap: true,
+  },
+  {
+    en: "The {obj}'s weapon is knocked to the floor, leaving him unarmed.",
+    out: "L'arme du {obj.bare} est projetée au sol, le laissant désarmé.",
+  },
+  {
+    en: 'The {obj} is disarmed by a subtle feint past his guard.',
+    out: '{obj.def} est désarmé par une feinte subtile qui déjoue sa garde.',
+    cap: true,
+  },
+  // HERO-BLOW frame lines (1actions.zil:3499-:3507, :3419) — the unarmed
+  // troll / unconscious thief combos are exact pins; these cover the rest.
+  {
+    en: 'The unarmed {obj} cannot defend himself: He dies.',
+    out: '{obj.def} désarmé ne peut pas se défendre : il meurt.',
+    cap: true,
+  },
+  {
+    en: 'The unconscious {obj} cannot defend himself: He dies.',
+    out: '{obj.def} inconscient ne peut pas se défendre : il meurt.',
+    cap: true,
+  },
+  {
+    en: 'The {obj} slowly regains his feet.',
+    out: '{obj.def} se relève lentement.',
+    cap: true,
+  },
+  {
+    en: 'Attacking the {obj} is pointless.',
+    out: 'Attaquer {obj.def} ne sert à rien.',
+  },
+  // VILLAIN-BLOW :3473 — the remaining weapon after a disarm.
+  {
+    en: 'Fortunately, you still have a {obj}.',
+    out: 'Heureusement, il vous reste {obj.indef}.',
+  },
+
+  // ── Villain-disarm rows (TROLL-MELEE :3720-:3723, THIEF-MELEE :3774-
+  //    :3779, CYCLOPS-MELEE :3674-:3678 — F-WEP = the PLAYER's weapon).
+  //    «votre arme» picks up EN's "it" so nothing agrees with the weapon's
+  //    gender (épée f / couteau m / stylet m). ──────────────────────────────
+  {
+    en: 'The axe hits your {obj} and knocks it spinning.',
+    out: "La hache heurte votre {obj.bare} et l'envoie valser.",
+  },
+  {
+    en: 'The troll swings, you parry, but the force of his blow knocks your {obj} away.',
+    out: 'Le troll frappe, vous parez, mais la force de son coup fait voler votre {obj.bare}.',
+  },
+  {
+    en: 'The axe knocks your {obj} out of your hand. It falls to the floor.',
+    out: 'La hache fait sauter votre {obj.bare} de votre main. Votre arme tombe au sol.',
+  },
+  {
+    en: 'A long, theatrical slash. You catch it on your {obj}, but the thief twists his knife, and the {obj2} goes flying.',
+    out: "Un long coup de taille théâtral. Vous le bloquez avec votre {obj.bare}, mais le voleur tord son couteau, et votre {obj2.bare} s'envole.",
+  },
+  {
+    en: 'The thief neatly flips your {obj} out of your hands, and it drops to the floor.',
+    out: "D'une pichenette adroite, le voleur fait sauter votre {obj.bare} de vos mains, et votre arme tombe au sol.",
+  },
+  {
+    en: 'You parry a low thrust, and your {obj} slips out of your hand.',
+    out: 'Vous parez une botte basse, et votre {obj.bare} vous glisse de la main.',
+  },
+  // «le tout» dodges agreeing "it" with the weapon (and keeps the gag).
+  {
+    en: 'The Cyclops grabs your {obj}, tastes it, and throws it to the ground in disgust.',
+    out: 'Le Cyclope attrape votre {obj.bare}, y goûte, et jette le tout au sol avec dégoût.',
+  },
+  {
+    en: 'The monster grabs you on the wrist, squeezes, and you drop your {obj} in pain.',
+    out: 'Le monstre vous saisit le poignet, serre, et la douleur vous fait lâcher votre {obj.bare}.',
+  },
+  // TROLL-MELEE light-wound :3710 — "your sword arm" (the arm holding it).
+  {
+    en: 'The troll charges, and his axe slashes you on your {obj} arm.',
+    out: 'Le troll charge, et sa hache vous entaille le bras qui tient votre {obj.bare}.',
+  },
+  // TROLL-FCN weapon-recovery guards (1actions.zil:633-:637). {obj} is the
+  // troll for the first; for the second it is ONLY ever the bloody axe
+  // (the troll's weapon), feminine — «chauffée»/«la» are exact, not generic.
+  {
+    en: 'The {obj} swings it out of your reach.',
+    out: '{obj.def} la balance hors de votre portée.',
+    cap: true,
+  },
+  {
+    en: "The {obj} seems white-hot. You can't hold on to it.",
+    out: '{obj.def} semble chauffée à blanc. Impossible de la garder en main.',
+    cap: true,
+  },
+
+  // ── V-ATTACK / V-STAB / PRE-MUNG refusals (gverbs.zil :176-:188, :1297-
+  //    :1303, :923-:937). ──────────────────────────────────────────────────
+  {
+    en: "I've known strange people, but fighting a {obj}?",
+    out: "J'ai connu des gens étranges, mais se battre contre {obj.indef} ?",
+  },
+  {
+    en: 'Trying to attack a {obj} with your bare hands is suicidal.',
+    out: 'Attaquer {obj.indef} à mains nues est suicidaire.',
+  },
+  {
+    en: 'No doubt you propose to stab the {obj} with your pinky?',
+    out: 'Vous comptez sans doute poignarder {obj.def} avec votre petit doigt ?',
+  },
+  {
+    en: 'Trying to destroy the {obj} with your bare hands is futile.',
+    out: 'Essayer de détruire {obj.def} à mains nues est peine perdue.',
+  },
+  {
+    en: 'Trying to destroy the {obj} with a {obj2} is futile.',
+    out: 'Essayer de détruire {obj.def} avec {obj2.indef} est peine perdue.',
+  },
+  // gverbs.zil:398 — cut with a non-weapon («Comme tranchant, …» dodges
+  // the banned de+indef elision).
+  {
+    en: 'The "cutting edge" of a {obj} is hardly adequate.',
+    out: 'Comme tranchant, {obj.indef} laisse plutôt à désirer.',
+  },
+  // gverbs.zil:394 — the "{wep}smanship" splice ("nasty knifesmanship"…);
+  // the matcher resolves the slot mid-word. «en virtuose» carries the joke;
+  // «taillant» keeps {obj2} agreement-free (le tableau / les feuilles).
+  {
+    en: 'Your skillful {obj}smanship slices the {obj2} into innumerable slivers which blow away.',
+    out: "Vous maniez votre {obj.bare} en virtuose, taillant {obj2.def} en innombrables copeaux qui s'envolent.",
+  },
+
+  // ── HACK-HACK verb defaults (gverbs.zil:2024-:2037): five gerund
+  //    prefixes (V-KICK :760, V-LOWER/V-RAISE :902/:1131, V-PUSH :1070,
+  //    V-RUB :1165, V-WAVE :1595) × the three HO-HUM suffixes — all 15
+  //    composed lines, enumerated. French keeps the infinitive-subject
+  //    shape («Pousser X n'a aucun effet»), agreement-free. ────────────────
+  {
+    en: "Kicking the {obj} doesn't seem to work.",
+    out: 'Donner des coups de pied dans {obj.def} ne semble pas marcher.',
+  },
+  {
+    en: "Kicking the {obj} isn't notably helpful.",
+    out: "Donner des coups de pied dans {obj.def} n'est pas d'une utilité notable.",
+  },
+  {
+    en: 'Kicking the {obj} has no effect.',
+    out: "Donner des coups de pied dans {obj.def} n'a aucun effet.",
+  },
+  {
+    en: "Waving the {obj} doesn't seem to work.",
+    out: 'Agiter {obj.def} ne semble pas marcher.',
+  },
+  {
+    en: "Waving the {obj} isn't notably helpful.",
+    out: "Agiter {obj.def} n'est pas d'une utilité notable.",
+  },
+  {
+    en: 'Waving the {obj} has no effect.',
+    out: "Agiter {obj.def} n'a aucun effet.",
+  },
+  {
+    en: "Fiddling with the {obj} doesn't seem to work.",
+    out: 'Tripoter {obj.def} ne semble pas marcher.',
+  },
+  {
+    en: "Fiddling with the {obj} isn't notably helpful.",
+    out: "Tripoter {obj.def} n'est pas d'une utilité notable.",
+  },
+  {
+    en: 'Fiddling with the {obj} has no effect.',
+    out: "Tripoter {obj.def} n'a aucun effet.",
+  },
+  {
+    en: "Playing in this way with the {obj} doesn't seem to work.",
+    out: 'Jouer de cette façon avec {obj.def} ne semble pas marcher.',
+  },
+  {
+    en: "Playing in this way with the {obj} isn't notably helpful.",
+    out: "Jouer de cette façon avec {obj.def} n'est pas d'une utilité notable.",
+  },
+  {
+    en: 'Playing in this way with the {obj} has no effect.',
+    out: "Jouer de cette façon avec {obj.def} n'a aucun effet.",
+  },
+  {
+    en: "Pushing the {obj} doesn't seem to work.",
+    out: 'Pousser {obj.def} ne semble pas marcher.',
+  },
+  {
+    en: "Pushing the {obj} isn't notably helpful.",
+    out: "Pousser {obj.def} n'est pas d'une utilité notable.",
+  },
+  {
+    en: 'Pushing the {obj} has no effect.',
+    out: "Pousser {obj.def} n'a aucun effet.",
+  },
+
+  // ── V-DIAGNOSE wound lines (1actions.zil:3998-:4010) — the wound phrase
+  //    and the «cured after N moves» carrier print as ONE line; {num} is
+  //    the cure countdown. The "You can …" prognosis and "You have been
+  //    killed …" lines are finite pins in zork1.fr.strings.ts. ─────────────
+  {
+    en: 'You have a light wound, which will be cured after {num} moves.',
+    out: 'Vous avez une blessure légère, qui sera guérie au bout de {num} tours.',
+  },
+  {
+    en: 'You have a serious wound, which will be cured after {num} moves.',
+    out: 'Vous avez une blessure sérieuse, qui sera guérie au bout de {num} tours.',
+  },
+  {
+    en: 'You have several wounds, which will be cured after {num} moves.',
+    out: 'Vous avez plusieurs blessures, qui seront guéries au bout de {num} tours.',
+  },
+  {
+    en: 'You have serious wounds, which will be cured after {num} moves.',
+    out: 'Vous avez des blessures sérieuses, qui seront guéries au bout de {num} tours.',
+  },
+
+  // ── V-THROW (gverbs.zil:1443-:1455). The at-self line glues the TELL and
+  //    the JIGS-UP DESC into one display paragraph — matched whole. ─────────
+  {
+    en: "A terrific throw! The {obj} hits you squarely in the head. Normally, this wouldn't do much damage, but by incredible mischance, you fall over backwards trying to duck, and break your neck, justice being swift and merciful in the Great Underground Empire.",
+    out: "Un lancer formidable ! Vous recevez {obj.def} en pleine tête. Normalement, cela ne ferait pas grand mal, mais par une malchance incroyable, vous basculez en arrière en essayant d'esquiver et vous vous brisez la nuque, la justice étant prompte et clémente dans le Grand Empire Souterrain.",
+  },
+  {
+    en: 'The {obj} ducks as the {obj2} flies by and crashes to the ground.',
+    out: "{obj.def} se baisse tandis que {obj2.def} passe en sifflant et s'écrase au sol.",
+    cap: true,
+  },
+
+  // ── Thief gifts (1actions.zil:2002-:2013). The jewel-encrusted-egg
+  //    variant of the first line stays pinned (exact wins). ────────────────
+  {
+    en: 'The thief is taken aback by your unexpected generosity, but accepts the {obj} and stops to admire its beauty.',
+    out: "Le voleur est décontenancé par votre générosité inattendue, mais il accepte {obj.def} et s'arrête pour en admirer la beauté.",
+  },
+  {
+    en: 'The thief places the {obj} in his bag and thanks you politely.',
+    out: 'Le voleur range {obj.def} dans son sac et vous remercie poliment.',
+  },
+
+  // ── Machine lid (1actions.zil:2509) — one-content case; the huge-diamond
+  //    line stays pinned. Multi-item PRINT-CONTENTS lists ("a X and a Y")
+  //    are unbounded → LLM fallback (see extraction-ignore notes). ──────────
+  {
+    en: 'The lid opens, revealing a {obj}.',
+    out: "Le couvercle s'ouvre, révélant {obj.indef}.",
+  },
+
+  // ── More verb-default refusals & quips, swept while making the
+  //    extraction-ignore reasons true (citations per entry). ────────────────
+  // gverbs.zil:508, :511, :516 (eat/drink guards).
+  {
+    en: 'You have to be holding the {obj} first.',
+    out: "Il faudrait d'abord tenir {obj.def}.",
+  },
+  {
+    en: "You'll have to open the {obj} first.",
+    out: "Il faudrait d'abord ouvrir {obj.def}.",
+  },
+  {
+    en: "I don't think that the {obj} would agree with you.",
+    out: 'Je ne crois pas que {obj.def} vous réussirait.',
+  },
+  // gverbs.zil:799 (turn on a burnable), :908 (melt — «puisse fondre» keeps
+  // the object agreement-free).
+  {
+    en: 'If you wish to burn the {obj}, you should say so.',
+    out: 'Si vous souhaitez brûler {obj.def}, dites-le.',
+  },
+  {
+    en: "It's not clear that a {obj} can be melted.",
+    out: "Il n'est pas évident que {obj.indef} puisse fondre.",
+  },
+  // gverbs.zil:1037 pour-on; 1actions.zil:192 pour-into («laisse fuir»
+  // dodges the banned «hors de + slot» contraction).
+  {
+    en: 'The water spills over the {obj}, to the floor, and evaporates.',
+    out: "L'eau ruisselle sur {obj.def}, se répand au sol et s'évapore.",
+  },
+  {
+    en: 'The water leaks out of the {obj} and evaporates immediately.',
+    out: "{obj.def} laisse fuir l'eau, qui s'évapore aussitôt.",
+    cap: true,
+  },
+  // gverbs.zil:1059 V-PUMP, :1189 V-TALK («interpeller» dodges à+le→au).
+  {
+    en: 'Pump it up with a {obj}?',
+    out: 'Le gonfler avec {obj.indef} ?',
+  },
+  {
+    en: 'You must address the {obj} directly.',
+    out: 'Vous devez interpeller {obj.def} directement.',
+  },
+  // gverbs.zil:1222 V-SHAKE («en répandez le contenu» dodges de+le→du; the
+  // EN "disappears" grammar slip is not reproduced).
+  {
+    en: 'The contents of the {obj} spill to the ground.',
+    out: 'En secouant {obj.def}, vous en répandez le contenu au sol.',
+  },
+  {
+    en: 'The contents of the {obj} spill out and disappears.',
+    out: 'En secouant {obj.def}, vous en répandez le contenu, qui disparaît.',
+  },
+  // gverbs.zil:1328 V-SWIM (the "dungeon." tail is a pin), :1439 climb.
+  {
+    en: "Swimming isn't usually allowed in the {obj}.",
+    out: "La baignade n'est généralement pas autorisée dans {obj.def}.",
+  },
+  {
+    en: 'You hit your head against the {obj} as you attempt this feat.',
+    out: 'Vous vous cognez la tête contre {obj.def} en tentant cet exploit.',
+  },
+  // gverbs.zil:1831/:1833 PRINT-CONT headers (trailing space normalizes off;
+  // the contains: variant is templated above).
+  {
+    en: 'Sitting on the {obj} is:',
+    out: 'Sur {obj.def}, il y a :',
+  },
+  {
+    en: 'The {obj} is holding:',
+    out: '{obj.def} tient :',
+    cap: true,
+  },
+  // 1actions.zil:724 (troll/axe), :869 (grating), :1211 (bolt), :2551
+  // (machine switch).
+  {
+    en: 'You would have to get the {obj} first, and that seems unlikely.',
+    out: "Il faudrait d'abord mettre la main sur {obj.def}, ce qui semble peu probable.",
+  },
+  {
+    en: 'Can you unlock a grating with a {obj}?',
+    out: 'Peut-on déverrouiller une grille avec {obj.indef} ?',
+  },
+  {
+    en: "The bolt won't turn using the {obj}.",
+    out: 'Le boulon refuse de tourner avec {obj.def}.',
+  },
+  {
+    en: "It seems that a {obj} won't do.",
+    out: "On dirait que {obj.indef} ne fera pas l'affaire.",
+  },
+  // 1actions.zil:2768 boat puncture (one glued display paragraph).
+  {
+    en: "It seems that the {obj} didn't agree with the boat, as evidenced by the loud hissing noise issuing therefrom. With a pathetic sputter, the boat deflates, leaving you without.",
+    out: "On dirait que {obj.def} n'était pas du goût du bateau, comme en témoigne le sifflement sonore qui s'en échappe. Dans un crachotement pathétique, le bateau se dégonfle, vous laissant démuni.",
+  },
+  // 1actions.zil:2938/:2942 (egg-opening tools).
+  {
+    en: "Not to say that using the {obj} isn't original too...",
+    out: "Non pas qu'utiliser {obj.def} manque d'originalité non plus...",
+  },
+  {
+    en: 'The concept of using a {obj} is certainly original.',
+    out: "L'idée d'utiliser {obj.indef} est assurément originale.",
+  },
+  // 1actions.zil:3060/:3063 tie-up («le ligoter» — villains are masculine).
+  {
+    en: 'The {obj} struggles and you cannot tie him up.',
+    out: '{obj.def} se débat et vous ne pouvez pas le ligoter.',
+    cap: true,
+  },
+  {
+    en: 'Why would you tie up a {obj}?',
+    out: 'Pourquoi ligoter {obj.indef} ?',
+  },
+  // 1actions.zil:3970 (sacred-object vanish), :4158 (dumb container).
+  {
+    en: 'You suddenly notice that the {obj} vanished.',
+    out: 'Vous remarquez soudain que {obj.def} a disparu.',
+  },
+  {
+    en: 'It looks pretty much like a {obj}.',
+    out: 'Cela ressemble à peu près à {obj.indef}.',
+  },
+
+  // ── Parser multiple-object refusals (gparser.zil:1302-:1310) — the verb
+  //    echoed is the player's TYPED token, hence {raw}. ─────────────────────
+  {
+    en: 'You can\'t use multiple direct objects with "{raw}".',
+    out: 'Vous ne pouvez pas employer plusieurs compléments directs avec « {raw} ».',
+  },
+  {
+    en: 'You can\'t use multiple indirect objects with "{raw}".',
+    out: 'Vous ne pouvez pas employer plusieurs compléments indirects avec « {raw} ».',
+  },
 ]

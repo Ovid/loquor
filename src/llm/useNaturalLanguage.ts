@@ -184,9 +184,14 @@ export function useNaturalLanguage(
 
   // Own a scene tracker; rebuild + reset when the game (vocab) changes.
   const trackerRef = useRef<TextSceneTracker | null>(null)
+  // [O] Story-switch epoch: bumped whenever the game (vocab) changes. An
+  // in-flight drain compares it between sends — its translations and queued
+  // lines were typed at the OLD game and must not fire into the new one.
+  const epochRef = useRef(0)
   useEffect(() => {
     trackerRef.current = vocab ? new TextSceneTracker(vocab) : null
     lastCommandRef.current = null
+    epochRef.current++
   }, [vocab])
 
   // Probe the ON-DISK cache (survives reloads) for the installed/not-installed
@@ -257,6 +262,19 @@ export function useNaturalLanguage(
   // The GBNF grammar is a pure function of the FULL vocab (NL v2 §7) — build it
   // once per game instead of once per LLM clause (Task 21 review).
   const grammar = useMemo(() => (vocab ? buildGrammar(vocab) : null), [vocab])
+
+  // [N] Live drain guard: the drain loop runs inside ONE translate closure
+  // but outlives renders — picker changes (language, off) land in state the
+  // closure snapshotted at its creation. The ref always carries the freshest
+  // phase/language/lexicons; the drain re-reads it at every line boundary.
+  // Synced in an effect (not during render) per react-hooks/refs.
+  const liveRef = useRef<{ internal: Internal; lex: typeof lex }>({
+    internal,
+    lex,
+  })
+  useEffect(() => {
+    liveRef.current = { internal, lex }
+  })
 
   const requestDownload = useCallback(() => {
     setNotice(null)
@@ -421,17 +439,20 @@ export function useNaturalLanguage(
         syncQueue()
         return
       }
-      // Past the guard, `internal` is narrowed to the 'on' variant — capture the
-      // active language once so the later stages need no dead `language === 'off'`
-      // defensiveness (Task 21 review).
-      const activeLang = internal.language
+      // [O] Snapshot the story epoch: the drain abandons everything (in-flight
+      // results included) once the game underneath it changes.
+      const epoch = epochRef.current
 
       // Run ONE clause through the deterministic-first stages 3–7 (spec §4)
       // against the given live scene. `raw` is synthetic for the deterministic
-      // stages — only the [nl debug] log consumes it.
+      // stages — only the [nl debug] log consumes it. activeLang/lex come from
+      // the CALLER's per-line read of liveRef ([N]), never from this closure's
+      // render snapshot.
       const runClause = async (
         clause: string,
         scene: Scene,
+        activeLang: ActiveLanguage,
+        lex: (typeof liveRef.current)['lex'],
       ): Promise<{ result: TranslateResult; raw: string; stage: Stage }> => {
         // Stages 3–4 GATE on a trailing-punctuation-stripped form, so they
         // must SEND that same form ([C]): Zork's dictionary separators are
@@ -542,7 +563,9 @@ export function useNaturalLanguage(
       // Run ONE LINE through the full pipeline (stages 1–8). Returns 'flush'
       // when the game raised an interactive prompt: queued lines were typed
       // BEFORE the player saw that question, so the drain must discard them
-      // rather than feed them to it (F-A). Errors propagate to the per-line
+      // rather than feed them to it (F-A). Returns 'stale' when the story
+      // epoch changed while a clause was translating ([O]) — the caller
+      // abandons the drain without sending. Errors propagate to the per-line
       // catch in the drain below. `settled` is the previous drained line's
       // turn-boundary view context (non-null only when the drain awaited that
       // boundary): it is FRESHER than getContext(), whose backing view ref
@@ -552,7 +575,15 @@ export function useNaturalLanguage(
         line: string,
         fromQueue: boolean,
         settled: ViewContext | null,
-      ): Promise<'ok' | 'flush'> => {
+      ): Promise<'ok' | 'flush' | 'stale'> => {
+        // [N] Resolve the ACTIVE language and lexicons per LINE, not per
+        // drain: a picker change mid-drain applies to every line that runs
+        // after it. The drain's phase gate guarantees 'on' here; the 'en'
+        // arm only keeps the narrowing total for TS.
+        const live = liveRef.current
+        const activeLang: ActiveLanguage =
+          live.internal.phase === 'on' ? live.internal.language : 'en'
+        const lex = live.lex
         // STAGE 1 (spec §4): the game is asking. The interpreter's yes/no
         // confirmations (restart/quit/restore) and the parser's disambiguation
         // questions ("Which door…?") are read as ordinary LINE input, so the
@@ -616,7 +647,12 @@ export function useNaturalLanguage(
           let raw: string
           let stage: Stage
           try {
-            ;({ result, raw, stage } = await runClause(clause, scene))
+            ;({ result, raw, stage } = await runClause(
+              clause,
+              scene,
+              activeLang,
+              lex,
+            ))
           } catch (err) {
             // Single command: surface through the outer catch (timeout/failure
             // notice + raw send — unchanged contract). Mid-compound: stop the
@@ -626,6 +662,10 @@ export function useNaturalLanguage(
             stopError = err
             break
           }
+          // [O] An await elapsed: if the story changed underneath this drain,
+          // the translated result belongs to the OLD game — drop it unsent
+          // and abandon everything ('stale' bypasses stage 8 entirely).
+          if (epochRef.current !== epoch) return 'stale'
           // TEMP per-clause diagnostics — what the live scene fed the stage vs.
           // what it emitted, and WHICH stage produced it. Remove once quality
           // is tuned.
@@ -784,7 +824,27 @@ export function useNaturalLanguage(
         // doc) — null for the first line and after a boundary timeout.
         let settled: ViewContext | null = null
         while (line !== undefined) {
-          let outcome: 'ok' | 'flush' = 'ok'
+          // [O] Story swapped between lines: everything left here was typed
+          // at the OLD game. Quiet clear — the swap made the lines
+          // irrelevant, and a notice would land in the new game's transcript.
+          if (epochRef.current !== epoch) {
+            queueRef.current = []
+            syncQueue()
+            break
+          }
+          // [N] 'Off is instant' for the queue too: the phase left 'on'
+          // mid-drain, so the line in hand and everything queued behind it
+          // is abandoned with a notice instead of being translated by a
+          // layer the player just turned off. Unreachable for the first
+          // (typed) line — translate gated on phase with no await since.
+          if (liveRef.current.internal.phase !== 'on') {
+            lastCommandRef.current = null
+            queueRef.current = []
+            syncQueue()
+            setNotice('Queue cleared — natural language is off.')
+            break
+          }
+          let outcome: 'ok' | 'flush' | 'stale' = 'ok'
           try {
             outcome = await runLine(line, fromQueue, settled)
           } catch (err) {
@@ -807,6 +867,13 @@ export function useNaturalLanguage(
           // A compound that stopped mid-sequence leaves this set; reset it per
           // line so Terminal's observe effect resumes for later queued lines.
           inSequenceRef.current = false
+          // 'stale' ([O]): the story changed while a clause translated — the
+          // result was dropped unsent; abandon the rest of the drain too.
+          if (outcome === 'stale') {
+            queueRef.current = []
+            syncQueue()
+            break
+          }
           // 'flush': the game raised an interactive prompt. A FROM-QUEUE line
           // that flushes was itself dropped input, so the notice ALWAYS shows
           // — even when nothing else was queued behind it (a lone queued line
@@ -863,9 +930,11 @@ export function useNaturalLanguage(
         inSequenceRef.current = false
       }
     },
+    // `lex` is deliberately NOT a dep: the drain reads it (and the phase/
+    // language) per line through liveRef ([N]), so a picker change needn't
+    // recreate translate.
     [
       internal,
-      lex,
       vocab,
       grammar,
       getContext,

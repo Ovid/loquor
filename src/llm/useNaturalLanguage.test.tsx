@@ -1528,6 +1528,118 @@ describe('input queue (NL v2 §11, F-A)', () => {
     // Line 1's abstain notice survives (line 2 set none); no "queue cleared".
     expect(hook.result.current.notice).toMatch(/couldn.t translate/i)
   })
+
+  it('a mid-drain language switch applies to queued lines ([N])', async () => {
+    // The drain loop lives inside ONE translate closure, which used to
+    // capture lex/activeLang once: lines queued after a picker change drained
+    // under the OLD language. Here line 1 (fr, slow LLM abstain) is in flight
+    // when the player switches to Deutsch and the queued DE separable-verb
+    // line must translate under DE — under fr it would miss to the LLM and
+    // abstain.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      generateDelayMs: 50,
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const { hook, sendLine } = setup({
+      engine,
+      vocab: ZORK1_VOCAB,
+      signature: ZORK1_SIG,
+    })
+    await waitFor(() =>
+      expect(hook.result.current.state).toEqual({
+        phase: 'off',
+        installed: true,
+      }),
+    )
+    act(() => hook.result.current.setLanguage('fr'))
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate('blorple le ciel') // fr, slow LLM
+    })
+    act(() => {
+      void hook.result.current.translate('schalte die laterne ein') // queues
+    })
+    act(() => hook.result.current.setLanguage('de')) // picker changed mid-drain
+    await act(async () => {
+      await p
+    })
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['turn on light'])
+  })
+
+  it("switching OFF mid-drain abandons the queue — 'off is instant' ([N])", async () => {
+    const engine = new FakeLlmEngine({
+      cached: true,
+      generateDelayMs: 50,
+      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const { hook, sendLine } = setup({ engine })
+    await reachOn(hook)
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate('open the mailbox')
+    })
+    act(() => {
+      void hook.result.current.translate('north') // queues
+    })
+    act(() => hook.result.current.setLanguage('off'))
+    await act(async () => {
+      await p
+    })
+    // The in-flight line finishes (it began under 'on'); the queued line is
+    // abandoned with a notice instead of being translated by a layer the
+    // player turned off.
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['open mailbox'])
+    expect(hook.result.current.queued).toEqual([])
+    expect(hook.result.current.notice).toMatch(/queue cleared/i)
+  })
+
+  it('a story switch mid-drain abandons old-game queued lines ([O])', async () => {
+    // "Change story" swaps storyBytes on the mounted Terminal: vocab/signature
+    // change but the drain keeps running — old-game queued lines used to fire
+    // turns into the freshly booted game (sendLine resolves to the NEW
+    // engine at call time).
+    const engine = new FakeLlmEngine({
+      cached: true,
+      generateDelayMs: 50,
+      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const echoLocal = vi.fn()
+    const sendLine = vi.fn()
+    const props = (vocab: Vocab, signature: string) => ({
+      engine,
+      capability: capable,
+      vocab,
+      getContext: ctx,
+      echoLocal,
+      sendLine,
+      awaitTurn: async () => ({ view: emptyView, reason: 'line' as const }),
+      watchdogMs: 5000,
+      signature,
+    })
+    const hook = renderHook(p => useNaturalLanguage(p), {
+      initialProps: props(TEST_VOCAB, 'sig-A'),
+    })
+    act(() => hook.result.current.requestDownload())
+    await waitFor(() => expect(hook.result.current.state.phase).toBe('on'))
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate('open the mailbox')
+    })
+    act(() => {
+      void hook.result.current.translate('north') // queued at the OLD game
+    })
+    hook.rerender(props(ZORK1_VOCAB, ZORK1_SIG)) // story switched
+    await act(async () => {
+      await p
+    })
+    // Neither the in-flight result nor the queued line may reach the new
+    // game: 'open mailbox' was translated against the old game's vocab.
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual([])
+    expect(hook.result.current.queued).toEqual([])
+  })
 })
 
 describe('NL v2 pipeline stages (spec §4)', () => {

@@ -618,9 +618,11 @@ export const ZORK1_FR_TEMPLATES: readonly Template[] = [
     en: 'The troll charges, and his axe slashes you on your {obj} arm.',
     out: 'Le troll charge, et sa hache vous entaille le bras qui tient votre {obj.bare}.',
   },
-  // TROLL-FCN weapon-recovery guards (1actions.zil:633-:637). {obj} is the
-  // troll for the first; for the second it is ONLY ever the bloody axe
-  // (the troll's weapon), feminine — «chauffée»/«la» are exact, not generic.
+  // Shared WEAPON-FUNCTION weapon-recovery guards (1actions.zil:629-:638),
+  // reached via AXE-F (troll/axe) AND STILETTO-FUNCTION (thief/stiletto).
+  // The feminine «chauffée»/«la» below are exact for the axe («la hache»);
+  // the thief/stiletto compositions (masculine «le stylet») are pinned as
+  // exact full lines in zork1.fr.strings.ts — exact-first beats these.
   {
     en: 'The {obj} swings it out of your reach.',
     out: '{obj.def} la balance hors de votre portée.',

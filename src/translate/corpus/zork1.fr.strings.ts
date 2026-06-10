@@ -630,6 +630,13 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
     'Vous pouvez survivre à plusieurs blessures.',
   'You have been killed once.': 'Vous avez été tué une fois.',
   'You have been killed twice.': 'Vous avez été tué deux fois.',
+  // WEAPON-FUNCTION via STILETTO-FUNCTION (1actions.zil:626-:638): the thief/
+  // stiletto compositions need masculine agreement («le stylet»), so they are
+  // pinned exact-first; the templates' feminine forms stay exact for the axe.
+  'The thief swings it out of your reach.':
+    'Le voleur le balance hors de votre portée.',
+  "The stiletto seems white-hot. You can't hold on to it.":
+    'Le stylet semble chauffé à blanc. Impossible de le garder en main.',
   // Lamp examine states (1actions.zil:2250-:2256); «morte» matches the
   // existing «La lampe est presque morte» / «Une lampe morte» family.
   'The lamp is on.': 'La lampe est allumée.',

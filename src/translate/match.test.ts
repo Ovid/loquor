@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { compileCorpus, matchLine } from './match'
+import { ZORK1_FR } from './corpus/zork1.fr'
 import type { TranslationCorpus } from './types'
 
 const corpus: TranslationCorpus = {
@@ -110,6 +111,65 @@ describe('matchLine: builtin listing template (spec §5)', () => {
   })
   it('listing miss for an unknown object', () => {
     expect(matchLine(c, 'A chartreuse zeppelin')).toBeNull()
+  })
+})
+
+describe('real Zork I French corpus smoke (Task 15)', () => {
+  const real = compileCorpus(ZORK1_FR)
+  it('quoted-unknown-word parser reply composes', () => {
+    expect(matchLine(real, 'I don\'t know the word "xyzzy".')).toBe(
+      'Je ne connais pas le mot « xyzzy ».',
+    )
+  })
+  it('quoted misused-word parser reply composes', () => {
+    expect(
+      matchLine(
+        real,
+        'You used the word "and" in a way that I don\'t understand.',
+      ),
+    ).toBe(
+      "Vous avez employé le mot « and » d'une manière que je ne comprends pas.",
+    )
+  })
+  it('cannot-see-object reply resolves a known object', () => {
+    expect(matchLine(real, "You can't see any brass lantern here!")).toBe(
+      'Vous ne voyez la lampe en laiton nulle part !',
+    )
+  })
+  it('cannot-see reply still hits for an unknown typed token ({raw})', () => {
+    expect(matchLine(real, "You can't see any frobnitz here!")).toBe(
+      'Vous ne voyez aucun « frobnitz » ici !',
+    )
+  })
+  it('presence line composes with the indefinite form', () => {
+    expect(matchLine(real, 'There is a small mailbox here.')).toBe(
+      'Il y a une petite boîte aux lettres ici.',
+    )
+  })
+  it('listing light suffix beats the builtin bare listing', () => {
+    expect(matchLine(real, 'A torch (providing light)')).toBe(
+      'Une torche (allumée)',
+    )
+  })
+  it('real walkthrough score line composes both numbers', () => {
+    expect(
+      matchLine(real, 'Your score is 350 (total of 350 points), in 365 moves.'),
+    ).toBe('Votre score est de 350 (sur un total de 350 points), en 365 tours.')
+  })
+  it('multi-object command prefix line composes ({obj}: Dropped.)', () => {
+    expect(matchLine(real, 'brass lantern: Dropped.')).toBe(
+      'Vous posez la lampe en laiton.',
+    )
+  })
+  it('contents header capitalizes a lowercase definite form', () => {
+    expect(matchLine(real, 'The magic boat contains:')).toBe(
+      'Le bateau magique contient :',
+    )
+  })
+  it('thief-death treasure listing with contents composes both objects', () => {
+    expect(
+      matchLine(real, 'A jewel-encrusted egg, with a golden clockwork canary'),
+    ).toBe('Un œuf incrusté de joyaux, avec un canari mécanique doré')
   })
 })
 

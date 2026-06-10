@@ -37,6 +37,19 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
   'Release 119 / Serial number 880429':
     'Version 119 / Numéro de série 880429',
 
+  // ── Common one-word/stock responses ────────────────────────────────────
+  // «Pris.»/«Posé.» read as the curt parser acknowledgements they are; the
+  // participle never agrees with anything (it abbreviates «c'est fait»).
+  'Taken.': 'Pris.',
+  'Dropped.': 'Posé.',
+  'Opened.': 'Fait.',
+  'Done.': 'Fait.',
+  'Click.': 'Clic.',
+  'You are on your own feet again.': 'Vous voilà de nouveau sur vos pieds.',
+  '(magic boat)': '(bateau magique)',
+  'Your collection of treasures consists of:':
+    'Votre collection de trésors comprend :',
+
   // ── Rooms — titles (these are also the status-bar lookups) ─────────────
   'West of House': "À l'ouest de la maison",
   'North of House': 'Au nord de la maison',

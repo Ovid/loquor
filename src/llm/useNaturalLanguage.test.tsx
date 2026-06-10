@@ -381,6 +381,52 @@ describe('useNaturalLanguage', () => {
     expect(readNlPref().language).toBe('off')
   })
 
+  it('cancel racing a COMPLETED download still persists language off ([P])', async () => {
+    // The sub-ms window: the load resolves (pref written, phase on) just as
+    // the player clicks Cancel. The cancel must persist 'off' too, or NL
+    // self-enables next session against an explicit cancel.
+    const { hook } = setup()
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
+    )
+    act(() => hook.result.current.setLanguage('fr')) // not installed → modal
+    act(() => hook.result.current.requestDownload())
+    await waitFor(() => expect(hook.result.current.state.phase).toBe('on'))
+    expect(readNlPref().language).toBe('fr')
+    act(() => hook.result.current.cancelDownload())
+    expect(hook.result.current.state.phase).toBe('off')
+    expect(readNlPref().language).toBe('off')
+  })
+
+  it('a second requestDownload aborts the previous in-flight load ([L2])', async () => {
+    // Without the abort, re-picking a language starts a SECOND concurrent
+    // engine.load while the first keeps downloading — double VRAM on exactly
+    // the constrained devices the capability gate worries about.
+    const signals: AbortSignal[] = []
+    const blockingEngine: import('./types').LlmEngine = {
+      isCached: async () => false,
+      isLoaded: () => false,
+      unload: async () => {},
+      generate: async () => '{"verb":"__UNKNOWN__"}',
+      load: (_onProgress, signal) =>
+        new Promise<void>((_resolve, reject) => {
+          signals.push(signal)
+          signal.addEventListener('abort', () =>
+            reject(new DOMException('aborted', 'AbortError')),
+          )
+        }),
+    }
+    const { hook } = setup({ engine: blockingEngine })
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
+    )
+    act(() => hook.result.current.requestDownload())
+    act(() => hook.result.current.requestDownload())
+    expect(signals).toHaveLength(2)
+    expect(signals[0].aborted).toBe(true)
+    expect(signals[1].aborted).toBe(false)
+  })
+
   it('restores the chosen language on remount when the model is cached', async () => {
     const a = setup({ engine: new FakeLlmEngine({ cached: true }) })
     await reachOn(a.hook) // persists language='en'

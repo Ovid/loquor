@@ -254,6 +254,11 @@ export function useNaturalLanguage(
   const requestDownload = useCallback(() => {
     setNotice(null)
     setModalOpen(false)
+    // Abort any previous in-flight download FIRST ([L2]): re-picking a
+    // language must not stack a second concurrent engine.load on top of the
+    // old one (double VRAM on exactly the devices the capability gate
+    // worries about). The engine releases the loser's resources.
+    abortRef.current?.abort()
     const ac = new AbortController()
     abortRef.current = ac
     dlSamplesRef.current = []
@@ -299,6 +304,10 @@ export function useNaturalLanguage(
   const cancelDownload = useCallback(() => {
     abortRef.current?.abort()
     setInternal({ phase: 'off' })
+    // [P] Persist 'off' too: a cancel racing download COMPLETION (the load's
+    // .then already wrote the picked language) must not leave a pref that
+    // self-enables NL next session against an explicit cancel.
+    writeNlPref({ language: 'off' })
   }, [])
 
   const declineDownload = useCallback(() => {

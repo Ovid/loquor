@@ -256,7 +256,11 @@ export const DE_CORE: CoreLexicon = {
   preps: {
     mit: 'with',
     in: 'in',
-    an: 'on',
+    // `an` → TO, not ON ([F]): in two-object commands the attach sense
+    // dominates (`binde X an Y` = tie X TO Y — Zork's only tie syntax), and
+    // mapping it to 'on' made the Dome Room rope puzzle fail. `auf` covers
+    // genuine ON; surface placement also has `darauf`/`drauf`.
+    an: 'to',
     auf: 'on',
     unter: 'under',
     zu: 'to',

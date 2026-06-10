@@ -433,6 +433,22 @@ describe('parseLexicon — UAT-3 regressions', () => {
     ).toEqual({ kind: 'command', text: 'put painting on case' })
   })
 
+  // Review [F]: DE `an` in `binde X an Y` means English TO — Zork's only
+  // two-object tie syntax is TIE OBJECT TO OBJECT (gsyntax.zil:497), so
+  // mapping an→on made the Dome Room rope puzzle deterministically fail in
+  // German. The attach sense dominates two-object commands; `auf` covers ON.
+  it("DE 'an' maps to 'to' ([F] — binde das seil an die falltür)", () => {
+    expect(
+      parseLexicon(
+        'binde das seil an die falltur',
+        DE_CORE,
+        DE_NOUNS,
+        vocab,
+        empty,
+      ),
+    ).toEqual({ kind: 'command', text: 'tie rope to trapdoor' })
+  })
+
   it("DE darauf/drauf emit 'on' ([E])", () => {
     expect(
       parseLexicon(

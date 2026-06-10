@@ -301,6 +301,56 @@ describe('reduceScene — idempotency', () => {
   })
 })
 
+describe('NL v2 §8 — scope demoted, tracker contract pinned (F-AA/F-T)', () => {
+  it('carried items survive a room change (inventory is in scope)', () => {
+    const t = new TextSceneTracker(vocab)
+    t.observe(
+      ev({ location: 'Kitchen', outputText: 'There is a lamp here.' }),
+    )
+    t.observe(
+      ev({ location: 'Kitchen', outputText: 'Taken.', lastCommand: 'take lamp' }),
+    )
+    t.observe(
+      ev({ location: 'Attic', outputText: 'You are in the attic.', lastCommand: 'up' }),
+    )
+    expect(t.scene().inScope.map(o => o.canonical)).toContain('lamp')
+  })
+
+  it('non-carried items are evicted on room change (F-AA stale window)', () => {
+    const t = new TextSceneTracker(vocab)
+    t.observe(
+      ev({ location: 'Kitchen', outputText: 'There is a lamp here.' }),
+    )
+    t.observe(
+      ev({ location: 'Attic', outputText: 'You are in the attic.', lastCommand: 'up' }),
+    )
+    expect(t.scene().inScope.map(o => o.canonical)).not.toContain('lamp')
+  })
+
+  it('a dropped item is evicted at the NEXT room change, not carried along', () => {
+    const t = new TextSceneTracker(vocab)
+    t.observe(
+      ev({ location: 'Kitchen', outputText: 'Taken.', lastCommand: 'take lamp' }),
+    )
+    t.observe(
+      ev({ location: 'Kitchen', outputText: 'Dropped.', lastCommand: 'drop lamp' }),
+    )
+    t.observe(
+      ev({ location: 'Attic', outputText: 'You are in the attic.', lastCommand: 'up' }),
+    )
+    expect(t.scene().inScope.map(o => o.canonical)).not.toContain('lamp')
+  })
+
+  it('reducer stays idempotent on duplicate observes (v1 invariant)', () => {
+    const t = new TextSceneTracker(vocab)
+    const e = ev({ location: 'Kitchen', outputText: 'There is a lamp here.' })
+    t.observe(e)
+    const once = t.scene()
+    t.observe(e)
+    expect(t.scene()).toEqual(once)
+  })
+})
+
 describe('TextSceneTracker', () => {
   it('observe/scene round-trips and reset clears', () => {
     const t = new TextSceneTracker(vocab)

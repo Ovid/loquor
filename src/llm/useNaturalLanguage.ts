@@ -106,6 +106,13 @@ const MAX_CLAUSES = 8
  * in-flight translation. Overflow drops the NEWEST line with a notice. */
 const QUEUE_CAP = 4
 
+/** Watchdog for the LAZY model load inside generateRaw ([M]) — much more
+ * generous than the generate watchdog (multi-GB weights off disk on slow
+ * devices), but bounded: an unbounded load held translatingRef forever when
+ * it stalled (WebGPU init, cache eviction → network), wedging all input for
+ * the session. */
+const LOAD_WATCHDOG_MS = 60_000
+
 /** Which pipeline stage produced a clause's command (spec §4 stages 3–7). */
 type Stage = 'meta' | 'alias' | 'vocab' | 'direction' | 'lexicon' | 'llm'
 
@@ -349,7 +356,24 @@ export function useNaturalLanguage(
       const ac = new AbortController()
       let watchdogId: ReturnType<typeof setTimeout>
       try {
-        if (!engine.isLoaded()) await engine.load(() => {}, ac.signal)
+        if (!engine.isLoaded()) {
+          // [M] Bound the lazy load (reload session, model cached on disk but
+          // not in memory) with its own generous watchdog — see
+          // LOAD_WATCHDOG_MS. Same reject-then-abort ordering as the
+          // generate watchdog below.
+          let loadId: ReturnType<typeof setTimeout>
+          const loadWatchdog = new Promise<never>((_, rej) => {
+            loadId = setTimeout(() => {
+              rej(new WatchdogTimeout())
+              ac.abort()
+            }, LOAD_WATCHDOG_MS)
+          })
+          try {
+            await Promise.race([engine.load(() => {}, ac.signal), loadWatchdog])
+          } finally {
+            clearTimeout(loadId!)
+          }
+        }
         const watchdog = new Promise<never>((_, rej) => {
           watchdogId = setTimeout(() => {
             // Reject FIRST so the watchdog wins the race (keeping the "timed out"
@@ -371,12 +395,23 @@ export function useNaturalLanguage(
 
   const translate = useCallback(
     async (english: string) => {
+      const tracker = trackerRef.current
+      // NL off / disabled / unavailable → behave exactly like the first pass.
+      // Checked BEFORE the queue guard ([M]): 'off' must restore raw play
+      // instantly even while a previous drain is still in flight — queueing
+      // here would translate the line under a layer the player just turned
+      // off (or wedge it behind a stalled one).
+      if (internal.phase !== 'on' || vocab === null || tracker === null) {
+        lastCommandRef.current = null
+        sendLine(english)
+        return
+      }
       // A translation is already in flight — QUEUE this line instead of dropping
       // it (F-A, NL v2 §11): the input stays enabled while NL is on, so typing
       // ahead is normal play, not an anomaly. FIFO, cap 4; overflow drops the
-      // NEWEST line with a visible notice so input is never silently lost. At
-      // the TOP so a mid-flight submit can't slip through the early raw-send
-      // paths either (review S4).
+      // NEWEST line with a visible notice so input is never silently lost.
+      // Above every translation stage so a mid-flight submit can't slip
+      // through them either (review S4).
       if (translatingRef.current) {
         if (queueRef.current.length >= QUEUE_CAP) {
           setNotice(`Queue full — dropped: "${english}"`)
@@ -384,13 +419,6 @@ export function useNaturalLanguage(
         }
         queueRef.current.push({ id: queueIdRef.current++, text: english })
         syncQueue()
-        return
-      }
-      const tracker = trackerRef.current
-      // NL off / disabled / unavailable → behave exactly like the first pass.
-      if (internal.phase !== 'on' || vocab === null || tracker === null) {
-        lastCommandRef.current = null
-        sendLine(english)
         return
       }
       // Past the guard, `internal` is narrowed to the 'on' variant — capture the

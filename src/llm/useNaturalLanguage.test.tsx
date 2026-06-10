@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { useNaturalLanguage } from './useNaturalLanguage'
 import { FakeLlmEngine } from './engine.fake'
@@ -15,6 +15,10 @@ import { emptyView } from '../glkote-react/types'
 import type { ViewState, BufferLine, TurnResult } from '../glkote-react/types'
 import { ZORK1_SIG } from './grammar/index'
 import { ZORK1_VOCAB } from './grammar/zork1.vocab'
+
+// A test that fails (or times out) between useFakeTimers/useRealTimers must
+// not poison every later test in the file with fake timers.
+afterEach(() => vi.useRealTimers())
 
 const capable: CapabilityResult = { tier: 'small', reasons: [] }
 const ctx = () => ({ location: 'West of House', recentOutput: '' })
@@ -425,6 +429,61 @@ describe('useNaturalLanguage', () => {
     expect(signals).toHaveLength(2)
     expect(signals[0].aborted).toBe(true)
     expect(signals[1].aborted).toBe(false)
+  })
+
+  it('a STALLED lazy engine.load cannot wedge input forever ([M])', async () => {
+    // Reload session: model cached on disk, not in memory — the first command
+    // triggers engine.load inside generateRaw. The generate watchdog never
+    // covered the load, so a stalled load (WebGPU init, cache eviction →
+    // network) held translatingRef forever: every later line queued to the
+    // cap, then dropped. The load gets its own generous watchdog.
+    localStorage.setItem('loquor.nl', JSON.stringify({ language: 'en' }))
+    const stalledEngine: import('./types').LlmEngine = {
+      isCached: async () => true,
+      isLoaded: () => false,
+      unload: async () => {},
+      generate: async () => '{"verb":"__UNKNOWN__"}',
+      load: () => new Promise<void>(() => {}), // stalls forever
+    }
+    const { hook, sendLine } = setup({ engine: stalledEngine })
+    await waitFor(() => expect(hook.result.current.state.phase).toBe('on'))
+    vi.useFakeTimers()
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate('sing a ditty')
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(61_000)
+      await p
+    })
+    vi.useRealTimers()
+    expect(sendLine).toHaveBeenCalledWith('sing a ditty') // EN raw fallback
+    expect(hook.result.current.notice).toMatch(/timed out/i)
+    expect(hook.result.current.pending).toBe(false) // input not wedged
+  })
+
+  it("phase 'off' beats the queue: a line typed mid-drain after switching off goes raw ([M])", async () => {
+    const engine = new FakeLlmEngine({
+      cached: true,
+      generateDelayMs: 50,
+      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const { hook, sendLine } = setup({ engine })
+    await reachOn(hook)
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate('open the mailbox') // drain in flight
+    })
+    act(() => hook.result.current.setLanguage('off')) // off is instant
+    act(() => {
+      void hook.result.current.translate('look') // must NOT queue behind the drain
+    })
+    expect(sendLine).toHaveBeenCalledWith('look')
+    expect(hook.result.current.queued).toEqual([])
+    await act(async () => {
+      await p
+    })
   })
 
   it('restores the chosen language on remount when the model is cached', async () => {

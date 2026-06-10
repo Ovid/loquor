@@ -184,9 +184,11 @@ export function Terminal({
             // swallow the turn if it ever happens (review S11).
             else console.warn('submit ignored: engine not ready')
           }}
-          // F-A: while NL is on, the field stays ENABLED during a translation —
-          // typed-ahead lines queue instead of being locked out.
-          disabled={nl.pending && nl.state.phase !== 'on'}
+          // Never pending-disabled ([M]): while NL is on, typed-ahead lines
+          // queue (F-A); when NL is off/left mid-drain, typing raw-sends —
+          // pending could only become true under phase 'on', so disabling on
+          // `pending && phase !== 'on'` locked the player out exactly when a
+          // wedged or slow drain coincided with switching NL off.
           awaitingKey={view.inputRequest === 'char'}
           awaitingLine={view.inputRequest === 'line'}
           onKey={key => engineRef.current?.sendChar(key)}

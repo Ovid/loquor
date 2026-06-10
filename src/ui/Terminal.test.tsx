@@ -94,6 +94,34 @@ describe('Terminal', () => {
     }
   })
 
+  it('keeps the input enabled when NL is OFF while a stale translation is pending ([M])', async () => {
+    // disabled={nl.pending && phase !== 'on'} locked the player out exactly
+    // when a wedged/slow drain coincided with switching NL off — the one
+    // moment raw play must be reachable. The input is never pending-disabled.
+    nlOverride = {
+      state: { phase: 'off', installed: true },
+      pending: true,
+      queued: [],
+    }
+    try {
+      render(
+        <Terminal
+          storyBytes={bytes}
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
+      )
+      const input = await screen.findByPlaceholderText(
+        'type a command…',
+        {},
+        { timeout: 8000 },
+      )
+      expect(input).not.toBeDisabled()
+    } finally {
+      nlOverride = null
+    }
+  })
+
   it('unloads the LLM engine when it unmounts (no resource leak)', async () => {
     const unload = vi
       .spyOn(WebLlmEngine.prototype, 'unload')

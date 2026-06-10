@@ -1161,6 +1161,94 @@ describe('input queue (NL v2 §11, F-A)', () => {
     expect(hook.result.current.notice).toMatch(/queue cleared/i)
   })
 
+  it('the drain awaits the turn boundary, so a queued line sees a prompt raised by the PREVIOUS line (stale-view flush)', async () => {
+    // INTEGRATION TIMING (the §11 violation): getContext reads the Terminal's
+    // viewRef, which only updates after a React re-render — NOT synchronously
+    // inside sendLine. The settled turn output is only reachable through the
+    // awaitTurn-provided view (modeled on the compound awaitTurn-before-
+    // sendLine test: the turn fires synchronously inside sendLine, draining
+    // only resolvers registered before it). 'quit' raw-sends and its turn
+    // raises "(Y is affirmative)"; the queued 'north' must see THAT view at
+    // stage 1 and flush — never get translated into the prompt's answer.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const promptView = viewState(
+      'West of House',
+      ['Do you wish to leave the game? (Y is affirmative):'],
+      'quit',
+    )
+    const resolvers: Array<(r: TurnResult) => void> = []
+    const sendLine = vi.fn((_text: string) => {
+      resolvers.splice(0).forEach(r => r({ view: promptView, reason: 'line' }))
+    })
+    const awaitTurn = () =>
+      new Promise<TurnResult>(res => {
+        resolvers.push(res)
+      })
+    // STALE on purpose: the live view ref never catches up mid-drain.
+    const getContext = () => ({ location: 'West of House', recentOutput: '' })
+    const { hook } = setup({ engine, sendLine, awaitTurn, getContext })
+    await reachOn(hook)
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate('quit')
+      void hook.result.current.translate('north')
+      void hook.result.current.translate('look')
+    })
+    expect(hook.result.current.queued).toEqual(['north', 'look'])
+    await act(async () => {
+      await p
+    })
+    // Only 'quit' ever reached the VM; 'north' flushed instead of answering
+    // the confirmation, and 'look' was cleared with it.
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['quit'])
+    expect(hook.result.current.queued).toEqual([])
+    expect(hook.result.current.notice).toMatch(/queue cleared/i)
+  })
+
+  it('a LONE queued line that flushes still shows the queue-cleared notice', async () => {
+    // The flushed line itself was dropped input: even with nothing queued
+    // BEHIND it, the player must be told why it vanished (it was shifted out
+    // before the old `queue.length > 0` notice gate ran).
+    let output = ''
+    const getContext = () => ({
+      location: 'West of House',
+      recentOutput: output,
+    })
+    const sendLine = vi.fn((_text: string) => {
+      output = 'Do you wish to restart? (Y is affirmative): '
+    })
+    const engine = new FakeLlmEngine({
+      cached: true,
+      generateDelayMs: 50,
+      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const { hook } = setup({ engine, getContext, sendLine })
+    await reachOn(hook)
+    act(() =>
+      hook.result.current.observe(
+        viewState('West of House', ['There is a small mailbox here.']),
+      ),
+    )
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate('open the mailbox')
+    })
+    act(() => {
+      void hook.result.current.translate('north') // the lone queued line
+    })
+    expect(hook.result.current.queued).toEqual(['north'])
+    await act(async () => {
+      await p
+    })
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['open mailbox'])
+    expect(hook.result.current.queued).toEqual([])
+    expect(hook.result.current.notice).toMatch(/queue cleared/i)
+  })
+
   it('an abstain notice does NOT flush the queue — the next line still runs', async () => {
     // fr: line 1 abstains (styled notice, nothing sent — stage 8). That is NOT
     // an interactive prompt, so queued line 2 still drains and runs.

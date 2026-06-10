@@ -466,14 +466,39 @@ export function useNaturalLanguage(
         }
       }
 
+      // Every VM send goes through here: register the turn listener IMMEDIATELY
+      // BEFORE sendLine (the VM runs the turn SYNCHRONOUSLY inside it — accept →
+      // VM → bridge.update → resolveTurn — so a listener registered after would
+      // fire into an empty resolver list and time out). `pending` is the
+      // boundary of the most recent send; the compound loop awaits it per clause,
+      // and the queue drain awaits it between lines so a queued line's stage-1
+      // check and the scene tracker see the SETTLED output, not the stale view
+      // ref (which only updates after a React re-render). An unawaited boundary
+      // settles harmlessly: the bridge resolves every registered listener at
+      // the turn and raceTurn clears its own timer on settle. (Boxed, not a
+      // bare `let`: outer-flow CFA ignores closure assignments and would pin a
+      // `let` to its null initializer; property narrowing resets per call.)
+      const turnBox: { pending: Promise<TurnResult | 'timeout'> | null } = {
+        pending: null,
+      }
+      const sendTracked = (text: string) => {
+        turnBox.pending = raceTurn()
+        sendLine(text)
+      }
+
       // Run ONE LINE through the full pipeline (stages 1–8). Returns 'flush'
       // when the game raised an interactive prompt: queued lines were typed
       // BEFORE the player saw that question, so the drain must discard them
       // rather than feed them to it (F-A). Errors propagate to the per-line
-      // catch in the drain below.
+      // catch in the drain below. `settled` is the previous drained line's
+      // turn-boundary view context (non-null only when the drain awaited that
+      // boundary): it is FRESHER than getContext(), whose backing view ref
+      // only updates after a React re-render the synchronous drain never
+      // yields for.
       const runLine = async (
         line: string,
         fromQueue: boolean,
+        settled: ViewContext | null,
       ): Promise<'ok' | 'flush'> => {
         // STAGE 1 (spec §4): the game is asking. The interpreter's yes/no
         // confirmations (restart/quit/restore) and the parser's disambiguation
@@ -484,14 +509,14 @@ export function useNaturalLanguage(
         // is never split either. A QUEUED line cannot be such a reply — the
         // player hadn't seen the question when they typed it — so it signals a
         // flush instead of answering.
-        const recentOutput = getContext().recentOutput
+        const recentOutput = (settled ?? getContext()).recentOutput
         if (
           isConfirmationPrompt(recentOutput) ||
           isDisambiguationPrompt(recentOutput)
         ) {
           lastCommandRef.current = null
           if (fromQueue) return 'flush'
-          sendLine(line)
+          sendTracked(line)
           return 'ok'
         }
         // STAGE 2 (locked decision 8): a fully-quoted line ("…", «…», „…“, “…”)
@@ -500,7 +525,7 @@ export function useNaturalLanguage(
         const quoted = unquote(line)
         if (quoted) {
           lastCommandRef.current = null
-          sendLine(quoted)
+          sendTracked(quoted)
           return 'ok'
         }
 
@@ -522,7 +547,7 @@ export function useNaturalLanguage(
         // it. Otherwise ordinary room flavor text ("There is no door here.") trips
         // ABSENCE_PAT (\bno\s+\w+\b) and truncates the sequence right after a move
         // succeeds (systematic-debugging; exposed once movement started working).
-        let prevLocation = getContext().location
+        let prevLocation = (settled ?? getContext()).location
         // TEMP compound diagnostics — why a sequence stopped (set at each break,
         // logged once below). Remove together with the per-clause [nl debug]
         // once translation quality is tuned.
@@ -578,22 +603,18 @@ export function useNaturalLanguage(
           lastCommandRef.current = isMeta ? null : result.text
 
           if (total === 1) {
-            sendLine(result.text)
+            sendTracked(result.text)
             done++
             break // single command: Terminal's observe handles the turn
           }
 
-          // Register the turn listener BEFORE sendLine: the VM runs the turn
-          // SYNCHRONOUSLY inside sendLine (accept → VM → bridge.update →
-          // resolveTurn), so awaitTurn must already be pending or the boundary
-          // fires into an empty resolver list and the wait times out. (Design doc:
-          // "registered before sendLine"; raceTurn() registers awaitTurn
-          // synchronously before its first await.)
-          const turnPromise = raceTurn()
-          sendLine(result.text)
+          // sendTracked registers the turn listener BEFORE sendLine (see its
+          // comment above), so the synchronous VM turn cannot be missed; the
+          // clause then awaits that same boundary.
+          sendTracked(result.text)
           done++
 
-          const turn = await turnPromise
+          const turn = await turnBox.pending!
           if (turn === 'timeout' || turn.reason !== 'line') {
             stopReason =
               turn === 'timeout' ? 'turn-timeout' : `turn:${turn.reason}`
@@ -645,7 +666,7 @@ export function useNaturalLanguage(
           // show a styled notice instead.
           lastCommandRef.current = null
           if (activeLang === 'en') {
-            sendLine(line)
+            sendTracked(line)
           } else if (stopError !== null) {
             // The translator broke (timeout/engine error) — don't blame the
             // player's wording (Task 21 review). Nothing was sent: the non-EN
@@ -680,10 +701,13 @@ export function useNaturalLanguage(
         // own.
         let line: string | undefined = english
         let fromQueue = false
+        // The previous drained line's settled turn view (see runLine's param
+        // doc) — null for the first line and after a boundary timeout.
+        let settled: ViewContext | null = null
         while (line !== undefined) {
           let outcome: 'ok' | 'flush' = 'ok'
           try {
-            outcome = await runLine(line, fromQueue)
+            outcome = await runLine(line, fromQueue, settled)
           } catch (err) {
             // PER-LINE error handling — the pre-queue single-line contract,
             // kept per line so an engine error on one line cannot silently
@@ -699,12 +723,20 @@ export function useNaturalLanguage(
                 ? 'Translation timed out — sent as typed.'
                 : 'Translation failed — sent as typed.',
             )
-            sendLine(line)
+            sendTracked(line)
           }
           // A compound that stopped mid-sequence leaves this set; reset it per
           // line so Terminal's observe effect resumes for later queued lines.
           inSequenceRef.current = false
-          if (outcome === 'flush' && queueRef.current.length > 0) {
+          // 'flush': the game raised an interactive prompt. A FROM-QUEUE line
+          // that flushes was itself dropped input, so the notice ALWAYS shows
+          // — even when nothing else was queued behind it (a lone queued line
+          // must not vanish silently). A flush from the TYPED line (mid-
+          // compound prompt) only notices when it actually discards something.
+          if (
+            outcome === 'flush' &&
+            (fromQueue || queueRef.current.length > 0)
+          ) {
             queueRef.current = []
             syncQueue()
             setNotice('Queue cleared — the game needs an answer first.')
@@ -713,6 +745,38 @@ export function useNaturalLanguage(
           line = queueRef.current.shift()
           fromQueue = true
           syncQueue()
+          // TURN-BOUNDARY AWAIT between drained lines (§11): before running a
+          // queued line, wait for the boundary of whatever the previous line
+          // sent so its stage-1 interactive-prompt check and the scene tracker
+          // see the SETTLED output — the view ref getContext() reads only
+          // updates after a React re-render the drain never yields for. The
+          // drain owns this boundary exactly like a compound owns its clause
+          // boundaries (decision 9): inSequenceRef defers Terminal's observe
+          // effect, and the observe below preserves the lastCommand latch
+          // semantics (latched command attributed, latch left for the
+          // idempotent trailing Terminal observe). On timeout — or a turn that
+          // settled some other way — proceed with the live (possibly stale)
+          // view rather than dropping the player's queued input: raceTurn's
+          // watchdog already bounds the wait (decision 8).
+          settled = null
+          if (line !== undefined && turnBox.pending !== null) {
+            inSequenceRef.current = true
+            const turn = await turnBox.pending
+            turnBox.pending = null
+            // An empty turn view (degenerate fixture / no output) carries no
+            // information — keep the getContext() fallback instead.
+            if (turn !== 'timeout' && turn.reason === 'line') {
+              const vc = viewToContext(turn.view)
+              if (vc.recentOutput !== '') {
+                settled = vc
+                tracker.observe({
+                  location: vc.location,
+                  outputText: vc.recentOutput,
+                  lastCommand: lastCommandRef.current,
+                })
+              }
+            }
+          }
         }
       } finally {
         translatingRef.current = false

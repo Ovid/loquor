@@ -347,3 +347,72 @@ describe('parseLexicon — English via vocab surface forms (spec §6 step 3)', (
     ).toEqual({ kind: 'command', text: 'open trapdoor' })
   })
 })
+
+describe('parseLexicon — UAT-3 regressions', () => {
+  // UAT-3 N-3: the extracted vocab stores the v3 dictionary form 'inflat'
+  // (words truncate to 6 chars), but the lexicons map gonfle/aufblasen/infla
+  // to the in-game spelling 'inflate' (see the NOTE in fr.core.ts). The
+  // roundtrip GATE is truncation-aware; verb-arity validation at parse time
+  // must be too, or every inflate clause silently falls to the LLM.
+  it("validates the verb against the vocab's 6-char-truncated form (gonfle → inflate vs 'inflat')", () => {
+    const truncVocab: Vocab = {
+      ...vocab,
+      verbs2: [...vocab.verbs2, 'inflat'],
+      nouns: [
+        ...vocab.nouns,
+        {
+          canonical: 'pile of plastic',
+          emit: 'valve',
+          synonyms: ['pile', 'plastic', 'valve'],
+          adjectives: ['plastic'],
+        },
+        {
+          canonical: 'hand-held air pump',
+          emit: 'pump',
+          synonyms: ['pump'],
+          adjectives: ['air'],
+        },
+      ],
+    }
+    const nouns: NounLexicon = {
+      ...FR_NOUNS,
+      'pile of plastic': ['plastique'],
+      'hand-held air pump': ['pompe'],
+    }
+    expect(
+      parseLexicon(
+        'gonfle le plastique avec la pompe',
+        FR_CORE,
+        nouns,
+        truncVocab,
+        empty,
+      ),
+    ).toEqual({ kind: 'command', text: 'inflate valve with pump' })
+  })
+
+  // UAT-3 N-3: `entre dans le bateau` fell to the LLM (which emitted `enter
+  // river` — the one wrong-object resurfacing of the run) because a LEADING
+  // preposition is only handled for 'to'; `entre dans X` needs the idiom path.
+  it("'entre dans <noun>' boards/enters deterministically", () => {
+    const boatVocab: Vocab = {
+      ...vocab,
+      verbs1: [...vocab.verbs1, 'enter'],
+      nouns: [
+        ...vocab.nouns,
+        {
+          canonical: 'magic boat',
+          emit: 'raft',
+          synonyms: ['boat', 'raft'],
+          adjectives: ['magic'],
+        },
+      ],
+    }
+    const nouns: NounLexicon = { ...FR_NOUNS, 'magic boat': ['bateau'] }
+    expect(
+      parseLexicon('entre dans le bateau', FR_CORE, nouns, boatVocab, empty),
+    ).toEqual({ kind: 'command', text: 'enter raft' })
+    expect(
+      parseLexicon('entrez dans le bateau', FR_CORE, nouns, boatVocab, empty),
+    ).toEqual({ kind: 'command', text: 'enter raft' })
+  })
+})

@@ -56,7 +56,7 @@ export const FR_ZORK1: NounLexicon = {
   'group of tool chests': ['caisses a outils', 'coffres a outils', 'caisses'],
   'hand-held air pump': ['pompe', 'pompe a air'],
   'huge diamond': ['diamant'],
-  'jade figurine': ['figurine', 'statuette', 'figurine de jade'],
+  'jade figurine': ['figurine', 'statuette', 'figurine de jade', 'jade'], // UAT-3 N-3: 'jade' is the same word in French
   'jewel-encrusted egg': ['oeuf'],
   'kitchen table': ['table', 'table de cuisine'],
   'kitchen window': ['fenetre', 'fenetre de la cuisine'],
@@ -67,7 +67,7 @@ export const FR_ZORK1: NounLexicon = {
   'leather bag of coins': ['pieces', 'sac de pieces', 'bourse'],
   lunch: ['dejeuner', 'nourriture', 'sandwich', 'repas'],
   'lurking grue': ['grue'], // untranslatable proper noun — kept as-is by policy
-  machine: ['machine'],
+  machine: ['machine', 'couvercle'], // couvercle = the machine's lid (vocab synonym 'lid' lives on machine) — UAT-3 N-5
   'magic boat': ['bateau', 'radeau', 'canot'],
   matchbook: ['allumettes', 'pochette d allumettes'],
   mirror: ['miroir', 'reflet'],

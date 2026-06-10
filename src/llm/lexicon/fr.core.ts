@@ -225,6 +225,13 @@ export const FR_CORE: CoreLexicon = {
     { phrase: 'mettez le feu a', to: 'burn' },
     { phrase: 'monte a bord', to: 'board' },
     { phrase: 'montez a bord', to: 'board' },
+    // UAT-3 N-3: a LEADING prep is only parsed for 'to', so 'entre dans le
+    // bateau' missed to the LLM (which emitted 'enter river'). The idiom
+    // consumes verb+prep; the remainder resolves as the object.
+    { phrase: 'entre dans', to: 'enter' },
+    { phrase: 'entrez dans', to: 'enter' },
+    { phrase: 'rentre dans', to: 'enter' },
+    { phrase: 'rentrez dans', to: 'enter' },
     { phrase: 'leve toi', to: 'stand' },
     { phrase: 'levez vous', to: 'stand' },
   ],

@@ -106,11 +106,26 @@ function byCanonical(vocab: Vocab, canonical: string): NounEntry | undefined {
   return vocab.nouns.find(n => n.canonical === canonical)
 }
 
+/** Truncation-aware verb membership: v3 dictionary words store at most 6
+ * characters ('inflate' → 'inflat'), while the lexicons map to the full
+ * in-game spelling the Z-parser accepts (NOTE in fr/de/es.core.ts). The
+ * roundtrip gate already widened for this; arity validation must match, or
+ * every such verb silently misses to the LLM (UAT-3 N-3). Single words only:
+ * multiword targets are phrasal, never dictionary entries. */
+function hasVerbForm(list: readonly string[], verb: string): boolean {
+  if (list.includes(verb)) return true
+  return (
+    !verb.includes(' ') && verb.length > 6 && list.includes(verb.slice(0, 6))
+  )
+}
+
 function verbArityOk(verb: string, vocab: Vocab, objects: 0 | 1 | 2): boolean {
   if (objects === 0)
-    return vocab.verbsOnly.includes(verb) || vocab.movement.includes(verb)
-  if (objects === 1) return vocab.verbs1.includes(verb)
-  return vocab.verbs2.includes(verb)
+    return (
+      hasVerbForm(vocab.verbsOnly, verb) || hasVerbForm(vocab.movement, verb)
+    )
+  if (objects === 1) return hasVerbForm(vocab.verbs1, verb)
+  return hasVerbForm(vocab.verbs2, verb)
 }
 
 export function parseLexicon(

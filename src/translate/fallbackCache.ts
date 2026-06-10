@@ -8,7 +8,9 @@ const key = (game: string, language: string, en: string) =>
   `xlate:${game}:${language}:${en}`
 
 export const cacheGet = (game: string, language: string, en: string) =>
-  idbGet<string>(key(game, language, en))
+  // idbGet's T claims more than IDB delivers: a missing key resolves to
+  // undefined at runtime, so say so in the type.
+  idbGet<string | undefined>(key(game, language, en))
 
 export const cacheSet = (
   game: string,

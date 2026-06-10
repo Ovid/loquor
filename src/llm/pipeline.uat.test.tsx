@@ -424,16 +424,9 @@ const CASES: UatCase[] = [
     expectSent: 'put painting in case',
     llmAllowed: false,
   },
-  {
-    finding: 'F-S (2-object conjunction put → take nasty knife ×2)',
-    language: 'fr',
-    input: 'mets le cercueil et le sceptre dans la vitrine',
-    // 'et' splits the clauses mid-noun-phrase; neither half is deterministic
-    // and the model abstains → nothing sent, visible notice. Pinned because
-    // UAT saw TWO wrong takes silently burn turns.
-    expectSent: null,
-    llmAllowed: true,
-  },
+  // F-S (2-object conjunction) moved to the dedicated compound describe:
+  // under [H] its first clause now emits deterministically, so the row's
+  // single-clause assert shape no longer fits.
   // ── scope-dependent noun binding (seeded scenes) ──
   {
     finding: 'F-V (clé → matchbook, wrench in scope)',
@@ -615,6 +608,35 @@ describe('UAT compound regressions (dedicated)', () => {
     expect(sent).toEqual(['drop coffin', 'take pot'])
     expect(engine.generateCalls).toBe(0)
     expect(hook.result.current.notice).toBeNull()
+  })
+
+  it('F-S: 2-object conjunction — clause 1 emits deterministically, truncation is visible ([H])', async () => {
+    // `et` splits mid-noun-phrase: clause 1 `mets le cercueil`, clause 2
+    // `le sceptre dans la vitrine` (verbless → LLM → abstain). Pre-[H] the
+    // whole line abstained; with verbs2-only verbs allowed one object,
+    // clause 1 now emits `put coffin` — the Z-parser orphan-prompts for the
+    // missing container (deterministic, never a guess) — and the truncation
+    // is visible via "Ran 1 of 2 actions." UAT-2's original failure (TWO
+    // silent wrong takes) stays impossible: nothing here is guessed.
+    const views = [
+      viewState(
+        'Living Room',
+        ['What do you want to put the coffin in?'],
+        'put coffin',
+      ),
+    ]
+    const { hook, engine, sent } = await renderPipeline({
+      language: 'fr',
+      awaitTurn: turnScript(views),
+    })
+    await act(async () => {
+      await hook.result.current.translate(
+        'mets le cercueil et le sceptre dans la vitrine',
+      )
+    })
+    expect(sent).toEqual(['put coffin'])
+    expect(engine.generateCalls).toBeGreaterThan(0) // clause 2 fell to the LLM
+    expect(hook.result.current.notice).toMatch(/ran 1 of 2/i)
   })
 
   it('F-I: language off → verbatim passthrough, the model never runs', async () => {

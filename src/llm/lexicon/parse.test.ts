@@ -292,13 +292,14 @@ describe('parseLexicon — German separable verbs (pushback issue 3)', () => {
       parseLexicon('mach die falltur', DE_CORE, DE_NOUNS, vocab, empty),
     ).toEqual({ kind: 'miss' })
   })
-  it('particle fires but verb is verbs2-only with one object → safe miss (binde … an)', () => {
-    // 'binde … an' → tie; fixture 'tie' is verbs2-only, and there is only a
-    // direct object here. The strict layer misses (LLM fallback) rather than
-    // emitting a one-object 'tie rope' it cannot vouch for.
+  it('particle fires on a verbs2-only verb with one object → orphan-prompt emit (binde … an)', () => {
+    // 'binde … an' → tie; fixture 'tie' is verbs2-only. Under [H] the
+    // one-object form still emits: the Z-parser orphan-prompts for the
+    // missing object ("What do you want to tie the rope to?") — deterministic,
+    // never a guess. (Previously pinned as a miss; superseded by [H].)
     expect(
       parseLexicon('binde das seil an', DE_CORE, DE_NOUNS, vocab, empty),
-    ).toEqual({ kind: 'miss' })
+    ).toEqual({ kind: 'command', text: 'tie rope' })
   })
   it('self pronoun → me (untersuche mich)', () => {
     expect(
@@ -388,6 +389,48 @@ describe('parseLexicon — UAT-3 regressions', () => {
         empty,
       ),
     ).toEqual({ kind: 'command', text: 'inflate valve with pump' })
+  })
+
+  // Review [D]: break/touch/taste/hide… exist ONLY in verbSynonyms (gsyntax
+  // <SYNONYM …> members are real parser verbs extraction files there, not in
+  // the arity lists), so verbArityOk never validated them and every lexicon
+  // entry targeting them was dead — while the roundtrip gate, which unions
+  // verbSynonyms, certified the data green. Synonyms inherit their head
+  // verb's arity in ZIL, so they validate at EVERY arity; a wrong-arity emit
+  // just earns the Z-parser's orphan prompt — still deterministic.
+  it('a verb living only in verbSynonyms validates ([D] — casse la lampe)', () => {
+    const synVocab: Vocab = { ...vocab, verbSynonyms: ['break'] }
+    expect(
+      parseLexicon('casse la lampe', FR_CORE, FR_NOUNS, synVocab, empty),
+    ).toEqual({ kind: 'command', text: 'break light' })
+  })
+
+  it('verbSynonyms membership is truncation-aware ([D] + N-3)', () => {
+    const synVocab: Vocab = { ...vocab, verbSynonyms: ['inflat'] }
+    const noInflate: Vocab = {
+      ...synVocab,
+      verbs1: synVocab.verbs1.filter(v => v !== 'inflate'),
+    }
+    expect(
+      parseLexicon('gonfle la lampe', FR_CORE, FR_NOUNS, noInflate, empty),
+    ).toEqual({ kind: 'command', text: 'inflate light' })
+  })
+
+  // Review [H]: attack/kill/give/throw/tie… are verbs2-only (their canonical
+  // syntax carries an instrument), but the whole-remainder and pronoun paths
+  // gated on arity 1 only — so `attaque le troll` missed while the
+  // structurally identical Spanish personal-a path was already widened to
+  // 1 OR 2 for exactly this verb class. Same allowance everywhere.
+  it('verbs2-only verb + single object parses ([H] — attaque le troll)', () => {
+    expect(
+      parseLexicon('attaque le troll', FR_CORE, FR_NOUNS, vocab, empty),
+    ).toEqual({ kind: 'command', text: 'attack troll' })
+  })
+
+  it('verbs2-only verb + direct pronoun parses ([H])', () => {
+    expect(
+      parseLexicon('attaque le', FR_CORE, FR_NOUNS, vocab, scene([], 'troll')),
+    ).toEqual({ kind: 'command', text: 'attack troll' })
   })
 
   // UAT-3 N-3: `entre dans le bateau` fell to the LLM (which emitted `enter

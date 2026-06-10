@@ -120,12 +120,28 @@ function hasVerbForm(list: readonly string[], verb: string): boolean {
 }
 
 function verbArityOk(verb: string, vocab: Vocab, objects: 0 | 1 | 2): boolean {
+  // verbSynonyms members (gsyntax <SYNONYM …>: break, touch, taste, hide …)
+  // are real parser verbs that extraction files OUTSIDE the arity lists; they
+  // inherit their head verb's arity in ZIL, which extraction can't see, so
+  // they validate at every arity ([D] — the roundtrip gate already counts
+  // them; the runtime must agree or their lexicon entries are dead). A
+  // wrong-arity emit earns the Z-parser's orphan prompt, never a guess.
+  if (hasVerbForm(vocab.verbSynonyms, verb)) return true
   if (objects === 0)
     return (
       hasVerbForm(vocab.verbsOnly, verb) || hasVerbForm(vocab.movement, verb)
     )
   if (objects === 1) return hasVerbForm(vocab.verbs1, verb)
   return hasVerbForm(vocab.verbs2, verb)
+}
+
+/** One-object arity allowance shared by the pronoun, whole-remainder, and
+ * personal-a paths ([H]): attack/kill/give/throw/tie … are verbs2-only (their
+ * canonical syntax carries an instrument), but the Z-parser accepts the bare
+ * one-object form by orphan-prompting for the missing object — still
+ * deterministic, never a guess. */
+function verbArity1or2(verb: string, vocab: Vocab): boolean {
+  return verbArityOk(verb, vocab, 1) || verbArityOk(verb, vocab, 2)
 }
 
 export function parseLexicon(
@@ -191,7 +207,7 @@ export function parseLexicon(
   if (tokens.length === 1 && core.pronounsDirect.includes(tokens[0])) {
     if (!scene.antecedent) return MISS
     const e = byCanonical(vocab, scene.antecedent)
-    if (!e || !verbArityOk(verb, vocab, 1)) return MISS
+    if (!e || !verbArity1or2(verb, vocab)) return MISS
     return { kind: 'command', text: `${verb} ${e.emit}` }
   }
   if (tokens.length === 1 && core.pronounsSelf.includes(tokens[0]))
@@ -214,7 +230,7 @@ export function parseLexicon(
   // prep-lookalikes — 'boite AUX lettres' — don't shear the phrase). ---
   const whole = resolveNoun(tokens, core, nouns, vocab, scene)
   if (whole) {
-    return verbArityOk(verb, vocab, 1)
+    return verbArity1or2(verb, vocab)
       ? { kind: 'command', text: `${verb} ${whole.emit}` }
       : MISS
   }
@@ -235,7 +251,7 @@ export function parseLexicon(
   // asking for the missing object — still deterministic, never a guess. ---
   if (tokens.length > 1 && core.preps[tokens[0]] === 'to') {
     const obj = resolveNoun(tokens.slice(1), core, nouns, vocab, scene)
-    if (obj && (verbArityOk(verb, vocab, 1) || verbArityOk(verb, vocab, 2)))
+    if (obj && verbArity1or2(verb, vocab))
       return { kind: 'command', text: `${verb} ${obj.emit}` }
   }
 

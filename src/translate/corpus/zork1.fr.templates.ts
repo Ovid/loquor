@@ -32,23 +32,34 @@
 //   {obj.def}/{obj.indef} is always safe. The one exception below hard-codes
 //   «du» where the object set is provably masculine-singular (see the
 //   vehicle template).
-// - GENDER/NUMBER NEUTRALITY: prefer phrasings that keep the object in
-//   complement position so nothing outside the noun phrase agrees with it
-//   ("Vous fermez {obj.def}." rather than "… est maintenant fermé(e)").
-//   Lines whose natural French forces agreement on a mixed-gender object set
-//   are NOT templated — they get pinned per-object as full strings (spec §5
-//   escape hatch, Task 16). Known Task 16 pins:
-//     - "There is a pair of candles here (providing light)." → «Il y a des
-//       bougies ici (allumées).» (the light templates below say «allumée»,
-//       gender-true for the feminine-singular lamp/torch/match but wrong in
-//       NUMBER for the candles/matchbook).
-//     - "A pair of candles (providing light)" → «Des bougies (allumées)».
+// - GENDER/NUMBER NEUTRALITY: prefer phrasings where NOTHING agrees with the
+//   object — keep {obj} in complement/object position ("Vous fermez
+//   {obj.def}." rather than "… est maintenant fermé(e)"), or behind an
+//   existential («Il y a déjà {obj.def} dans …»). This matters because the
+//   objects table has NINE inherently PLURAL entries that any
+//   {obj}-agreeing template can compose wrong: blessings («les
+//   bénédictions»), group of tool chests («les caisses à outils»),
+//   matchbook («les allumettes»), mountain range («les montagnes»), number
+//   of ghosts («les fantômes»), pair of candles («les bougies»), pair of
+//   hands («les mains»), set of teeth («les dents»), white cliffs («les
+//   falaises blanches») — «les bougies est vide» is not French.
+//   Lines whose natural French still forces agreement get pinned per-object
+//   as full strings (spec §5 escape hatch, Task 16). Known Task 16 pins —
+//   every remaining shape below that can compose a wrong number/gender:
+//     - The two "(providing light)" templates say «allumée» (gender-true
+//       for the feminine-singular lamp/torch/match but wrong in NUMBER for
+//       the candles/matchbook). The walkthrough fixture contains the exact
+//       line "There is a pair of candles here (providing light)." → pin
+//       «Il y a des bougies ici (allumées).»; likewise the listing shape
+//       "A pair of candles (providing light)" → «Des bougies (allumées)»,
+//       and the same two shapes for the matchbook should it ever carry
+//       ONBIT («allumées», fem-plural).
+//     - "The {obj} has it." → «C'est {obj.def} qui l'a.» stays singular; a
+//       plural holder needs «Ce sont … qui l'ont» (e.g. "The number of
+//       ghosts has it." → «Ce sont les fantômes qui l'ont.»).
 //     - "Opening the brown sack reveals a clove of garlic, and a lunch."
 //       (two-item reveal — only {obj}/{obj2} exist; the one-item shape is
 //       templated below).
-//     - Any plural-subject hit of the «{obj.def} est/contient/fait…»
-//       templates (e.g. a hypothetical "The group of tool chests is empty.")
-//       needs a pinned «sont/contiennent» line.
 //     - "You can't see any songbird here." (1actions.zil:90 — period, not
 //       bang; a fixed full string, not this template family).
 import type { Template } from '../types'
@@ -78,7 +89,7 @@ export const ZORK1_FR_TEMPLATES: readonly Template[] = [
   },
 
   // ── Presence & listings (gverbs.zil DESCRIBE-OBJECT :1704-1725,
-  //    PRINT-CONTENTS :1729-1740; thief treasure listing 1actions.zil:2053) ─
+  //    PRINT-CONT :1835; thief treasure listing 1actions.zil:2053) ─────────
   { en: 'There is a {obj} here.', out: 'Il y a {obj.indef} ici.' },
   // ONBIT suffix — light sources are all feminine («allumée» is gender-true
   // for lampe/torche/allumette); the plural candles/matchbook lines are
@@ -110,7 +121,8 @@ export const ZORK1_FR_TEMPLATES: readonly Template[] = [
     out: '{obj.indef}, avec {obj2.indef}',
     cap: true,
   },
-  { en: 'The {obj} contains:', out: '{obj.def} contient :', cap: true },
+  // gverbs.zil:1835 (PRINT-CONT) — «il y a» dodges «contient/contiennent».
+  { en: 'The {obj} contains:', out: 'Dans {obj.def}, il y a :' },
   { en: '(You are in the {obj}.)', out: '(Vous êtes dans {obj.def}.)' },
 
   // ── Score (1actions.zil V-SCORE :4028-4033; " move." is the MOVES=1
@@ -143,9 +155,10 @@ export const ZORK1_FR_TEMPLATES: readonly Template[] = [
   },
 
   // ── open/close & containers (gverbs.zil :980/:990, :983, :353, :871/:888/
-  //    :1557/:1973, :1093, :886, :1098, :1375). "is (now) closed/isn't open"
-  //    would force gender agreement on a mixed set → rephrased. ───────────
-  { en: 'The {obj} opens.', out: "{obj.def} s'ouvre.", cap: true },
+  //    :1557/:1973, :1093, :886, :1098, :1375). "is (now) closed/isn't open/
+  //    is empty/is already in" would force gender or number agreement on a
+  //    mixed set → all rephrased agreement-free (vous-verbs / «il y a»). ───
+  { en: 'The {obj} opens.', out: 'Vous ouvrez {obj.def}.' },
   {
     en: 'Opening the {obj} reveals a {obj2}.',
     out: 'En ouvrant {obj.def}, vous découvrez {obj2.indef}.',
@@ -159,16 +172,14 @@ export const ZORK1_FR_TEMPLATES: readonly Template[] = [
     en: "The {obj} isn't open.",
     out: "Il faudrait d'abord ouvrir {obj.def}.",
   },
-  { en: 'The {obj} is empty.', out: '{obj.def} est vide.', cap: true },
+  { en: 'The {obj} is empty.', out: "Il n'y a rien dans {obj.def}." },
   {
     en: 'The {obj} is already in the {obj2}.',
-    out: '{obj.def} est déjà dans {obj2.def}.',
-    cap: true,
+    out: 'Il y a déjà {obj.def} dans {obj2.def}.',
   },
   {
     en: "The {obj} isn't in the {obj2}.",
-    out: "{obj.def} n'est pas dans {obj2.def}.",
-    cap: true,
+    out: 'Vous ne trouvez pas {obj.def} dans {obj2.def}.',
   },
 
   // ── Devices (gverbs.zil V-LAMP-ON :792 / V-LAMP-OFF :779). Verbal
@@ -176,7 +187,7 @@ export const ZORK1_FR_TEMPLATES: readonly Template[] = [
   { en: 'The {obj} is now on.', out: 'Vous allumez {obj.def}.' },
   { en: 'The {obj} is now off.', out: 'Vous éteignez {obj.def}.' },
 
-  // ── Vehicles & boarding (gverbs.zil :213, :219, :225, :2040) ───────────
+  // ── Vehicles & boarding (gverbs.zil :213, :225, :221, :2040) ───────────
   {
     en: 'You are already in the {obj}!',
     out: 'Vous êtes déjà dans {obj.def} !',
@@ -187,11 +198,11 @@ export const ZORK1_FR_TEMPLATES: readonly Template[] = [
   },
   {
     en: 'You have a theory on how to board a {obj}, perhaps?',
-    out: 'Vous avez une théorie pour monter dans {obj.indef}, peut-être ?',
+    out: 'Vous avez peut-être une théorie sur la façon de monter dans {obj.indef} ?',
   },
   {
     en: "You can't go there in a {obj}.",
-    out: 'Vous ne pouvez pas aller là-bas avec {obj.indef}.',
+    out: 'Vous ne pouvez pas y aller avec {obj.indef}.',
   },
 
   // ── Wearing & winding (gverbs.zil :1385, :1599, :1608) ─────────────────
@@ -236,31 +247,27 @@ export const ZORK1_FR_TEMPLATES: readonly Template[] = [
   // :630
   {
     en: "There's nothing special about the {obj}.",
-    out: "{obj.def} n'a rien de particulier.",
-    cap: true,
+    out: 'Rien de particulier concernant {obj.def}.',
   },
-  // :853
+  // :853 («en écoutant» keeps {obj} in object position — number-free)
   {
     en: 'The {obj} makes no sound.',
-    out: '{obj.def} ne fait aucun bruit.',
-    cap: true,
+    out: "Vous n'entendez rien en écoutant {obj.def}.",
   },
-  // :361
+  // :361 («laisser de marbre» — «laisse» agrees with «cela», never {obj})
   {
     en: 'The {obj} pays no attention.',
-    out: "{obj.def} n'y prête aucune attention.",
-    cap: true,
+    out: 'Cela laisse {obj.def} de marbre.',
   },
-  // :715, :717 («refuse poliment» drops EN "it" — its French pronoun would
-  // need the GIVEN object's gender)
+  // :715, :717 («refusée» agrees with «offre», never {obj}; the refusing
+  // actor — the addressee — is obvious from context, so the slot is dropped)
   {
     en: "You can't give a {obj} to a {obj2}!",
     out: 'Vous ne pouvez pas donner {obj.indef} à {obj2.indef} !',
   },
   {
     en: 'The {obj} refuses it politely.',
-    out: '{obj.def} refuse poliment.',
-    cap: true,
+    out: 'Votre offre est poliment refusée.',
   },
   // :1399 («avec» dodges à+le→au)
   {
@@ -321,11 +328,10 @@ export const ZORK1_FR_TEMPLATES: readonly Template[] = [
   },
   // :1279 (the def form gives the idiomatic «Cela sent la gousse d'ail.»)
   { en: 'It smells like a {obj}.', out: 'Cela sent {obj.def}.' },
-  // :1289
+  // :1289 («a» agrees with «cela»; «pour» is contraction-safe)
   {
     en: 'The {obj} does not understand this.',
-    out: '{obj.def} ne comprend pas.',
-    cap: true,
+    out: "Cela n'a aucun sens pour {obj.def}.",
   },
   // :1157
   {
@@ -342,24 +348,30 @@ export const ZORK1_FR_TEMPLATES: readonly Template[] = [
     en: "You can't filch the {obj}!",
     out: 'Vous ne pouvez pas dérober {obj.def} !',
   },
-  // :599 («disparaît» keeps it neutral)
+  // :599 (the infinitive «disparaître» never agrees with {obj})
   {
     en: 'The {obj} goes up in a puff of smoke.',
-    out: '{obj.def} disparaît dans un nuage de fumée.',
-    cap: true,
+    out: 'Vous voyez {obj.def} disparaître dans un nuage de fumée.',
   },
   // ── V-FIND replies (gverbs.zil :693-:697) — «l'» elides, so the sought
-  //    object's gender never surfaces. ────────────────────────────────────
+  //    object's gender never surfaces. «C'est … qui l'a» stays SINGULAR; a
+  //    plural holder is a Task 16 pin («Ce sont … qui l'ont», see header). ─
   { en: 'The {obj} has it.', out: "C'est {obj.def} qui l'a." },
   { en: "It's on the {obj}.", out: "C'est sur {obj.def}." },
   { en: "It's in the {obj}.", out: "C'est dans {obj.def}." },
-  // :2027
-  { en: "The {obj} isn't here!", out: "{obj.def} n'est pas ici !", cap: true },
-  // ── Waking (gverbs.zil :160, :168 — «se réveille» dodges «réveillé(e)») ─
+  // :2027 («trouvez» agrees with vous, never {obj})
+  {
+    en: "The {obj} isn't here!",
+    out: 'Vous ne trouvez pas {obj.def} ici !',
+  },
+  // ── Waking (gverbs.zil :160, :168 — verbal rephrases keep {obj} in
+  //    object position; «se réveille»/«ne dort pas» would agree in number) ─
   {
     en: 'The {obj} is rudely awakened.',
-    out: '{obj.def} se réveille en sursaut.',
-    cap: true,
+    out: 'Vous réveillez brutalement {obj.def}.',
   },
-  { en: "The {obj} isn't sleeping.", out: '{obj.def} ne dort pas.', cap: true },
+  {
+    en: "The {obj} isn't sleeping.",
+    out: 'Inutile de réveiller {obj.def} : aucun signe de sommeil.',
+  },
 ]

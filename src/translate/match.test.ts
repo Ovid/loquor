@@ -161,9 +161,19 @@ describe('real Zork I French corpus smoke (Task 15)', () => {
       'Vous posez la lampe en laiton.',
     )
   })
-  it('contents header capitalizes a lowercase definite form', () => {
+  it('contents header composes agreement-free («il y a» dodges contient/contiennent)', () => {
     expect(matchLine(real, 'The magic boat contains:')).toBe(
-      'Le bateau magique contient :',
+      'Dans le bateau magique, il y a :',
+    )
+  })
+  it('examine default composes agreement-free for a PLURAL object', () => {
+    expect(
+      matchLine(real, "There's nothing special about the white cliffs."),
+    ).toBe('Rien de particulier concernant les falaises blanches.')
+  })
+  it('is-empty composes agreement-free for a PLURAL object («est vide» would be wrong)', () => {
+    expect(matchLine(real, 'The matchbook is empty.')).toBe(
+      "Il n'y a rien dans les allumettes.",
     )
   })
   it('thief-death treasure listing with contents composes both objects', () => {

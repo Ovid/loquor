@@ -15,6 +15,7 @@
 .superpowers/
 coverage/
 .vite/
+scripts/out/
 
 # Logs
 logs

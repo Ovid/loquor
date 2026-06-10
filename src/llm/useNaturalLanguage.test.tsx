@@ -648,10 +648,16 @@ describe('useNaturalLanguage', () => {
     expect(hook.result.current.notice).toBe('Ran 1 of 2 actions.')
   })
 
-  it('compound: stops after an in-game no-op (failurePat) on the first clause', async () => {
+  // INVERTED for UAT F-G (NL v2 §10): "It is already open." is a SOFT no-op —
+  // the player's plan is already satisfied, so the compound sequence must keep
+  // going. (This test previously asserted the old stop-on-no-op behavior.)
+  it('compound: a soft no-op ("It is already open.") does NOT stop the sequence (F-G)', async () => {
     const engine = new FakeLlmEngine({
       cached: true,
-      completions: { 'open mailbox': '{"verb":"open","object":"mailbox"}' },
+      completions: {
+        'open mailbox': '{"verb":"open","object":"mailbox"}',
+        'take leaflet': '{"verb":"take","object":"leaflet"}',
+      },
       default: '{"verb":"__UNKNOWN__"}',
     })
     const noop = viewState(
@@ -659,10 +665,47 @@ describe('useNaturalLanguage', () => {
       ['open mailbox', 'It is already open.'],
       'open mailbox',
     )
+    const taken = viewState(
+      'West of House',
+      ['take leaflet', 'Taken.'],
+      'take leaflet',
+    )
     const { hook, sendLine } = setup({
       engine,
       vocab: { ...TEST_VOCAB, failurePat: FAILURE_PAT },
-      awaitTurn: turnScript([noop]),
+      awaitTurn: turnScript([noop, taken]),
+    })
+    await reachOn(hook)
+    act(() =>
+      hook.result.current.observe(
+        viewState('West of House', ['There is a small mailbox here.']),
+      ),
+    )
+    await act(async () => {
+      await hook.result.current.translate('open mailbox and take leaflet')
+    })
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual([
+      'open mailbox',
+      'take leaflet',
+    ])
+    expect(hook.result.current.notice).toBeNull()
+  })
+
+  it('compound: still stops after a HARD refusal (failurePat) on the first clause', async () => {
+    const engine = new FakeLlmEngine({
+      cached: true,
+      completions: { 'open mailbox': '{"verb":"open","object":"mailbox"}' },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const refusal = viewState(
+      'West of House',
+      ['open mailbox', 'The mailbox cannot be opened.'],
+      'open mailbox',
+    )
+    const { hook, sendLine } = setup({
+      engine,
+      vocab: { ...TEST_VOCAB, failurePat: FAILURE_PAT },
+      awaitTurn: turnScript([refusal]),
     })
     await reachOn(hook)
     act(() =>

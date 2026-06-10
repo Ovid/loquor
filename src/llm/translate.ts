@@ -4,6 +4,7 @@ import type { Vocab } from './grammar/types'
 import { META_COMMANDS } from './meta'
 import type { CoreLexicon } from './lexicon/types'
 import { fold } from './lexicon/fold'
+import { SOFT_NOOP_PAT } from './grammar/patterns'
 
 /**
  * The abstain sentinel: the model emits `{"verb":"__UNKNOWN__"}` (and the grammar
@@ -199,13 +200,25 @@ export function refusalApplies(
  * object the clause acted on — otherwise narrative "No X" text (e.g. the leaflet
  * body's "No computer should be without one!") or a refusal aimed at another
  * object falsely truncates the sequence (UAT F2/R3; review C8).
+ *
+ * Soft no-ops ("It is already open.", "You already have that!") do NOT fail the
+ * clause (NL v2 §10, UAT F-G): the action was already satisfied, so the plan is
+ * still on track. The scene tracker keeps calling refusalApplies directly —
+ * WITHOUT this filter — so a no-op turn still can't promote its object to "it".
  */
 export function clauseFailed(
   recentOutput: string,
   vocab: Vocab,
   command?: string,
 ): boolean {
-  if (refusalApplies(recentOutput, vocab, command)) return true
+  // Hard refusals only: a sentence matching SOFT_NOOP_PAT is "already done",
+  // which must not stop a compound run (§10/F-G). Filter per SENTENCE so a
+  // real refusal elsewhere in the same output still registers.
+  const hardOnly = recentOutput
+    .split(/[.!?\n]+/)
+    .filter(s => !SOFT_NOOP_PAT.test(s))
+    .join('. ')
+  if (refusalApplies(hardOnly, vocab, command)) return true
   const absence = new RegExp(vocab.absencePat.source, vocab.absencePat.flags)
   if (!command) return absence.test(recentOutput)
   const relevant = commandObjectWords(command, vocab)

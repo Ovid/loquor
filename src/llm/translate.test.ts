@@ -7,6 +7,7 @@ import {
   isDisambiguationPrompt,
   splitClauses,
   clauseFailed,
+  refusalApplies,
 } from './translate'
 import { META_COMMANDS } from './meta'
 import { FR_CORE } from './lexicon/fr.core'
@@ -298,8 +299,15 @@ describe('splitClauses', () => {
 describe('clauseFailed', () => {
   const v: Vocab = { ...vocab, failurePat: FAILURE_PAT }
 
-  it('is true on a no-op failure phrase (failurePat)', () => {
-    expect(clauseFailed('It is already open.', v)).toBe(true)
+  // INVERTED for UAT F-G (NL v2 §10): "It is already open." is a SOFT no-op —
+  // the action was already satisfied, so the compound plan is still on track
+  // and must not be aborted. (This previously asserted true.)
+  it('is false on a soft already-done no-op (F-G)', () => {
+    expect(clauseFailed('It is already open.', v)).toBe(false)
+  })
+
+  it('is true on a hard refusal phrase (failurePat)', () => {
+    expect(clauseFailed('The grating cannot be opened.', v)).toBe(true)
   })
 
   it('is true on an absence phrase (absencePat)', () => {
@@ -351,9 +359,11 @@ describe('clauseFailed', () => {
     )
   })
 
-  it('flags a pronoun refusal ("It is already…") for the acted object', () => {
+  it('flags a HARD pronoun refusal ("It cannot be…") for the acted object', () => {
     // The refusal sentence names no vocab noun → it is about the acted object.
-    expect(clauseFailed('It is already open.', v, 'open grating')).toBe(true)
+    // (Was "It is already open." pre-F-G; that phrase is now a soft no-op, so
+    // the pronoun-attribution semantics are pinned with a hard refusal.)
+    expect(clauseFailed('It cannot be opened.', v, 'open grating')).toBe(true)
   })
 
   it('flags a refusal whose sentence names the acted object (review C8)', () => {
@@ -377,6 +387,42 @@ describe('clauseFailed', () => {
 
   it('keeps the blanket refusal behavior when no command is given', () => {
     expect(clauseFailed('The grating cannot be moved.', v)).toBe(true)
+  })
+})
+
+describe('clauseFailed — soft no-ops (F-G)', () => {
+  const v: Vocab = { ...vocab, failurePat: FAILURE_PAT }
+
+  it('a soft no-op about the acted object does NOT fail the clause', () => {
+    expect(clauseFailed('It is already open.', v, 'open mailbox')).toBe(false)
+  })
+
+  it('a hard refusal still fails the clause', () => {
+    expect(
+      clauseFailed('The mailbox cannot be opened.', v, 'open mailbox'),
+    ).toBe(true)
+  })
+
+  it('absence still fails the clause', () => {
+    expect(clauseFailed('There is no mailbox here.', v, 'open mailbox')).toBe(
+      true,
+    )
+  })
+
+  it('a hard refusal elsewhere in the SAME output still registers', () => {
+    expect(
+      clauseFailed(
+        'It is already open. It cannot be opened.',
+        v,
+        'open mailbox',
+      ),
+    ).toBe(true)
+  })
+
+  it("the tracker's antecedent gate is unaffected (refusalApplies still true)", () => {
+    // The scene tracker deliberately uses refusalApplies WITHOUT the soft-noop
+    // filter: a no-op turn must still not promote its object to the antecedent.
+    expect(refusalApplies('It is already open.', v, 'open mailbox')).toBe(true)
   })
 })
 

@@ -175,9 +175,12 @@ light)" are string-table entries composed as suffix templates.
 ### Status bar
 
 `parseStatus()` continues to operate on English and is **untouched** — note
-it yields the right side as a **raw string** (`right: "Score: 0   Moves: 1"`,
-`src/glkote-react/reduce.ts`); nothing parses the numbers today, so the
-translate layer parses them itself (**signed** — scores go negative, §4). At
+it yields the right side as a **raw string** (`right: "Score: 0  Turns: 0"`,
+`src/glkote-react/reduce.ts`; ifvms z3 emits `Turns:` — `Moves:` is accepted
+for tolerance with older fixtures); nothing parses the numbers today, so the
+translate layer parses them itself (score is unsigned 16-bit from the VM, so a
+negative game score such as death −10 arrives as e.g. 65526; `-?` is kept for
+robustness, §4). At
 display time the room name is looked up via the objects/strings tables, and
 the parsed numbers are rendered through a French format string (« Score :
 340  Coups : 470 »), preserving the existing layout/delimiter. On a room-name

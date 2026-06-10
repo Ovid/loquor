@@ -47,4 +47,13 @@ describe('translateStatus (spec §5 status bar)', () => {
     expect(r.status.right).toBe('Time: 9:00am')
     expect(r.miss).toBe('Time: 9:00am')
   })
+  it('matches the real ifvms z3 right side ("Turns:", the shape the bridge actually emits)', () => {
+    const r = translateStatus(
+      { location: 'West of House', right: 'Score: 0  Turns: 0' },
+      c,
+      'fr',
+    )
+    expect(r.status.right).toBe('Score : 0  Coups : 0')
+    expect(r.miss).toBeNull()
+  })
 })

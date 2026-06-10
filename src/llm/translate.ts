@@ -1,8 +1,10 @@
 // src/llm/translate.ts
 import type { TranslateResult } from './types'
-import type { Scene } from './scene/types'
 import type { Vocab } from './grammar/types'
-import { META_COMMANDS, META_ALIASES } from './meta'
+import { META_COMMANDS } from './meta'
+import type { CoreLexicon } from './lexicon/types'
+import { fold } from './lexicon/fold'
+import { SOFT_NOOP_PAT } from './grammar/patterns'
 
 /**
  * The abstain sentinel: the model emits `{"verb":"__UNKNOWN__"}` (and the grammar
@@ -57,13 +59,84 @@ export function isMetaCommand(english: string): boolean {
 
 /**
  * Map a localized command word (e.g. French "inventaire") to the English the
- * interpreter understands ("inventory"), to be sent raw — bypassing the model so
- * a known non-English command can't be mistranslated (UAT F5). Returns null for
- * English input and anything not in the seed alias table. Match is on the bare
- * word only, so a real intent ("inventaire de la maison") still reaches the model.
+ * interpreter understands, via the ACTIVE language's core lexicon (spec §5.1 —
+ * supersedes the META_ALIASES seed, whose entries now live in each core's
+ * metaAliases). Bare-word match only, diacritic-folded, so a real intent
+ * ("inventaire de la maison") still reaches the translator. No core (language
+ * en/off) → null.
  */
-export function metaAlias(english: string): string | null {
-  return META_ALIASES[normalizeBareCommand(english)] ?? null
+export function metaAlias(
+  english: string,
+  core: CoreLexicon | null,
+): string | null {
+  if (!core) return null
+  const norm = fold(normalizeBareCommand(english))
+  if (norm.includes(' ')) return null
+  return core.metaAliases[norm] ?? null
+}
+
+/** Every word the game's parser knows (stage-4 passthrough set, spec §4):
+ * verb words (incl. multiword parts), verb synonyms, preps, movement, noun
+ * dictionary synonyms + adjectives, meta commands, and the English articles
+ * the Z-parser accepts. Canonical DESC tokens are NOT included — they are not
+ * parser dictionary words (F-Z). */
+const VOCAB_WORD_SETS = new WeakMap<Vocab, Set<string>>()
+export function vocabWordSet(vocab: Vocab): Set<string> {
+  const cached = VOCAB_WORD_SETS.get(vocab)
+  if (cached) return cached
+  const out = new Set<string>(['the', 'a', 'an'])
+  const addWords = (s: string) => {
+    for (const w of s.toLowerCase().split(/\s+/)) if (w) out.add(w)
+  }
+  for (const v of [...vocab.verbsOnly, ...vocab.verbs1, ...vocab.verbs2])
+    addWords(v)
+  for (const w of [...vocab.movement, ...vocab.preps, ...vocab.verbSynonyms])
+    addWords(w)
+  for (const n of vocab.nouns) {
+    for (const s of n.synonyms ?? []) addWords(s)
+    for (const adj of n.adjectives ?? []) addWords(adj)
+  }
+  for (const m of META_COMMANDS) addWords(m)
+  VOCAB_WORD_SETS.set(vocab, out)
+  return out
+}
+
+/**
+ * Stage 2 (locked decision 8): if the ENTIRE line is one quoted string —
+ * "…", «…», „…“, or “…” — return the unquoted text to send verbatim. Quote
+ * style varies by keyboard/autocorrect across FR/DE/ES (pushback minor note).
+ */
+export function unquote(line: string): string | null {
+  const m = line
+    .trim()
+    .match(/^(?:"([^"]+)"|«([^»]+)»|„([^“”]+)[“”]|“([^”]+)”)$/)
+  if (!m) return null
+  const inner = (m[1] ?? m[2] ?? m[3] ?? m[4]).trim()
+  return inner.length > 0 ? inner : null
+}
+
+/**
+ * Stage 4 (spec §4): every token is a word the game's parser already knows
+ * (vocabWordSet: verbs, synonyms, noun dictionary words, preps, movement,
+ * meta, the/a/an) → send verbatim. COLLISION GUARD: when the picker is not
+ * English, a token in the active language's lexicon does NOT count — the
+ * line falls through to the lexicon parse instead (pushback issue 2).
+ */
+export function isVocabPassthrough(
+  line: string,
+  vocab: Vocab,
+  activeLexiconWords: Set<string> | null,
+): boolean {
+  const words = vocabWordSet(vocab)
+  const tokens = line
+    .toLowerCase()
+    .replace(/[!.?,;:]+$/, '')
+    .split(/\s+/)
+    .filter(Boolean)
+  if (tokens.length === 0) return false
+  return tokens.every(
+    t => words.has(t) && !(activeLexiconWords?.has(t) ?? false),
+  )
 }
 
 // The interpreter's yes/no confirmation prompts (restart, quit, restore-overwrite)
@@ -165,13 +238,25 @@ export function refusalApplies(
  * object the clause acted on — otherwise narrative "No X" text (e.g. the leaflet
  * body's "No computer should be without one!") or a refusal aimed at another
  * object falsely truncates the sequence (UAT F2/R3; review C8).
+ *
+ * Soft no-ops ("It is already open.", "You already have that!") do NOT fail the
+ * clause (NL v2 §10, UAT F-G): the action was already satisfied, so the plan is
+ * still on track. The scene tracker keeps calling refusalApplies directly —
+ * WITHOUT this filter — so a no-op turn still can't promote its object to "it".
  */
 export function clauseFailed(
   recentOutput: string,
   vocab: Vocab,
   command?: string,
 ): boolean {
-  if (refusalApplies(recentOutput, vocab, command)) return true
+  // Hard refusals only: a sentence matching SOFT_NOOP_PAT is "already done",
+  // which must not stop a compound run (§10/F-G). Filter per SENTENCE so a
+  // real refusal elsewhere in the same output still registers.
+  const hardOnly = recentOutput
+    .split(/[.!?\n]+/)
+    .filter(s => !SOFT_NOOP_PAT.test(s))
+    .join('. ')
+  if (refusalApplies(hardOnly, vocab, command)) return true
   const absence = new RegExp(vocab.absencePat.source, vocab.absencePat.flags)
   if (!command) return absence.test(recentOutput)
   const relevant = commandObjectWords(command, vocab)
@@ -195,16 +280,15 @@ interface RawCmd {
 }
 
 /**
- * Validate the GBNF-guaranteed JSON command against the scene and serialize the
- * canonical command string. Pure + total. No pronoun resolution: under locked
- * decision 6 the model has already mapped pronouns to in-scope canonicals, so a
- * pronoun can never appear here.
+ * Validate the GBNF-guaranteed JSON command against the VOCAB and serialize the
+ * canonical command string. Pure + total. Scope-free (NL v2 §7): objects are
+ * gated on the vocab's emit set only, so an in-vocab-but-out-of-scope object
+ * passes through and earns the Z-machine's own honest "You can't see any X
+ * here!" — scope is a prompt hint, never a validation constraint. No pronoun
+ * resolution: under locked decision 6 the model has already mapped pronouns to
+ * canonicals, so a pronoun can never appear here.
  */
-export function parseCommand(
-  rawJson: string,
-  scene: Scene,
-  vocab: Vocab,
-): TranslateResult {
+export function parseCommand(rawJson: string, vocab: Vocab): TranslateResult {
   let cmd: RawCmd
   try {
     cmd = JSON.parse(rawJson.trim()) as RawCmd
@@ -218,7 +302,7 @@ export function parseCommand(
   const object = typeof cmd.object === 'string' ? cmd.object : undefined
   const prep = typeof cmd.prep === 'string' ? cmd.prep : undefined
   const indirect = typeof cmd.indirect === 'string' ? cmd.indirect : undefined
-  const inScope = new Set(scene.inScope.map(o => o.canonical))
+  const emits = new Set(vocab.nouns.map(n => n.emit))
 
   const isOnly = vocab.verbsOnly.includes(verb) || vocab.movement.includes(verb)
   const is1 = vocab.verbs1.includes(verb)
@@ -233,14 +317,13 @@ export function parseCommand(
     if (!is2) return { kind: 'abstain' }
     if (object === undefined || prep === undefined || indirect === undefined)
       return { kind: 'abstain' }
-    if (!inScope.has(object) || !inScope.has(indirect))
-      return { kind: 'abstain' }
+    if (!emits.has(object) || !emits.has(indirect)) return { kind: 'abstain' }
     if (!vocab.preps.includes(prep)) return { kind: 'abstain' }
     return { kind: 'command', text: `${verb} ${object} ${prep} ${indirect}` }
   }
   if (object !== undefined) {
     if (!is1) return { kind: 'abstain' }
-    if (!inScope.has(object)) return { kind: 'abstain' }
+    if (!emits.has(object)) return { kind: 'abstain' }
     return { kind: 'command', text: `${verb} ${object}` }
   }
   if (!isOnly) return { kind: 'abstain' }

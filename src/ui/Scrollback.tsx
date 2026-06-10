@@ -51,11 +51,11 @@ export function Scrollback({
         >
           {l.kind === 'input' ? (
             <>
-              <span className="car">&#8250;</span> {l.text}
+              <span className="car">&gt;</span> {l.text}
             </>
           ) : l.kind === 'nl-source' ? (
             <>
-              <span className="car">&gt;</span> {l.text}
+              <span className="you">you</span> {l.text}
             </>
           ) : (
             l.text

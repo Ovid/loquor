@@ -11,30 +11,35 @@ canonical game command). The **first pass is built** (the playable engine + UI);
 the **natural-language layer is built and under active refinement** (UAT-driven
 parser/scene/vocab work on feature branches such as `ovid/more-parser-work`).
 
-## Repository state: first pass built; NL layer built, being refined
+## Repository state: first pass built; NL layer v2 built
 
 **The application IS scaffolded.** `package.json`, the Vite app, and `src/` all
 exist, with the first pass implemented and tested (engine, GlkOte bridge, storage,
-UI). The natural-language layer is also implemented and tested (translation hook,
-direction fast-path, compound commands, scene tracking, ZIL→vocab extraction);
-current work is UAT-driven refinement of translation quality. Sources of truth,
-in priority order:
+UI). The natural-language layer **v2 is implemented and tested**: a
+deterministic-first multilingual pipeline (EN/FR/DE/ES) — per-language lexicons
+with an LLM fallback, vocab passthrough, quoted escape, full-vocab grammar,
+literal-translation prompt, input queue, language picker, and a UAT regression
+suite pinning every UAT-1/UAT-2 finding. Sources of truth, in priority order:
 
-1. `docs/superpowers/specs/2026-06-07-loquor-nl-layer-design.md` — the **NL layer
-   design** (revised after pushback review). Its companion implementation plan is
+1. `docs/superpowers/specs/2026-06-09-loquor-nl-multilingual-design.md` — the
+   **current NL layer design** (v2, deterministic-first multilingual). Its
+   implementation plan, `docs/superpowers/plans/2026-06-09-loquor-nl-multilingual.md`,
+   is executed. UAT findings live in `notes/uat-1.md` / `notes/uat-2.md`.
+2. `docs/superpowers/specs/2026-06-07-loquor-nl-layer-design.md` — the **NL layer
+   v1 design** (revised after pushback review; superseded by v2 where they
+   conflict). Its companion implementation plan is
    `docs/superpowers/plans/2026-06-07-loquor-nl-layer.md`. Follow-on designs live
-   beside it (compound commands, scene resolution, vocab extraction), with UAT
-   findings in `notes/uat-1.md` / `notes/uat-2.md`.
-2. `docs/superpowers/plans/2026-06-06-loquor-first-pass.md` — the first-pass TDD
+   beside it (compound commands, scene resolution, vocab extraction).
+3. `docs/superpowers/plans/2026-06-06-loquor-first-pass.md` — the first-pass TDD
    plan (largely executed; historical reference).
-3. `docs/superpowers/specs/2026-06-06-loquor-design.md` — the first-pass design and
+4. `docs/superpowers/specs/2026-06-06-loquor-design.md` — the first-pass design and
    locked decisions (architecture, theme tokens, persistence model).
-4. `docs/spikes/2026-06-06-glk-vite-spike.md` — resolved feasibility spike (how the
+5. `docs/spikes/2026-06-06-glk-vite-spike.md` — resolved feasibility spike (how the
    Glk layer is sourced; CommonJS/Vite interop).
-5. `docs/notes.md` — the deferred LLM/grammar roadmap (post-first-NL-pass ideas).
+6. `docs/notes.md` — the deferred LLM/grammar roadmap (post-first-NL-pass ideas).
 
 Read the relevant spec/plan before writing code. NL-layer work happens on
-feature branches (currently `ovid/more-parser-work`); **execute plans with
+feature branches; **execute plans with
 `superpowers:subagent-driven-development` or `superpowers:executing-plans`.**
 
 ## Read-only vendored directories (NEVER modify)

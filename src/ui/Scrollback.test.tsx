@@ -32,7 +32,7 @@ describe('Scrollback', () => {
         ]}
       />,
     )
-    // Only the nl-source '>' survives, rendered with its caret marker.
+    // Only the nl-source '>' survives, rendered with its `you` label.
     expect(document.querySelectorAll('p.nl-source')).toHaveLength(1)
   })
 
@@ -58,23 +58,28 @@ describe('Scrollback', () => {
     sel.mockRestore()
   })
 
-  it('renders an nl-source line with a > marker and the .nl-source class', () => {
+  // Spec §12: NL source lines carry a worded `you` label; the `>` prefix is
+  // reserved for real (canonical) commands; the `›` glyph is gone everywhere.
+  it('nl-source lines carry a worded you label, no > and no ›', () => {
     render(
       <Scrollback
-        lines={[{ id: 1, kind: 'nl-source', text: 'grab the brass lantern' }]}
+        lines={[{ id: 1, kind: 'nl-source', text: 'ouvre la boîte' }]}
       />,
     )
-    const p = screen.getByText('grab the brass lantern').closest('p')!
+    expect(screen.getByText('you')).toBeInTheDocument()
+    const p = screen.getByText('ouvre la boîte', { exact: false }).closest('p')!
     expect(p).toHaveClass('nl-source')
-    expect(p.textContent).toContain('>')
+    expect(p.textContent).not.toContain('>')
+    expect(p.textContent).not.toContain('›')
   })
 
-  it('renders a VM input echo with the › marker (not >)', () => {
+  it('input (real command) lines keep the > prefix; › is gone everywhere', () => {
     render(
-      <Scrollback lines={[{ id: 2, kind: 'input', text: 'take lantern' }]} />,
+      <Scrollback lines={[{ id: 2, kind: 'input', text: 'open mailbox' }]} />,
     )
-    const p = screen.getByText('take lantern').closest('p')!
-    expect(p.textContent).toContain('›') // ›
+    const p = screen.getByText('open mailbox', { exact: false }).closest('p')!
+    expect(p.textContent).toContain('>')
+    expect(p.textContent).not.toContain('›')
     expect(p).toHaveClass('echo')
   })
 })

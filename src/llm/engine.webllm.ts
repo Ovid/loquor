@@ -23,6 +23,10 @@ import { ABSTAIN } from './translate'
 export class WebLlmEngine implements LlmEngine {
   private engine: MLCEngineInterface | null = null
   private modelId: string
+  /** Monotonic load token ([L2]): CreateMLCEngine cannot be aborted, so a
+   * cancelled or superseded load can land LATE — only the newest load may
+   * install its engine; every loser releases its own. */
+  private loadEpoch = 0
   constructor(modelId: string = DEFAULT_MODEL) {
     this.modelId = modelId
   }
@@ -32,15 +36,18 @@ export class WebLlmEngine implements LlmEngine {
     signal: AbortSignal,
   ): Promise<void> {
     if (signal.aborted) throw new DOMException('aborted', 'AbortError')
+    const epoch = ++this.loadEpoch
     const { CreateMLCEngine: create } = await import('@mlc-ai/web-llm')
     // NETWORK EGRESS (review I1, documented in CLAUDE.md): passing no `appConfig`
     // makes WebLLM use its built-in prebuiltAppConfig, which fetches model weights
     // from huggingface.co and the model-lib WASM from raw.githubusercontent.com on
     // first use (no SRI). Gated behind explicit opt-in; one-time, then cached and
     // offline. Follow-up: pin self-hosted/integrity-checked URLs under public/.
-    this.engine = await create(this.modelId, {
+    const engine = await create(this.modelId, {
       initProgressCallback: (r: InitProgressReport) => {
         // web-llm reports a 0..1 `progress`; normalize to loaded/total.
+        // Stale loads stay silent: their progress is no longer this engine's.
+        if (epoch !== this.loadEpoch) return
         onProgress({
           loaded: Math.round(r.progress * 100),
           total: 100,
@@ -48,10 +55,15 @@ export class WebLlmEngine implements LlmEngine {
         })
       },
     })
-    if (signal.aborted) {
-      await this.unload()
+    // [L2] The loser of a race releases ITS OWN engine. Assigning this.engine
+    // before the abort check (as before) let a late-landing cancelled load
+    // clobber the fresh winner and then unload() it — leaking the winner's
+    // VRAM and leaving the hook in phase 'on' with isLoaded() false.
+    if (signal.aborted || epoch !== this.loadEpoch) {
+      await engine.unload?.()
       throw new DOMException('aborted', 'AbortError')
     }
+    this.engine = engine
   }
 
   async generate(

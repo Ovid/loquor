@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { TAKE_ACK, DROP_ACK, ABSENCE_PAT } from './patterns'
+import { TAKE_ACK, DROP_ACK, ABSENCE_PAT, SOFT_NOOP_PAT } from './patterns'
 
 describe('shared output patterns', () => {
   it('TAKE_ACK matches "Taken." but not arbitrary prose', () => {
@@ -42,6 +42,18 @@ describe('shared output patterns', () => {
     expect(grab('There is no lamp here.')[0]).toMatch(/^lamp\b/)
     expect(grab('The trophy case is empty.')).toContain('case')
     expect(grab("You can't see any troll here.")[0]).toMatch(/^troll\b/)
+  })
+
+  describe('SOFT_NOOP_PAT (NL v2 §10, F-G)', () => {
+    it('matches already-state no-ops', () => {
+      expect(SOFT_NOOP_PAT.test('It is already open.')).toBe(true)
+      expect(SOFT_NOOP_PAT.test('You already have that!')).toBe(true)
+    })
+
+    it('does not match hard refusals or absence', () => {
+      expect(SOFT_NOOP_PAT.test('The door cannot be opened.')).toBe(false)
+      expect(SOFT_NOOP_PAT.test("You can't see any mailbox here!")).toBe(false)
+    })
   })
 
   it('ABSENCE_PAT captures span adjective-prefixed objects (review C6)', () => {

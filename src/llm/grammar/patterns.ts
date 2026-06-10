@@ -16,6 +16,14 @@ export const DROP_ACK = /^\s*(?:[^:\n]*:\s*)?dropped\.?\s*$/im
 // otherwise a mistranslated "close it" → "close door" → "already closed" keeps
 // re-electing `door` as "it", a self-reinforcing loop (systematic-debugging).
 export const FAILURE_PAT = /\bis already\b|\bcan(?:'t|not)\s+be\b/i
+// A SOFT no-op: the action was already satisfied ("It is already open.",
+// "You already have that!"). Distinct from FAILURE_PAT's hard refusals: a
+// soft no-op must NOT abort a compound sequence (NL v2 §10, UAT F-G) — the
+// player's plan is still on track — but it still gates the antecedent
+// (the scene tracker uses FAILURE_PAT unfiltered via refusalApplies).
+// Invariant: every already-state branch of FAILURE_PAT must have a covering
+// branch here, or it regresses F-G.
+export const SOFT_NOOP_PAT = /\bis already\b|\byou already have\b/i
 // The "no X" / "can't see X" captures span up to THREE words (same line only):
 // a single-word capture grabbed the ADJECTIVE of "no small mailbox" / "any
 // brass lantern", which resolves to no canonical, so the explicitly-absent

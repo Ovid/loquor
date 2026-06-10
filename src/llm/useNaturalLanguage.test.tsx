@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { useNaturalLanguage } from './useNaturalLanguage'
 import { FakeLlmEngine } from './engine.fake'
@@ -13,6 +13,12 @@ import {
 } from './grammar/patterns'
 import { emptyView } from '../glkote-react/types'
 import type { ViewState, BufferLine, TurnResult } from '../glkote-react/types'
+import { ZORK1_SIG } from './grammar/index'
+import { ZORK1_VOCAB } from './grammar/zork1.vocab'
+
+// A test that fails (or times out) between useFakeTimers/useRealTimers must
+// not poison every later test in the file with fake timers.
+afterEach(() => vi.useRealTimers())
 
 const capable: CapabilityResult = { tier: 'small', reasons: [] }
 const ctx = () => ({ location: 'West of House', recentOutput: '' })
@@ -23,7 +29,22 @@ const TEST_VOCAB: Vocab = {
   verbs1: ['take', 'open'],
   verbs2: ['unlock'],
   preps: ['with'],
-  nouns: [{ canonical: 'mailbox' }, { canonical: 'leaflet' }],
+  verbSynonyms: [],
+  nouns: [
+    { canonical: 'mailbox', emit: 'mailbox' },
+    { canonical: 'leaflet', emit: 'leaflet' },
+    // Task-13-style entry WITH dictionary synonyms/adjectives: these words feed
+    // vocabWordSet, so 'open trap door' is all-vocab (stage-4 passthrough). The
+    // mailbox/leaflet entries above have NO synonyms on purpose — canonical/emit
+    // tokens are not parser dictionary words (F-Z), so 'open mailbox' still
+    // exercises the LLM path in the older tests.
+    {
+      canonical: 'trap door',
+      emit: 'trapdoor',
+      synonyms: ['door', 'trapdoor', 'trap-door'],
+      adjectives: ['trap'],
+    },
+  ],
   takeAck: TAKE_ACK,
   dropAck: DROP_ACK,
   absencePat: ABSENCE_PAT,
@@ -65,6 +86,7 @@ function setup(over: Partial<Parameters<typeof useNaturalLanguage>[0]> = {}) {
       sendLine,
       awaitTurn: async () => ({ view: emptyView, reason: 'line' as const }),
       watchdogMs: 5000,
+      signature: 'test-signature', // consumed by Task 21 (per-game lexicons)
       ...over,
     }),
   )
@@ -223,7 +245,7 @@ describe('useNaturalLanguage', () => {
     await waitFor(() =>
       expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
     )
-    act(() => hook.result.current.toggle()) // not installed → opens modal
+    act(() => hook.result.current.setLanguage('en')) // not installed → opens modal
     expect(hook.result.current.modalOpen).toBe(true)
     act(() => hook.result.current.declineDownload())
     expect(hook.result.current.modalOpen).toBe(false)
@@ -236,10 +258,80 @@ describe('useNaturalLanguage', () => {
     await waitFor(() =>
       expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
     )
-    act(() => hook.result.current.toggle()) // not installed → opens modal
+    act(() => hook.result.current.setLanguage('en')) // not installed → opens modal
     act(() => hook.result.current.declineDownload())
-    expect(readNlPref().enabled).toBe(false)
+    expect(readNlPref().language).toBe('off')
     expect(readNlPref().declined).toBe(true)
+  })
+
+  it('setLanguage on a cached model activates that language and persists it', async () => {
+    const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
+    await waitFor(() =>
+      expect(hook.result.current.state).toEqual({
+        phase: 'off',
+        installed: true,
+      }),
+    )
+    act(() => hook.result.current.setLanguage('fr'))
+    expect(hook.result.current.state).toEqual({ phase: 'on', language: 'fr' })
+    expect(readNlPref().language).toBe('fr')
+    expect(hook.result.current.modalOpen).toBe(false) // cached → no re-prompt
+  })
+
+  it('setLanguage with no cached model opens the modal; accepting activates THAT language', async () => {
+    const { hook } = setup() // not cached
+    await waitFor(() =>
+      expect(hook.result.current.state).toEqual({
+        phase: 'off',
+        installed: false,
+      }),
+    )
+    act(() => hook.result.current.setLanguage('de'))
+    expect(hook.result.current.modalOpen).toBe(true)
+    expect(hook.result.current.state.phase).toBe('off') // nothing active yet
+    act(() => hook.result.current.requestDownload())
+    await waitFor(() =>
+      expect(hook.result.current.state).toEqual({
+        phase: 'on',
+        language: 'de',
+      }),
+    )
+    expect(readNlPref().language).toBe('de')
+  })
+
+  it('boot restore: a stored language reactivates against a cached model', async () => {
+    localStorage.setItem(
+      'loquor.nl',
+      JSON.stringify({ language: 'es', declined: false }),
+    )
+    const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
+    await waitFor(() =>
+      expect(hook.result.current.state).toEqual({
+        phase: 'on',
+        language: 'es',
+      }),
+    )
+  })
+
+  it("setLanguage('off') turns the layer off and persists 'off'", async () => {
+    const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
+    // Wait for the async isCached() probe (installed: true), not just the
+    // initial pre-probe 'off' state — otherwise setLanguage('fr') races the
+    // probe and takes the download-modal branch instead of activating.
+    await waitFor(() =>
+      expect(hook.result.current.state).toEqual({
+        phase: 'off',
+        installed: true,
+      }),
+    )
+    act(() => hook.result.current.setLanguage('fr'))
+    expect(hook.result.current.state).toEqual({ phase: 'on', language: 'fr' })
+    act(() => hook.result.current.setLanguage('off'))
+    expect(hook.result.current.state).toEqual({
+      phase: 'off',
+      installed: true,
+    })
+    expect(readNlPref().language).toBe('off')
   })
 
   it('cancelDownload aborts an in-flight load, reverts to off, persists nothing', async () => {
@@ -266,7 +358,7 @@ describe('useNaturalLanguage', () => {
     act(() => hook.result.current.cancelDownload())
     await waitFor(() => expect(hook.result.current.state.phase).toBe('off'))
     expect(hook.result.current.notice).toBeNull()
-    expect(readNlPref().enabled).toBe(false)
+    expect(readNlPref().language).toBe('off')
     resolveLoad()
   })
 
@@ -290,13 +382,114 @@ describe('useNaturalLanguage', () => {
       resolveLoad()
     })
     expect(hook.result.current.state.phase).toBe('off')
-    expect(readNlPref().enabled).toBe(false)
+    expect(readNlPref().language).toBe('off')
   })
 
-  it('restores the enabled choice on remount when the model is cached', async () => {
+  it('cancel racing a COMPLETED download still persists language off ([P])', async () => {
+    // The sub-ms window: the load resolves (pref written, phase on) just as
+    // the player clicks Cancel. The cancel must persist 'off' too, or NL
+    // self-enables next session against an explicit cancel.
+    const { hook } = setup()
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
+    )
+    act(() => hook.result.current.setLanguage('fr')) // not installed → modal
+    act(() => hook.result.current.requestDownload())
+    await waitFor(() => expect(hook.result.current.state.phase).toBe('on'))
+    expect(readNlPref().language).toBe('fr')
+    act(() => hook.result.current.cancelDownload())
+    expect(hook.result.current.state.phase).toBe('off')
+    expect(readNlPref().language).toBe('off')
+  })
+
+  it('a second requestDownload aborts the previous in-flight load ([L2])', async () => {
+    // Without the abort, re-picking a language starts a SECOND concurrent
+    // engine.load while the first keeps downloading — double VRAM on exactly
+    // the constrained devices the capability gate worries about.
+    const signals: AbortSignal[] = []
+    const blockingEngine: import('./types').LlmEngine = {
+      isCached: async () => false,
+      isLoaded: () => false,
+      unload: async () => {},
+      generate: async () => '{"verb":"__UNKNOWN__"}',
+      load: (_onProgress, signal) =>
+        new Promise<void>((_resolve, reject) => {
+          signals.push(signal)
+          signal.addEventListener('abort', () =>
+            reject(new DOMException('aborted', 'AbortError')),
+          )
+        }),
+    }
+    const { hook } = setup({ engine: blockingEngine })
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
+    )
+    act(() => hook.result.current.requestDownload())
+    act(() => hook.result.current.requestDownload())
+    expect(signals).toHaveLength(2)
+    expect(signals[0].aborted).toBe(true)
+    expect(signals[1].aborted).toBe(false)
+  })
+
+  it('a STALLED lazy engine.load cannot wedge input forever ([M])', async () => {
+    // Reload session: model cached on disk, not in memory — the first command
+    // triggers engine.load inside generateRaw. The generate watchdog never
+    // covered the load, so a stalled load (WebGPU init, cache eviction →
+    // network) held translatingRef forever: every later line queued to the
+    // cap, then dropped. The load gets its own generous watchdog.
+    localStorage.setItem('loquor.nl', JSON.stringify({ language: 'en' }))
+    const stalledEngine: import('./types').LlmEngine = {
+      isCached: async () => true,
+      isLoaded: () => false,
+      unload: async () => {},
+      generate: async () => '{"verb":"__UNKNOWN__"}',
+      load: () => new Promise<void>(() => {}), // stalls forever
+    }
+    const { hook, sendLine } = setup({ engine: stalledEngine })
+    await waitFor(() => expect(hook.result.current.state.phase).toBe('on'))
+    vi.useFakeTimers()
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate('sing a ditty')
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(61_000)
+      await p
+    })
+    vi.useRealTimers()
+    expect(sendLine).toHaveBeenCalledWith('sing a ditty') // EN raw fallback
+    expect(hook.result.current.notice).toMatch(/timed out/i)
+    expect(hook.result.current.pending).toBe(false) // input not wedged
+  })
+
+  it("phase 'off' beats the queue: a line typed mid-drain after switching off goes raw ([M])", async () => {
+    const engine = new FakeLlmEngine({
+      cached: true,
+      generateDelayMs: 50,
+      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const { hook, sendLine } = setup({ engine })
+    await reachOn(hook)
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate('open the mailbox') // drain in flight
+    })
+    act(() => hook.result.current.setLanguage('off')) // off is instant
+    act(() => {
+      void hook.result.current.translate('look') // must NOT queue behind the drain
+    })
+    expect(sendLine).toHaveBeenCalledWith('look')
+    expect(hook.result.current.queued).toEqual([])
+    await act(async () => {
+      await p
+    })
+  })
+
+  it('restores the chosen language on remount when the model is cached', async () => {
     const a = setup({ engine: new FakeLlmEngine({ cached: true }) })
-    await reachOn(a.hook) // persists enabled=true
-    expect(readNlPref().enabled).toBe(true)
+    await reachOn(a.hook) // persists language='en'
+    expect(readNlPref().language).toBe('en')
     a.hook.unmount()
     const b = setup({ engine: new FakeLlmEngine({ cached: true }) })
     await waitFor(() => expect(b.hook.result.current.state.phase).toBe('on'))
@@ -360,6 +553,41 @@ describe('useNaturalLanguage', () => {
     expect(generateSpy).not.toHaveBeenCalled() // model never consulted
   })
 
+  it('stage-4 passthrough sends the normalized line the gate validated ([C] — take lamp!)', async () => {
+    // isVocabPassthrough strips trailing [!.?,;:] before tokenizing; the send
+    // must use that SAME form. Zork's dictionary separators are exactly
+    // `. , "`, so a surviving '!' glues onto the last word and the stage
+    // built to prevent parser errors produces one ("I don't know the word
+    // door!").
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"look"}',
+    })
+    const generateSpy = vi.spyOn(engine, 'generate')
+    const { hook, sendLine } = setup({ engine })
+    await reachOn(hook)
+    await act(async () => {
+      await hook.result.current.translate('open trap door!')
+    })
+    expect(sendLine).toHaveBeenCalledWith('open trap door')
+    expect(generateSpy).not.toHaveBeenCalled()
+  })
+
+  it('stage-3 meta sends the normalized form it matched ([C] — save!)', async () => {
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"look"}',
+    })
+    const generateSpy = vi.spyOn(engine, 'generate')
+    const { hook, sendLine } = setup({ engine })
+    await reachOn(hook)
+    await act(async () => {
+      await hook.result.current.translate('save!')
+    })
+    expect(sendLine).toHaveBeenCalledWith('save')
+    expect(generateSpy).not.toHaveBeenCalled()
+  })
+
   it('a reply to a yes/no confirmation prompt bypasses the model (restart flow)', async () => {
     // After "restart", Zork asks "Do you wish to restart? (Y is affirmative):"
     // as a LINE read. The player's "Y" must answer the game, not be translated
@@ -406,19 +634,10 @@ describe('useNaturalLanguage', () => {
     expect(generateSpy).not.toHaveBeenCalled()
   })
 
-  it('observe is idempotent across re-renders of the same turn', async () => {
-    const engine = new FakeLlmEngine({
-      cached: true,
-      default: '{"verb":"__UNKNOWN__"}',
-    })
-    const { hook } = setup({ engine })
-    await reachOn(hook)
-    const v = viewState('West of House', ['A lamp is here.'])
-    act(() => hook.result.current.observe(v))
-    act(() => hook.result.current.observe(v)) // duplicate — must not double-apply
-    // No throw, no corruption; a second identical observe is a no-op by construction.
-    expect(true).toBe(true)
-  })
+  // (A hook-level "observe is idempotent" test used to live here asserting
+  // only expect(true) — vacuous ([R]). The real invariant is pinned at the
+  // reducer level: tracker.test.ts "reducer stays idempotent on duplicate
+  // observes (v1 invariant)".)
 
   it('abstain passes raw English through and does NOT echo or latch a command', async () => {
     const engine = new FakeLlmEngine({
@@ -644,10 +863,66 @@ describe('useNaturalLanguage', () => {
     expect(hook.result.current.notice).toBe('Ran 1 of 2 actions.')
   })
 
-  it('compound: stops after an in-game no-op (failurePat) on the first clause', async () => {
+  it('compound: an engine error on the FIRST clause is noticed and logged even for English ([B])', async () => {
+    // Stage 8 used to check activeLang==='en' before stopError: an EN
+    // compound whose first clause hit a genuine engine error took the bare
+    // raw-send branch — no notice, no console.error (mid-compound errors
+    // never propagate to the drain's catch). The failure then looked exactly
+    // like a deliberate abstain fallback.
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const engine = new FakeLlmEngine({ cached: true, failGenerate: true })
+    const { hook, sendLine } = setup({ engine })
+    await reachOn(hook)
+    await act(async () => {
+      await hook.result.current.translate('sing a ditty and dance a jig')
+    })
+    // EN still raw-sends (Zork chains compounds natively) — but labeled:
+    expect(sendLine).toHaveBeenCalledWith('sing a ditty and dance a jig')
+    expect(hook.result.current.notice).toMatch(/translation failed/i)
+    expect(errSpy).toHaveBeenCalledWith(
+      '[nl] translation failed:',
+      expect.anything(),
+    )
+    errSpy.mockRestore()
+  })
+
+  it('compound: a mid-sequence engine error labels the truncation notice ([B])', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const engine = new FakeLlmEngine({ cached: true, failGenerate: true })
+    // Clause 1 never reaches the engine (stage-5 direction); clause 2 does.
+    const movedView = viewState(
+      'North of House',
+      ['north', 'You are facing the north side of a white house.'],
+      'north',
+    )
+    const { hook, sendLine } = setup({
+      engine,
+      awaitTurn: turnScript([movedView]),
+    })
+    await reachOn(hook)
+    await act(async () => {
+      await hook.result.current.translate('north and xyzzy the grue')
+    })
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['north'])
+    expect(hook.result.current.notice).toMatch(/translation failed/i)
+    expect(hook.result.current.notice).toMatch(/ran 1 of 2/i)
+    expect(errSpy).toHaveBeenCalledWith(
+      '[nl] translation failed:',
+      expect.anything(),
+    )
+    errSpy.mockRestore()
+  })
+
+  // INVERTED for UAT F-G (NL v2 §10): "It is already open." is a SOFT no-op —
+  // the player's plan is already satisfied, so the compound sequence must keep
+  // going. (This test previously asserted the old stop-on-no-op behavior.)
+  it('compound: a soft no-op ("It is already open.") does NOT stop the sequence (F-G)', async () => {
     const engine = new FakeLlmEngine({
       cached: true,
-      completions: { 'open mailbox': '{"verb":"open","object":"mailbox"}' },
+      completions: {
+        'open mailbox': '{"verb":"open","object":"mailbox"}',
+        'take leaflet': '{"verb":"take","object":"leaflet"}',
+      },
       default: '{"verb":"__UNKNOWN__"}',
     })
     const noop = viewState(
@@ -655,10 +930,47 @@ describe('useNaturalLanguage', () => {
       ['open mailbox', 'It is already open.'],
       'open mailbox',
     )
+    const taken = viewState(
+      'West of House',
+      ['take leaflet', 'Taken.'],
+      'take leaflet',
+    )
     const { hook, sendLine } = setup({
       engine,
       vocab: { ...TEST_VOCAB, failurePat: FAILURE_PAT },
-      awaitTurn: turnScript([noop]),
+      awaitTurn: turnScript([noop, taken]),
+    })
+    await reachOn(hook)
+    act(() =>
+      hook.result.current.observe(
+        viewState('West of House', ['There is a small mailbox here.']),
+      ),
+    )
+    await act(async () => {
+      await hook.result.current.translate('open mailbox and take leaflet')
+    })
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual([
+      'open mailbox',
+      'take leaflet',
+    ])
+    expect(hook.result.current.notice).toBeNull()
+  })
+
+  it('compound: still stops after a HARD refusal (failurePat) on the first clause', async () => {
+    const engine = new FakeLlmEngine({
+      cached: true,
+      completions: { 'open mailbox': '{"verb":"open","object":"mailbox"}' },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const refusal = viewState(
+      'West of House',
+      ['open mailbox', 'The mailbox cannot be opened.'],
+      'open mailbox',
+    )
+    const { hook, sendLine } = setup({
+      engine,
+      vocab: { ...TEST_VOCAB, failurePat: FAILURE_PAT },
+      awaitTurn: turnScript([refusal]),
     })
     await reachOn(hook)
     act(() =>
@@ -807,11 +1119,16 @@ describe('useNaturalLanguage', () => {
     expect(hook.result.current.notice).toBeNull()
   })
 
-  it('compound: a localized alias clause is routed as its English canonical (review C4)', async () => {
+  it('compound: a localized alias clause routes raw via the ACTIVE core lexicon (review C4, spec §4 stage 3)', async () => {
+    // Task 21 wires the active language's core lexicon into the per-clause
+    // meta/alias stage: with the picker on 'fr', "inventaire" maps to
+    // "inventory" deterministically — no model call, no truncated sequence.
+    // (This test was dormant while the hook passed `null` for the core.)
     const engine = new FakeLlmEngine({
       cached: true,
       default: '{"verb":"__UNKNOWN__"}',
     })
+    const generateSpy = vi.spyOn(engine, 'generate')
     const northView = viewState(
       'North of House',
       ['north', 'North of House'],
@@ -826,11 +1143,18 @@ describe('useNaturalLanguage', () => {
       engine,
       awaitTurn: turnScript([northView, invView]),
     })
-    await reachOn(hook)
+    await waitFor(() =>
+      expect(hook.result.current.state).toEqual({
+        phase: 'off',
+        installed: true,
+      }),
+    )
+    act(() => hook.result.current.setLanguage('fr'))
     await act(async () => {
       await hook.result.current.translate('va au nord et inventaire')
     })
     expect(sendLine.mock.calls.map(c => c[0])).toEqual(['north', 'inventory'])
+    expect(generateSpy).not.toHaveBeenCalled() // direction fast-path + core alias
     expect(hook.result.current.notice).toBeNull()
   })
 
@@ -905,5 +1229,618 @@ describe('useNaturalLanguage', () => {
       await p
     })
     expect(hook.result.current.isSequencing()).toBe(false)
+  })
+})
+
+describe('input queue (NL v2 §11, F-A)', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('a line typed mid-translation queues and runs after it, FIFO', async () => {
+    // Line 1 takes the slow LLM path; 'north' arrives while it is in flight.
+    // F-A: it must QUEUE (visible via result.current.queued), then drain
+    // through the full pipeline once line 1 finishes — never be dropped.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      generateDelayMs: 50,
+      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const { hook, sendLine } = setup({ engine })
+    await reachOn(hook)
+    act(() =>
+      hook.result.current.observe(
+        viewState('West of House', ['There is a small mailbox here.']),
+      ),
+    )
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate('open the mailbox')
+    })
+    act(() => {
+      void hook.result.current.translate('north')
+    })
+    expect(hook.result.current.queued.map(q => q.text)).toEqual(['north'])
+    await act(async () => {
+      await p
+    })
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual([
+      'open mailbox',
+      'north', // direction fast-path, run from the queue
+    ])
+    expect(hook.result.current.queued).toEqual([])
+  })
+
+  it('queued lines carry stable unique ids — never reused across drains (React keys)', async () => {
+    // The Terminal keys queued rows by id. The queue drains FIFO via shift(),
+    // so an index key would re-point the same DOM node at a DIFFERENT line as
+    // the front is removed; ids must be unique and never recycled.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      generateDelayMs: 50,
+      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const { hook } = setup({ engine })
+    await reachOn(hook)
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate('open the mailbox')
+    })
+    act(() => {
+      void hook.result.current.translate('north')
+      void hook.result.current.translate('look')
+    })
+    const firstIds = hook.result.current.queued.map(q => q.id)
+    expect(new Set(firstIds).size).toBe(2)
+    await act(async () => {
+      await p
+    })
+    expect(hook.result.current.queued).toEqual([])
+    act(() => {
+      p = hook.result.current.translate('open the mailbox')
+    })
+    act(() => {
+      void hook.result.current.translate('east')
+    })
+    // A fresh line never reuses an id an earlier queued line rendered under.
+    for (const q of hook.result.current.queued)
+      expect(firstIds).not.toContain(q.id)
+    await act(async () => {
+      await p
+    })
+  })
+
+  it('caps the queue at 4 — overflow drops the NEWEST with a notice', async () => {
+    const engine = new FakeLlmEngine({
+      cached: true,
+      generateDelayMs: 50,
+      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const { hook } = setup({ engine })
+    await reachOn(hook)
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate('open the mailbox') // in flight
+    })
+    act(() => {
+      void hook.result.current.translate('one')
+      void hook.result.current.translate('two')
+      void hook.result.current.translate('three')
+      void hook.result.current.translate('four')
+      void hook.result.current.translate('five') // overflow → dropped
+    })
+    expect(hook.result.current.queued.map(q => q.text)).toEqual([
+      'one',
+      'two',
+      'three',
+      'four',
+    ])
+    expect(hook.result.current.notice).toMatch(/queue full/i)
+    expect(hook.result.current.notice).toContain('five')
+    await act(async () => {
+      await p
+    })
+    expect(hook.result.current.queued).toEqual([])
+  })
+
+  it('flushes the queue (with a notice) when the game raises an interactive prompt', async () => {
+    // Line 1's turn leaves a yes/no confirmation on screen. The queued lines
+    // were typed BEFORE the player saw that question, so none of them may
+    // become its answer: the whole queue is cleared with a notice.
+    let output = ''
+    const getContext = () => ({
+      location: 'West of House',
+      recentOutput: output,
+    })
+    const sendLine = vi.fn((_text: string) => {
+      output = 'Do you wish to restart? (Y is affirmative): '
+    })
+    const engine = new FakeLlmEngine({
+      cached: true,
+      generateDelayMs: 50,
+      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const { hook } = setup({ engine, getContext, sendLine })
+    await reachOn(hook)
+    act(() =>
+      hook.result.current.observe(
+        viewState('West of House', ['There is a small mailbox here.']),
+      ),
+    )
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate('open the mailbox')
+    })
+    act(() => {
+      void hook.result.current.translate('north')
+      void hook.result.current.translate('look')
+    })
+    expect(hook.result.current.queued.map(q => q.text)).toEqual([
+      'north',
+      'look',
+    ])
+    await act(async () => {
+      await p
+    })
+    // Only line 1's command was ever sent; the queued lines were flushed.
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['open mailbox'])
+    expect(hook.result.current.queued).toEqual([])
+    expect(hook.result.current.notice).toMatch(/queue cleared/i)
+  })
+
+  it('the drain awaits the turn boundary, so a queued line sees a prompt raised by the PREVIOUS line (stale-view flush)', async () => {
+    // INTEGRATION TIMING (the §11 violation): getContext reads the Terminal's
+    // viewRef, which only updates after a React re-render — NOT synchronously
+    // inside sendLine. The settled turn output is only reachable through the
+    // awaitTurn-provided view (modeled on the compound awaitTurn-before-
+    // sendLine test: the turn fires synchronously inside sendLine, draining
+    // only resolvers registered before it). 'quit' raw-sends and its turn
+    // raises "(Y is affirmative)"; the queued 'north' must see THAT view at
+    // stage 1 and flush — never get translated into the prompt's answer.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const promptView = viewState(
+      'West of House',
+      ['Do you wish to leave the game? (Y is affirmative):'],
+      'quit',
+    )
+    const resolvers: Array<(r: TurnResult) => void> = []
+    const sendLine = vi.fn((_text: string) => {
+      resolvers.splice(0).forEach(r => r({ view: promptView, reason: 'line' }))
+    })
+    const awaitTurn = () =>
+      new Promise<TurnResult>(res => {
+        resolvers.push(res)
+      })
+    // STALE on purpose: the live view ref never catches up mid-drain.
+    const getContext = () => ({ location: 'West of House', recentOutput: '' })
+    const { hook } = setup({ engine, sendLine, awaitTurn, getContext })
+    await reachOn(hook)
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate('quit')
+      void hook.result.current.translate('north')
+      void hook.result.current.translate('look')
+    })
+    expect(hook.result.current.queued.map(q => q.text)).toEqual([
+      'north',
+      'look',
+    ])
+    await act(async () => {
+      await p
+    })
+    // Only 'quit' ever reached the VM; 'north' flushed instead of answering
+    // the confirmation, and 'look' was cleared with it.
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['quit'])
+    expect(hook.result.current.queued).toEqual([])
+    expect(hook.result.current.notice).toMatch(/queue cleared/i)
+  })
+
+  it('a LONE queued line that flushes still shows the queue-cleared notice', async () => {
+    // The flushed line itself was dropped input: even with nothing queued
+    // BEHIND it, the player must be told why it vanished (it was shifted out
+    // before the old `queue.length > 0` notice gate ran).
+    let output = ''
+    const getContext = () => ({
+      location: 'West of House',
+      recentOutput: output,
+    })
+    const sendLine = vi.fn((_text: string) => {
+      output = 'Do you wish to restart? (Y is affirmative): '
+    })
+    const engine = new FakeLlmEngine({
+      cached: true,
+      generateDelayMs: 50,
+      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const { hook } = setup({ engine, getContext, sendLine })
+    await reachOn(hook)
+    act(() =>
+      hook.result.current.observe(
+        viewState('West of House', ['There is a small mailbox here.']),
+      ),
+    )
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate('open the mailbox')
+    })
+    act(() => {
+      void hook.result.current.translate('north') // the lone queued line
+    })
+    expect(hook.result.current.queued.map(q => q.text)).toEqual(['north'])
+    await act(async () => {
+      await p
+    })
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['open mailbox'])
+    expect(hook.result.current.queued).toEqual([])
+    expect(hook.result.current.notice).toMatch(/queue cleared/i)
+  })
+
+  it('an abstain notice does NOT flush the queue — the next line still runs', async () => {
+    // fr: line 1 abstains (styled notice, nothing sent — stage 8). That is NOT
+    // an interactive prompt, so queued line 2 still drains and runs.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      generateDelayMs: 50,
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const { hook, sendLine } = setup({
+      engine,
+      vocab: ZORK1_VOCAB,
+      signature: ZORK1_SIG,
+    })
+    await waitFor(() =>
+      expect(hook.result.current.state).toEqual({
+        phase: 'off',
+        installed: true,
+      }),
+    )
+    act(() => hook.result.current.setLanguage('fr'))
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate('blorple le ciel') // LLM → abstain
+    })
+    act(() => {
+      void hook.result.current.translate('ouvre la trappe') // queues
+    })
+    expect(hook.result.current.queued.map(q => q.text)).toEqual([
+      'ouvre la trappe',
+    ])
+    await act(async () => {
+      await p
+    })
+    // Line 2 drained through the deterministic lexicon stage and ran.
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['open trapdoor'])
+    // Line 1's abstain notice survives (line 2 set none); no "queue cleared".
+    expect(hook.result.current.notice).toMatch(/couldn.t translate/i)
+  })
+
+  it('a mid-drain language switch applies to queued lines ([N])', async () => {
+    // The drain loop lives inside ONE translate closure, which used to
+    // capture lex/activeLang once: lines queued after a picker change drained
+    // under the OLD language. Here line 1 (fr, slow LLM abstain) is in flight
+    // when the player switches to Deutsch and the queued DE separable-verb
+    // line must translate under DE — under fr it would miss to the LLM and
+    // abstain.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      generateDelayMs: 50,
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const { hook, sendLine } = setup({
+      engine,
+      vocab: ZORK1_VOCAB,
+      signature: ZORK1_SIG,
+    })
+    await waitFor(() =>
+      expect(hook.result.current.state).toEqual({
+        phase: 'off',
+        installed: true,
+      }),
+    )
+    act(() => hook.result.current.setLanguage('fr'))
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate('blorple le ciel') // fr, slow LLM
+    })
+    act(() => {
+      void hook.result.current.translate('schalte die laterne ein') // queues
+    })
+    act(() => hook.result.current.setLanguage('de')) // picker changed mid-drain
+    await act(async () => {
+      await p
+    })
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['turn on light'])
+  })
+
+  it("switching OFF mid-drain abandons the queue — 'off is instant' ([N])", async () => {
+    const engine = new FakeLlmEngine({
+      cached: true,
+      generateDelayMs: 50,
+      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const { hook, sendLine } = setup({ engine })
+    await reachOn(hook)
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate('open the mailbox')
+    })
+    act(() => {
+      void hook.result.current.translate('north') // queues
+    })
+    act(() => hook.result.current.setLanguage('off'))
+    await act(async () => {
+      await p
+    })
+    // The in-flight line finishes (it began under 'on'); the queued line is
+    // abandoned with a notice instead of being translated by a layer the
+    // player turned off.
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['open mailbox'])
+    expect(hook.result.current.queued).toEqual([])
+    expect(hook.result.current.notice).toMatch(/queue cleared/i)
+  })
+
+  it('a story switch mid-drain abandons old-game queued lines ([O])', async () => {
+    // "Change story" swaps storyBytes on the mounted Terminal: vocab/signature
+    // change but the drain keeps running — old-game queued lines used to fire
+    // turns into the freshly booted game (sendLine resolves to the NEW
+    // engine at call time).
+    const engine = new FakeLlmEngine({
+      cached: true,
+      generateDelayMs: 50,
+      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const echoLocal = vi.fn()
+    const sendLine = vi.fn()
+    const props = (vocab: Vocab, signature: string) => ({
+      engine,
+      capability: capable,
+      vocab,
+      getContext: ctx,
+      echoLocal,
+      sendLine,
+      awaitTurn: async () => ({ view: emptyView, reason: 'line' as const }),
+      watchdogMs: 5000,
+      signature,
+    })
+    const hook = renderHook(p => useNaturalLanguage(p), {
+      initialProps: props(TEST_VOCAB, 'sig-A'),
+    })
+    act(() => hook.result.current.requestDownload())
+    await waitFor(() => expect(hook.result.current.state.phase).toBe('on'))
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate('open the mailbox')
+    })
+    act(() => {
+      void hook.result.current.translate('north') // queued at the OLD game
+    })
+    hook.rerender(props(ZORK1_VOCAB, ZORK1_SIG)) // story switched
+    await act(async () => {
+      await p
+    })
+    // Neither the in-flight result nor the queued line may reach the new
+    // game: 'open mailbox' was translated against the old game's vocab.
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual([])
+    expect(hook.result.current.queued).toEqual([])
+  })
+})
+
+describe('NL v2 pipeline stages (spec §4)', () => {
+  beforeEach(() => localStorage.clear())
+
+  /**
+   * Activate French against a cached model + REAL Zork I data. The fr noun
+   * lexicon keys onto real zork1 canonicals, so the fr stages must run
+   * end-to-end against ZORK1_VOCAB + ZORK1_SIG ('trappe' → 'trap door' →
+   * emit 'trapdoor'; 'lampe' → 'brass lantern' → emit 'light') — TEST_VOCAB's
+   * fixture nouns would never match the per-game lexicon.
+   */
+  async function setupFr(
+    over: Partial<Parameters<typeof useNaturalLanguage>[0]> = {},
+  ) {
+    const s = setup({
+      engine: new FakeLlmEngine({
+        cached: true,
+        default: '{"verb":"__UNKNOWN__"}',
+      }),
+      vocab: ZORK1_VOCAB,
+      signature: ZORK1_SIG,
+      ...over,
+    })
+    await waitFor(() =>
+      expect(s.hook.result.current.state).toEqual({
+        phase: 'off',
+        installed: true,
+      }),
+    )
+    act(() => s.hook.result.current.setLanguage('fr'))
+    expect(s.hook.result.current.state).toEqual({
+      phase: 'on',
+      language: 'fr',
+    })
+    return s
+  }
+
+  it('stage 2: a fully-quoted line is sent verbatim — the model is never consulted', async () => {
+    // The default completion would happily "translate" anything; proving the
+    // quote bypassed it requires the spy, not just the sendLine text.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"look"}',
+    })
+    const generateSpy = vi.spyOn(engine, 'generate')
+    const { hook, echoLocal, sendLine } = setup({ engine })
+    await reachOn(hook)
+    await act(async () => {
+      await hook.result.current.translate('"frotz the gnusto"')
+    })
+    expect(sendLine).toHaveBeenCalledWith('frotz the gnusto')
+    expect(echoLocal).not.toHaveBeenCalled()
+    expect(generateSpy).not.toHaveBeenCalled()
+  })
+
+  it('stage 4: all-vocab English goes verbatim to the Z-parser — no LLM round-trip (F-H)', async () => {
+    // 'open' (verbs1) + 'trap' (adjective) + 'door' (synonym) are all parser
+    // dictionary words, so the line IS already a game command: send it as
+    // typed, skip inference entirely, and do NOT echo (the transcript already
+    // shows the player's own words).
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"look"}',
+    })
+    const generateSpy = vi.spyOn(engine, 'generate')
+    const { hook, echoLocal, sendLine } = setup({ engine })
+    await reachOn(hook)
+    await act(async () => {
+      await hook.result.current.translate('open trap door')
+    })
+    expect(sendLine).toHaveBeenCalledWith('open trap door')
+    expect(echoLocal).not.toHaveBeenCalled()
+    expect(generateSpy).not.toHaveBeenCalled()
+  })
+
+  it("stage 4 collision guard: fr picker + a lexicon word ('examine') does NOT pass through — routes via the lexicon", async () => {
+    // 'examine trapdoor' is all-vocab in English, but 'examine' is ALSO a
+    // French core-lexicon verb (a reviewed collision). With the picker on fr
+    // the token must NOT count as passthrough; the clause goes to stage 6,
+    // which is a TRANSLATION — proven by the echo a passthrough never emits.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const generateSpy = vi.spyOn(engine, 'generate')
+    const { hook, echoLocal, sendLine } = await setupFr({ engine })
+    await act(async () => {
+      await hook.result.current.translate('examine trapdoor')
+    })
+    expect(echoLocal).toHaveBeenCalledWith('examine trapdoor')
+    expect(sendLine).toHaveBeenCalledWith('examine trapdoor')
+    expect(generateSpy).not.toHaveBeenCalled()
+  })
+
+  it("stage 6: deterministic lexicon parse — 'ouvre la trappe' → 'open trapdoor', no model call", async () => {
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const generateSpy = vi.spyOn(engine, 'generate')
+    const { hook, echoLocal, sendLine } = await setupFr({ engine })
+    await act(async () => {
+      await hook.result.current.translate('ouvre la trappe')
+    })
+    expect(echoLocal).toHaveBeenCalledWith('ouvre la trappe')
+    expect(sendLine).toHaveBeenCalledWith('open trapdoor')
+    expect(generateSpy).not.toHaveBeenCalled()
+  })
+
+  it('stage 7: a clause the lexicon cannot resolve falls through to the LLM', async () => {
+    const engine = new FakeLlmEngine({
+      cached: true,
+      completions: {
+        'frobnicate la trappe': '{"verb":"open","object":"trapdoor"}',
+      },
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const generateSpy = vi.spyOn(engine, 'generate')
+    const { hook, sendLine } = await setupFr({ engine })
+    await act(async () => {
+      await hook.result.current.translate('frobnicate la trappe')
+    })
+    expect(generateSpy).toHaveBeenCalledTimes(1)
+    expect(sendLine).toHaveBeenCalledWith('open trapdoor')
+  })
+
+  it('stage 8 (F-R): non-EN abstain sends NOTHING to the game — styled notice, no turn burned', async () => {
+    const { hook, echoLocal, sendLine } = await setupFr()
+    await act(async () => {
+      await hook.result.current.translate('blorple le ciel')
+    })
+    expect(sendLine).not.toHaveBeenCalled()
+    expect(echoLocal).not.toHaveBeenCalled()
+    expect(hook.result.current.notice).toMatch(/couldn.t translate/i)
+  })
+
+  it('stage 8: EN abstain falls back to the raw line — the Z-parser explains the failure', async () => {
+    const { hook, echoLocal, sendLine } = setup() // default engine abstains
+    await reachOn(hook) // language 'en'
+    await act(async () => {
+      await hook.result.current.translate('frotz the gnusto')
+    })
+    expect(sendLine).toHaveBeenCalledWith('frotz the gnusto')
+    expect(echoLocal).not.toHaveBeenCalled()
+    expect(hook.result.current.notice).toBeNull()
+  })
+
+  it('stage 8: a compound whose FIRST clause hits an engine error is labeled a translator failure, not an abstain (Task 21 review)', async () => {
+    // 'frobnicate la trappe' misses every deterministic stage and reaches the
+    // LLM, which blows up. done === 0, but the player did nothing wrong — the
+    // notice must say the translator failed, not "try simpler wording".
+    const { hook, sendLine } = await setupFr({
+      engine: new FakeLlmEngine({ cached: true, failGenerate: true }),
+    })
+    await act(async () => {
+      await hook.result.current.translate(
+        'frobnicate la trappe et ouvre la trappe',
+      )
+    })
+    expect(sendLine).not.toHaveBeenCalled() // non-EN abstain policy: nothing sent
+    expect(hook.result.current.notice).toMatch(/translation failed/i)
+    expect(hook.result.current.notice).not.toMatch(/couldn.t translate/i)
+  })
+
+  it('stage 8: a compound whose FIRST clause times out is labeled a timeout (Task 21 review)', async () => {
+    const engine = new FakeLlmEngine({ cached: true, generateDelayMs: 10000 })
+    const { hook, sendLine } = await setupFr({ engine, watchdogMs: 1000 })
+    vi.useFakeTimers()
+    let p!: Promise<void>
+    act(() => {
+      p = hook.result.current.translate(
+        'frobnicate la trappe et ouvre la trappe',
+      )
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1100)
+      await p
+    })
+    expect(sendLine).not.toHaveBeenCalled()
+    expect(hook.result.current.notice).toMatch(/timed out/i)
+    vi.useRealTimers()
+  })
+
+  it("per-clause independence: 'prends la lampe et ouvre la trappe' runs both clauses deterministically — ZERO LLM calls", async () => {
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const generateSpy = vi.spyOn(engine, 'generate')
+    const took = viewState('West of House', ['Taken.'], 'take light')
+    const opened = viewState(
+      'West of House',
+      ['The door reluctantly opens.'],
+      'open trapdoor',
+    )
+    const { hook, echoLocal, sendLine } = await setupFr({
+      engine,
+      awaitTurn: turnScript([took, opened]),
+    })
+    await act(async () => {
+      await hook.result.current.translate('prends la lampe et ouvre la trappe')
+    })
+    // Real zork1 emits: 'brass lantern' → 'light', 'trap door' → 'trapdoor'.
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual([
+      'take light',
+      'open trapdoor',
+    ])
+    expect(generateSpy).not.toHaveBeenCalled()
+    expect(echoLocal).toHaveBeenCalledTimes(1)
+    expect(hook.result.current.notice).toBeNull()
   })
 })

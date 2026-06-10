@@ -1,22 +1,33 @@
-// Validated localStorage persistence for the NL on/off + "declined" choice.
+// Validated localStorage persistence for the NL language picker + "declined".
 // Mirrors src/ui/useTheme.ts (read-validate-fallback, swallow write errors).
+import { isNlLanguage, type NlLanguage } from './types'
+
 const KEY = 'loquor.nl'
 
 export interface NlPref {
-  enabled: boolean
+  language: NlLanguage
   declined: boolean
 }
-const DEFAULT: NlPref = { enabled: false, declined: false }
+const DEFAULT: NlPref = { language: 'off', declined: false }
 
-export function readNlPref(store: Storage = localStorage): NlPref {
+export function readNlPref(store?: Storage): NlPref {
   try {
-    const raw = store.getItem(KEY)
+    // [K] Resolve the store INSIDE the try: with "block all cookies" Chrome's
+    // window.localStorage getter itself throws SecurityError, and a default
+    // parameter evaluates before the body's try is entered — the throw
+    // escaped to callers (misreporting a successful download as a failure).
+    const raw = (store ?? localStorage).getItem(KEY)
     if (!raw) return DEFAULT
     const parsed = JSON.parse(raw) as Record<string, unknown>
-    return {
-      enabled: typeof parsed.enabled === 'boolean' ? parsed.enabled : false,
-      declined: typeof parsed.declined === 'boolean' ? parsed.declined : false,
-    }
+    const declined =
+      typeof parsed.declined === 'boolean' ? parsed.declined : false
+    if (isNlLanguage(parsed.language))
+      return { language: parsed.language, declined }
+    // Legacy v1 shape { enabled, declined }: enabled:true means the player was
+    // typing SOMETHING the model translated — English is the only safe mapping.
+    if (typeof parsed.enabled === 'boolean')
+      return { language: parsed.enabled ? 'en' : 'off', declined }
+    return { ...DEFAULT, declined }
   } catch (err) {
     // Corrupt JSON falls back to DEFAULT — but say so, because a silent fallback
     // means a subsequent partial writeNlPref() resets the other field with no
@@ -26,13 +37,12 @@ export function readNlPref(store: Storage = localStorage): NlPref {
   }
 }
 
-export function writeNlPref(
-  patch: Partial<NlPref>,
-  store: Storage = localStorage,
-): void {
+export function writeNlPref(patch: Partial<NlPref>, store?: Storage): void {
   try {
-    store.setItem(KEY, JSON.stringify({ ...readNlPref(store), ...patch }))
+    // Same [K] note as readNlPref: localStorage resolves inside the try.
+    const s = store ?? localStorage
+    s.setItem(KEY, JSON.stringify({ ...readNlPref(s), ...patch }))
   } catch {
-    // Private mode / quota — persistence is best-effort, never fatal.
+    // Private mode / quota / blocked storage — best-effort, never fatal.
   }
 }

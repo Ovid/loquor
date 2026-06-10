@@ -3,6 +3,7 @@ import { readForms, headAtom } from './zil.mjs'
 import { activeForms } from './zil.mjs'
 import { extractVerbsAndPreps } from './zil.mjs'
 import { extractNouns } from './zil.mjs'
+import { computeEmit } from './zil.mjs'
 import { extractDirections } from './zil.mjs'
 import { buildVocabModule } from './zil.mjs'
 
@@ -106,6 +107,7 @@ describe('extractNouns', () => {
     const tree = nouns.find(n => n.canonical === 'tree')
     expect(tree).toEqual({
       canonical: 'tree',
+      emit: 'tree', // 'tree' is unique vs the window object -> bare synonym wins
       synonyms: ['branch'],
       adjectives: ['large', 'storm'],
     })
@@ -169,6 +171,84 @@ describe('extractNouns', () => {
       expect(canon).not.toContain(ghost)
     expect(canon).toContain('troll')
     expect(canon).toContain('shovel')
+  })
+
+  it('merges synonym/adjective sets when two OBJECTs share a canonical DESC ([G])', () => {
+    // First-wins dedupe silently dropped the SECOND object wholesale (24
+    // objects across the three games): zork2's GAZEBO-TABLE lost adjective
+    // 'tea' to PTABLE, unicorn lost 'animal', zork3's cell door lost
+    // 'locked'. The dropped words vanished from vocabWordSet (stage-4
+    // passthrough), noun surface matching, AND the emit-uniqueness
+    // computation. Duplicate canonicals must MERGE, preserving the first
+    // object's declaration order (computeEmit is order-sensitive).
+    const d = `
+      <OBJECT PTABLE (SYNONYM TABLE) (ADJECTIVE DUSTY) (DESC "table")>
+      <OBJECT GAZEBO-TABLE (SYNONYM TABLE STAND) (ADJECTIVE TEA) (DESC "table")>`
+    const nouns = extractNouns(d, '')
+    const table = nouns.find(n => n.canonical === 'table')
+    expect(table.synonyms).toEqual(['stand'])
+    expect(table.adjectives).toEqual(['dusty', 'tea'])
+  })
+
+  it('reports each merged duplicate via the mergeLog parameter ([G])', () => {
+    const d = `
+      <OBJECT PTABLE (SYNONYM TABLE) (ADJECTIVE DUSTY) (DESC "table")>
+      <OBJECT GAZEBO-TABLE (SYNONYM TABLE STAND) (ADJECTIVE TEA) (DESC "table")>`
+    const log = []
+    extractNouns(d, '', undefined, log)
+    expect(log).toEqual([
+      {
+        canonical: 'table',
+        mergedSynonyms: ['stand'],
+        mergedAdjectives: ['tea'],
+      },
+    ])
+  })
+
+  it('throws when two entries end up with the same final emit', () => {
+    // ROPE has no SYNONYM, so it falls back to its canonical 'rope'; COIL's
+    // bare synonym 'rope' is unique among synDecls (ROPE declares none), so
+    // both emit the string 'rope' — generation must fail loudly, naming both.
+    const d = `
+      <OBJECT ROPE (DESC "rope") (FLAGS NDESCBIT)>
+      <OBJECT COIL (SYNONYM ROPE) (DESC "coil of rope") (FLAGS TAKEBIT)>`
+    expect(() => extractNouns(d, '')).toThrow(/duplicate emit "rope"/)
+    expect(() => extractNouns(d, '')).toThrow(/coil of rope/)
+  })
+
+  it('throws on EMIT_OVERRIDES keys that match no extracted object', () => {
+    // Real game numbers carry real override tables; this fixture contains
+    // none of their canonicals (e.g. zork1's 'water'), so every key is
+    // unconsumed — stale/typo'd keys must fail generation, named in the error.
+    expect(() => extractNouns(dungeon, globals, 1)).toThrow(
+      /EMIT_OVERRIDES\[1\]/,
+    )
+    expect(() => extractNouns(dungeon, globals, 1)).toThrow(/water/)
+  })
+
+  it('applies no overrides when N is omitted (fixture mode)', () => {
+    expect(() => extractNouns(dungeon, globals)).not.toThrow()
+  })
+})
+
+describe('computeEmit', () => {
+  it('throws when no unique form exists, naming the colliders', () => {
+    // b fully shadows a (same synonym, a has no adjectives to escape with).
+    const a = { canonical: 'bell', synDecl: ['bell'], adjDecl: [] }
+    const b = { canonical: 'hot bell', synDecl: ['bell'], adjDecl: ['hot'] }
+    expect(() => computeEmit(a, [a, b])).toThrow(/hot bell/)
+    expect(() => computeEmit(a, [a, b])).toThrow(/EMIT_OVERRIDES/)
+  })
+
+  it('accepts an override built from the entry own dictionary words', () => {
+    const e = { canonical: 'oak door', synDecl: ['door'], adjDecl: ['oak'] }
+    expect(computeEmit(e, [e], 'oak door')).toBe('oak door')
+  })
+
+  it('rejects an override containing a word the entry does not declare', () => {
+    const e = { canonical: 'lamp', synDecl: ['lamp'], adjDecl: ['brass'] }
+    expect(() => computeEmit(e, [e], 'rusty lamp')).toThrow(/rusty/)
+    expect(() => computeEmit(e, [e], 'rusty lamp')).toThrow(/lamp/)
   })
 })
 

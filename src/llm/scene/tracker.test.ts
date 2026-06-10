@@ -17,18 +17,24 @@ const vocab: Vocab = {
   verbs1: ['take', 'drop', 'open', 'read', 'turn on'],
   verbs2: ['unlock', 'put'],
   preps: ['with', 'in'],
+  verbSynonyms: [],
   nouns: [
-    { canonical: 'mailbox', synonyms: ['box'], adjectives: ['small'] },
-    { canonical: 'leaflet' },
-    { canonical: 'lamp', synonyms: ['lantern'] },
-    { canonical: 'trap door', synonyms: ['trapdoor'] },
-    { canonical: 'door' },
-    { canonical: 'egg' },
-    { canonical: 'troll' },
-    { canonical: 'case', synonyms: ['trophy case'] },
-    { canonical: 'grating' },
-    { canonical: 'key' },
-    { canonical: 'rug' },
+    {
+      canonical: 'mailbox',
+      emit: 'mailbox',
+      synonyms: ['box'],
+      adjectives: ['small'],
+    },
+    { canonical: 'leaflet', emit: 'leaflet' },
+    { canonical: 'lamp', emit: 'lamp', synonyms: ['lantern'] },
+    { canonical: 'trap door', emit: 'trapdoor', synonyms: ['trapdoor'] },
+    { canonical: 'door', emit: 'door' },
+    { canonical: 'egg', emit: 'egg' },
+    { canonical: 'troll', emit: 'troll' },
+    { canonical: 'case', emit: 'case', synonyms: ['trophy case'] },
+    { canonical: 'grating', emit: 'grating' },
+    { canonical: 'key', emit: 'key' },
+    { canonical: 'rug', emit: 'rug' },
   ],
   takeAck: TAKE_ACK,
   dropAck: DROP_ACK,
@@ -292,6 +298,80 @@ describe('reduceScene — idempotency', () => {
     const once = reduceScene(emptySceneState, e, vocab)
     const twice = reduceScene(once, e, vocab)
     expect(twice).toBe(once) // identical reference — short-circuited
+  })
+})
+
+describe('NL v2 §8 — scope demoted, tracker contract pinned (F-AA/F-T)', () => {
+  it('carried items survive a room change (inventory is in scope)', () => {
+    const t = new TextSceneTracker(vocab)
+    t.observe(ev({ location: 'Kitchen', outputText: 'There is a lamp here.' }))
+    t.observe(
+      ev({
+        location: 'Kitchen',
+        outputText: 'Taken.',
+        lastCommand: 'take lamp',
+      }),
+    )
+    t.observe(
+      ev({
+        location: 'Attic',
+        outputText: 'You are in the attic.',
+        lastCommand: 'up',
+      }),
+    )
+    expect(t.scene().inScope.map(o => o.canonical)).toContain('lamp')
+  })
+
+  it('non-carried items are evicted on room change (F-AA stale window)', () => {
+    const t = new TextSceneTracker(vocab)
+    t.observe(ev({ location: 'Kitchen', outputText: 'There is a lamp here.' }))
+    t.observe(
+      ev({
+        location: 'Attic',
+        outputText: 'You are in the attic.',
+        lastCommand: 'up',
+      }),
+    )
+    expect(t.scene().inScope.map(o => o.canonical)).not.toContain('lamp')
+  })
+
+  it('a dropped item is evicted at the NEXT room change, not carried along', () => {
+    const t = new TextSceneTracker(vocab)
+    t.observe(
+      ev({
+        location: 'Kitchen',
+        outputText: 'Taken.',
+        lastCommand: 'take lamp',
+      }),
+    )
+    // pins the take-without-prior-mention push branch (reduceScene's inScope.push)
+    expect(t.scene().inScope.find(o => o.canonical === 'lamp')?.carried).toBe(
+      true,
+    )
+    t.observe(
+      ev({
+        location: 'Kitchen',
+        outputText: 'Dropped.',
+        lastCommand: 'drop lamp',
+      }),
+    )
+    t.observe(
+      ev({
+        location: 'Attic',
+        outputText: 'You are in the attic.',
+        lastCommand: 'up',
+      }),
+    )
+    expect(t.scene().inScope.map(o => o.canonical)).not.toContain('lamp')
+  })
+
+  it('reducer stays idempotent on duplicate observes (v1 invariant)', () => {
+    const t = new TextSceneTracker(vocab)
+    const e = ev({ location: 'Kitchen', outputText: 'There is a lamp here.' })
+    t.observe(e)
+    const once = t.scene()
+    t.observe(e)
+    expect(t.scene()).toEqual(once)
   })
 })
 

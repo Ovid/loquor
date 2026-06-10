@@ -1,6 +1,15 @@
 // src/llm/types.ts
 import type { ViewState } from '../glkote-react/types'
 
+/** Picker languages. 'off' disables the NL layer (locked decision 3). */
+export const NL_LANGUAGES = ['off', 'en', 'fr', 'de', 'es'] as const
+export type NlLanguage = (typeof NL_LANGUAGES)[number]
+export type ActiveLanguage = Exclude<NlLanguage, 'off'>
+
+export function isNlLanguage(v: unknown): v is NlLanguage {
+  return (NL_LANGUAGES as readonly unknown[]).includes(v)
+}
+
 /** Device capability tier. `none` = NL not offered. */
 export type Tier = 'none' | 'small' | 'full'
 
@@ -61,7 +70,7 @@ export interface PromptContext extends ViewContext {
   antecedent: string | null
 }
 
-/** Toggle/state-machine state surfaced by useNaturalLanguage. */
+/** Picker/state-machine state surfaced by useNaturalLanguage. */
 export type NlState =
   | { phase: 'unavailable'; reasons: string[] } // no capable device (offer override)
   | { phase: 'disabled' } // capable, but this game has no grammar (silent — no override)
@@ -73,7 +82,7 @@ export type NlState =
       /** Estimated seconds remaining, or null until a rate is known. */
       etaSeconds: number | null
     }
-  | { phase: 'on' }
+  | { phase: 'on'; language: ActiveLanguage }
 
 /** Re-export for hook consumers that thread the live view in. */
 export type { ViewState }

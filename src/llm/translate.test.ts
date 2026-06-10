@@ -7,9 +7,12 @@ import {
   isDisambiguationPrompt,
   splitClauses,
   clauseFailed,
+  refusalApplies,
+  unquote,
+  isVocabPassthrough,
 } from './translate'
 import { META_COMMANDS } from './meta'
-import type { Scene } from './scene/types'
+import { FR_CORE } from './lexicon/fr.core'
 import type { Vocab } from './grammar/types'
 import {
   TAKE_ACK,
@@ -27,29 +30,23 @@ const vocab: Vocab = {
   // the first-list-wins misclassification (review C1).
   verbs2: ['unlock', 'put', 'open'],
   preps: ['with', 'in'],
+  verbSynonyms: [],
   nouns: [
-    { canonical: 'grating' },
-    { canonical: 'key' },
-    { canonical: 'leaflet' },
+    { canonical: 'grating', emit: 'grating' },
+    { canonical: 'key', emit: 'key' },
+    { canonical: 'leaflet', emit: 'leaflet' },
+    // In the vocab but never "in scope" anywhere in these tests: under NL v2 §7
+    // parseCommand is vocab-gated, scope-free — naming it must still validate.
+    { canonical: 'trap door', emit: 'trapdoor' },
   ],
   takeAck: TAKE_ACK,
   dropAck: DROP_ACK,
   absencePat: ABSENCE_PAT,
 }
-const scene: Scene = {
-  inScope: [
-    { canonical: 'grating' },
-    { canonical: 'key' },
-    { canonical: 'leaflet' },
-  ],
-  antecedent: 'leaflet',
-}
 
-describe('parseCommand', () => {
+describe('parseCommand (vocab-gated, scope-free)', () => {
   it('serializes a single-object command', () => {
-    expect(
-      parseCommand('{"verb":"take","object":"leaflet"}', scene, vocab),
-    ).toEqual({
+    expect(parseCommand('{"verb":"take","object":"leaflet"}', vocab)).toEqual({
       kind: 'command',
       text: 'take leaflet',
     })
@@ -59,17 +56,40 @@ describe('parseCommand', () => {
     expect(
       parseCommand(
         '{"verb":"unlock","object":"grating","prep":"with","indirect":"key"}',
-        scene,
         vocab,
       ),
     ).toEqual({ kind: 'command', text: 'unlock grating with key' })
   })
 
   it('serializes a verb-only command', () => {
-    expect(parseCommand('{"verb":"look"}', scene, vocab)).toEqual({
+    expect(parseCommand('{"verb":"look"}', vocab)).toEqual({
       kind: 'command',
       text: 'look',
     })
+  })
+
+  it('accepts an object that is in vocab but NOT in scope (honest Z-machine failure downstream)', () => {
+    // NL v2 §7: scope is a prompt hint only. A wrong-room object passes through
+    // and gets the Z-machine's own "You can't see any trapdoor here!".
+    expect(parseCommand('{"verb":"open","object":"trapdoor"}', vocab)).toEqual({
+      kind: 'command',
+      text: 'open trapdoor',
+    })
+  })
+
+  it('rejects an object not in the vocab emit set', () => {
+    expect(parseCommand('{"verb":"open","object":"zeppelin"}', vocab)).toEqual({
+      kind: 'abstain',
+    })
+  })
+
+  it('rejects an indirect object not in the vocab emit set', () => {
+    expect(
+      parseCommand(
+        '{"verb":"unlock","object":"grating","prep":"with","indirect":"zeppelin"}',
+        vocab,
+      ),
+    ).toEqual({ kind: 'abstain' })
   })
 
   it('classifies an overlapping verbs1/verbs2 verb by the emitted shape (C1)', () => {
@@ -78,65 +98,53 @@ describe('parseCommand', () => {
     expect(
       parseCommand(
         '{"verb":"open","object":"grating","prep":"with","indirect":"key"}',
-        scene,
         vocab,
       ),
     ).toEqual({ kind: 'command', text: 'open grating with key' })
     // …and the one-object emission still takes the verbs1 branch.
-    expect(
-      parseCommand('{"verb":"open","object":"grating"}', scene, vocab),
-    ).toEqual({ kind: 'command', text: 'open grating' })
+    expect(parseCommand('{"verb":"open","object":"grating"}', vocab)).toEqual({
+      kind: 'command',
+      text: 'open grating',
+    })
   })
 
   it('overlapping verb with a half-formed two-object shape → abstain', () => {
     // prep present but no indirect: neither a valid verbs1 nor verbs2 shape.
     expect(
-      parseCommand(
-        '{"verb":"open","object":"grating","prep":"with"}',
-        scene,
-        vocab,
-      ),
+      parseCommand('{"verb":"open","object":"grating","prep":"with"}', vocab),
     ).toEqual({ kind: 'abstain' })
   })
 
   it('__UNKNOWN__ verb → abstain', () => {
-    expect(parseCommand('{"verb":"__UNKNOWN__"}', scene, vocab)).toEqual({
+    expect(parseCommand('{"verb":"__UNKNOWN__"}', vocab)).toEqual({
       kind: 'abstain',
     })
   })
 
-  it('out-of-scope object → abstain', () => {
-    const s: Scene = { inScope: [{ canonical: 'key' }], antecedent: null }
-    expect(
-      parseCommand('{"verb":"take","object":"grating"}', s, vocab),
-    ).toEqual({ kind: 'abstain' })
-  })
-
   it('verbs2 missing prep/indirect → abstain', () => {
-    expect(
-      parseCommand('{"verb":"unlock","object":"grating"}', scene, vocab),
-    ).toEqual({ kind: 'abstain' })
+    expect(parseCommand('{"verb":"unlock","object":"grating"}', vocab)).toEqual(
+      { kind: 'abstain' },
+    )
   })
 
   it('verbs1 carrying prep/indirect → abstain', () => {
     expect(
       parseCommand(
         '{"verb":"take","object":"key","prep":"with","indirect":"grating"}',
-        scene,
         vocab,
       ),
     ).toEqual({ kind: 'abstain' })
   })
 
   it('unknown verb → abstain', () => {
-    expect(
-      parseCommand('{"verb":"frobnicate","object":"key"}', scene, vocab),
-    ).toEqual({ kind: 'abstain' })
+    expect(parseCommand('{"verb":"frobnicate","object":"key"}', vocab)).toEqual(
+      { kind: 'abstain' },
+    )
   })
 
   it('malformed JSON → abstain', () => {
-    expect(parseCommand('not json', scene, vocab)).toEqual({ kind: 'abstain' })
-    expect(parseCommand('', scene, vocab)).toEqual({ kind: 'abstain' })
+    expect(parseCommand('not json', vocab)).toEqual({ kind: 'abstain' })
+    expect(parseCommand('', vocab)).toEqual({ kind: 'abstain' })
   })
 })
 
@@ -163,17 +171,17 @@ describe('isMetaCommand', () => {
   })
 })
 
-describe('metaAlias', () => {
-  it('maps a localized command word to its English canonical (UAT F5)', () => {
-    expect(metaAlias('inventaire')).toBe('inventory') // fr
-    expect(metaAlias('Inventar')).toBe('inventory') // de
-    expect(metaAlias('inventario')).toBe('inventory') // es / it
-    expect(metaAlias('inventaire.')).toBe('inventory') // trailing punctuation
+describe('metaAlias (core-lexicon-driven)', () => {
+  it('maps a localized bare command via the active core lexicon', () => {
+    expect(metaAlias('inventaire', FR_CORE)).toBe('inventory')
+    expect(metaAlias('Diagnostic!', FR_CORE)).toBe('diagnose')
   })
-
-  it('returns null for English input and genuine game actions', () => {
-    for (const g of ['inventory', 'i', 'open mailbox', 'va au sud'])
-      expect(metaAlias(g)).toBeNull()
+  it('folds diacritics before lookup', () => {
+    expect(metaAlias('Inventâire', FR_CORE)).toBe('inventory')
+  })
+  it('returns null with no core (English session) or for non-meta input', () => {
+    expect(metaAlias('inventaire', null)).toBeNull()
+    expect(metaAlias('inventaire de la maison', FR_CORE)).toBeNull()
   })
 })
 
@@ -293,8 +301,15 @@ describe('splitClauses', () => {
 describe('clauseFailed', () => {
   const v: Vocab = { ...vocab, failurePat: FAILURE_PAT }
 
-  it('is true on a no-op failure phrase (failurePat)', () => {
-    expect(clauseFailed('It is already open.', v)).toBe(true)
+  // INVERTED for UAT F-G (NL v2 §10): "It is already open." is a SOFT no-op —
+  // the action was already satisfied, so the compound plan is still on track
+  // and must not be aborted. (This previously asserted true.)
+  it('is false on a soft already-done no-op (F-G)', () => {
+    expect(clauseFailed('It is already open.', v)).toBe(false)
+  })
+
+  it('is true on a hard refusal phrase (failurePat)', () => {
+    expect(clauseFailed('The grating cannot be opened.', v)).toBe(true)
   })
 
   it('is true on an absence phrase (absencePat)', () => {
@@ -346,9 +361,11 @@ describe('clauseFailed', () => {
     )
   })
 
-  it('flags a pronoun refusal ("It is already…") for the acted object', () => {
+  it('flags a HARD pronoun refusal ("It cannot be…") for the acted object', () => {
     // The refusal sentence names no vocab noun → it is about the acted object.
-    expect(clauseFailed('It is already open.', v, 'open grating')).toBe(true)
+    // (Was "It is already open." pre-F-G; that phrase is now a soft no-op, so
+    // the pronoun-attribution semantics are pinned with a hard refusal.)
+    expect(clauseFailed('It cannot be opened.', v, 'open grating')).toBe(true)
   })
 
   it('flags a refusal whose sentence names the acted object (review C8)', () => {
@@ -375,6 +392,42 @@ describe('clauseFailed', () => {
   })
 })
 
+describe('clauseFailed — soft no-ops (F-G)', () => {
+  const v: Vocab = { ...vocab, failurePat: FAILURE_PAT }
+
+  it('a soft no-op about the acted object does NOT fail the clause', () => {
+    expect(clauseFailed('It is already open.', v, 'open mailbox')).toBe(false)
+  })
+
+  it('a hard refusal still fails the clause', () => {
+    expect(
+      clauseFailed('The mailbox cannot be opened.', v, 'open mailbox'),
+    ).toBe(true)
+  })
+
+  it('absence still fails the clause', () => {
+    expect(clauseFailed('There is no mailbox here.', v, 'open mailbox')).toBe(
+      true,
+    )
+  })
+
+  it('a hard refusal elsewhere in the SAME output still registers', () => {
+    expect(
+      clauseFailed(
+        'It is already open. It cannot be opened.',
+        v,
+        'open mailbox',
+      ),
+    ).toBe(true)
+  })
+
+  it("the tracker's antecedent gate is unaffected (refusalApplies still true)", () => {
+    // The scene tracker deliberately uses refusalApplies WITHOUT the soft-noop
+    // filter: a no-op turn must still not promote its object to the antecedent.
+    expect(refusalApplies('It is already open.', v, 'open mailbox')).toBe(true)
+  })
+})
+
 describe('meta-command source', () => {
   it('routes parser buzzwords again/g raw', () => {
     expect(isMetaCommand('again')).toBe(true)
@@ -390,5 +443,64 @@ describe('meta-command source', () => {
   it('exposes a deduped, lowercase list', () => {
     expect(META_COMMANDS).toContain('restart')
     expect(new Set(META_COMMANDS).size).toBe(META_COMMANDS.length)
+  })
+})
+
+describe('unquote (stage 2 — quoted escape hatch)', () => {
+  it.each([
+    ['"open mailbox"', 'open mailbox'],
+    ['« ouvre la boîte »', 'ouvre la boîte'],
+    ['„öffne die Tür“', 'öffne die Tür'],
+    ['“open mailbox”', 'open mailbox'],
+  ])('%s → %s', (line, want) => {
+    expect(unquote(line)).toBe(want)
+  })
+  it('returns null unless the ENTIRE line is one quoted string', () => {
+    expect(unquote('say "hello"')).toBeNull()
+    expect(unquote('open mailbox')).toBeNull()
+    expect(unquote('""')).toBeNull()
+  })
+})
+
+describe('isVocabPassthrough (stage 4 + collision guard)', () => {
+  // The suite vocab, minimally extended for this block: a verb synonym
+  // ("ulysses", a gsyntax SYNONYM member) and a noun whose dictionary words
+  // include an adjective — the passthrough set draws on both.
+  const pvVocab: Vocab = {
+    ...vocab,
+    verbSynonyms: ['ulysses'],
+    nouns: [
+      ...vocab.nouns,
+      {
+        canonical: 'small mailbox',
+        emit: 'mailbox',
+        synonyms: ['mailbox'],
+        adjectives: ['small'],
+      },
+    ],
+  }
+  it('passes a line whose every word the parser knows (magic words, literal English)', () => {
+    expect(isVocabPassthrough('open the small mailbox', pvVocab, null)).toBe(
+      true,
+    )
+    expect(isVocabPassthrough('ulysses', pvVocab, null)).toBe(true)
+  })
+  it('rejects a line with any unknown word', () => {
+    expect(isVocabPassthrough('open the zeppelin', pvVocab, null)).toBe(false)
+    expect(isVocabPassthrough('take it', pvVocab, null)).toBe(false) // pronouns go to the LLM
+  })
+  it('collision guard: an active-language lexicon word never passes through', () => {
+    const lexWords = new Set(['sale']) // imagine fr word colliding with a vocab word
+    const collided: Vocab = {
+      ...pvVocab,
+      verbsOnly: [...pvVocab.verbsOnly, 'sale'],
+    }
+    expect(isVocabPassthrough('sale', collided, lexWords)).toBe(false)
+    expect(isVocabPassthrough('sale', collided, null)).toBe(true)
+  })
+  it('tolerates terminal punctuation and case', () => {
+    expect(isVocabPassthrough('Open the small mailbox!', pvVocab, null)).toBe(
+      true,
+    )
   })
 })

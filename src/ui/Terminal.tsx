@@ -12,7 +12,7 @@ import { emptyView, type ViewState } from '../glkote-react/types'
 import { StatusBar } from './StatusBar'
 import { Scrollback } from './Scrollback'
 import { CommandInput } from './CommandInput'
-import { NlToggle } from './NlToggle'
+import { NlLanguagePicker } from './NlLanguagePicker'
 import { ModelDownloadModal } from './ModelDownloadModal'
 import { detectCapability } from '../llm/capability'
 import { vocabForSignature } from '../llm/grammar/index'
@@ -118,6 +118,7 @@ export function Terminal({
       engineRef.current?.awaitTurn() ??
       Promise.resolve({ view: viewRef.current, reason: 'line' as const }),
     watchdogMs: WATCHDOG_MS,
+    signature, // Task 21 consumes it (per-game noun lexicons); '' until boot resolves
   })
 
   // Turn-boundary scene observation: when the VM is waiting for a line of input,
@@ -150,9 +151,9 @@ export function Terminal({
         onChangeStory={onChangeStory}
         themeToggle={themeToggle}
         nlToggle={
-          <NlToggle
+          <NlLanguagePicker
             state={nl.state}
-            onToggle={nl.toggle}
+            onSelect={nl.setLanguage}
             onOverride={() => setOverride(true)}
           />
         }
@@ -161,6 +162,16 @@ export function Terminal({
         lines={view.lines}
         onActivate={() => inputRef.current?.focus()}
       >
+        {/* Lines typed ahead while a translation runs (F-A): dimmed, chipped,
+            drained FIFO by the hook. Keyed on the hook's monotonic id — the
+            queue shifts from the FRONT, so index keys would re-point a node
+            at a different line. */}
+        {nl.queued.map(q => (
+          <p key={q.id} className="nl-source">
+            <span className="you">you</span> {q.text}
+            <span className="chip">queued</span>
+          </p>
+        ))}
         {nl.pending && <p className="nl-thinking">…thinking</p>}
         {nl.notice && <p className="nl-notice">{nl.notice}</p>}
         <CommandInput
@@ -173,7 +184,11 @@ export function Terminal({
             // swallow the turn if it ever happens (review S11).
             else console.warn('submit ignored: engine not ready')
           }}
-          disabled={nl.pending}
+          // Never pending-disabled ([M]): while NL is on, typed-ahead lines
+          // queue (F-A); when NL is off/left mid-drain, typing raw-sends —
+          // pending could only become true under phase 'on', so disabling on
+          // `pending && phase !== 'on'` locked the player out exactly when a
+          // wedged or slow drain coincided with switching NL off.
           awaitingKey={view.inputRequest === 'char'}
           awaitingLine={view.inputRequest === 'line'}
           onKey={key => engineRef.current?.sendChar(key)}

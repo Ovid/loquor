@@ -164,7 +164,8 @@ export function sortUniq(iterable) {
 // as these block canonicals PLUS any preposition observed between two OBJECTs, so
 // a declared prep like `under` — used only as a one-object particle ("look
 // under"), never inter-object — is not silently dropped. A SYNONYM whose head is
-// NOT in this set (e.g. <SYNONYM ATTACK …>) is a verb/noun synonym and ignored;
+// NOT in this set (e.g. <SYNONYM ATTACK …>) is a verb/direction synonym block
+// whose members are retained as `verbSynonyms` (NL v2 §9);
 // the canonical is the block head (first token), so `through`/`thru` stay
 // synonyms of `with`, not separate preps (matches the committed vocab).
 const PREP_HEADS = new Set([
@@ -227,11 +228,23 @@ export function extractVerbsAndPreps(forms, N, metaSet) {
 
   // Prep-class declarations: <SYNONYM WITH …>/<SYNONYM IN …>/… The block head is
   // the canonical prep; union it into preps so declared-but-not-inter-object preps
-  // (e.g. `under`) survive. Non-prep SYNONYM heads (verb/noun synonyms) are skipped.
+  // (e.g. `under`) survive. Non-prep SYNONYM heads are verb/direction synonym
+  // blocks whose members we retain (NL v2 §9).
+  const verbSynonyms = new Set()
   for (const f of active) {
     if (headAtom(f) !== 'SYNONYM') continue
     const head = atomAt(f, 1).toLowerCase()
-    if (PREP_HEADS.has(head)) preps.add(head)
+    if (PREP_HEADS.has(head)) {
+      preps.add(head)
+      continue
+    }
+    // Verb/direction synonym block: members are parser dictionary words the
+    // Z-machine accepts wherever the head is accepted (ulysses, fight, i, q,
+    // n/s/e/w …). Retained so stage-4 vocab passthrough recognizes them.
+    for (let i = 2; i < f.items.length; i++) {
+      const it = f.items[i]
+      if (it.t === 'atom') verbSynonyms.add(it.v.toLowerCase())
+    }
   }
 
   return {
@@ -239,6 +252,7 @@ export function extractVerbsAndPreps(forms, N, metaSet) {
     verbs1: sortUniq(verbs1),
     verbs2: sortUniq(verbs2),
     preps: sortUniq(preps),
+    verbSynonyms: sortUniq(verbSynonyms),
     excludedMeta: sortUniq(excludedMeta),
   }
 }
@@ -287,14 +301,158 @@ const PSEUDO_OBJECT_NAMES = new Set([
   'LOCAL-GLOBALS', // DESC-less local-globals container (SYNONYM ZZMGCK)
 ])
 
+// Manual emit overrides for objects with no unique synonym/adjective combo.
+// Keyed by game number then canonical. Adding an entry is the documented
+// resolution when computeEmit throws (NL v2 spec §9).
+const EMIT_OVERRIDES = {
+  1: {
+    // GLOBAL-WATER (SYNONYM WATER QUANTITY, no adjectives) shares every word
+    // with WATER-in-bottle "quantity of water" (which self-resolves to its
+    // unique LIQUID). 'water' is a real dictionary word of this object and the
+    // natural phrase to send; the Z-parser scope-disambiguates the two.
+    water: 'water',
+    // BELL (SYNONYM BELL, ADJ SMALL BRASS) vs HOT-BELL (ADJ BRASS HOT RED
+    // SMALL): the same physical bell before/after Hades heats it — every BELL
+    // combo is shadowed, HOT-BELL self-resolves via 'hot bell'. The two never
+    // coexist in scope, so the bare dictionary word is unambiguous in play.
+    'brass bell': 'bell',
+    // ATTIC-TABLE (SYNONYM TABLE, no adjectives) vs KITCHEN-TABLE (which
+    // self-resolves via 'kitchen table'). Different rooms, never co-scoped.
+    table: 'table',
+    // SAND (SYNONYM SAND, no adjectives) is shadowed by the everywhere-global
+    // GROUND (SYNONYM GROUND SAND DIRT FLOOR), which self-resolves as
+    // 'ground'. 'sand' is the word the classic dig puzzle expects.
+    sand: 'sand',
+    // MACHINE-SWITCH (SYNONYM SWITCH, no adjectives) vs the maintenance-room
+    // buttons that also answer to SWITCH but self-resolve via their color
+    // adjectives. Machine room vs maintenance room — never co-scoped.
+    switch: 'switch',
+    // CANARY (ADJ CLOCKWORK GOLD GOLDEN) is fully shadowed by BROKEN-CANARY
+    // (ADJ BROKEN CLOCKWORK GOLD GOLDEN — a strict superset), which
+    // self-resolves via 'broken canary'. Intact/broken never coexist.
+    'golden clockwork canary': 'canary',
+  },
+  2: {
+    // Zork II has THREE water objects: GLOBAL-WATER "water" (SYNONYM WATER
+    // QUANTITY), WATER "quantity of water" and SALTY-WATER "quantity of salty
+    // water" (both SYNONYM WATER QUANTITY LIQUID H2O — identical dictionaries,
+    // no adjectives; the ZIL has no SALTY word). No unique combos exist, so
+    // the emits split the real dictionary words: rivers/lakes get the natural
+    // 'water'; the two carryables take LIQUID/H2O and rely on Z-parser scope
+    // disambiguation (they are never co-located in play).
+    water: 'water',
+    'quantity of water': 'liquid',
+    'quantity of salty water': 'h2o',
+    // DRAGON (ADJ RED HUGE) is fully shadowed by DEAD-DRAGON (ADJ RED HUGE
+    // DEAD — strict superset), which self-resolves via 'dead dragon'.
+    // Live/dead never coexist in scope.
+    'huge red dragon': 'dragon',
+    // WIZARD-CASE (SYNONYM CASE CABINET, ADJ TROPHY WIZARD) is fully shadowed
+    // by BROKEN-CASE (ADJ BROKEN TROPHY WIZARD — strict superset), which
+    // self-resolves via 'broken case'. Intact/smashed never coexist.
+    "wizard's trophy cabinet": 'cabinet',
+    // SERPENT (SYNONYM SERPENT SNAKE, ADJ BABY SEA) is fully shadowed by
+    // DEAD-SERPENT (ADJ DEAD BABY SEA — strict superset), which self-resolves
+    // via 'dead serpent'. Live/dead never coexist.
+    'baby sea serpent': 'serpent',
+    // LAMP (SYNONYM LAMP LANTERN LIGHT, ADJ BRASS) is fully shadowed by
+    // BROKEN-LAMP (ADJ BROKEN BRASS — strict superset; self-resolves via
+    // 'broken lamp') plus the curtain-of-light sharing LIGHT. Working/broken
+    // lamps never coexist.
+    lamp: 'lamp',
+    // PDOOR (SYNONYM DOOR, ADJ WOODEN OAK) is fully shadowed by WIZ-DOOR
+    // (ADJ COBWEBBED WOODEN OAK — strict superset), which self-resolves via
+    // 'cobwebbed door'. Both are local-globals of disjoint rooms, so the real
+    // adjective+synonym phrase 'oak door' is unambiguous in play.
+    'door made of oak': 'oak door',
+    // GLOBAL-PALANTIR (SYNONYM SPHERE, ADJ RED BLUE WHITE CRYSTAL) is the
+    // local-global stand-in for whichever sphere a room mentions; every combo
+    // is shared with a real colored sphere (each of which self-resolves via
+    // its color). The bare word defers to Z-parser scope resolution.
+    sphere: 'sphere',
+    // FOOTPAD (SYNONYM FOOTPAD, easter egg "a footpad is a thief") shares its
+    // only word with the global SAILOR sentinel (SYNONYM SAILOR FOOTPAD
+    // AVIATOR), which self-resolves via 'sailor'.
+    footpad: 'footpad',
+    // ZORKMID (global currency easter egg, SYNONYM ZORKMID) shares its only
+    // word with COIN "priceless zorkmid", which self-resolves via 'coin'.
+    zorkmid: 'zorkmid',
+  },
+  3: {
+    // Same shape as Zork I: GLOBAL-WATER "water" (SYNONYM WATER QUANTITY)
+    // shares every word with WATER "quantity of water", which self-resolves
+    // via its unique LIQUID. 'water' is the natural phrase; the Z-parser
+    // scope-disambiguates.
+    water: 'water',
+    // LAMP (SYNONYM LAMP LANTERN, ADJ BRASS) is fully shadowed by BROKEN-LAMP
+    // (ADJ BROKEN BRASS — strict superset), which self-resolves via
+    // 'broken lamp'. Working/broken lamps never coexist.
+    lamp: 'lamp',
+    // PANEL / DUNGEON-PANEL (local-globals, SYNONYM PANEL only) collide with
+    // the mirror-box colored panels, which all self-resolve via their color
+    // adjectives. Bare word defers to Z-parser scope resolution.
+    panel: 'panel',
+    // DUNGEON-DOOR (SYNONYM DOOR, ADJ WOOD WOODEN) is fully shadowed by
+    // CELL-DOOR (ADJ WOOD WOODEN CELL — strict superset), which self-resolves
+    // via 'cell door'. Local-globals of disjoint endgame rooms, so the real
+    // adjective+synonym phrase 'wooden door' is unambiguous in play.
+    'wooden door': 'wooden door',
+  },
+}
+
+// Deterministic emit search (spec §9): each synonym bare in DECLARATION order
+// (head first), then synonym × adjective pairs in declaration order; first
+// game-unique combination wins. No unique form → build error naming the
+// colliders. DESC-only sentinels (no synonyms) fall back to the canonical.
+export function computeEmit(entry, all, override) {
+  if (override) {
+    // An override must be spelled from the entry's own dictionary words —
+    // anything else would emit a phrase the Z-parser can't bind to the object.
+    const allowed = new Set([
+      ...entry.synDecl,
+      ...entry.adjDecl,
+      entry.canonical,
+    ])
+    for (const w of override.split(/\s+/))
+      if (!allowed.has(w))
+        throw new Error(
+          `computeEmit: override "${override}" for "${entry.canonical}" uses ` +
+            `"${w}", which is not among its dictionary words ` +
+            `(${[...allowed].join(', ')})`,
+        )
+    return override
+  }
+  if (entry.synDecl.length === 0) return entry.canonical
+  const others = all.filter(e => e !== entry)
+  for (const s of entry.synDecl)
+    if (!others.some(o => o.synDecl.includes(s))) return s
+  for (const s of entry.synDecl)
+    for (const a of entry.adjDecl) {
+      if (!others.some(o => o.synDecl.includes(s) && o.adjDecl.includes(a)))
+        return `${a} ${s}`
+    }
+  const colliders = others
+    .filter(o => o.synDecl.some(s => entry.synDecl.includes(s)))
+    .map(o => o.canonical)
+  throw new Error(
+    `computeEmit: no unique form for "${entry.canonical}" ` +
+      `(collides with: ${colliders.join(', ')}) — add an EMIT_OVERRIDES entry`,
+  )
+}
+
 // Every <OBJECT …> in the dungeon + globals sources, mapped to a NounEntry.
 // <ROOM …> blocks are excluded (different head). Canonical = DESC text (or first
 // SYNONYM if no DESC); sentinels with neither are skipped, as are the parser
-// pseudo-objects named in PSEUDO_OBJECT_NAMES above.
-export function extractNouns(dungeonSrc, globalsSrc) {
+// pseudo-objects named in PSEUDO_OBJECT_NAMES above. Each noun also gets an
+// `emit` — the shortest game-unique parser name (computeEmit, spec §9).
+// N is the game number (1–3) selecting the EMIT_OVERRIDES table; omitted ⇒ no
+// overrides (fixture mode, used by unit tests). Generation-time invariants are
+// enforced here: every override key must match an extracted canonical, and the
+// final emits must be unique within the game.
+export function extractNouns(dungeonSrc, globalsSrc, N, mergeLog = []) {
   const forms = [...readForms(dungeonSrc), ...readForms(globalsSrc)]
   const out = []
-  const seen = new Set()
+  const byCanonical = new Map()
 
   for (const f of forms) {
     if (f.t !== 'list' || f.k !== '<' || headAtom(f) !== 'OBJECT') continue
@@ -321,20 +479,72 @@ export function extractNouns(dungeonSrc, globalsSrc) {
       }
     }
     const canonical = desc ? desc.toLowerCase() : syn[0] || null
-    if (!canonical || seen.has(canonical)) continue
-    seen.add(canonical)
-    const synonyms = sortUniq(syn.filter(s => s !== canonical))
-    const adjectives = sortUniq(adj)
-    const entry = { canonical }
-    if (synonyms.length) entry.synonyms = synonyms
-    if (adjectives.length) entry.adjectives = adjectives
+    if (!canonical) continue
+    const existing = byCanonical.get(canonical)
+    if (existing) {
+      // [G] Two <OBJECT>s legitimately share a canonical DESC (zork2's
+      // PTABLE/GAZEBO-TABLE, zork3's cell doors…). First-wins dedupe dropped
+      // the later object WHOLESALE — its dictionary words vanished from
+      // vocabWordSet (stage-4 passthrough), noun surface matching, and the
+      // emit-uniqueness computation, with no warning. Merge instead,
+      // appending unseen words so the first declaration's order is kept
+      // (computeEmit walks synDecl/adjDecl in order), and report the merge
+      // for the generator's reconciliation log.
+      const mergedSynonyms = syn.filter(s => !existing.synDecl.includes(s))
+      const mergedAdjectives = adj.filter(a => !existing.adjDecl.includes(a))
+      existing.synDecl.push(...mergedSynonyms)
+      existing.adjDecl.push(...mergedAdjectives)
+      mergeLog.push({ canonical, mergedSynonyms, mergedAdjectives })
+      continue
+    }
+    const entry = { canonical, synDecl: syn, adjDecl: adj }
+    byCanonical.set(canonical, entry)
     out.push(entry)
   }
 
-  out.sort((a, b) =>
+  const overrides = EMIT_OVERRIDES[N] ?? {}
+  const consumed = new Set()
+  for (const e of out) {
+    const override = overrides[e.canonical]
+    if (override !== undefined) consumed.add(e.canonical)
+    e.emit = computeEmit(e, out, override)
+  }
+
+  // Stale/typo'd override keys would otherwise rot silently as the ZIL data
+  // (or canonical derivation) changes — fail generation, naming them.
+  const unconsumed = Object.keys(overrides).filter(k => !consumed.has(k))
+  if (unconsumed.length > 0)
+    throw new Error(
+      `extractNouns: EMIT_OVERRIDES[${N}] keys matched no object: ` +
+        unconsumed.join(', '),
+    )
+
+  // Final emits must be game-unique strings; a duplicate means two nouns would
+  // send the identical parser phrase (overrides can bypass computeEmit's own
+  // uniqueness search, so check the end result regardless of source).
+  const byEmit = new Map()
+  for (const e of out) {
+    const prev = byEmit.get(e.emit)
+    if (prev !== undefined)
+      throw new Error(
+        `extractNouns: duplicate emit "${e.emit}" for ` +
+          `"${prev}" and "${e.canonical}"`,
+      )
+    byEmit.set(e.emit, e.canonical)
+  }
+
+  const entries = out.map(e => {
+    const synonyms = sortUniq(e.synDecl.filter(s => s !== e.canonical))
+    const adjectives = sortUniq(e.adjDecl)
+    const entry = { canonical: e.canonical, emit: e.emit }
+    if (synonyms.length) entry.synonyms = synonyms
+    if (adjectives.length) entry.adjectives = adjectives
+    return entry
+  })
+  entries.sort((a, b) =>
     a.canonical < b.canonical ? -1 : a.canonical > b.canonical ? 1 : 0,
   )
-  return out
+  return entries
 }
 
 // Render a Vocab literal as TypeScript source. Output is intentionally close to
@@ -343,7 +553,10 @@ export function extractNouns(dungeonSrc, globalsSrc) {
 export function buildVocabModule(N, vocab) {
   const arr = xs => JSON.stringify(xs)
   const noun = e => {
-    const parts = [`"canonical":${JSON.stringify(e.canonical)}`]
+    const parts = [
+      `"canonical":${JSON.stringify(e.canonical)}`,
+      `"emit":${JSON.stringify(e.emit)}`,
+    ]
     if (e.synonyms) parts.push(`"synonyms":${JSON.stringify(e.synonyms)}`)
     if (e.adjectives) parts.push(`"adjectives":${JSON.stringify(e.adjectives)}`)
     return `    { ${parts.join(', ')} },`
@@ -360,6 +573,7 @@ export const ZORK${N}_VOCAB: Vocab = {
   verbs1: ${arr(vocab.verbs1)},
   verbs2: ${arr(vocab.verbs2)},
   preps: ${arr(vocab.preps)},
+  verbSynonyms: ${arr(vocab.verbSynonyms)},
   nouns: [
 ${vocab.nouns.map(noun).join('\n')}
   ],

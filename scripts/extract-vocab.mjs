@@ -67,7 +67,8 @@ function main() {
     const globals = readFileSync(join(ROOT, `zork${N}/gglobals.zil`), 'utf8')
 
     const vp = extractVerbsAndPreps(readForms(gsyntax), N, meta)
-    const nouns = extractNouns(dungeon, globals)
+    const nounMerges = []
+    const nouns = extractNouns(dungeon, globals, N, nounMerges)
     const movement = extractDirections(dungeon)
     const vocab = { ...vp, movement, nouns }
 
@@ -98,6 +99,18 @@ function main() {
       )
     } else {
       console.log('  reconcile: no committed verbsOnly verbs dropped')
+    }
+    // Noun reconciliation ([G]): duplicate canonicals are MERGED, not
+    // dropped — list each so a surprising union is reviewable before commit.
+    if (nounMerges.length) {
+      for (const m of nounMerges)
+        console.log(
+          `  reconcile: merged duplicate noun "${m.canonical}"` +
+            ` (+syn: ${m.mergedSynonyms.join(', ') || '—'};` +
+            ` +adj: ${m.mergedAdjectives.join(', ') || '—'})`,
+        )
+    } else {
+      console.log('  reconcile: no duplicate noun canonicals')
     }
     if (!vp.verbsOnly.includes('inventory')) {
       console.warn(

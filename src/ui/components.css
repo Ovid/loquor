@@ -226,37 +226,59 @@
   color: var(--brass-soft);
 }
 
-/* Language picker: de-chrome the native select so it reads like the bar's
-   other text controls (Change story, theme toggle) instead of an OS widget.
-   The OPEN popup list stays platform-native; option colors below apply where
-   the platform honors them (Chromium/Firefox on desktop). */
+/* Language picker: a CUSTOM select-only combobox — the native <select>
+   popup can't be themed, so the trigger reads like the bar's other text
+   controls (Change story, theme toggle) and the popup is a folio plate. */
 .nl-select {
   position: relative;
   display: inline-block;
 }
-.nl-select select.sw {
-  appearance: none;
-  -webkit-appearance: none;
-  /* room for the chevron; .meta .sw zeroes the rest */
-  padding-right: 14px;
-}
-.nl-select::after {
-  content: '▾';
-  position: absolute;
-  right: 1px;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
+.nl-caret {
+  margin-left: 5px;
   font-size: 9px;
   color: var(--brass-soft);
   transition: color 0.2s;
 }
-.nl-select:hover::after {
+.nl-select-btn:hover .nl-caret {
   color: var(--brass);
 }
-.nl-select option {
-  background: var(--bg-base);
+.nl-menu {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0; /* the control sits near the bar's right edge — open leftward */
+  min-width: 9.5em;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--plate-grad), var(--bg-base);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  z-index: 40; /* above the scrollback, below the modal backdrop (50) */
+}
+/* Single highlight mechanism: `.active` follows BOTH keyboard and hover
+   (mouseenter sets the same index), so the two never double-highlight. */
+.nl-menu [role='option'] {
+  position: relative;
+  padding: 5px 12px 5px 26px; /* left room for the selected check */
+  border-radius: 4px;
+  color: var(--text-dim);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.nl-menu [role='option'].active {
+  background: var(--vol-hover-bg);
+  color: var(--brass);
+}
+.nl-menu [role='option'][aria-selected='true'] {
   color: var(--text);
+}
+.nl-menu [role='option'][aria-selected='true']::before {
+  content: '✓';
+  position: absolute;
+  left: 9px;
+  color: var(--brass);
+  font-size: 0.85em;
 }
 
 .modal-backdrop {

@@ -11,9 +11,12 @@ session loses time to something avoidable.
   produces no `you` lines and the Turns counter doesn't move. One
   `left_click` on the `> type a command…` line fixes it. Verify the turn
   counter moved before assuming commands landed.
-- The language picker is a native `<select>`; its dropdown doesn't render in
-  screenshots. Use `find` once to get its ref, then `form_input` with the
-  option label (`Français`, `Deutsch`, `Español`).
+- The language picker is a CUSTOM combobox (since 2026-06-10), not a native
+  `<select>` — `form_input` no longer applies. Click the trigger (the
+  `Language:` control), then click the option (`Français`, `Deutsch`,
+  `Español`) in the themed popup; the popup DOES render in screenshots now.
+  It also closes on any outside mousedown, so don't click elsewhere between
+  the two clicks.
 - Console debugging: `read_console_messages` with pattern `nl debug` shows
   per-clause `{stage, antecedent, inScope, raw, result}` — the fastest way to
   tell deterministic-lexicon hits from LLM fallbacks and to find root causes.

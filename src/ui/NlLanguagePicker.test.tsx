@@ -3,7 +3,11 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { NlLanguagePicker } from './NlLanguagePicker'
 
 describe('NlLanguagePicker', () => {
-  it('renders Off · English · Français · Deutsch · Español', () => {
+  // The picker is a CUSTOM select-only combobox (button trigger + styled
+  // listbox popup), not a native <select>: the native popup can't be themed
+  // and broke the folio styling (screenshot review). The button keeps
+  // role="combobox" so the accessible contract matches the old control.
+  it('opens a themed listbox with Off · English · Français · Deutsch · Español', () => {
     render(
       <NlLanguagePicker
         state={{ phase: 'off', installed: true }}
@@ -11,14 +15,16 @@ describe('NlLanguagePicker', () => {
         onOverride={() => {}}
       />,
     )
-    const select = screen.getByRole('combobox')
-    const labels = [...select.querySelectorAll('option')].map(
-      o => o.textContent,
-    )
+    const btn = screen.getByRole('combobox')
+    expect(btn).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('listbox')).toBeNull()
+    fireEvent.click(btn)
+    expect(btn).toHaveAttribute('aria-expanded', 'true')
+    const labels = screen.getAllByRole('option').map(o => o.textContent)
     expect(labels).toEqual(['Off', 'English', 'Français', 'Deutsch', 'Español'])
   })
 
-  it('reflects the active language and emits a change', () => {
+  it('reflects the active language and emits a selection (mouse)', () => {
     const onSelect = vi.fn()
     render(
       <NlLanguagePicker
@@ -27,10 +33,57 @@ describe('NlLanguagePicker', () => {
         onOverride={() => {}}
       />,
     )
-    const select = screen.getByRole('combobox') as HTMLSelectElement
-    expect(select.value).toBe('fr')
-    fireEvent.change(select, { target: { value: 'de' } })
+    const btn = screen.getByRole('combobox')
+    expect(btn).toHaveTextContent('Français')
+    fireEvent.click(btn)
+    expect(screen.getByRole('option', { name: 'Français' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    fireEvent.click(screen.getByRole('option', { name: 'Deutsch' }))
     expect(onSelect).toHaveBeenCalledWith('de')
+    expect(screen.queryByRole('listbox')).toBeNull() // closes on selection
+  })
+
+  it('full keyboard path: open, arrow to an option, Enter selects', () => {
+    const onSelect = vi.fn()
+    render(
+      <NlLanguagePicker
+        state={{ phase: 'on', language: 'fr' }}
+        onSelect={onSelect}
+        onOverride={() => {}}
+      />,
+    )
+    const btn = screen.getByRole('combobox')
+    fireEvent.keyDown(btn, { key: 'Enter' })
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+    // Highlight starts on the SELECTED option (fr), not the first.
+    expect(btn.getAttribute('aria-activedescendant')).toMatch(/fr/)
+    fireEvent.keyDown(btn, { key: 'ArrowDown' }) // fr → de
+    fireEvent.keyDown(btn, { key: 'Enter' })
+    expect(onSelect).toHaveBeenCalledWith('de')
+    expect(screen.queryByRole('listbox')).toBeNull()
+  })
+
+  it('Escape closes without selecting; a click outside closes too', () => {
+    const onSelect = vi.fn()
+    render(
+      <NlLanguagePicker
+        state={{ phase: 'on', language: 'fr' }}
+        onSelect={onSelect}
+        onOverride={() => {}}
+      />,
+    )
+    const btn = screen.getByRole('combobox')
+    fireEvent.click(btn)
+    fireEvent.keyDown(btn, { key: 'Escape' })
+    expect(screen.queryByRole('listbox')).toBeNull()
+    expect(onSelect).not.toHaveBeenCalled()
+    fireEvent.click(btn)
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+    fireEvent.mouseDown(document.body)
+    expect(screen.queryByRole('listbox')).toBeNull()
+    expect(onSelect).not.toHaveBeenCalled()
   })
 
   it('keeps the unavailable + downloading branches', () => {

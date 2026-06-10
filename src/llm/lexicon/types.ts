@@ -35,5 +35,7 @@ export interface CoreLexicon {
 }
 
 /** Per-game noun lexicon: vocab CANONICAL → foreign surface words/phrases
- * (folded). A word may appear under several canonicals (ambiguity, spec §5.2). */
+ * (folded). A word may appear under several canonicals (ambiguity, spec §5.2).
+ * Value order within an entry is NOT load-bearing — matching is
+ * set-membership; ordering is a style preference only. */
 export type NounLexicon = Readonly<Record<string, readonly string[]>>

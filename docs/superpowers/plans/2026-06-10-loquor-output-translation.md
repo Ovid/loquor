@@ -124,6 +124,16 @@ describe('WebLlmEngine.generate grammar plumbing', () => {
       grammar: 'root ::= "x"',
     })
   })
+
+  it('grammar-free path surfaces nullish content as "" — never the ABSTAIN sentinel', async () => {
+    const e = new WebLlmEngine('m')
+    const p = e.load(() => {}, new AbortController().signal)
+    await tick()
+    resolveCreate[0]()
+    await p
+    engines[0].chat.completions.create.mockResolvedValueOnce({ choices: [] })
+    expect(await e.generate([{ role: 'user', content: 'hi' }], null)).toBe('')
+  })
 })
 ```
 
@@ -155,6 +165,15 @@ and the create call to:
         // omit it entirely for the plain-text output-translation fallback.
         ...(grammar === null ? {} : { response_format: { type: 'grammar', grammar } }),
       })
+```
+
+and the return line: `ABSTAIN` (`'__UNKNOWN__'`) is the INPUT layer's sentinel —
+on the grammar-free path nullish content must surface as `''` so the output
+hook's empty-translation guard falls back to English instead of displaying
+(and permanently caching) the sentinel:
+
+```ts
+      return res.choices[0]?.message?.content ?? (grammar === null ? '' : ABSTAIN)
 ```
 
 In `src/llm/engine.fake.ts` change `_grammar: string` to `_grammar: string | null`
@@ -982,10 +1001,20 @@ import { logMiss, readMisses, installMissDump, MISS_CAP } from './missLog'
 beforeEach(() => localStorage.clear())
 
 describe('miss log (spec §6)', () => {
-  it('appends entries with context', () => {
-    logMiss({ en: 'A weird line.', game: 'sig1', language: 'fr', kind: 'line' })
+  it('appends entries with turn context (spec §6)', () => {
+    logMiss({
+      en: 'A weird line.',
+      game: 'sig1',
+      language: 'fr',
+      kind: 'line',
+      ctx: 'West of House — Score: 0 Moves: 1',
+    })
     expect(readMisses()).toEqual([
-      expect.objectContaining({ en: 'A weird line.', kind: 'line' }),
+      expect.objectContaining({
+        en: 'A weird line.',
+        kind: 'line',
+        ctx: 'West of House — Score: 0 Moves: 1',
+      }),
     ])
   })
   it('caps as a ring buffer (oldest dropped)', () => {
@@ -1029,6 +1058,9 @@ export interface MissEntry {
   game: string
   language: string
   kind: 'line' | 'status' | 'backlog'
+  /** Turn context at miss time — the status line (room — score/moves), so a
+   * UAT dump says WHERE each gap was hit (spec §6 "turn context"). */
+  ctx?: string
   t?: number
 }
 
@@ -1388,17 +1420,31 @@ describe('LLM fallback on live misses (spec §6)', () => {
   })
 })
 
-describe('backlog rule (spec §3)', () => {
-  it('lines present at activation get matcher-only treatment: misses stay English, no generation', async () => {
+describe('backlog rule (spec §3: matcher + CACHE hits only)', () => {
+  it('backlog lines: table and cache hits apply; uncached misses stay English; nothing generates', async () => {
     const engine = new FakeLlmEngine({ default: 'should-not-appear' })
     await engine.load(() => {}, new AbortController().signal)
-    const v = view([line('output', 'Old unknown line.'), line('output', 'Taken.')])
+    // A fallback translation cached in a PREVIOUS session must survive a
+    // restore rebuild (spec §6: each miss costs once per device, ever).
+    await cacheSet('test-sig', 'fr', 'Cached old line.', 'Vieille ligne en cache.')
+    const v = view([
+      line('output', 'Old unknown line.'),
+      line('output', 'Cached old line.'),
+      line('output', 'Taken.'),
+    ])
     const { result, rerender } = setup({ engine, initial: v })
-    // table hit still applies to backlog; miss stays English
+    // table hit still applies to backlog; misses render English immediately
     expect(result.current.lines.map(l => l.text)).toEqual([
       'Old unknown line.',
+      'Cached old line.',
       'Pris.',
     ])
+    // the cached backlog miss resolves async — no shimmer, no generation
+    await waitFor(() =>
+      expect(result.current.lines[1].text).toBe('Vieille ligne en cache.'),
+    )
+    expect(result.current.lines[0].text).toBe('Old unknown line.')
+    expect(engine.generateCalls).toBe(0)
     // and a LIVE line appended later still falls back
     rerender({
       v: view([...v.lines, line('output', 'New unknown line.')]),
@@ -1411,6 +1457,27 @@ describe('backlog rule (spec §3)', () => {
     )
     expect(engine.generateCalls).toBe(1) // only the live line generated
     expect(readMisses().some(m => m.kind === 'backlog')).toBe(true)
+  })
+})
+
+describe('queue abandonment (spec §3/§6)', () => {
+  it('a switch to off abandons QUEUED generations — they never run, not just never render', async () => {
+    const engine = new FakeLlmEngine({ default: 'jamais rendu' })
+    await engine.load(() => {}, new AbortController().signal)
+    const { result, rerender, gate } = setup({ engine, initial: view([]) })
+    // Hold the gate so the live miss's generation QUEUES behind it.
+    let release!: () => void
+    const held = gate.run('output', () => new Promise<void>(r => (release = r)))
+    const l = line('output', 'An unknown line.')
+    rerender({ v: view([l]), lang: 'fr' })
+    await waitFor(() => expect(result.current.lines[0].pending).toBe(true))
+    rerender({ v: view([l]), lang: 'off' }) // epoch bumps; queued task must bail
+    await act(async () => {
+      release()
+      await held
+    })
+    expect(engine.generateCalls).toBe(0) // the queued generation never started
+    expect(result.current.lines[0].text).toBe('An unknown line.') // passthrough
   })
 })
 
@@ -1458,8 +1525,8 @@ line — that is why the completions map above keys on plain lines.
 // Async path (live misses only): IndexedDB cache → gate-queued LLM fallback
 // (output priority — input preempts, spec §6) → English on failure. Lines
 // present at corpus activation (language switch / restore rebuild) are
-// BACKLOG: matcher/cache-only treatment is the spec's backlog rule; we apply
-// matcher-only and log the miss (kind 'backlog').
+// BACKLOG: matcher + CACHE hits only (spec §3) — no shimmer, no generation;
+// an uncached backlog miss stays English and is logged (kind 'backlog').
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { BufferLine, StatusLine, ViewState } from '../glkote-react/types'
 import type { LlmEngine, NlLanguage } from '../llm/types'
@@ -1547,6 +1614,10 @@ export function useOutputTranslation(args: {
   useEffect(() => {
     if (!corpus || lang === null) return
     const epoch = epochRef.current
+    // Turn context for the miss log (spec §6): the status line at miss time.
+    const ctx = view.status
+      ? normalize(`${view.status.location} — ${view.status.right}`)
+      : undefined
 
     const settle = (id: number, en: string, value: Resolution) => {
       if (epochRef.current !== epoch) return // language/story switched mid-flight
@@ -1561,13 +1632,18 @@ export function useOutputTranslation(args: {
           settle(id, en, cached)
           return
         }
-        logMiss({ en, game: signature, language: lang, kind: 'line' })
+        logMiss({ en, game: signature, language: lang, kind: 'line', ctx })
         if (!engine.isLoaded()) {
           // Spec §6 failure path: model absent/still loading → English now.
           settle(id, en, 'english')
           return
         }
         const text = await gate.run('output', async () => {
+          // Queued generations ABANDON on a language/story switch (spec §3/§6):
+          // the epoch moved on while we waited for the gate — don't burn GPU
+          // on a result nobody will render. (The throw lands in the outer
+          // catch; settle() there is an epoch-guarded no-op.)
+          if (epochRef.current !== epoch) throw new Error('xlate abandoned')
           const ac = new AbortController()
           let watchdogId: ReturnType<typeof setTimeout>
           const watchdog = new Promise<never>((_, rej) => {
@@ -1602,7 +1678,14 @@ export function useOutputTranslation(args: {
       if (backlogRef.current.has(l.id)) {
         if (!loggedBacklogRef.current.has(l.id)) {
           loggedBacklogRef.current.add(l.id)
-          logMiss({ en, game: signature, language: lang, kind: 'backlog' })
+          logMiss({ en, game: signature, language: lang, kind: 'backlog', ctx })
+          // Backlog rule (spec §3): matcher + CACHE hits only. A fallback
+          // translation cached in an earlier session still applies after a
+          // restore rebuild — no shimmer, no generation either way.
+          basisRef.current.set(l.id, en)
+          void cacheGet(signature, lang, en).then(cached => {
+            if (cached !== undefined) settle(l.id, en, cached)
+          })
         }
         continue
       }
@@ -2519,3 +2602,26 @@ export const ZORK1_EXTRACTION_IGNORE: readonly string[] = [
   Scrollback (T11). `Template.out` (not `.fr`) everywhere. `EngineGate.run`
   priorities `'input' | 'output'` in T2 and T10. `corpusOverride` exists in the
   hook args (T10) and is used by its tests only.
+
+## Alignment review (2026-06-10, `/paad:alignment` vs the spec)
+
+Four findings, all resolved as plan-side fixes (the spec is unchanged; edits
+are folded into the tasks above):
+
+1. **Backlog cache (spec §3):** the hook was matcher-only for backlog lines;
+   Task 10 now consults the IndexedDB fallback cache for backlog misses (no
+   shimmer, no generation), so cached translations survive a restore rebuild
+   (§6 "each miss costs once per device, ever").
+2. **`ABSTAIN` leak:** `WebLlmEngine.generate` returns `'__UNKNOWN__'` on
+   nullish content; on the grammar-free path that would have been displayed
+   and permanently cached as a "translation". Task 1 returns `''` instead,
+   routing it to the hook's empty-translation → English-fallback guard.
+3. **Queue abandonment (spec §3/§6):** epoch-guarding only the *results* left
+   queued generations running on the GPU after a switch to `en`/`off`. Task
+   10's gate task now re-checks the epoch after acquiring the gate and bails.
+4. **Miss-log turn context (spec §6):** `MissEntry` gains `ctx` (the status
+   line at miss time), populated for line/backlog misses (Tasks 7, 10).
+
+Verified non-issue: the spec's "echoed canonical command … de-emphasized"
+(§2.5) needs no task — `.scroll .echo` already renders in `--brass-soft`
+(`src/ui/components.css`), and further restyling is the §8 follow-up toggle.

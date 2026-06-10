@@ -109,24 +109,23 @@ function extractObjectNames(buf) {
 
 /**
  * Brute-force scan of the high-memory area (above the high-memory base pointer
- * stored at header 0x04): Z-strings stored as pure data start at proper 2-byte
- * boundaries here, so the garbled-prefix problem is vastly reduced. We still
- * suppress suffix duplicates (a start inside a running string decodes its tail).
+ * stored at header 0x04): inline TELL print-literal strings in z-code start at
+ * ARBITRARY byte offsets (not word-aligned), so we must try every byte offset.
+ *
+ * Every byte that decodes to a passing looksLikeText string is collected; exact
+ * duplicates are removed by the Set in extractStrings.  Garbled-prefix artifacts
+ * (mid-instruction starts) will be present alongside the clean strings; Task 17's
+ * shape filter and ignore list prune them at corpus-build time.
  */
 function extractHighMemStrings(buf) {
   // High-memory base from header byte 0x04
   const hmem = (buf[0x04] << 8) | buf[0x05]
   const kept = []
-  let lastSpan = null
-  for (let addr = hmem; addr < buf.length - 1; addr += 2) {
+  for (let addr = hmem; addr < buf.length - 1; addr += 1) {
     const r = decodeZString(buf, addr)
     if (r === null) continue
     if (!looksLikeText(r.text)) continue
-    if (lastSpan && addr < lastSpan.end && lastSpan.text.endsWith(r.text))
-      continue // tail of the string we already kept
     kept.push(r.text)
-    if (!lastSpan || r.end > lastSpan.end || addr >= lastSpan.end)
-      lastSpan = { end: r.end, text: r.text }
   }
   return kept
 }

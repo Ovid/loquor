@@ -24,6 +24,12 @@ describe('z-machine v3 string extraction (spec §4)', () => {
     expect(
       lines.some(l => l.includes('ZORK I: The Great Underground Empire')),
     ).toBe(true)
+    // Inline TELL literals are at arbitrary byte offsets (not word-aligned);
+    // verify both are extracted cleanly.
+    expect(lines).toContain('It is pitch black.')
+    expect(
+      lines.some(l => l.includes('You are likely to be eaten by a grue')),
+    ).toBe(true)
   })
   it('every emitted entry is a single normalized display line (no embedded newlines)', () => {
     for (const l of lines) {

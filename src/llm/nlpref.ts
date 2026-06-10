@@ -10,9 +10,13 @@ export interface NlPref {
 }
 const DEFAULT: NlPref = { language: 'off', declined: false }
 
-export function readNlPref(store: Storage = localStorage): NlPref {
+export function readNlPref(store?: Storage): NlPref {
   try {
-    const raw = store.getItem(KEY)
+    // [K] Resolve the store INSIDE the try: with "block all cookies" Chrome's
+    // window.localStorage getter itself throws SecurityError, and a default
+    // parameter evaluates before the body's try is entered — the throw
+    // escaped to callers (misreporting a successful download as a failure).
+    const raw = (store ?? localStorage).getItem(KEY)
     if (!raw) return DEFAULT
     const parsed = JSON.parse(raw) as Record<string, unknown>
     const declined =
@@ -33,13 +37,12 @@ export function readNlPref(store: Storage = localStorage): NlPref {
   }
 }
 
-export function writeNlPref(
-  patch: Partial<NlPref>,
-  store: Storage = localStorage,
-): void {
+export function writeNlPref(patch: Partial<NlPref>, store?: Storage): void {
   try {
-    store.setItem(KEY, JSON.stringify({ ...readNlPref(store), ...patch }))
+    // Same [K] note as readNlPref: localStorage resolves inside the try.
+    const s = store ?? localStorage
+    s.setItem(KEY, JSON.stringify({ ...readNlPref(s), ...patch }))
   } catch {
-    // Private mode / quota — persistence is best-effort, never fatal.
+    // Private mode / quota / blocked storage — best-effort, never fatal.
   }
 }

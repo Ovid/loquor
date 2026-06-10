@@ -77,4 +77,27 @@ describe('NlPref v2 (language picker)', () => {
     expect(warn).toHaveBeenCalled()
     warn.mockRestore()
   })
+
+  it('survives a throwing localStorage GETTER (cookie-blocked Chrome) — [K]', () => {
+    // With "block all cookies", window.localStorage itself throws
+    // SecurityError. A `store: Storage = localStorage` default parameter
+    // evaluates BEFORE the body's try is entered, so the throw escaped and a
+    // successful download was reported as a failure. The store must resolve
+    // inside the try.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const desc = Object.getOwnPropertyDescriptor(window, 'localStorage')!
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new DOMException('denied', 'SecurityError')
+      },
+    })
+    try {
+      expect(readNlPref()).toEqual({ language: 'off', declined: false })
+      expect(() => writeNlPref({ language: 'fr' })).not.toThrow()
+    } finally {
+      Object.defineProperty(window, 'localStorage', desc)
+      warn.mockRestore()
+    }
+  })
 })

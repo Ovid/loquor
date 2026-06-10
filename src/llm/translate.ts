@@ -101,6 +101,44 @@ export function vocabWordSet(vocab: Vocab): Set<string> {
   return out
 }
 
+/**
+ * Stage 2 (locked decision 8): if the ENTIRE line is one quoted string —
+ * "…", «…», „…“, or “…” — return the unquoted text to send verbatim. Quote
+ * style varies by keyboard/autocorrect across FR/DE/ES (pushback minor note).
+ */
+export function unquote(line: string): string | null {
+  const m = line
+    .trim()
+    .match(/^(?:"([^"]+)"|«([^»]+)»|„([^“”]+)[“”]|“([^”]+)”)$/)
+  if (!m) return null
+  const inner = (m[1] ?? m[2] ?? m[3] ?? m[4]).trim()
+  return inner.length > 0 ? inner : null
+}
+
+/**
+ * Stage 4 (spec §4): every token is a word the game's parser already knows
+ * (vocabWordSet: verbs, synonyms, noun dictionary words, preps, movement,
+ * meta, the/a/an) → send verbatim. COLLISION GUARD: when the picker is not
+ * English, a token in the active language's lexicon does NOT count — the
+ * line falls through to the lexicon parse instead (pushback issue 2).
+ */
+export function isVocabPassthrough(
+  line: string,
+  vocab: Vocab,
+  activeLexiconWords: Set<string> | null,
+): boolean {
+  const words = vocabWordSet(vocab)
+  const tokens = line
+    .toLowerCase()
+    .replace(/[!.?,;:]+$/, '')
+    .split(/\s+/)
+    .filter(Boolean)
+  if (tokens.length === 0) return false
+  return tokens.every(
+    t => words.has(t) && !(activeLexiconWords?.has(t) ?? false),
+  )
+}
+
 // The interpreter's yes/no confirmation prompts (restart, quit, restore-overwrite)
 // are read as ordinary LINE input — there is no engine-level flag distinguishing
 // them from the main command prompt. When the recent output is such a prompt, the

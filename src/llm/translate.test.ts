@@ -8,6 +8,8 @@ import {
   splitClauses,
   clauseFailed,
   refusalApplies,
+  unquote,
+  isVocabPassthrough,
 } from './translate'
 import { META_COMMANDS } from './meta'
 import { FR_CORE } from './lexicon/fr.core'
@@ -441,5 +443,64 @@ describe('meta-command source', () => {
   it('exposes a deduped, lowercase list', () => {
     expect(META_COMMANDS).toContain('restart')
     expect(new Set(META_COMMANDS).size).toBe(META_COMMANDS.length)
+  })
+})
+
+describe('unquote (stage 2 — quoted escape hatch)', () => {
+  it.each([
+    ['"open mailbox"', 'open mailbox'],
+    ['« ouvre la boîte »', 'ouvre la boîte'],
+    ['„öffne die Tür“', 'öffne die Tür'],
+    ['“open mailbox”', 'open mailbox'],
+  ])('%s → %s', (line, want) => {
+    expect(unquote(line)).toBe(want)
+  })
+  it('returns null unless the ENTIRE line is one quoted string', () => {
+    expect(unquote('say "hello"')).toBeNull()
+    expect(unquote('open mailbox')).toBeNull()
+    expect(unquote('""')).toBeNull()
+  })
+})
+
+describe('isVocabPassthrough (stage 4 + collision guard)', () => {
+  // The suite vocab, minimally extended for this block: a verb synonym
+  // ("ulysses", a gsyntax SYNONYM member) and a noun whose dictionary words
+  // include an adjective — the passthrough set draws on both.
+  const pvVocab: Vocab = {
+    ...vocab,
+    verbSynonyms: ['ulysses'],
+    nouns: [
+      ...vocab.nouns,
+      {
+        canonical: 'small mailbox',
+        emit: 'mailbox',
+        synonyms: ['mailbox'],
+        adjectives: ['small'],
+      },
+    ],
+  }
+  it('passes a line whose every word the parser knows (magic words, literal English)', () => {
+    expect(isVocabPassthrough('open the small mailbox', pvVocab, null)).toBe(
+      true,
+    )
+    expect(isVocabPassthrough('ulysses', pvVocab, null)).toBe(true)
+  })
+  it('rejects a line with any unknown word', () => {
+    expect(isVocabPassthrough('open the zeppelin', pvVocab, null)).toBe(false)
+    expect(isVocabPassthrough('take it', pvVocab, null)).toBe(false) // pronouns go to the LLM
+  })
+  it('collision guard: an active-language lexicon word never passes through', () => {
+    const lexWords = new Set(['sale']) // imagine fr word colliding with a vocab word
+    const collided: Vocab = {
+      ...pvVocab,
+      verbsOnly: [...pvVocab.verbsOnly, 'sale'],
+    }
+    expect(isVocabPassthrough('sale', collided, lexWords)).toBe(false)
+    expect(isVocabPassthrough('sale', collided, null)).toBe(true)
+  })
+  it('tolerates terminal punctuation and case', () => {
+    expect(isVocabPassthrough('Open the small mailbox!', pvVocab, null)).toBe(
+      true,
+    )
   })
 })

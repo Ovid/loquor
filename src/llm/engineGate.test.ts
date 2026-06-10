@@ -73,4 +73,26 @@ describe('EngineGate (output-translation spec §6 arbitration)', () => {
     await Promise.all([p0, ...ps])
     expect(order).toEqual([1, 2, 3])
   })
+
+  it('mutual exclusion holds against microtask-window arrivals (wake race)', async () => {
+    const g = new EngineGate()
+    let active = 0
+    let maxActive = 0
+    const track = async () => {
+      active++
+      maxActive = Math.max(maxActive, active)
+      await Promise.resolve()
+      active--
+    }
+    const d = deferred<void>()
+    const holder = g.run('output', async () => {
+      await d.promise
+    })
+    const waiter = g.run('output', track)
+    // Arrive in the microtask window between busy=false and the waiter resuming:
+    const racer = d.promise.then(() => {}).then(() => g.run('output', track))
+    d.resolve()
+    await Promise.all([holder, waiter, racer])
+    expect(maxActive).toBe(1)
+  })
 })

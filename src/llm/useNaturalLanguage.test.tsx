@@ -1883,6 +1883,15 @@ describe('EngineGate integration (output-translation spec §6)', () => {
       translateDone = hook.result.current.translate('open the mailbox')
     })
 
+    // Flush microtasks while the gate is still held — the translation must
+    // NOT have completed yet (bidirectional check: proves the gate is actually
+    // gating, not just coincidentally passing afterwards).
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(sendLine).not.toHaveBeenCalled()
+
     // Release the output gate holder.
     act(() => releaseOutput())
     await act(async () => {

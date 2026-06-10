@@ -364,7 +364,11 @@ export const ES_CORE: CoreLexicon = {
     'estas',
   ],
   pronounsDirect: ['lo', 'la', 'los', 'las'],
-  pronounsContainer: ['dentro', 'encima', 'adentro'],
+  pronounsContainer: [
+    { word: 'dentro', prep: 'in' },
+    { word: 'encima', prep: 'on' },
+    { word: 'adentro', prep: 'in' },
+  ],
   pronounsSelf: ['me'],
   metaAliases: {
     inventario: 'inventory', // migrated from META_ALIASES

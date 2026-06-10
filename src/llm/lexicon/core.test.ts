@@ -19,7 +19,7 @@ function storedStrings(core: CoreLexicon): string[] {
     ...Object.values(core.preps),
     ...core.articles,
     ...core.pronounsDirect,
-    ...core.pronounsContainer,
+    ...core.pronounsContainer.flatMap(p => [p.word, p.prep]),
     ...core.pronounsSelf,
     ...Object.keys(core.metaAliases),
     ...Object.values(core.metaAliases),

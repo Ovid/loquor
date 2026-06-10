@@ -416,6 +416,35 @@ describe('parseLexicon — UAT-3 regressions', () => {
     ).toEqual({ kind: 'command', text: 'inflate light' })
   })
 
+  // Review [E]: pronounsContainer mixed "inside it" and "on top of it" words
+  // while the parser hardcoded `in` — `pose le livre dessus` emitted
+  // `drop … in table` although the player said ON (put-in vs put-on is
+  // gameplay-meaningful: Zork surfaces refuse `in`). The pronoun now carries
+  // its preposition in the data.
+  it("ON container-anaphora emits 'on' ([E] — mets le tableau dessus)", () => {
+    expect(
+      parseLexicon(
+        'mets le tableau dessus',
+        FR_CORE,
+        FR_NOUNS,
+        vocab,
+        scene(['painting', 'trophy case'], 'trophy case'),
+      ),
+    ).toEqual({ kind: 'command', text: 'put painting on case' })
+  })
+
+  it("DE darauf/drauf emit 'on' ([E])", () => {
+    expect(
+      parseLexicon(
+        'lege das schwert darauf',
+        DE_CORE,
+        DE_NOUNS,
+        vocab,
+        scene(['sword', 'trap door'], 'trap door'),
+      ),
+    ).toEqual({ kind: 'command', text: 'put sword on trapdoor' })
+  })
+
   // Review [H]: attack/kill/give/throw/tie… are verbs2-only (their canonical
   // syntax carries an instrument), but the whole-remainder and pronoun paths
   // gated on arity 1 only — so `attaque le troll` missed while the

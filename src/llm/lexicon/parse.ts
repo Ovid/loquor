@@ -215,15 +215,21 @@ export function parseLexicon(
       ? { kind: 'command', text: `${verb} me` }
       : MISS
 
-  // --- Container anaphora: '<verb> <obj…> <containerPronoun>' (F-E guard). ---
+  // --- Container anaphora: '<verb> <obj…> <containerPronoun>' (F-E guard).
+  // The pronoun's own preposition is emitted ([E]): 'dessus'/'darauf' mean ON,
+  // and a surface refuses `put … in`. ---
   const last = tokens[tokens.length - 1]
-  if (core.pronounsContainer.includes(last)) {
+  const containerPronoun = core.pronounsContainer.find(p => p.word === last)
+  if (containerPronoun) {
     const obj = resolveNoun(tokens.slice(0, -1), core, nouns, vocab, scene)
     if (!obj || !scene.antecedent) return MISS
     if (scene.antecedent === obj.canonical) return MISS // F-E: in itself
     const container = byCanonical(vocab, scene.antecedent)
     if (!container || !verbArityOk(verb, vocab, 2)) return MISS
-    return { kind: 'command', text: `${verb} ${obj.emit} in ${container.emit}` }
+    return {
+      kind: 'command',
+      text: `${verb} ${obj.emit} ${containerPronoun.prep} ${container.emit}`,
+    }
   }
 
   // --- Whole remainder as ONE object (wins over prep-splitting so internal

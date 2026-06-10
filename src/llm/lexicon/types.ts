@@ -26,8 +26,15 @@ export interface CoreLexicon {
   articles: readonly string[]
   /** Direct-object pronouns resolved to the scene antecedent (le/la/ihn/lo…). */
   pronounsDirect: readonly string[]
-  /** Container anaphora ('dedans' → in <antecedent>) — F-E guard applies. */
-  pronounsContainer: readonly string[]
+  /** Container anaphora ('dedans' → in <antecedent>, 'dessus' → on
+   * <antecedent>) — F-E guard applies. Each pronoun carries the English
+   * preposition it means ([E]): put-in vs put-on is gameplay-meaningful in
+   * Zork (surfaces refuse `in`), so 'on top of it' words must never emit
+   * `in`. */
+  pronounsContainer: readonly {
+    readonly word: string
+    readonly prep: 'in' | 'on'
+  }[]
   /** Self-reference ('moi'/'mich'/'me') → the Z-parser's 'me'. */
   pronounsSelf: readonly string[]
   /** Localized meta words → raw English command (migrates META_ALIASES). */

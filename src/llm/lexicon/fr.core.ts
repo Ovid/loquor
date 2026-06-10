@@ -264,7 +264,10 @@ export const FR_CORE: CoreLexicon = {
     'ces',
   ],
   pronounsDirect: ['le', 'la', 'les'],
-  pronounsContainer: ['dedans', 'dessus'],
+  pronounsContainer: [
+    { word: 'dedans', prep: 'in' },
+    { word: 'dessus', prep: 'on' },
+  ],
   pronounsSelf: ['moi', 'me'],
   metaAliases: {
     inventaire: 'inventory', // fr (migrated from META_ALIASES)

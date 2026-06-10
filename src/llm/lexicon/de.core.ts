@@ -290,7 +290,14 @@ export const DE_CORE: CoreLexicon = {
     'diesem',
   ],
   pronounsDirect: ['ihn', 'sie', 'es'],
-  pronounsContainer: ['hinein', 'darauf', 'darin', 'rein', 'drin', 'drauf'],
+  pronounsContainer: [
+    { word: 'hinein', prep: 'in' },
+    { word: 'darauf', prep: 'on' },
+    { word: 'darin', prep: 'in' },
+    { word: 'rein', prep: 'in' },
+    { word: 'drin', prep: 'in' },
+    { word: 'drauf', prep: 'on' },
+  ],
   pronounsSelf: ['mich', 'mir'],
   metaAliases: {
     inventar: 'inventory', // migrated from META_ALIASES

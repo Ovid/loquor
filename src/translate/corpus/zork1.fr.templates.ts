@@ -374,4 +374,98 @@ export const ZORK1_FR_TEMPLATES: readonly Template[] = [
     en: "The {obj} isn't sleeping.",
     out: 'Inutile de réveiller {obj.def} : aucun signe de sommeil.',
   },
+
+  // ── Off-path composition shapes (Task 17 — inventory-gate sweep). The
+  //    TELL pieces these compose from live in zork1.extraction-ignore.ts;
+  //    citations point at the composing ZIL. ───────────────────────────────
+  // 1actions.zil:3615-:3643 melee LTABLEs — F-DEF slots only ever hold the
+  // three villains (troll/voleur/cyclope, ALL masculine in FR), so the
+  // masculine participles («assommé», «étourdi») are provably safe; F-WEP
+  // slots use «votre {obj.bare}» (possessive carries no gender surface).
+  {
+    en: 'A good slash, but it misses the {obj} by a mile.',
+    out: "Un bon coup de taille, mais il rate {obj.def} d'une lieue.",
+  },
+  {
+    en: 'You charge, but the {obj} jumps nimbly aside.',
+    out: "Vous chargez, mais {obj.def} s'écarte d'un bond agile.",
+  },
+  {
+    en: 'A quick stroke, but the {obj} is on guard.',
+    out: 'Un coup rapide, mais {obj.def} est sur ses gardes.',
+  },
+  {
+    en: "A good stroke, but it's too slow; the {obj} dodges.",
+    out: 'Un bon coup, mais trop lent ; {obj.def} esquive.',
+  },
+  {
+    en: 'A furious exchange, and the {obj} is knocked out!',
+    out: 'Un échange furieux, et {obj.def} est assommé !',
+  },
+  {
+    en: 'The haft of your {obj} knocks out the {obj2}.',
+    out: 'Le pommeau de votre {obj.bare} assomme {obj2.def}.',
+  },
+  {
+    en: "It's curtains for the {obj} as your {obj2} removes his head.",
+    out: "C'en est fini de {obj.def} : votre {obj2.bare} lui tranche la tête.",
+  },
+  {
+    en: 'The fatal blow strikes the {obj} square in the heart: He dies.',
+    out: 'Le coup fatal frappe {obj.def} en plein cœur : il meurt.',
+  },
+  {
+    en: 'The force of your blow knocks the {obj} back, stunned.',
+    out: 'La force de votre coup projette {obj.def} en arrière, étourdi.',
+  },
+  {
+    en: 'The quickness of your thrust knocks the {obj} back, stunned.',
+    out: 'La vivacité de votre botte projette {obj.def} en arrière, étourdi.',
+  },
+  {
+    en: 'Almost as soon as the {obj} breathes his last breath, a cloud of sinister black fog envelops him, and when the fog lifts, the carcass has disappeared.',
+    out: "À peine {obj.def} a-t-il rendu son dernier souffle qu'un nuage de brume noire et sinistre l'enveloppe, et quand la brume se dissipe, la carcasse a disparu.",
+  },
+  // gverbs.zil:2111 — grue death inside a vehicle (the plain-room variant is
+  // a full-string pin; the only VEHBIT object is the masculine boat but
+  // «dans {obj.def}» is agreement-free anyway).
+  {
+    en: 'Oh, no! A lurking grue slithered into the {obj} and devoured you!',
+    out: "Oh non ! Un grue à l'affût s'est glissé dans {obj.def} et vous a dévoré !",
+  },
+  // gverbs.zil:264 — burning a held/occupied object («l'aviez» elides, «à
+  // l'intérieur» is agreement-free).
+  {
+    en: 'The {obj} catches fire. Unfortunately, you were holding it at the time.',
+    out: "{obj.def} prend feu. Malheureusement, vous l'aviez en main à ce moment-là.",
+    cap: true,
+  },
+  {
+    en: 'The {obj} catches fire. Unfortunately, you were in it at the time.',
+    out: "{obj.def} prend feu. Malheureusement, vous étiez à l'intérieur à ce moment-là.",
+    cap: true,
+  },
+  // gverbs.zil:725-:731 V-HELLO — greeting an actor / a thing.
+  {
+    en: 'The {obj} bows his head to you in greeting.',
+    out: '{obj.def} incline la tête pour vous saluer.',
+    cap: true,
+  },
+  {
+    en: 'It\'s a well known fact that only schizophrenics say "Hello" to a {obj}.',
+    out: "C'est un fait bien connu : il n'y a que les schizophrènes pour dire « Bonjour » à {obj.indef}.",
+  },
+  // gverbs.zil:1202 V-SEND, :1001 V-THROW-OFF, :897 V-LOOK-ON.
+  {
+    en: 'Why would you send for the {obj}?',
+    out: 'Pourquoi envoyer chercher {obj.def} ?',
+  },
+  {
+    en: 'Ahoy -- {obj} overboard!',
+    out: 'Ohé — {obj.indef} à la mer !',
+  },
+  {
+    en: 'Look on a {obj}???',
+    out: 'Regarder sur {obj.indef} ???',
+  },
 ]

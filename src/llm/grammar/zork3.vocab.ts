@@ -427,7 +427,7 @@ export const ZORK3_VOCAB: Vocab = {
       canonical: 'cell door',
       emit: 'cell door',
       synonyms: ['door'],
-      adjectives: ['cell', 'wood', 'wooden'],
+      adjectives: ['cell', 'locked', 'wood', 'wooden'],
     },
     {
       canonical: 'chasm',
@@ -450,7 +450,7 @@ export const ZORK3_VOCAB: Vocab = {
     {
       canonical: 'dungeon master',
       emit: 'master',
-      synonyms: ['man', 'master'],
+      synonyms: ['dungeon', 'man', 'master'],
       adjectives: ['dungeon'],
     },
     {

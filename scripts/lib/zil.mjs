@@ -449,10 +449,10 @@ export function computeEmit(entry, all, override) {
 // overrides (fixture mode, used by unit tests). Generation-time invariants are
 // enforced here: every override key must match an extracted canonical, and the
 // final emits must be unique within the game.
-export function extractNouns(dungeonSrc, globalsSrc, N) {
+export function extractNouns(dungeonSrc, globalsSrc, N, mergeLog = []) {
   const forms = [...readForms(dungeonSrc), ...readForms(globalsSrc)]
   const out = []
-  const seen = new Set()
+  const byCanonical = new Map()
 
   for (const f of forms) {
     if (f.t !== 'list' || f.k !== '<' || headAtom(f) !== 'OBJECT') continue
@@ -479,9 +479,27 @@ export function extractNouns(dungeonSrc, globalsSrc, N) {
       }
     }
     const canonical = desc ? desc.toLowerCase() : syn[0] || null
-    if (!canonical || seen.has(canonical)) continue
-    seen.add(canonical)
-    out.push({ canonical, synDecl: syn, adjDecl: adj })
+    if (!canonical) continue
+    const existing = byCanonical.get(canonical)
+    if (existing) {
+      // [G] Two <OBJECT>s legitimately share a canonical DESC (zork2's
+      // PTABLE/GAZEBO-TABLE, zork3's cell doors…). First-wins dedupe dropped
+      // the later object WHOLESALE — its dictionary words vanished from
+      // vocabWordSet (stage-4 passthrough), noun surface matching, and the
+      // emit-uniqueness computation, with no warning. Merge instead,
+      // appending unseen words so the first declaration's order is kept
+      // (computeEmit walks synDecl/adjDecl in order), and report the merge
+      // for the generator's reconciliation log.
+      const mergedSynonyms = syn.filter(s => !existing.synDecl.includes(s))
+      const mergedAdjectives = adj.filter(a => !existing.adjDecl.includes(a))
+      existing.synDecl.push(...mergedSynonyms)
+      existing.adjDecl.push(...mergedAdjectives)
+      mergeLog.push({ canonical, mergedSynonyms, mergedAdjectives })
+      continue
+    }
+    const entry = { canonical, synDecl: syn, adjDecl: adj }
+    byCanonical.set(canonical, entry)
+    out.push(entry)
   }
 
   const overrides = EMIT_OVERRIDES[N] ?? {}

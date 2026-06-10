@@ -173,6 +173,38 @@ describe('extractNouns', () => {
     expect(canon).toContain('shovel')
   })
 
+  it('merges synonym/adjective sets when two OBJECTs share a canonical DESC ([G])', () => {
+    // First-wins dedupe silently dropped the SECOND object wholesale (24
+    // objects across the three games): zork2's GAZEBO-TABLE lost adjective
+    // 'tea' to PTABLE, unicorn lost 'animal', zork3's cell door lost
+    // 'locked'. The dropped words vanished from vocabWordSet (stage-4
+    // passthrough), noun surface matching, AND the emit-uniqueness
+    // computation. Duplicate canonicals must MERGE, preserving the first
+    // object's declaration order (computeEmit is order-sensitive).
+    const d = `
+      <OBJECT PTABLE (SYNONYM TABLE) (ADJECTIVE DUSTY) (DESC "table")>
+      <OBJECT GAZEBO-TABLE (SYNONYM TABLE STAND) (ADJECTIVE TEA) (DESC "table")>`
+    const nouns = extractNouns(d, '')
+    const table = nouns.find(n => n.canonical === 'table')
+    expect(table.synonyms).toEqual(['stand'])
+    expect(table.adjectives).toEqual(['dusty', 'tea'])
+  })
+
+  it('reports each merged duplicate via the mergeLog parameter ([G])', () => {
+    const d = `
+      <OBJECT PTABLE (SYNONYM TABLE) (ADJECTIVE DUSTY) (DESC "table")>
+      <OBJECT GAZEBO-TABLE (SYNONYM TABLE STAND) (ADJECTIVE TEA) (DESC "table")>`
+    const log = []
+    extractNouns(d, '', undefined, log)
+    expect(log).toEqual([
+      {
+        canonical: 'table',
+        mergedSynonyms: ['stand'],
+        mergedAdjectives: ['tea'],
+      },
+    ])
+  })
+
   it('throws when two entries end up with the same final emit', () => {
     // ROPE has no SYNONYM, so it falls back to its canonical 'rope'; COIL's
     // bare synonym 'rope' is unique among synDecls (ROPE declares none), so

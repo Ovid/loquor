@@ -634,7 +634,7 @@ export const ZORK2_VOCAB: Vocab = {
     {
       canonical: 'enormous menhir',
       emit: 'menhir',
-      synonyms: ['menhir', 'rock', 'stone'],
+      synonyms: ['f', 'menhir', 'rock', 'stone'],
       adjectives: ['enormous', 'heavy', 'huge'],
     },
     {
@@ -1048,7 +1048,7 @@ export const ZORK2_VOCAB: Vocab = {
     {
       canonical: 'table',
       emit: 'dusty table',
-      adjectives: ['dusty', 'wooden'],
+      adjectives: ['dusty', 'tea', 'wooden'],
     },
     {
       canonical: 'three-headed dog',
@@ -1071,6 +1071,7 @@ export const ZORK2_VOCAB: Vocab = {
     {
       canonical: 'unicorn',
       emit: 'unicorn',
+      synonyms: ['animal'],
       adjectives: ['beautiful', 'white'],
     },
     {

@@ -82,4 +82,14 @@ describe('Scrollback', () => {
     expect(p.textContent).not.toContain('›')
     expect(p).toHaveClass('echo')
   })
+
+  it('renders the shimmer style on pending lines (output-translation spec §6)', () => {
+    render(
+      <Scrollback
+        lines={[{ id: 1, kind: 'output', text: '…traduction', pending: true }]}
+      />,
+    )
+    const p = screen.getByText('…traduction').closest('p')!
+    expect(p.className).toContain('xl-pending')
+  })
 })

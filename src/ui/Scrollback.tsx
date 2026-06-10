@@ -1,12 +1,12 @@
 import { useEffect, useRef, type ReactNode } from 'react'
-import type { BufferLine } from '../glkote-react/types'
+import type { DisplayLine } from '../translate/useOutputTranslation'
 
 export function Scrollback({
   lines,
   onActivate,
   children,
 }: {
-  lines: BufferLine[]
+  lines: DisplayLine[]
   /** Focus the prompt when the player clicks into the transcript. */
   onActivate?: () => void
   /** The inline command prompt, rendered at the end of the transcript. */
@@ -40,13 +40,13 @@ export function Scrollback({
         <p
           key={l.id}
           className={
-            l.kind === 'room'
+            (l.kind === 'room'
               ? 'room'
               : l.kind === 'input'
                 ? 'echo'
                 : l.kind === 'nl-source'
                   ? 'nl-source'
-                  : ''
+                  : '') + (l.pending ? ' xl-pending' : '')
           }
         >
           {l.kind === 'input' ? (

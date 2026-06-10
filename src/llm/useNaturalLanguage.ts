@@ -396,18 +396,25 @@ export function useNaturalLanguage(
         clause: string,
         scene: Scene,
       ): Promise<{ result: TranslateResult; raw: string; stage: Stage }> => {
+        // Stages 3–4 GATE on a trailing-punctuation-stripped form, so they
+        // must SEND that same form ([C]): Zork's dictionary separators are
+        // exactly `. , "`, so a surviving `!?:;` glues onto the last word —
+        // "take lamp!" passed the all-parser-words gate verbatim and earned
+        // "I don't know the word lamp!" from the very stage built to prevent
+        // that. splitClauses already consumed `.`/`;`; this catches the rest.
+        const stripped = clause.replace(/[!.?,;:]+$/, '').trim()
         // 3. Z-machine meta-verbs (restart, save, quit…) are not in-world
         // actions and have no canonical translation — route them raw so the
         // model can't invent a wrong command for them. A localized command
         // word (fr "inventaire") maps to its English canonical via the ACTIVE
         // core lexicon (UAT F5), again bypassing the model.
-        if (isMetaCommand(clause))
+        if (isMetaCommand(stripped))
           return {
-            result: { kind: 'command', text: clause },
+            result: { kind: 'command', text: stripped },
             raw: '(meta)',
             stage: 'meta',
           }
-        const alias = metaAlias(clause, lex?.core ?? null)
+        const alias = metaAlias(stripped, lex?.core ?? null)
         if (alias)
           return {
             result: { kind: 'command', text: alias },
@@ -418,9 +425,9 @@ export function useNaturalLanguage(
         // clause verbatim, no inference (the F-H killer). COLLISION GUARD: a
         // token that is also an active-lexicon word disqualifies passthrough —
         // the clause must go through the lexicon parse instead (spec §4).
-        if (isVocabPassthrough(clause, vocab, lex?.words ?? null))
+        if (isVocabPassthrough(stripped, vocab, lex?.words ?? null))
           return {
-            result: { kind: 'command', text: clause.trim() },
+            result: { kind: 'command', text: stripped },
             raw: '(vocab)',
             stage: 'vocab',
           }

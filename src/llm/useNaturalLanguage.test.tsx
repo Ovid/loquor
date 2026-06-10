@@ -448,6 +448,41 @@ describe('useNaturalLanguage', () => {
     expect(generateSpy).not.toHaveBeenCalled() // model never consulted
   })
 
+  it('stage-4 passthrough sends the normalized line the gate validated ([C] — take lamp!)', async () => {
+    // isVocabPassthrough strips trailing [!.?,;:] before tokenizing; the send
+    // must use that SAME form. Zork's dictionary separators are exactly
+    // `. , "`, so a surviving '!' glues onto the last word and the stage
+    // built to prevent parser errors produces one ("I don't know the word
+    // door!").
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"look"}',
+    })
+    const generateSpy = vi.spyOn(engine, 'generate')
+    const { hook, sendLine } = setup({ engine })
+    await reachOn(hook)
+    await act(async () => {
+      await hook.result.current.translate('open trap door!')
+    })
+    expect(sendLine).toHaveBeenCalledWith('open trap door')
+    expect(generateSpy).not.toHaveBeenCalled()
+  })
+
+  it('stage-3 meta sends the normalized form it matched ([C] — save!)', async () => {
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"look"}',
+    })
+    const generateSpy = vi.spyOn(engine, 'generate')
+    const { hook, sendLine } = setup({ engine })
+    await reachOn(hook)
+    await act(async () => {
+      await hook.result.current.translate('save!')
+    })
+    expect(sendLine).toHaveBeenCalledWith('save')
+    expect(generateSpy).not.toHaveBeenCalled()
+  })
+
   it('a reply to a yes/no confirmation prompt bypasses the model (restart flow)', async () => {
     // After "restart", Zork asks "Do you wish to restart? (Y is affirmative):"
     // as a LINE read. The player's "Y" must answer the game, not be translated

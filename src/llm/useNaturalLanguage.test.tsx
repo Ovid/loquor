@@ -427,6 +427,9 @@ describe('useNaturalLanguage', () => {
     )
     act(() => hook.result.current.requestDownload())
     act(() => hook.result.current.requestDownload())
+    // Aborting the first load rejects its promise; flush that rejection's
+    // state update inside act() so it doesn't warn after the test returns.
+    await act(async () => {})
     expect(signals).toHaveLength(2)
     expect(signals[0].aborted).toBe(true)
     expect(signals[1].aborted).toBe(false)
@@ -1787,14 +1790,24 @@ describe('NL v2 pipeline stages (spec §4)', () => {
     const { hook, sendLine } = await setupFr({
       engine: new FakeLlmEngine({ cached: true, failGenerate: true }),
     })
-    await act(async () => {
-      await hook.result.current.translate(
-        'frobnicate la trappe et ouvre la trappe',
-      )
-    })
-    expect(sendLine).not.toHaveBeenCalled() // non-EN abstain policy: nothing sent
-    expect(hook.result.current.notice).toMatch(/translation failed/i)
-    expect(hook.result.current.notice).not.toMatch(/couldn.t translate/i)
+    // The genuine engine error IS console.error'd by design — capture and
+    // assert it so the test owns the log instead of leaking it to stderr.
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      await act(async () => {
+        await hook.result.current.translate(
+          'frobnicate la trappe et ouvre la trappe',
+        )
+      })
+      expect(sendLine).not.toHaveBeenCalled() // non-EN abstain policy: nothing sent
+      expect(hook.result.current.notice).toMatch(/translation failed/i)
+      expect(hook.result.current.notice).not.toMatch(/couldn.t translate/i)
+      expect(
+        errorSpy.mock.calls.filter(c => String(c[0]).includes('[nl]')),
+      ).not.toEqual([])
+    } finally {
+      errorSpy.mockRestore()
+    }
   })
 
   it('stage 8: a compound whose FIRST clause times out is labeled a timeout (Task 21 review)', async () => {

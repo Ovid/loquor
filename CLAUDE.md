@@ -132,6 +132,12 @@ npx vitest run -t "substring of test name"    # by name
 
 - **TDD throughout** (the plan is written red→green→refactor); **frequent, small
   commits** — one per plan step.
+- **Tests emit only test data — output stays pristine.** A passing test must
+  produce no stray `console.error`/`console.warn` and no React `act(...)`
+  warnings on stderr. A test that exercises an error/log path must **spy on and
+  assert** the expected output (`const s = vi.spyOn(console, 'error')
+  .mockImplementation(() => {})` in a `try { … } finally { s.mockRestore() }`,
+  then assert it was called), so the test *owns* the log instead of leaking it.
 - End commit messages with: `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`.
 - Self-host fonts (Fontsource, OFL) — **no CDN font loads**; the offline/privacy
   promise depends on it.

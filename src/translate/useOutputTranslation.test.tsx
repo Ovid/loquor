@@ -152,12 +152,23 @@ describe('LLM fallback on live misses (spec §6)', () => {
   it('generation failure → English, logged', async () => {
     const engine = new FakeLlmEngine({ failGenerate: true })
     await engine.load(() => {}, new AbortController().signal)
-    const { result, rerender } = setup({ engine, initial: view([]) })
-    rerender({ v: view([line('output', 'An unknown line.')]), lang: 'fr' })
-    await waitFor(() =>
-      expect(result.current.lines[0].text).toBe('An unknown line.'),
-    )
-    expect(readMisses().length).toBeGreaterThan(0)
+    // A genuine engine failure IS surfaced to the console on purpose (a broken
+    // engine must stay visible, not silently degrade) — capture and assert it
+    // here so the test owns the log instead of leaking it to the run output.
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { result, rerender } = setup({ engine, initial: view([]) })
+      rerender({ v: view([line('output', 'An unknown line.')]), lang: 'fr' })
+      await waitFor(() =>
+        expect(result.current.lines[0].text).toBe('An unknown line.'),
+      )
+      expect(readMisses().length).toBeGreaterThan(0)
+      expect(
+        errorSpy.mock.calls.filter(c => String(c[0]).includes('[xlate]')),
+      ).not.toEqual([])
+    } finally {
+      errorSpy.mockRestore()
+    }
   })
 })
 

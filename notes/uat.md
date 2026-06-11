@@ -11,6 +11,21 @@ session loses time to something avoidable.
   produces no `you` lines and the Turns counter doesn't move. One
   `left_click` on the `> type a command…` line fixes it. Verify the turn
   counter moved before assuming commands landed.
+- **The browser window can resize between screenshots** (UAT-5 saw
+  1400×846 → 1490×763 → 1531×784) — this MOVES the transcript input off
+  the y-coordinate you last clicked, so a whole batch of typed commands
+  silently vanishes (same signature as the focus-steal above: no `you`
+  lines, Turns counter frozen). After any gap, screenshot fresh, find the
+  `> type a command…` line at its CURRENT position, click it, and verify
+  the turn counter moved before batching more.
+- **Quoted-passthrough (`"take all"`) makes the transcript read
+  all-English.** It's the reliable way to reach exact game responses, but
+  it skips the target-language `you` line, leaving only the English `> …`
+  canonical echo. Harmless for testing, but MISLEADING if a human is
+  watching the screen (UAT-5: Ovid asked why the commands weren't French).
+  When demoing the feature, type real target-language input so both the
+  `you <French>` line and the `> <English canonical>` echo show. The
+  English canonical echo is BY DESIGN (spec §2.5), not a bug.
 - The language picker is a CUSTOM combobox (since 2026-06-10), not a native
   `<select>` — `form_input` no longer applies. Click the trigger (the
   `Language:` control), then click the option (`Français`, `Deutsch`,

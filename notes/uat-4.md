@@ -81,12 +81,14 @@ autofix to avoid touching unrelated uncommitted WIP in the tree).
   (waves bunched at single capture timestamps, carrying their ORIGINAL
   scene data verbatim, growing by the full buffer each wave). No code
   change. Technique recorded in notes/uat.md.
-- **Miss-log noise:** old bare-`>` entries persist in the localStorage ring
-  buffer from sessions before 3e5205a; current session no longer adds them.
-  Also, a fallback-served line logs on every occurrence (per spec — it stays
-  a corpus gap even when cached) and sometimes twice per occurrence
-  (StrictMode-ish double effect?) — fine for the improvement loop, but worth
-  knowing when reading dumps.
+- ~~**Miss-log noise:** a fallback-served line logs repeatedly (~7 entries
+  for 2 occurrences).~~ **Root-caused and fixed in a follow-up this session**
+  (`e5a45c4`): corpus re-activation (language re-switch, HMR module swap,
+  session restore) re-scans the transcript and re-logged every on-screen
+  miss via the backlog path — the per-activation guards reset by design, so
+  `logMiss` itself now dedupes by `(game, language, en)`; the ring buffer is
+  a set of distinct gaps and `window.loquorMisses()` dumps are clean. The
+  old bare-`>` entries were pre-3e5205a leftovers (cleared with the buffer).
 
 ## Session technique notes
 

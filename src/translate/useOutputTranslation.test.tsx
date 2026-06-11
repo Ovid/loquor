@@ -179,6 +179,14 @@ describe('bare prompt line (UAT: the phantom castle)', () => {
     expect(engine.generateCalls).toBe(0)
     expect(readMisses()).toEqual([])
   })
+
+  it("activation purges a poisoned '>' cache entry left by an earlier session", async () => {
+    await cacheSet('test-sig', 'fr', '>', 'Vous êtes dans un petit château.')
+    setup({ initial: view([]) })
+    await waitFor(async () =>
+      expect(await cacheGet('test-sig', 'fr', '>')).toBeUndefined(),
+    )
+  })
 })
 
 describe('backlog rule (spec §3: matcher + CACHE hits only)', () => {

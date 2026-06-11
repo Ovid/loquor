@@ -2,7 +2,7 @@
 // generation per device, ever. Lives in the existing 'kv' store under a key
 // prefix — a dedicated object store would force a DB version bump for a flat
 // string→string map the kv API already models.
-import { idbGet, idbSet } from '../storage/idb'
+import { idbDel, idbGet, idbSet } from '../storage/idb'
 
 const key = (game: string, language: string, en: string) =>
   `xlate:${game}:${language}:${en}`
@@ -18,3 +18,6 @@ export const cacheSet = (
   en: string,
   translation: string,
 ) => idbSet(key(game, language, en), translation)
+
+export const cacheDelete = (game: string, language: string, en: string) =>
+  idbDel(key(game, language, en))

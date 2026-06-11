@@ -15,7 +15,7 @@ import { corpusFor } from './corpus/index'
 import { compileCorpus, matchLine, type CompiledCorpus } from './match'
 import { normalize, splitIndent, untranslatable } from './normalize'
 import { translateStatus } from './statusTranslate'
-import { cacheGet, cacheSet } from './fallbackCache'
+import { cacheDelete, cacheGet, cacheSet } from './fallbackCache'
 import { installMissDump, logMiss } from './missLog'
 import { shimmerLabel, xlPrompt } from './xlPrompt'
 
@@ -119,7 +119,12 @@ export function useOutputTranslation(args: {
     backlogRef.current = new Set(viewRef.current.lines.map(l => l.id))
     basisRef.current = new Map()
     lastStatusMissRef.current = null
-  }, [corpus])
+    // Hygiene for devices that played before the untranslatable() guard: a
+    // live '>' could cache a hallucinated "translation". The guard makes the
+    // key dead, but delete it too — fire-and-forget, like cacheSet.
+    if (corpus && lang !== null)
+      void cacheDelete(signature, lang, '>').catch(() => {})
+  }, [corpus, lang, signature])
 
   // Async fallback for live misses (and miss logging for backlog/status).
   useEffect(() => {

@@ -283,4 +283,57 @@ describe('reduce', () => {
     const view = reduce(emptyView, update as any)
     expect(view.lines[0].kind).toBe('room')
   })
+
+  // UAT-4: container/inventory listings were styled as room headings. A room
+  // title is never indented and never ends with ':' — listing entries arrive
+  // with their nesting indent, listing headers with a trailing colon.
+  it('classifies a listing header (trailing colon) as output, not room (UAT-4)', () => {
+    const update = {
+      type: 'update',
+      gen: 1,
+      content: [
+        {
+          id: 102,
+          text: [{ content: ['normal', 'The glass bottle contains:'] }],
+        },
+      ],
+      input: [],
+    }
+    const view = reduce(emptyView, update as any)
+    expect(view.lines[0].kind).toBe('output')
+  })
+
+  it('classifies an indented listing entry as output, not room (UAT-4)', () => {
+    const update = {
+      type: 'update',
+      gen: 1,
+      content: [
+        {
+          id: 102,
+          text: [{ content: ['normal', '  A quantity of water'] }],
+        },
+      ],
+      input: [],
+    }
+    const view = reduce(emptyView, update as any)
+    expect(view.lines[0].kind).toBe('output')
+  })
+
+  it('keeps the banner title (mid-line colon) as a room heading', () => {
+    const update = {
+      type: 'update',
+      gen: 1,
+      content: [
+        {
+          id: 102,
+          text: [
+            { content: ['normal', 'ZORK I: The Great Underground Empire'] },
+          ],
+        },
+      ],
+      input: [],
+    }
+    const view = reduce(emptyView, update as any)
+    expect(view.lines[0].kind).toBe('room')
+  })
 })

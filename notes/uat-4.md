@@ -73,9 +73,14 @@ autofix to avoid touching unrelated uncommitted WIP in the tree).
   Gotcha for future sessions: a `reduce.ts` edit does NOT reach the running
   page via HMR (the live bridge holds the old closure) — hard-reload before
   judging a reducer change.
-- **`nl debug` log replay:** every new turn re-logs the entire clause history
-  (input layer) — log noise that makes console debugging harder; possibly an
-  effect re-run. Input-layer issue, not output translation.
+- ~~**`nl debug` log replay:** every new turn re-logs the entire clause
+  history.~~ **Investigated in a follow-up this session: NOT an app bug.**
+  An in-page `console.log` patch proved each clause logs exactly once from
+  the live translate path; the "replays" were the Claude-in-Chrome console
+  capture re-delivering the page's buffered history on tool-call re-attach
+  (waves bunched at single capture timestamps, carrying their ORIGINAL
+  scene data verbatim, growing by the full buffer each wave). No code
+  change. Technique recorded in notes/uat.md.
 - **Miss-log noise:** old bare-`>` entries persist in the localStorage ring
   buffer from sessions before 3e5205a; current session no longer adds them.
   Also, a fallback-served line logs on every occurrence (per spec — it stays

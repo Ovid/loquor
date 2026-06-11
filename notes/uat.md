@@ -21,6 +21,14 @@ session loses time to something avoidable.
   per-clause `{stage, antecedent, inScope, raw, result}` — the fastest way to
   tell deterministic-lexicon hits from LLM fallbacks and to find root causes.
   `clear: true` after big reads keeps later reads small.
+- **Console dumps DUPLICATE old messages** (UAT-4): the capture layer
+  re-delivers the page's buffered console history when tool calls re-attach,
+  stamping it with fresh timestamps — full waves of historical `nl debug`
+  lines bunched at one second look like the app replaying each turn. It
+  isn't. Before chasing "replayed logs", patch `console.log` in-page
+  (`javascript_tool`) to count REAL calls; duplicates carrying stale scene
+  data verbatim are the artifact. Tracking also resets on page reload —
+  an empty read after a reload doesn't mean the app logged nothing.
 - Batch moves 4–6 per `browser_batch` with 1s waits; screenshot only at the
   end. Deterministic translations are instant; only wait 4–8s when
   `…thinking` (LLM fallback) appears.

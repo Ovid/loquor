@@ -80,6 +80,21 @@ const OUT_REF = /\{(obj2?)\.([A-Za-z]+)\}|\{(num2?)\}|\{(raw)\}/g
 
 /** Given a NORMALIZED English line, return its translation or null (miss). */
 export function matchLine(c: CompiledCorpus, line: string): string | null {
+  const direct = matchOnce(c, line)
+  if (direct !== null) return direct
+  // Glued input-prompt residue: a CR-less question (the restart/quit
+  // Y-prompts) merges with the '>' line-input prompt into ONE BufferLine.
+  // The residue is chrome, not identity — retry without it and re-append it
+  // verbatim. One level only; the bare '>' line itself never gets here
+  // (untranslatable() guards it upstream).
+  if (line.endsWith(' >')) {
+    const hit = matchOnce(c, line.slice(0, -2))
+    if (hit !== null) return hit + ' >'
+  }
+  return null
+}
+
+function matchOnce(c: CompiledCorpus, line: string): string | null {
   const exact = c.strings[line]
   if (exact !== undefined) return exact
 

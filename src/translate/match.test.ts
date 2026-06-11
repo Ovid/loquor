@@ -114,6 +114,23 @@ describe('matchLine: builtin listing template (spec §5)', () => {
   })
 })
 
+describe('matchLine: glued input-prompt residue (UAT-4)', () => {
+  // A CR-less question merges with the '>' line-input prompt into ONE
+  // BufferLine ("… (Y is affirmative): >"). The residue is chrome, not
+  // identity: strip it for lookup, re-append it verbatim to the hit.
+  it('an exact pin still hits when the prompt is glued on, and keeps the residue', () => {
+    expect(matchLine(c, 'Taken. >')).toBe('Pris. >')
+  })
+  it('a template still hits through the residue', () => {
+    expect(matchLine(c, 'There is a glass bottle here. >')).toBe(
+      'Il y a une bouteille en verre ici. >',
+    )
+  })
+  it('a miss stays a miss with the residue attached', () => {
+    expect(matchLine(c, 'Some line nobody wrote. >')).toBeNull()
+  })
+})
+
 describe('real Zork I French corpus smoke (Task 15)', () => {
   const real = compileCorpus(ZORK1_FR)
   it('quoted-unknown-word parser reply composes', () => {
@@ -155,6 +172,11 @@ describe('real Zork I French corpus smoke (Task 15)', () => {
     expect(
       matchLine(real, 'Your score is 350 (total of 350 points), in 365 moves.'),
     ).toBe('Votre score est de 350 (sur un total de 350 points), en 365 tours.')
+  })
+  it('the restart Y-prompt hits through its glued input prompt (UAT-4)', () => {
+    expect(
+      matchLine(real, 'Do you wish to restart? (Y is affirmative): >'),
+    ).toBe('Voulez-vous recommencer ? (Y pour oui) : >')
   })
   it('implicit-take parenthetical is pinned (UAT-4: "read leaflet" while not holding it)', () => {
     expect(matchLine(real, '(Taken)')).toBe('(Pris)')

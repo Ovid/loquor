@@ -31,7 +31,23 @@ export function readMisses(store?: Storage): MissEntry[] {
 export function logMiss(entry: MissEntry, store?: Storage): void {
   try {
     const s = store ?? localStorage
-    const all = [...readMisses(s), { ...entry, t: Date.now() }].slice(-MISS_CAP)
+    const existing = readMisses(s)
+    // The log is a SET of distinct corpus gaps (UAT-4): corpus re-activation
+    // (language re-switch, HMR, session restore) re-scans the transcript and
+    // would otherwise re-log every still-on-screen miss. Same (game,
+    // language, en) → already recorded; the original entry (first ctx) wins.
+    // `kind` is not identity — a 'backlog' re-log of a known 'line' gap is
+    // exactly the noise this skips.
+    if (
+      existing.some(
+        e =>
+          e.en === entry.en &&
+          e.game === entry.game &&
+          e.language === entry.language,
+      )
+    )
+      return
+    const all = [...existing, { ...entry, t: Date.now() }].slice(-MISS_CAP)
     s.setItem(KEY, JSON.stringify(all))
   } catch {
     // Private mode / quota — best-effort, never fatal.

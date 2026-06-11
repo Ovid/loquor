@@ -118,7 +118,7 @@ Tasks run through the `Makefile` (targets call tools via `npx`, so they work onc
 - `make install` / `make dev` / `make build` / `make preview`
 - `make test` — full suite (`vitest run`)
 - `make cover` — coverage (one-shot)
-- `make lint` (ESLint, autofix) / `make format` (Prettier) / `make typecheck` (`tsc --noEmit`)
+- `make lint` (ESLint, autofix) / `make format` (Prettier) / `make typecheck` (`tsc -b` — the root tsconfig is solution-style, so plain `tsc --noEmit` checks nothing)
 - `make all` — lint + format + typecheck + test
 
 Run a **single test** with Vitest directly:

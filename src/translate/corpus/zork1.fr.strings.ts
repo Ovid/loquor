@@ -1245,6 +1245,8 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
   'It makes no sound but is always lurking in the darkness nearby.':
     'Il ne fait aucun bruit mais rôde toujours dans les ténèbres, tout près.',
   'The disk is correct.': 'Le disque est correct.',
+  // V-VERIFY's joke failure banner (gverbs.zil:128), sibling of the two above.
+  '** Disk Failure **': '** Panne de disque **',
   'Beats me.': 'Aucune idée.',
   'How peculiar!': 'Curieux !',
   "You're inside of it!": "Vous êtes à l'intérieur !",
@@ -1853,6 +1855,12 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
     'Vous êtes mort ! Comment pouvez-vous penser à votre score ?',
   'You have no possessions.': 'Vous ne possédez rien.',
   'You are dead.': 'Vous êtes mort.',
+  // JIGS-UP death banners (gverbs.zil JIGS-UP, 1actions.zil:4060/:2467).
+  // Star-delimited decoration kept verbatim; «mort» (masc.) matches the
+  // corpus convention ('You are dead.' → 'Vous êtes mort.'). Off the golden
+  // path, so the walkthrough gate never reaches them.
+  '**** You have died ****': '**** Vous êtes mort ****',
+  '** BOOOOOOOOOOOM **': '** BOUUUUUUUUUUM **',
   'Although there is no light, the room seems dimly illuminated.':
     "Bien qu'il n'y ait aucune lumière, la salle semble faiblement éclairée.",
   'From the distance the sound of a lone trumpet is heard. The room becomes very bright and you feel disembodied. In a moment, the brightness fades and you find yourself rising as if from a long sleep, deep in the woods. In the distance you can faintly hear a songbird and the sounds of the forest.':

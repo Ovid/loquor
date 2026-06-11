@@ -21,6 +21,10 @@ const buf = new Uint8Array(
 const fullLine = (s: string) => /^[A-Z"'(]/.test(s) && /[.!?:")]$/.test(s)
 /** Room-title shape (mirrors the reducer's classify()). */
 const roomTitle = (s: string) => /^[A-Z][^.!?]{2,40}$/.test(s)
+/** Star-delimited banner shape (death/end banners: "**** … ****"). These
+ * lead with decoration, so neither fullLine nor roomTitle recognizes them —
+ * yet they are full display lines the player sees and must be translated. */
+const banner = (s: string) => /^\*{2,}\s*\S.*\S\s*\*{2,}$/.test(s)
 
 describe('string-inventory gate (spec §7.4)', () => {
   it('every full-line inventory entry matches the corpus', () => {
@@ -28,7 +32,7 @@ describe('string-inventory gate (spec §7.4)', () => {
     const ignore = new Set<string>(ZORK1_EXTRACTION_IGNORE)
     const misses: string[] = []
     for (const line of displayLines(extractStrings(buf))) {
-      if (!fullLine(line) && !roomTitle(line)) continue
+      if (!fullLine(line) && !roomTitle(line) && !banner(line)) continue
       if (ignore.has(line)) continue
       if (matchLine(c, line) === null) misses.push(line)
     }

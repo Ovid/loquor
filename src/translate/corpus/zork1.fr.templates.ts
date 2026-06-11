@@ -124,6 +124,12 @@ export const ZORK1_FR_TEMPLATES: readonly Template[] = [
   // gverbs.zil:1835 (PRINT-CONT) — «il y a» dodges «contient/contiennent».
   { en: 'The {obj} contains:', out: 'Dans {obj.def}, il y a :' },
   { en: '(You are in the {obj}.)', out: '(Vous êtes dans {obj.def}.)' },
+  // GWIM/orphan parentheticals (gparser.zil) — the parser echoing the noun it
+  // assumed: bare "take" → "(sword)"; implicit tool → "(with the shovel)".
+  // UAT-4 misses; only "(magic boat)" (the fixture's one instance) had been
+  // pinned as a full line.
+  { en: '({obj})', out: '({obj.def})' },
+  { en: '(with the {obj})', out: '(avec {obj.def})' },
 
   // ── Score (1actions.zil V-SCORE :4028-4033; " move." is the MOVES=1
   //    variant in the same routine; fixture: "Your score is 350 (total of

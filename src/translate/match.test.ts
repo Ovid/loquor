@@ -159,6 +159,12 @@ describe('real Zork I French corpus smoke (Task 15)', () => {
   it('implicit-take parenthetical is pinned (UAT-4: "read leaflet" while not holding it)', () => {
     expect(matchLine(real, '(Taken)')).toBe('(Pris)')
   })
+  it('implicit-noun parenthetical composes for any object (UAT-4: bare "take" → "(sword)")', () => {
+    expect(matchLine(real, '(sword)')).toBe("(l'épée)")
+  })
+  it('implicit-tool parenthetical composes ("(with the shovel)" — GWIM)', () => {
+    expect(matchLine(real, '(with the shovel)')).toBe('(avec la pelle)')
+  })
   it('multi-object command prefix line composes ({obj}: Dropped.)', () => {
     expect(matchLine(real, 'brass lantern: Dropped.')).toBe(
       'Vous posez la lampe en laiton.',

@@ -39,6 +39,10 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
   // «Pris.»/«Posé.» read as the curt parser acknowledgements they are; the
   // participle never agrees with anything (it abbreviates «c'est fait»).
   'Taken.': 'Pris.',
+  // Implicit-take parenthetical (PRE-TAKE in gverbs.zil — e.g. «read leaflet»
+  // while not holding it). UAT-4 miss; off the golden path, so the coverage
+  // gate cannot pin it.
+  '(Taken)': '(Pris)',
   'Dropped.': 'Posé.',
   'Opened.': "C'est ouvert.",
   'Closed.': "C'est fermé.",

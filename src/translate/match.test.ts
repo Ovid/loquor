@@ -156,6 +156,9 @@ describe('real Zork I French corpus smoke (Task 15)', () => {
       matchLine(real, 'Your score is 350 (total of 350 points), in 365 moves.'),
     ).toBe('Votre score est de 350 (sur un total de 350 points), en 365 tours.')
   })
+  it('implicit-take parenthetical is pinned (UAT-4: "read leaflet" while not holding it)', () => {
+    expect(matchLine(real, '(Taken)')).toBe('(Pris)')
+  })
   it('multi-object command prefix line composes ({obj}: Dropped.)', () => {
     expect(matchLine(real, 'brass lantern: Dropped.')).toBe(
       'Vous posez la lampe en laiton.',

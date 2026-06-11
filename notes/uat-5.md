@@ -49,7 +49,7 @@ path rather than a fresh boot.
 
 Commit `d4ad367` (fix(corpus): pin the JIGS-UP death/explosion banners +
 Disk Failure). Browser re-test after HMR re-scan: the on-screen death
-banner flipped from English to « **** Vous êtes mort **** » (indent
+banner flipped from English to « \***\* Vous êtes mort \*\*** » (indent
 preserved). Full suite 672/672; tsc/eslint/prettier clean on touched files.
 
 - **Death banner rendered in English** — `**** You have died ****` (raw
@@ -64,7 +64,7 @@ preserved). Full suite 672/672; tsc/eslint/prettier clean on touched files.
     `**** You have died ****`, `** BOOOOOOOOOOOM **` (gas-room explosion
     death, 1actions.zil:2467), `** Disk Failure **` (V-VERIFY joke,
     gverbs.zil:128).
-  - GREEN: pinned all three — « **** Vous êtes mort **** » (masc. «mort»
+  - GREEN: pinned all three — « \***\* Vous êtes mort \*\*** » (masc. «mort»
     per corpus convention), « ** BOUUUUUUUUUUM ** », « ** Panne de
     disque ** » (sits with its verify siblings).
 
@@ -73,10 +73,10 @@ preserved). Full suite 672/672; tsc/eslint/prettier clean on touched files.
 - **`take all` with a special event message** — `take all` over the pile
   of leaves above the grating prints the composed line
   `pile of leaves: In disturbing the pile of leaves, a grating is
-  revealed.` (object-name prefix glued to a one-off event message), which
+revealed.` (object-name prefix glued to a one-off event message), which
   rendered English (engine cold). This is the exact "multi-item reveal /
   non-canonical line shape" the spec §8 execution note **defers to the LLM
-  fallback**. Narrower than it first looked: the underlying message *is*
+  fallback**. Narrower than it first looked: the underlying message _is_
   pinned (singular `move leaves` translates instantly), and the **common**
   take-all composed shape `{obj}: Taken.` **is** templated
   (« Vous prenez {obj.def}. ») — only the special-message variant misses,

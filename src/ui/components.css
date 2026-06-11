@@ -133,6 +133,9 @@
   margin: 0 0 14px;
   opacity: 0;
   animation: rise 0.5s ease forwards;
+  /* Listing entries carry a leading nesting indent ("  A quantity of
+     water") the VM means literally — preserve it (UAT-4). */
+  white-space: pre-wrap;
 }
 .scroll .echo {
   color: var(--brass-soft);

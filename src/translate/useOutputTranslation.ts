@@ -13,7 +13,7 @@ import { EngineGate } from '../llm/engineGate'
 import type { TranslationCorpus } from './types'
 import { corpusFor } from './corpus/index'
 import { compileCorpus, matchLine, type CompiledCorpus } from './match'
-import { normalize, splitIndent } from './normalize'
+import { normalize, splitIndent, untranslatable } from './normalize'
 import { translateStatus } from './statusTranslate'
 import { cacheGet, cacheSet } from './fallbackCache'
 import { installMissDump, logMiss } from './missLog'
@@ -196,10 +196,13 @@ export function useOutputTranslation(args: {
       }
     }
 
+    // Skipping the bare '>' prompt here matters beyond noise: Scrollback hides
+    // it only while its text is literally '>' — a hallucinated "translation"
+    // would unhide it as phantom game output (and poison the cache).
     for (const l of view.lines) {
       if (l.kind !== 'output' && l.kind !== 'room') continue
       const en = normalize(splitIndent(l.text).body)
-      if (en === '') continue
+      if (untranslatable(en)) continue
       if (matchLine(corpus, en) !== null) continue
       if (backlogRef.current.has(l.id)) {
         // Gate on TEXT, not id: an append merge onto a backlog tail line
@@ -246,7 +249,7 @@ export function useOutputTranslation(args: {
       if (l.kind !== 'output' && l.kind !== 'room') return l
       const { indent, body } = splitIndent(l.text)
       const en = normalize(body)
-      if (en === '') return l
+      if (untranslatable(en)) return l
       const hit = matchLine(corpus, en)
       if (hit !== null) return { ...l, text: indent + hit }
       const o = resolved?.get(l.id)

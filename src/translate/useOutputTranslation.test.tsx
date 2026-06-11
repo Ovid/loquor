@@ -161,6 +161,26 @@ describe('LLM fallback on live misses (spec §6)', () => {
   })
 })
 
+describe('bare prompt line (UAT: the phantom castle)', () => {
+  it("a live '>' line never reaches the fallback — no generation, no cache, no log", async () => {
+    const engine = new FakeLlmEngine({
+      default: 'Vous êtes dans un petit château.',
+    })
+    await engine.load(() => {}, new AbortController().signal)
+    // A hallucination poisoned the cache in an earlier session; it must be
+    // dead — never consulted, never rendered.
+    await cacheSet('test-sig', 'fr', '>', 'Vous êtes dans un petit château.')
+    const { result, rerender } = setup({ engine, initial: view([]) })
+    rerender({ v: view([line('output', '>')]), lang: 'fr' })
+    // settle any wrongly-started async work before asserting
+    await act(async () => {})
+    expect(result.current.lines[0].text).toBe('>')
+    expect(result.current.lines[0].pending).toBeUndefined()
+    expect(engine.generateCalls).toBe(0)
+    expect(readMisses()).toEqual([])
+  })
+})
+
 describe('backlog rule (spec §3: matcher + CACHE hits only)', () => {
   it('backlog lines: table and cache hits apply; uncached misses stay English; nothing generates', async () => {
     const engine = new FakeLlmEngine({ default: 'should-not-appear' })

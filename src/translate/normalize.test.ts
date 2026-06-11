@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalize, splitIndent } from './normalize'
+import { normalize, splitIndent, untranslatable } from './normalize'
 
 describe('normalize (spec §4)', () => {
   it('collapses whitespace runs and trims', () => {
@@ -11,6 +11,17 @@ describe('normalize (spec §4)', () => {
   })
   it('empty / whitespace-only → empty string', () => {
     expect(normalize('   ')).toBe('')
+  })
+})
+
+describe('untranslatable (prompt chrome / empty lines)', () => {
+  it("empty and the bare '>' prompt are untranslatable", () => {
+    expect(untranslatable('')).toBe(true)
+    expect(untranslatable('>')).toBe(true)
+  })
+  it('prose is translatable', () => {
+    expect(untranslatable('Taken.')).toBe(false)
+    expect(untranslatable('> ahead')).toBe(false)
   })
 })
 

@@ -12,7 +12,7 @@ import { reduce } from '../../glkote-react/reduce'
 import { emptyView } from '../../glkote-react/types'
 import type { GlkOteUpdate, ViewState } from '../../glkote-react/types'
 import { compileCorpus, matchLine } from '../match'
-import { normalize, splitIndent } from '../normalize'
+import { normalize, splitIndent, untranslatable } from '../normalize'
 import { ZORK1_FR } from './zork1.fr'
 
 /** Reduce the committed walkthrough fixture to the lines a player would see. */
@@ -36,7 +36,7 @@ describe('walkthrough fixture (spec §7.3)', () => {
     for (const l of walkthroughLines()) {
       if (l.kind !== 'output' && l.kind !== 'room') continue
       const en = normalize(splitIndent(l.text).body)
-      if (en && en !== '>' && matchLine(c, en) === null) misses.add(en)
+      if (!untranslatable(en) && matchLine(c, en) === null) misses.add(en)
     }
     expect([...misses]).toEqual([])
   })

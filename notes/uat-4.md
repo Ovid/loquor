@@ -63,11 +63,16 @@ autofix to avoid touching unrelated uncommitted WIP in the tree).
 
 ## Out-of-scope observations (not fixed)
 
-- **Pre-existing styling quirk:** container/inventory listing lines ("The
-  glass bottle contains:", "A quantity of water", "You are carrying:", …)
-  render as room-title headings (small caps, brown) **in English too** — not
-  a translation regression; leading indent isn't visible in either language.
-  Reducer/line-kind classification, worth its own look.
+- ~~**Pre-existing styling quirk:** container/inventory listing lines render
+  as room-title headings; leading indent invisible.~~ **Fixed in a follow-up
+  this session** (`9ad70a8` + `1d009f2`): `classify()` now excludes indented
+  lines and trailing-colon lines (verified against every fixture buffer line:
+  demotes exactly the 34 listing lines, keeps all 71 room titles and the
+  banner heading), and `.scroll p` gained `white-space: pre-wrap` so the
+  nesting indent renders. Verified in-browser in English and French.
+  Gotcha for future sessions: a `reduce.ts` edit does NOT reach the running
+  page via HMR (the live bridge holds the old closure) — hard-reload before
+  judging a reducer change.
 - **`nl debug` log replay:** every new turn re-logs the entire clause history
   (input layer) — log noise that makes console debugging harder; possibly an
   effect re-run. Input-layer issue, not output translation.

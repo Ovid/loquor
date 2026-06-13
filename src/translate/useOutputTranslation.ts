@@ -285,7 +285,14 @@ export function useOutputTranslation(args: {
           }
         })
         const out = normalize(text)
-        if (out === '') throw new ExpectedXlateStop('empty translation')
+        // Run the model's OUTPUT through the same untranslatable() guard the
+        // input side applies (review I1): a hallucinated bare '>' (or other
+        // prompt chrome) normalizes non-empty, so without this it would settle
+        // as phantom game text AND poison the cache under the real EN key (which
+        // the activation-time '>' purge cannot evict). Treat it as a transient
+        // miss so the throw below skips both settle() and cacheSet().
+        if (untranslatable(out))
+          throw new ExpectedXlateStop('untranslatable output (empty or chrome)')
         retryRef.current.delete(id) // resolved — reset the retry budget
         settle(id, en, out)
         // Persist fire-and-forget: the translation is already on screen — a

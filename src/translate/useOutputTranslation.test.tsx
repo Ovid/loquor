@@ -143,6 +143,38 @@ describe('LLM fallback on live misses (spec §6)', () => {
     expect(engine.generateCalls).toBe(0)
   })
 
+  it('a model completion that is bare chrome (">") is rejected — no phantom output, no cache poison (review I1/S16a)', async () => {
+    // The model hallucinates the line-input prompt for a non-">" input. Its
+    // output must be run through the SAME untranslatable() guard the input side
+    // uses: render English (transient failure), never the ">", and never cache.
+    const engine = new FakeLlmEngine({ default: '>' })
+    await engine.load(() => {}, new AbortController().signal)
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { result, rerender } = setup({ engine, initial: view([]) })
+      rerender({ v: view([line('output', 'An unknown line.')]), lang: 'fr' })
+      await waitFor(() =>
+        expect(result.current.lines[0].text).toBe('An unknown line.'),
+      )
+      expect(result.current.lines[0].text).not.toBe('>') // no phantom output
+      expect(result.current.lines[0].pending).toBeUndefined()
+      expect(engine.generateCalls).toBe(1)
+      // the real EN key is never poisoned with the chrome completion
+      expect(await cacheGet('test-sig', 'fr', 'An unknown line.')).toBeUndefined()
+      // surfaced as a transient retry, not a silent settle
+      expect(
+        warnSpy.mock.calls.filter(c => String(c[0]).includes('will retry')),
+      ).not.toEqual([])
+      expect(
+        errorSpy.mock.calls.filter(c => String(c[0]).includes('[xlate]')),
+      ).toEqual([])
+    } finally {
+      warnSpy.mockRestore()
+      errorSpy.mockRestore()
+    }
+  })
+
   it('engine not loaded → English shown, miss logged, nothing generated, queued for retry (spec §6 failure + review F1)', async () => {
     const engine = new FakeLlmEngine({}) // never loaded
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})

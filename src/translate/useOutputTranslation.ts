@@ -227,18 +227,12 @@ export function useOutputTranslation(args: {
       // re-append the chrome to what renders.
       const { core, suffix } = splitPromptResidue(en)
       try {
-        // A cache-READ failure (transient IDB error: quota, private mode, tx
-        // abort/blocked) is neither a cache miss (undefined) nor an engine
-        // fault — treat it as a miss and fall through to the fallback, exactly
-        // as the backlog path's .catch(() => {}) does. Letting it reach the
-        // outer catch would both console.error a non-engine error (tripping the
-        // pristine-output guard) and skip the LLM fallback entirely.
-        let cached: string | undefined
-        try {
-          cached = await cacheGet(signature, lang, core)
-        } catch {
-          cached = undefined
-        }
+        // cacheGet folds a transient READ failure (quota, private mode, tx
+        // abort/blocked) into a miss (undefined) itself (review S6) — its
+        // contract is "value or undefined, never throws" — so a read fault can't
+        // reach the outer catch (which would console.error a non-engine error,
+        // trip the pristine-output guard, and skip the fallback entirely).
+        const cached = await cacheGet(signature, lang, core)
         if (cached !== undefined) {
           retryRef.current.delete(id)
           settle(id, en, cached + suffix)

@@ -5,7 +5,7 @@ import { useOutputTranslation } from './useOutputTranslation'
 import { EngineGate } from '../llm/engineGate'
 import { FakeLlmEngine } from '../llm/engine.fake'
 import { cacheGet, cacheSet } from './fallbackCache'
-import * as fallbackCache from './fallbackCache'
+import * as idb from '../storage/idb'
 import { readMisses } from './missLog'
 import type { ViewState, BufferLine } from '../glkote-react/types'
 import type { TranslationCorpus } from './types'
@@ -259,13 +259,14 @@ describe('LLM fallback on live misses (spec §6)', () => {
     }
   })
 
-  it('a transient cache-READ failure is treated as a miss → falls through to the fallback, no console.error (review I1)', async () => {
+  it('a transient cache-READ failure is treated as a miss → falls through to the fallback, no console.error (review I1/S6)', async () => {
     const engine = new FakeLlmEngine({ default: 'Repli généré.' })
     await engine.load(() => {}, new AbortController().signal)
     // The live resolve path consults the cache exactly once before generating;
-    // make that read reject (transient IDB error) — distinct from a miss.
+    // make the underlying IDB read reject (transient error) and prove the real
+    // cacheGet folds it into a miss (review S6) — distinct from a clean miss.
     const getSpy = vi
-      .spyOn(fallbackCache, 'cacheGet')
+      .spyOn(idb, 'idbGet')
       .mockRejectedValueOnce(new Error('idb read blew up'))
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {

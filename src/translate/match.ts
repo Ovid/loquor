@@ -85,13 +85,29 @@ export function matchLine(c: CompiledCorpus, line: string): string | null {
   // Glued input-prompt residue: a CR-less question (the restart/quit
   // Y-prompts) merges with the '>' line-input prompt into ONE BufferLine.
   // The residue is chrome, not identity — retry without it and re-append it
-  // verbatim. One level only; the bare '>' line itself never gets here
-  // (untranslatable() guards it upstream).
-  if (line.endsWith(' >')) {
-    const hit = matchOnce(c, line.slice(0, -2))
-    if (hit !== null) return hit + ' >'
+  // verbatim. Shares splitPromptResidue with the fallback so the two paths
+  // can't drift (review I4). One level only; the bare '>' line itself never
+  // gets here (untranslatable() guards it upstream).
+  const { core, suffix } = splitPromptResidue(line)
+  if (suffix !== '') {
+    const hit = matchOnce(c, core)
+    if (hit !== null) return hit + suffix
   }
   return null
+}
+
+/** Split the glued input-prompt residue (' >') off a line the same way
+ * matchLine does (review I4): a CR-less Y/N prompt merges with the bare '>'
+ * line-input prompt into one BufferLine. The residue is chrome, not identity —
+ * the LLM fallback translates/caches `core` and re-appends `suffix`, so a cache
+ * key never carries the residue. One level only; the bare '>' is guarded
+ * upstream by untranslatable(). */
+export function splitPromptResidue(line: string): {
+  core: string
+  suffix: string
+} {
+  if (line.endsWith(' >')) return { core: line.slice(0, -2), suffix: ' >' }
+  return { core: line, suffix: '' }
 }
 
 function matchOnce(c: CompiledCorpus, line: string): string | null {

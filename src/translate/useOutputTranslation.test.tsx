@@ -131,6 +131,33 @@ describe('LLM fallback on live misses (spec §6)', () => {
     expect(readMisses().some(m => m.en === 'An unknown line.')).toBe(true)
   })
 
+  it('a glued " >" input-prompt residue is split off before fallback: clean line translated, cached clean, residue re-appended (review I4)', async () => {
+    // A CR-less Y/N prompt merges with the bare ">" line-input prompt into ONE
+    // BufferLine. matchLine() strips the residue for corpus lookup; the fallback
+    // must do the same — translate the clean core, cache under the clean key,
+    // re-append the " >". The completion is keyed on the CLEAN core only, so a
+    // residue-bearing prompt reaching the model would miss it.
+    const engine = new FakeLlmEngine({
+      completions: { 'Some unknown question?': 'Une question inconnue ?' },
+    })
+    await engine.load(() => {}, new AbortController().signal)
+    const { result, rerender } = setup({ engine, initial: view([]) })
+    rerender({
+      v: view([line('output', 'Some unknown question? >')]),
+      lang: 'fr',
+    })
+    await waitFor(() =>
+      expect(result.current.lines[0].text).toBe('Une question inconnue ? >'),
+    )
+    // cached under the CLEAN key, not the residue-bearing one
+    expect(await cacheGet('test-sig', 'fr', 'Some unknown question?')).toBe(
+      'Une question inconnue ?',
+    )
+    expect(
+      await cacheGet('test-sig', 'fr', 'Some unknown question? >'),
+    ).toBeUndefined()
+  })
+
   it('cache hit resolves without generating', async () => {
     await cacheSet('test-sig', 'fr', 'An unknown line.', 'Depuis le cache.')
     const engine = new FakeLlmEngine({})

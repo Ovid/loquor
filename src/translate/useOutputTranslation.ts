@@ -12,7 +12,12 @@ import type { LexLang } from '../llm/lexicon/types'
 import { EngineGate } from '../llm/engineGate'
 import type { TranslationCorpus } from './types'
 import { corpusFor } from './corpus/index'
-import { compileCorpus, matchLine, type CompiledCorpus } from './match'
+import {
+  compileCorpus,
+  matchLine,
+  splitPromptResidue,
+  type CompiledCorpus,
+} from './match'
 import { normalize, splitIndent, untranslatable } from './normalize'
 import { translateStatus } from './statusTranslate'
 import { cacheDelete, cacheGet, cacheSet } from './fallbackCache'
@@ -216,6 +221,11 @@ export function useOutputTranslation(args: {
       // failEnglish): skip the duplicate miss log — the corpus gap was already
       // recorded on the first attempt.
       const isRetry = retryRef.current.get(id)?.en === en
+      // Strip the glued ' >' input-prompt residue the same way matchLine does
+      // (review I4): cache/translate the CLEAN core (so the key never carries
+      // the residue and matches the same line if it later arrives clean), then
+      // re-append the chrome to what renders.
+      const { core, suffix } = splitPromptResidue(en)
       try {
         // A cache-READ failure (transient IDB error: quota, private mode, tx
         // abort/blocked) is neither a cache miss (undefined) nor an engine
@@ -225,17 +235,17 @@ export function useOutputTranslation(args: {
         // pristine-output guard) and skip the LLM fallback entirely.
         let cached: string | undefined
         try {
-          cached = await cacheGet(signature, lang, en)
+          cached = await cacheGet(signature, lang, core)
         } catch {
           cached = undefined
         }
         if (cached !== undefined) {
           retryRef.current.delete(id)
-          settle(id, en, cached)
+          settle(id, en, cached + suffix)
           return
         }
         if (!isRetry)
-          logMiss({ en, game: signature, language: lang, kind: 'line', ctx })
+          logMiss({ en: core, game: signature, language: lang, kind: 'line', ctx })
         if (!engine.isLoaded())
           // Spec §6: model absent/still loading → English now, but as a
           // TRANSIENT failure (review S1/F1) so it re-attempts once the engine
@@ -269,7 +279,7 @@ export function useOutputTranslation(args: {
               ac.abort()
             }, watchdogMs)
           })
-          const gen = engine.generate(xlPrompt(en, lang), null, ac.signal)
+          const gen = engine.generate(xlPrompt(core, lang), null, ac.signal)
           try {
             return await Promise.race([gen, watchdog])
           } finally {
@@ -294,11 +304,12 @@ export function useOutputTranslation(args: {
         if (untranslatable(out))
           throw new ExpectedXlateStop('untranslatable output (empty or chrome)')
         retryRef.current.delete(id) // resolved — reset the retry budget
-        settle(id, en, out)
+        settle(id, en, out + suffix)
         // Persist fire-and-forget: the translation is already on screen — a
         // cache-write failure (quota, private mode) must not downgrade the
-        // rendered line back to English. Persistence ≠ display.
-        void cacheSet(signature, lang, en, out).catch(() => {})
+        // rendered line back to English. Persistence ≠ display. Keyed on the
+        // CLEAN core (review I4) so a later clean arrival of the same line hits.
+        void cacheSet(signature, lang, core, out).catch(() => {})
       } catch (err) {
         failEnglish(id, en, err)
       }
@@ -319,15 +330,19 @@ export function useOutputTranslation(args: {
         // basis guard drops the old text's still-in-flight resolution.
         if (basisRef.current.get(l.id) !== en) {
           basisRef.current.set(l.id, en)
-          logMiss({ en, game: signature, language: lang, kind: 'backlog', ctx })
+          // Read under the CLEAN core (review I4): the live path caches keys
+          // residue-free, so a backlog line carrying a ' >' residue must read
+          // the same way or it would miss its own earlier-session entry.
+          const { core, suffix } = splitPromptResidue(en)
+          logMiss({ en: core, game: signature, language: lang, kind: 'backlog', ctx })
           // Backlog rule (spec §3): matcher + CACHE hits only. A fallback
           // translation cached in an earlier session still applies after a
           // restore rebuild — no shimmer, no generation either way. Cache
           // unavailable (private mode, tx abort) ⇒ the line stays English,
           // which is the documented degradation.
-          void cacheGet(signature, lang, en)
+          void cacheGet(signature, lang, core)
             .then(cached => {
-              if (cached !== undefined) settle(l.id, en, cached)
+              if (cached !== undefined) settle(l.id, en, cached + suffix)
             })
             .catch(() => {})
         }

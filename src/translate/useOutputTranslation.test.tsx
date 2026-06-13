@@ -143,16 +143,61 @@ describe('LLM fallback on live misses (spec §6)', () => {
     expect(engine.generateCalls).toBe(0)
   })
 
-  it('engine not loaded → English shown, miss logged, nothing generated (spec §6 failure)', async () => {
+  it('engine not loaded → English shown, miss logged, nothing generated, queued for retry (spec §6 failure + review F1)', async () => {
     const engine = new FakeLlmEngine({}) // never loaded
-    const { result, rerender } = setup({ engine, initial: view([]) })
-    rerender({ v: view([line('output', 'An unknown line.')]), lang: 'fr' })
-    await waitFor(() =>
-      expect(readMisses().some(m => m.en === 'An unknown line.')).toBe(true),
-    )
-    expect(result.current.lines[0].text).toBe('An unknown line.')
-    expect(result.current.lines[0].pending).toBeUndefined()
-    expect(engine.generateCalls).toBe(0)
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const { result, rerender } = setup({ engine, initial: view([]) })
+      rerender({ v: view([line('output', 'An unknown line.')]), lang: 'fr' })
+      await waitFor(() =>
+        expect(readMisses().some(m => m.en === 'An unknown line.')).toBe(true),
+      )
+      expect(result.current.lines[0].text).toBe('An unknown line.')
+      expect(result.current.lines[0].pending).toBeUndefined()
+      expect(engine.generateCalls).toBe(0)
+      // a still-loading model is a TRANSIENT failure, not a permanent English
+      // pin (review F1): surfaced as a retry warning, not an engine error.
+      expect(
+        warnSpy.mock.calls.filter(c =>
+          String(c[0]).includes('engine not loaded'),
+        ),
+      ).not.toEqual([])
+    } finally {
+      warnSpy.mockRestore()
+    }
+  })
+
+  it('a live miss while the model is not yet in memory recovers once it loads (review F1)', async () => {
+    // Reload scenario: French auto-restored to 'on' (model cached on disk) but
+    // not in memory this session, so engine.isLoaded() is false until the input
+    // pipeline lazy-loads it on the first command. A LIVE miss in that window
+    // must not be pinned to English forever — it should re-attempt once the
+    // engine is loaded, exactly like the "engine unloaded while queued" path.
+    const engine = new FakeLlmEngine({ default: 'Repli après chargement.' })
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const l = line('output', 'An unknown line.')
+      const { result, rerender } = setup({ engine, initial: view([]) })
+      // Engine not loaded → English now (transient), nothing generated yet.
+      rerender({ v: view([l]), lang: 'fr' })
+      await waitFor(() =>
+        expect(result.current.lines[0].text).toBe('An unknown line.'),
+      )
+      expect(engine.generateCalls).toBe(0)
+      // The model finishes loading; the next render re-attempts and resolves.
+      await engine.load(() => {}, new AbortController().signal)
+      rerender({ v: view([l]), lang: 'fr' })
+      await waitFor(() =>
+        expect(result.current.lines[0].text).toBe('Repli après chargement.'),
+      )
+      expect(engine.generateCalls).toBe(1)
+      // surfaced as a transient retry, not a permanent English pin
+      expect(
+        warnSpy.mock.calls.filter(c => String(c[0]).includes('will retry')),
+      ).not.toEqual([])
+    } finally {
+      warnSpy.mockRestore()
+    }
   })
 
   it('a transient cache-READ failure is treated as a miss → falls through to the fallback, no console.error (review I1)', async () => {
@@ -195,6 +240,15 @@ describe('LLM fallback on live misses (spec §6)', () => {
       )
       rerender({ v: view([line('output', 'An unknown line.')]), lang: 'fr' })
       await waitFor(() => expect(result.current.lines[0].pending).toBe(true))
+      // Ensure resolve() has cleared the pre-gate isLoaded() check (engine still
+      // up) and is QUEUED at the held gate before we tear it down — otherwise
+      // the cacheGet read races engine.unload() and resolve finds the engine
+      // already gone at the PRE-gate check (the equivalent 'engine not loaded'
+      // path). The miss is logged immediately before gate.run, so a logged miss
+      // proves we've reached the queue while still loaded.
+      await waitFor(() =>
+        expect(readMisses().some(m => m.en === 'An unknown line.')).toBe(true),
+      )
       // …then tear the engine down before the queued task acquires the gate.
       await engine.unload()
       await act(async () => {

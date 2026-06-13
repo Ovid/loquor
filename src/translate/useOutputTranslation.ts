@@ -235,11 +235,16 @@ export function useOutputTranslation(args: {
         }
         if (!isRetry)
           logMiss({ en, game: signature, language: lang, kind: 'line', ctx })
-        if (!engine.isLoaded()) {
-          // Spec §6 failure path: model absent/still loading → English now.
-          settle(id, en, 'english')
-          return
-        }
+        if (!engine.isLoaded())
+          // Spec §6: model absent/still loading → English now, but as a
+          // TRANSIENT failure (review S1/F1) so it re-attempts once the engine
+          // loads — not a permanent English pin. settle()-ing here left the
+          // basis set, so the scan's basis guard skipped the line forever even
+          // after the input pipeline lazy-loaded the model. Throw the same
+          // ExpectedXlateStop the queued-unload check below uses: the outer
+          // catch routes it through failEnglish (frees the basis, records the
+          // one-shot retry that the scan defers until engine.isLoaded()).
+          throw new ExpectedXlateStop('engine not loaded')
         const text = await gate.run('output', async () => {
           // Queued generations ABANDON on a language/story switch (spec §3/§6):
           // the epoch moved on while we waited for the gate — don't burn GPU

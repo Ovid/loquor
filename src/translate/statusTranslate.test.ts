@@ -29,6 +29,14 @@ describe('translateStatus (spec §5 status bar)', () => {
     )
     expect(r.status.right).toBe('Score : -10  Coups : 3')
   })
+  it('reinterprets the unsigned-16-bit image the live interpreter emits for a negative score (death −10 arrives as 65526)', () => {
+    const r = translateStatus(
+      { location: 'West of House', right: 'Score: 65526  Turns: 3' },
+      c,
+      'fr',
+    )
+    expect(r.status.right).toBe('Score : -10  Coups : 3')
+  })
   it('room-name miss → English location, miss reported (no shimmer in a one-line bar)', () => {
     const r = translateStatus(
       { location: 'Frobozz Room', right: 'Score: 0   Moves: 1' },

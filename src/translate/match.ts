@@ -44,11 +44,23 @@ export function compileCorpus(corpus: TranslationCorpus): CompiledCorpus {
     let rawCount = 0
     let src = '^'
     let last = 0
+    // Each slot compiles to a named regex group, so a repeated slot produces
+    // duplicate group names and new RegExp throws an opaque "Duplicate capture
+    // group name". Enforce the documented "at most once per template" rule
+    // (types.ts) up front with an actionable, template-naming error (review S9);
+    // {obj2}/{num2} exist precisely for a second occurrence.
+    const seen = new Set<string>()
     for (const m of t.en.matchAll(SLOT)) {
       const lit = t.en.slice(last, m.index)
       literal += lit.length
       src += escapeRe(lit)
       const slot = m[1]
+      if (seen.has(slot))
+        throw new Error(
+          `Template "${t.en}" has a repeated slot {${slot}} — each slot may ` +
+            `appear at most once (use {obj2}/{num2} for a second occurrence).`,
+        )
+      seen.add(slot)
       if (slot === 'obj' || slot === 'obj2') src += `(?<${slot}>${objAlt})`
       else if (slot === 'num' || slot === 'num2') src += `(?<${slot}>-?\\d+)`
       else {

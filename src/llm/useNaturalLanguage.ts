@@ -379,7 +379,11 @@ export function useNaturalLanguage(
   // orphaned generate) or the underlying error on failure. Shared by the single-
   // command path and the per-clause compound loop.
   const generateRaw = useCallback(
-    (messages: ChatMessages, grammar: string): Promise<string> =>
+    // grammar is `string | null` for symmetry with LlmEngine.generate's widened
+    // contract (review S8); generateRaw forwards it untouched. NL always passes
+    // a real grammar (the GBNF is the full vocab) — null would mean grammar-free
+    // generation, which the input pipeline never wants.
+    (messages: ChatMessages, grammar: string | null): Promise<string> =>
       // The watchdogs start INSIDE the gate: time spent queued behind an
       // output-translation generation must not burn the input watchdog.
       engineGate.run('input', async () => {

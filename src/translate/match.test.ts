@@ -114,6 +114,33 @@ describe('matchLine: builtin listing template (spec §5)', () => {
   })
 })
 
+describe('compileCorpus: repeated-slot contract (review S9)', () => {
+  // The "each slot name appears AT MOST ONCE" rule (types.ts) was documented but
+  // unenforced: a repeated {obj}/{raw} compiled to duplicate named groups and
+  // new RegExp threw an opaque "Duplicate capture group name". Detect it in
+  // compile and throw an actionable, template-naming error instead.
+  const corpusWith = (en: string): TranslationCorpus => ({
+    strings: {},
+    objects: {},
+    templates: [{ en, out: '{raw}' }],
+  })
+  it('throws a named error on a repeated {obj} slot', () => {
+    expect(() => compileCorpus(corpusWith('{obj} and {obj}'))).toThrow(
+      /repeated slot \{obj\}/i,
+    )
+  })
+  it('throws a named error on a repeated {raw} slot', () => {
+    expect(() => compileCorpus(corpusWith('{raw} then {raw}'))).toThrow(
+      /repeated slot \{raw\}/i,
+    )
+  })
+  it('still allows distinct {obj} and {obj2} in one template', () => {
+    expect(() =>
+      compileCorpus(corpusWith('{obj} and {obj2}')),
+    ).not.toThrow()
+  })
+})
+
 describe('matchLine: glued input-prompt residue (UAT-4)', () => {
   // A CR-less question merges with the '>' line-input prompt into ONE
   // BufferLine ("… (Y is affirmative): >"). The residue is chrome, not

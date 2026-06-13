@@ -135,9 +135,7 @@ describe('compileCorpus: repeated-slot contract (review S9)', () => {
     )
   })
   it('still allows distinct {obj} and {obj2} in one template', () => {
-    expect(() =>
-      compileCorpus(corpusWith('{obj} and {obj2}')),
-    ).not.toThrow()
+    expect(() => compileCorpus(corpusWith('{obj} and {obj2}'))).not.toThrow()
   })
 })
 

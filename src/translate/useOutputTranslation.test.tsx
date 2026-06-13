@@ -188,7 +188,9 @@ describe('LLM fallback on live misses (spec §6)', () => {
       expect(result.current.lines[0].pending).toBeUndefined()
       expect(engine.generateCalls).toBe(1)
       // the real EN key is never poisoned with the chrome completion
-      expect(await cacheGet('test-sig', 'fr', 'An unknown line.')).toBeUndefined()
+      expect(
+        await cacheGet('test-sig', 'fr', 'An unknown line.'),
+      ).toBeUndefined()
       // surfaced as a transient retry, not a silent settle
       expect(
         warnSpy.mock.calls.filter(c => String(c[0]).includes('will retry')),
@@ -661,6 +663,72 @@ describe('gate mutual exclusion on the watchdog path (review I2)', () => {
       })
     }
   }
+
+  // An engine that hangs, then — once the watchdog aborts it — settles with a
+  // GENUINE non-abort fault (a crashed engine / lost WebGPU device), not the
+  // expected AbortError. The bare `await gen.catch(() => {})` used to swallow
+  // this, masking a dead engine as a transient timeout (review I2).
+  class DeadAfterAbortEngine implements LlmEngine {
+    async load(_p: (p: LoadProgress) => void, _s: AbortSignal): Promise<void> {}
+    async unload(): Promise<void> {}
+    isLoaded(): boolean {
+      return true
+    }
+    async isCached(): Promise<boolean> {
+      return true
+    }
+    generate(
+      _prompt: ChatMessages,
+      _grammar: string | null,
+      signal?: AbortSignal,
+    ): Promise<string> {
+      return new Promise<string>((_resolve, reject) => {
+        signal?.addEventListener('abort', () => {
+          setTimeout(() => reject(new Error('WebGPU device lost')), 10)
+        })
+      })
+    }
+  }
+
+  it('surfaces a genuine post-watchdog engine fault distinctly, not masked as a timeout (review I2)', async () => {
+    const engine = new DeadAfterAbortEngine()
+    const gate = new EngineGate()
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { result, rerender } = renderHook(
+        ({ v }: { v: ViewState }) =>
+          useOutputTranslation({
+            view: v,
+            language: 'fr',
+            signature: 'test-sig',
+            engine,
+            gate,
+            corpusOverride: corpus,
+            watchdogMs: 30,
+          }),
+        { initialProps: { v: view([]) } },
+      )
+      rerender({ v: view([line('output', 'An unknown line.')]) })
+      // the watchdog fires (transient retry warning), then the orphan rejects
+      // with the genuine fault — surfaced as a distinct console.error
+      await waitFor(() =>
+        expect(
+          errorSpy.mock.calls.filter(c =>
+            String(c[0]).includes('engine fault'),
+          ),
+        ).not.toEqual([]),
+      )
+      expect(result.current.lines[0].text).toBe('An unknown line.') // English
+      // the watchdog itself is still classified transient (warned, retry queued)
+      expect(
+        warnSpy.mock.calls.filter(c => String(c[0]).includes('will retry')),
+      ).not.toEqual([])
+    } finally {
+      warnSpy.mockRestore()
+      errorSpy.mockRestore()
+    }
+  })
 
   it('does not release the gate until an aborted generation has settled', async () => {
     const engine = new OverlapEngine()

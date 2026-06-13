@@ -10,6 +10,7 @@ import type { BufferLine, StatusLine, ViewState } from '../glkote-react/types'
 import type { LlmEngine, NlLanguage } from '../llm/types'
 import type { LexLang } from '../llm/lexicon/types'
 import { EngineGate } from '../llm/engineGate'
+import { runGenerationGuarded } from '../llm/guardedGenerate'
 import type { TranslationCorpus } from './types'
 import { corpusFor } from './corpus/index'
 import {
@@ -239,7 +240,13 @@ export function useOutputTranslation(args: {
           return
         }
         if (!isRetry)
-          logMiss({ en: core, game: signature, language: lang, kind: 'line', ctx })
+          logMiss({
+            en: core,
+            game: signature,
+            language: lang,
+            kind: 'line',
+            ctx,
+          })
         if (!engine.isLoaded())
           // Spec §6: model absent/still loading → English now, but as a
           // TRANSIENT failure (review S1/F1) so it re-attempts once the engine
@@ -260,33 +267,29 @@ export function useOutputTranslation(args: {
           // The engine can be unloaded while this task waits in the gate queue;
           // generating then throws 'engine not loaded' — a non-engine condition
           // that must degrade to English silently, not surface as a broken
-          // engine. Re-checked here (inside the gate, with no await before
-          // generate()) so the check cannot go stale.
+          // engine. Re-checked here inside the gate; runGenerationGuarded calls
+          // generate() synchronously (no await before it) so this check cannot
+          // go stale before the generation starts.
           if (!engine.isLoaded())
             throw new ExpectedXlateStop('engine unloaded while queued')
-          const ac = new AbortController()
-          acsRef.current.add(ac)
-          let watchdogId: ReturnType<typeof setTimeout>
-          const watchdog = new Promise<never>((_, rej) => {
-            watchdogId = setTimeout(() => {
-              rej(new ExpectedXlateStop('xlate watchdog'))
-              ac.abort()
-            }, watchdogMs)
+          // Shared generate-under-watchdog core (review I2): the gate-holding /
+          // abort-settle invariant lives in one place now (runGenerationGuarded).
+          // acsRef registers the controller so unmount/HMR can cancel in-flight
+          // work; onOrphanError surfaces a genuine engine fault that a watchdog
+          // win would otherwise mask as a transient timeout.
+          return runGenerationGuarded({
+            engine,
+            messages: xlPrompt(core, lang),
+            grammar: null,
+            watchdogMs,
+            timeoutError: () => new ExpectedXlateStop('xlate watchdog'),
+            acs: acsRef.current,
+            onOrphanError: err =>
+              console.error(
+                `[xlate] generation failed after the watchdog (engine fault, not a timeout):`,
+                err,
+              ),
           })
-          const gen = engine.generate(xlPrompt(core, lang), null, ac.signal)
-          try {
-            return await Promise.race([gen, watchdog])
-          } finally {
-            clearTimeout(watchdogId!)
-            acsRef.current.delete(ac)
-            // When the watchdog wins the race, ac.abort() only REQUESTS the
-            // worker to stop — gen is still settling its interrupt on the
-            // single shared engine. EngineGate's finally hands the gate off
-            // immediately, so releasing now would let the next waiter call
-            // generate() before this one is idle, overlapping two generations
-            // on a non-reentrant engine. Await its settlement first.
-            await gen.catch(() => {})
-          }
         })
         const out = normalize(text)
         // Run the model's OUTPUT through the same untranslatable() guard the
@@ -328,7 +331,13 @@ export function useOutputTranslation(args: {
           // residue-free, so a backlog line carrying a ' >' residue must read
           // the same way or it would miss its own earlier-session entry.
           const { core, suffix } = splitPromptResidue(en)
-          logMiss({ en: core, game: signature, language: lang, kind: 'backlog', ctx })
+          logMiss({
+            en: core,
+            game: signature,
+            language: lang,
+            kind: 'backlog',
+            ctx,
+          })
           // Backlog rule (spec §3): matcher + CACHE hits only. A fallback
           // translation cached in an earlier session still applies after a
           // restore rebuild — no shimmer, no generation either way. Cache

@@ -24,9 +24,7 @@ describe('fallback cache (spec §6: each miss costs once per device, ever)', () 
       .spyOn(idb, 'idbGet')
       .mockRejectedValueOnce(new Error('quota / private mode / tx abort'))
     try {
-      await expect(
-        cacheGet('sig1', 'fr', 'A line.'),
-      ).resolves.toBeUndefined()
+      await expect(cacheGet('sig1', 'fr', 'A line.')).resolves.toBeUndefined()
     } finally {
       spy.mockRestore()
     }

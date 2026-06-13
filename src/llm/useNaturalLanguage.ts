@@ -16,6 +16,7 @@ import type { Vocab } from './grammar/types'
 import type { Scene, SceneEvent } from './scene/types'
 import { TextSceneTracker } from './scene/tracker'
 import { buildGrammar } from './grammar/buildGrammar'
+import { runGenerationGuarded } from './guardedGenerate'
 import { buildPrompt, viewToContext } from './prompt'
 import {
   parseCommand,
@@ -387,63 +388,60 @@ export function useNaturalLanguage(
       // The watchdogs start INSIDE the gate: time spent queued behind an
       // output-translation generation must not burn the input watchdog.
       engineGate.run('input', async () => {
-        const ac = new AbortController()
-        let watchdogId: ReturnType<typeof setTimeout>
-        let gen: Promise<string> | undefined
-        try {
-          if (!engine.isLoaded()) {
-            // [M] Bound the lazy load (reload session, model cached on disk but
-            // not in memory) with its own generous watchdog — see
-            // LOAD_WATCHDOG_MS. Same reject-then-abort ordering as the
-            // generate watchdog below.
-            let loadId: ReturnType<typeof setTimeout>
-            const loadWatchdog = new Promise<never>((_, rej) => {
-              loadId = setTimeout(() => {
-                rej(new WatchdogTimeout())
-                ac.abort()
-              }, LOAD_WATCHDOG_MS)
-            })
-            try {
-              await Promise.race([
-                engine.load(() => {}, ac.signal),
-                loadWatchdog,
-              ])
-            } finally {
-              clearTimeout(loadId!)
-            }
-          }
-          const watchdog = new Promise<never>((_, rej) => {
-            watchdogId = setTimeout(() => {
-              // Reject FIRST so the watchdog wins the race (keeping the "timed out"
-              // notice accurate), THEN abort the now-orphaned generate.
+        // The lazy-load watchdog is NL-specific (the output hook pre-checks
+        // isLoaded and degrades to English instead), so it stays here — outside
+        // the shared generate core (review I2).
+        if (!engine.isLoaded()) {
+          // [M] Bound the lazy load (reload session, model cached on disk but
+          // not in memory) with its own generous watchdog — see
+          // LOAD_WATCHDOG_MS. Same reject-then-abort ordering as the generate
+          // watchdog. Its own AbortController: the load's abort must not touch
+          // the generate controller that runGenerationGuarded creates below.
+          const loadAc = new AbortController()
+          let loadId: ReturnType<typeof setTimeout>
+          const loadWatchdog = new Promise<never>((_, rej) => {
+            loadId = setTimeout(() => {
               rej(new WatchdogTimeout())
-              ac.abort()
-            }, watchdogMs)
+              loadAc.abort()
+            }, LOAD_WATCHDOG_MS)
           })
-          gen = engine.generate(messages, grammar, ac.signal)
-          return await Promise.race([gen, watchdog])
-        } finally {
-          clearTimeout(watchdogId!)
-          // On a watchdog timeout the orphaned generate is still interrupting
-          // the single shared engine; ac.abort() only requests the stop. Hold
-          // the gate until it settles so the next waiter can't start an
-          // overlapping generation on a non-reentrant engine (EngineGate mutual
-          // exclusion). gen is undefined if we timed out during the lazy load.
-          // Mirrors useOutputTranslation's gate body (review I2).
-          //
-          // DELIBERATELY NOT awaiting the orphaned load here (review I3): when
-          // the LOAD watchdog fires, gen is undefined and the gate is released
-          // while engine.load() may still be running. That is by design — the
-          // load can stall indefinitely (WebGPU init, cache eviction → network),
-          // and holding the gate until it settled would re-wedge ALL engine work
-          // (input AND output) for the session, the exact unbounded wedge
-          // LOAD_WATCHDOG_MS exists to break (anti-wedge invariant, the STALLED-
-          // load test). A waiter that calls generate() against a still-loading
-          // engine hits WebLlmEngine's `!this.engine` guard (engine is assigned
-          // only on load()'s final line) and throws 'engine not loaded' cleanly
-          // — no half-built engine is ever observed, so the release is safe.
-          await gen?.catch(() => {})
+          try {
+            await Promise.race([
+              engine.load(() => {}, loadAc.signal),
+              loadWatchdog,
+            ])
+          } finally {
+            clearTimeout(loadId!)
+            // DELIBERATELY NOT awaiting the orphaned load (review I3): when the
+            // LOAD watchdog fires the gate is released while engine.load() may
+            // still be running. By design — the load can stall indefinitely
+            // (WebGPU init, cache eviction → network), and holding the gate
+            // until it settled would re-wedge ALL engine work (input AND output)
+            // for the session, the exact unbounded wedge LOAD_WATCHDOG_MS exists
+            // to break (anti-wedge invariant, the STALLED-load test). A waiter
+            // that calls generate() against a still-loading engine hits
+            // WebLlmEngine's `!this.engine` guard (engine is assigned only on
+            // load()'s final line) and throws 'engine not loaded' cleanly — no
+            // half-built engine is ever observed, so the release is safe.
+          }
         }
+        // Shared generate-under-watchdog core (review I2): holds the gate until
+        // an aborted generation settles so the next waiter can't overlap two
+        // generations on the non-reentrant engine. NL keeps its WatchdogTimeout
+        // sentinel (the translate() catch classifies the timeout off it) and
+        // surfaces a genuine post-timeout engine fault distinctly.
+        return runGenerationGuarded({
+          engine,
+          messages,
+          grammar,
+          watchdogMs,
+          timeoutError: () => new WatchdogTimeout(),
+          onOrphanError: err =>
+            console.error(
+              '[nl] generation failed after the watchdog (engine fault, not a timeout):',
+              err,
+            ),
+        })
       }),
     [engine, watchdogMs, engineGate],
   )

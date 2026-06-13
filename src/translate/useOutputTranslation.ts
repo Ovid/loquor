@@ -44,11 +44,14 @@ interface OverlayEntry {
   res: Resolution
 }
 
-/** Expected control-flow stops (queue abandonment, watchdog timeout, empty
- * model output) degrade to English silently. Anything ELSE in resolve()'s
- * catch is a real failure and gets console.error'd so a broken engine stays
- * diagnosable — mirrors useNaturalLanguage's [B] policy and its
- * WatchdogTimeout sentinel style. */
+/** Marks resolve()'s expected control-flow stops (queue abandonment, watchdog
+ * timeout, empty model output, a momentary unload) apart from a genuine engine
+ * throw. A SUPERSEDED stop (epoch moved on — language/story switch, unmount)
+ * degrades to English silently. Every other stop is a transient FAILURE under
+ * the current epoch: it surfaces (console.warn) and earns one retry once the
+ * engine is idle again (review S1); a second failure is console.error'd so a
+ * genuinely broken engine stays diagnosable. Mirrors useNaturalLanguage's [B]
+ * policy and its WatchdogTimeout sentinel style. */
 class ExpectedXlateStop extends Error {}
 
 export function useOutputTranslation(args: {
@@ -93,6 +96,14 @@ export function useOutputTranslation(args: {
   // Ids on screen when the corpus ACTIVATED (language picked / restore
   // rebuild): the backlog (spec §3). Misses there stay English.
   const backlogRef = useRef<Set<number>>(new Set())
+  // Per-line fallback retry budget (review S1). A transient generation failure
+  // (watchdog timeout, empty output, a momentary unload) otherwise pins the
+  // line to English forever via the basis guard, even after the engine
+  // recovers. Record one failure here and grant exactly ONE re-attempt on a
+  // later render once the engine is loaded again; a second failure is terminal.
+  // Keyed by id, validated against the text so an append merge (new text)
+  // starts a fresh budget. Cleared when the line finally resolves.
+  const retryRef = useRef<Map<number, { en: string; tries: number }>>(new Map())
   const lastStatusMissRef = useRef<string | null>(null)
   // Stale-async guard: bumped on corpus identity change (and on unmount, by the
   // teardown effect below).
@@ -137,6 +148,7 @@ export function useOutputTranslation(args: {
     epochRef.current++
     backlogRef.current = new Set(viewRef.current.lines.map(l => l.id))
     basisRef.current = new Map()
+    retryRef.current = new Map()
     lastStatusMissRef.current = null
     // Hygiene for devices that played before the untranslatable() guard: a
     // live '>' could cache a hallucinated "translation". The guard makes the
@@ -169,7 +181,40 @@ export function useOutputTranslation(args: {
       put(id, en, value)
     }
 
+    // A transient translation FAILURE (review S1). The first failure renders
+    // English now (stops the shimmer) but frees the basis so the next render
+    // re-attempts once the engine is idle (the scan gates that retry on
+    // engine.isLoaded()). A second failure is terminal: the line stays English
+    // (basis kept, so the scan skips it) and is surfaced as an error. A
+    // SUPERSEDED resolve (epoch moved — switch/unmount) returns silently: not a
+    // failure to act on, and the line is gone anyway.
+    const failEnglish = (id: number, en: string, err: unknown) => {
+      if (epochRef.current !== epoch) return
+      if (basisRef.current.get(id) !== en) return
+      const reason = err instanceof ExpectedXlateStop ? err.message : String(err)
+      const prior = retryRef.current.get(id)
+      const failures = (prior?.en === en ? prior.tries : 0) + 1
+      retryRef.current.set(id, { en, tries: failures })
+      put(id, en, 'english')
+      if (failures === 1) {
+        basisRef.current.delete(id)
+        console.warn(
+          `[xlate] output translation failed (${reason}); will retry once when the engine is idle:`,
+          en,
+        )
+      } else {
+        console.error(
+          `[xlate] output translation failed again (${reason}); leaving this line in English:`,
+          en,
+        )
+      }
+    }
+
     const resolve = async (id: number, en: string) => {
+      // A re-attempt of a line that already failed once (basis was freed by
+      // failEnglish): skip the duplicate miss log — the corpus gap was already
+      // recorded on the first attempt.
+      const isRetry = retryRef.current.get(id)?.en === en
       try {
         // A cache-READ failure (transient IDB error: quota, private mode, tx
         // abort/blocked) is neither a cache miss (undefined) nor an engine
@@ -184,10 +229,12 @@ export function useOutputTranslation(args: {
           cached = undefined
         }
         if (cached !== undefined) {
+          retryRef.current.delete(id)
           settle(id, en, cached)
           return
         }
-        logMiss({ en, game: signature, language: lang, kind: 'line', ctx })
+        if (!isRetry)
+          logMiss({ en, game: signature, language: lang, kind: 'line', ctx })
         if (!engine.isLoaded()) {
           // Spec §6 failure path: model absent/still loading → English now.
           settle(id, en, 'english')
@@ -233,20 +280,14 @@ export function useOutputTranslation(args: {
         })
         const out = normalize(text)
         if (out === '') throw new ExpectedXlateStop('empty translation')
+        retryRef.current.delete(id) // resolved — reset the retry budget
         settle(id, en, out)
         // Persist fire-and-forget: the translation is already on screen — a
         // cache-write failure (quota, private mode) must not downgrade the
         // rendered line back to English. Persistence ≠ display.
         void cacheSet(signature, lang, en, out).catch(() => {})
       } catch (err) {
-        // A superseded resolve (language/story switch or unmount → epoch
-        // bumped, the in-flight generation aborted) is expected control flow:
-        // its abort-driven rejection is not an engine fault, and settle() below
-        // is already an epoch-guarded no-op. Only a genuine failure under the
-        // STILL-CURRENT epoch is console-worthy.
-        if (epochRef.current === epoch && !(err instanceof ExpectedXlateStop))
-          console.error('[xlate] output translation failed:', err)
-        settle(id, en, 'english')
+        failEnglish(id, en, err)
       }
     }
 
@@ -280,6 +321,11 @@ export function useOutputTranslation(args: {
         continue
       }
       if (basisRef.current.get(l.id) === en) continue // already handled this text
+      // A pending retry (review S1) re-attempts only once the engine is idle
+      // again: if it's still gone, leave the line English and re-check on the
+      // next render rather than burning the one retry against a dead engine.
+      const retry = retryRef.current.get(l.id)
+      if (retry?.en === en && !engine.isLoaded()) continue
       basisRef.current.set(l.id, en)
       put(l.id, en, 'pending')
       void resolve(l.id, en)

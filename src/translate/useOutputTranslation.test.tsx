@@ -180,10 +180,11 @@ describe('LLM fallback on live misses (spec §6)', () => {
     }
   })
 
-  it('engine torn down while a translation is queued → English silently, no console.error (review I1)', async () => {
+  it('engine torn down while a translation is queued → English, surfaced as a retry warning not an engine error (review I1 + S1)', async () => {
     const engine = new FakeLlmEngine({ default: 'jamais rendu' })
     await engine.load(() => {}, new AbortController().signal)
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     try {
       const { result, rerender, gate } = setup({ engine, initial: view([]) })
       // Hold the gate so the live miss's generation QUEUES behind it…
@@ -205,34 +206,163 @@ describe('LLM fallback on live misses (spec §6)', () => {
       )
       expect(result.current.lines[0].pending).toBeUndefined()
       expect(engine.generateCalls).toBe(0) // never generated on a dead engine
-      // an unload mid-queue is expected control flow, not an engine failure
+      // not misreported as a broken engine (no error); surfaced as a transient
+      // retry instead (the retry waits for the engine to come back — S1)
       expect(
         errorSpy.mock.calls.filter(c => String(c[0]).includes('[xlate]')),
       ).toEqual([])
-    } finally {
-      errorSpy.mockRestore()
-    }
-  })
-
-  it('generation failure → English, logged', async () => {
-    const engine = new FakeLlmEngine({ failGenerate: true })
-    await engine.load(() => {}, new AbortController().signal)
-    // A genuine engine failure IS surfaced to the console on purpose (a broken
-    // engine must stay visible, not silently degrade) — capture and assert it
-    // here so the test owns the log instead of leaking it to the run output.
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    try {
-      const { result, rerender } = setup({ engine, initial: view([]) })
-      rerender({ v: view([line('output', 'An unknown line.')]), lang: 'fr' })
-      await waitFor(() =>
-        expect(result.current.lines[0].text).toBe('An unknown line.'),
-      )
-      expect(readMisses().length).toBeGreaterThan(0)
       expect(
-        errorSpy.mock.calls.filter(c => String(c[0]).includes('[xlate]')),
+        warnSpy.mock.calls.filter(c => String(c[0]).includes('engine unloaded')),
       ).not.toEqual([])
     } finally {
       errorSpy.mockRestore()
+      warnSpy.mockRestore()
+    }
+  })
+
+  it('a transient failure retries once, then gives up to English and surfaces it as an error (review S1)', async () => {
+    const engine = new FakeLlmEngine({ failGenerate: true }) // every attempt fails
+    await engine.load(() => {}, new AbortController().signal)
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const l = line('output', 'An unknown line.')
+      const { result, rerender } = setup({ engine, initial: view([]) })
+      // First attempt fails → English now, but a retry is QUEUED: warned, not
+      // errored, and not yet a permanent give-up.
+      rerender({ v: view([l]), lang: 'fr' })
+      await waitFor(() =>
+        expect(result.current.lines[0].text).toBe('An unknown line.'),
+      )
+      expect(engine.generateCalls).toBe(1)
+      expect(
+        warnSpy.mock.calls.filter(c => String(c[0]).includes('will retry')),
+      ).not.toEqual([])
+      expect(
+        errorSpy.mock.calls.filter(c => String(c[0]).includes('[xlate]')),
+      ).toEqual([])
+      // A later render re-attempts exactly once; the second failure is terminal
+      // and surfaced as an error so a genuinely broken engine stays diagnosable.
+      rerender({ v: view([l]), lang: 'fr' })
+      await waitFor(() =>
+        expect(
+          errorSpy.mock.calls.filter(c =>
+            String(c[0]).includes('leaving this line'),
+          ),
+        ).not.toEqual([]),
+      )
+      expect(engine.generateCalls).toBe(2) // one retry, no more
+      // A third render must not attempt again — the budget is spent.
+      rerender({ v: view([l]), lang: 'fr' })
+      await act(async () => {})
+      expect(engine.generateCalls).toBe(2)
+      expect(result.current.lines[0].text).toBe('An unknown line.')
+      // the corpus gap is logged once, not once per retry
+      expect(
+        readMisses().filter(m => m.en === 'An unknown line.').length,
+      ).toBe(1)
+    } finally {
+      errorSpy.mockRestore()
+      warnSpy.mockRestore()
+    }
+  })
+
+  it('a transient failure that recovers retranslates on the retry (review S1)', async () => {
+    // Fails the first generation, succeeds the second.
+    class FlakyOnceEngine implements LlmEngine {
+      calls = 0
+      async load(
+        _p: (p: LoadProgress) => void,
+        _s: AbortSignal,
+      ): Promise<void> {}
+      async unload(): Promise<void> {}
+      isLoaded(): boolean {
+        return true
+      }
+      async isCached(): Promise<boolean> {
+        return true
+      }
+      async generate(): Promise<string> {
+        this.calls++
+        if (this.calls === 1) throw new Error('transient WebGPU hiccup')
+        return 'Réussi au deuxième essai.'
+      }
+    }
+    const engine = new FlakyOnceEngine()
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const l = line('output', 'An unknown line.')
+      const gate = new EngineGate()
+      const { result, rerender } = renderHook(
+        ({ v }: { v: ViewState }) =>
+          useOutputTranslation({
+            view: v,
+            language: 'fr',
+            signature: 'test-sig',
+            engine,
+            gate,
+            corpusOverride: corpus,
+          }),
+        { initialProps: { v: view([]) } },
+      )
+      rerender({ v: view([l]) })
+      // first attempt fails → English, retry queued
+      await waitFor(() =>
+        expect(result.current.lines[0].text).toBe('An unknown line.'),
+      )
+      expect(engine.calls).toBe(1)
+      // a later render re-attempts and succeeds
+      rerender({ v: view([l]) })
+      await waitFor(() =>
+        expect(result.current.lines[0].text).toBe('Réussi au deuxième essai.'),
+      )
+      expect(engine.calls).toBe(2)
+      expect(
+        warnSpy.mock.calls.filter(c => String(c[0]).includes('will retry')),
+      ).not.toEqual([])
+    } finally {
+      warnSpy.mockRestore()
+    }
+  })
+
+  it('defers the retry until the engine reports loaded again (review S1)', async () => {
+    const engine = new FakeLlmEngine({ default: 'Repli après recharge.' })
+    await engine.load(() => {}, new AbortController().signal)
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const l = line('output', 'An unknown line.')
+      const { result, rerender, gate } = setup({ engine, initial: view([]) })
+      // Queue the generation behind a held gate, then unload → "engine unloaded
+      // while queued" failure with a retry pending.
+      let release!: () => void
+      const held = gate.run(
+        'output',
+        () => new Promise<void>(r => (release = r)),
+      )
+      rerender({ v: view([l]), lang: 'fr' })
+      await waitFor(() => expect(result.current.lines[0].pending).toBe(true))
+      await engine.unload()
+      await act(async () => {
+        release()
+        await held
+      })
+      await waitFor(() =>
+        expect(result.current.lines[0].text).toBe('An unknown line.'),
+      )
+      expect(engine.generateCalls).toBe(0) // never generated on the dead engine
+      // Engine still down: a new render must NOT spend the retry.
+      rerender({ v: view([l]), lang: 'fr' })
+      await act(async () => {})
+      expect(engine.generateCalls).toBe(0)
+      // Engine back: the next render fires the retry and resolves.
+      await engine.load(() => {}, new AbortController().signal)
+      rerender({ v: view([l]), lang: 'fr' })
+      await waitFor(() =>
+        expect(result.current.lines[0].text).toBe('Repli après recharge.'),
+      )
+      expect(engine.generateCalls).toBe(1)
+    } finally {
+      warnSpy.mockRestore()
     }
   })
 })
@@ -345,13 +475,14 @@ describe('backlog rule (spec §3: matcher + CACHE hits only)', () => {
 })
 
 describe('watchdog (spec §6)', () => {
-  it('a wedged generation degrades to English after the watchdog — silently (expected control flow)', async () => {
+  it('a wedged generation degrades to English after the watchdog and is queued for one retry (review S1)', async () => {
     const engine = new FakeLlmEngine({
       default: 'jamais rendu',
       generateDelayMs: 10_000, // far beyond the (shortened) watchdog
     })
     await engine.load(() => {}, new AbortController().signal)
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     try {
       const { result, rerender } = setup({
         engine,
@@ -366,12 +497,17 @@ describe('watchdog (spec §6)', () => {
       )
       expect(result.current.lines[0].pending).toBeUndefined()
       expect(readMisses().some(m => m.en === 'An unknown line.')).toBe(true)
-      // a watchdog timeout is expected control flow, not an engine failure
+      // a watchdog timeout is a transient failure: surfaced as a retry warning,
+      // NOT an error, and not a permanent give-up
+      expect(
+        warnSpy.mock.calls.filter(c => String(c[0]).includes('watchdog')),
+      ).not.toEqual([])
       expect(
         errorSpy.mock.calls.filter(c => String(c[0]).includes('[xlate]')),
       ).toEqual([])
     } finally {
       errorSpy.mockRestore()
+      warnSpy.mockRestore()
     }
   })
 })
@@ -413,6 +549,9 @@ describe('gate mutual exclusion on the watchdog path (review I2)', () => {
   it('does not release the gate until an aborted generation has settled', async () => {
     const engine = new OverlapEngine()
     const gate = new EngineGate()
+    // Both generations time out on the watchdog → each surfaces a retry warning
+    // (review S1); absorb and assert them so the run stays pristine.
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const { result, rerender } = renderHook(
       ({ v }: { v: ViewState }) =>
         useOutputTranslation({
@@ -438,6 +577,10 @@ describe('gate mutual exclusion on the watchdog path (review I2)', () => {
       expect(result.current.lines[1].pending).toBeUndefined()
     })
     expect(engine.maxInFlight).toBe(1)
+    expect(
+      warnSpy.mock.calls.filter(c => String(c[0]).includes('[xlate]')).length,
+    ).toBeGreaterThan(0)
+    warnSpy.mockRestore()
   })
 })
 

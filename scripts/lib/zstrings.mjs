@@ -201,7 +201,13 @@ export function extractStrings(buf) {
 }
 
 /** Split multi-line z-strings into normalized display lines (spec §4): every
- * corpus key is a single line, the unit the matcher sees. */
+ * corpus key is a single line, the unit the matcher sees.
+ *
+ * The per-line `replace(/\s+/g, ' ').trim()` MUST stay byte-identical to
+ * src/translate/normalize.ts's normalize() — the inventory gate's fidelity
+ * depends on the extractor and the runtime collapsing whitespace the same way
+ * (review S7). An equivalence test (inventory.test.ts) pins this across the
+ * .mjs/.ts boundary; do not change one without the other. */
 export function displayLines(strings) {
   const out = new Set()
   for (const s of strings)

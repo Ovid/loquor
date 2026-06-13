@@ -37,9 +37,13 @@ describe('z-machine v3 string extraction (spec §4)', () => {
       expect(l).toBe(l.replace(/\s+/g, ' ').trim())
     }
   })
-  it('decodeZString returns null on garbage (brute-scan filter contract)', () => {
-    expect(decodeZString(new Uint8Array(4).fill(0xff), 0)).not.toBeNull() // end-bit set is *structurally* valid…
-    expect(decodeZString(new Uint8Array([0x00, 0x00]), 0)).toBeNull() // …but a never-terminating string is not
+  it('decodeZString accepts a structurally-terminated word (end-bit set)', () => {
+    // The high bit of the second byte terminates a Z-string word — even all-0xff
+    // is structurally valid and decodes to *something* (brute-scan filter contract).
+    expect(decodeZString(new Uint8Array(4).fill(0xff), 0)).not.toBeNull()
+  })
+  it('decodeZString returns null on a never-terminating run (brute-scan filter contract)', () => {
+    expect(decodeZString(new Uint8Array([0x00, 0x00]), 0)).toBeNull()
   })
   it('anchored extraction keeps the inventory-gate population manageable (no mid-instruction garbage flood)', () => {
     // A LOOSE population sanity bound, NOT the coverage gate's fidelity

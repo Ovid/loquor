@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import { extractStrings, displayLines } from '../../../scripts/lib/zstrings.mjs'
 import { compileCorpus, matchLine } from '../match'
+import { normalize } from '../normalize'
 import { classify } from '../../glkote-react/reduce'
 import { ZORK1_FR } from './zork1.fr'
 import { ZORK1_EXTRACTION_IGNORE } from './zork1.extraction-ignore'
@@ -41,6 +42,24 @@ describe('string-inventory gate (spec §7.4)', () => {
       if (matchLine(c, line) === null) misses.push(line)
     }
     expect(misses).toEqual([])
+  })
+
+  it("displayLines' per-line collapse equals normalize() (review S7)", () => {
+    // The extractor (.mjs) and the runtime (.ts) must collapse whitespace the
+    // SAME way or the gate would vet lines the runtime never produces. Pin the
+    // equivalence across the boundary: per emitted line, normalize() is a no-op
+    // (already collapsed+trimmed), and feeding raw multi-line strings through
+    // both paths agrees.
+    for (const line of displayLines(extractStrings(buf)))
+      expect(normalize(line)).toBe(line)
+    const raw = ['  A\tquantity   of water \n The   bottle:  ', 'Plain.']
+    const viaDisplay = displayLines(raw)
+    const viaNormalize = [
+      ...new Set(
+        raw.flatMap(s => s.split('\n').map(normalize).filter(Boolean)),
+      ),
+    ]
+    expect(viaDisplay).toEqual(viaNormalize)
   })
 
   it('the ignore list stays honest: no entry shadows a corpus match', () => {

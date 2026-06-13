@@ -266,7 +266,9 @@ describe('LLM fallback on live misses (spec §6)', () => {
         errorSpy.mock.calls.filter(c => String(c[0]).includes('[xlate]')),
       ).toEqual([])
       expect(
-        warnSpy.mock.calls.filter(c => String(c[0]).includes('engine unloaded')),
+        warnSpy.mock.calls.filter(c =>
+          String(c[0]).includes('engine unloaded'),
+        ),
       ).not.toEqual([])
     } finally {
       errorSpy.mockRestore()
@@ -312,9 +314,9 @@ describe('LLM fallback on live misses (spec §6)', () => {
       expect(engine.generateCalls).toBe(2)
       expect(result.current.lines[0].text).toBe('An unknown line.')
       // the corpus gap is logged once, not once per retry
-      expect(
-        readMisses().filter(m => m.en === 'An unknown line.').length,
-      ).toBe(1)
+      expect(readMisses().filter(m => m.en === 'An unknown line.').length).toBe(
+        1,
+      )
     } finally {
       errorSpy.mockRestore()
       warnSpy.mockRestore()

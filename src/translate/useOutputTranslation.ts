@@ -191,7 +191,8 @@ export function useOutputTranslation(args: {
     const failEnglish = (id: number, en: string, err: unknown) => {
       if (epochRef.current !== epoch) return
       if (basisRef.current.get(id) !== en) return
-      const reason = err instanceof ExpectedXlateStop ? err.message : String(err)
+      const reason =
+        err instanceof ExpectedXlateStop ? err.message : String(err)
       const prior = retryRef.current.get(id)
       const failures = (prior?.en === en ? prior.tries : 0) + 1
       retryRef.current.set(id, { en, tries: failures })

@@ -462,6 +462,70 @@ describe('queue abandonment (spec §3/§6)', () => {
   })
 })
 
+describe('unmount teardown (review I3)', () => {
+  it('a queued generation is abandoned on unmount — never runs, no post-unmount update', async () => {
+    const engine = new FakeLlmEngine({ default: 'jamais rendu' })
+    await engine.load(() => {}, new AbortController().signal)
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { result, rerender, unmount, gate } = setup({
+        engine,
+        initial: view([]),
+      })
+      // Hold the gate so the live miss's generation QUEUES behind it.
+      let release!: () => void
+      const held = gate.run(
+        'output',
+        () => new Promise<void>(r => (release = r)),
+      )
+      rerender({ v: view([line('output', 'An unknown line.')]), lang: 'fr' })
+      // Let the resolve() chain reach the gate queue (cacheGet miss → gate.run)
+      // so the gate body actually runs when the gate frees below.
+      await waitFor(() => expect(result.current.lines[0].pending).toBe(true))
+      await act(async () => {})
+      unmount() // epoch bumps; the queued task must bail when the gate frees
+      await act(async () => {
+        release()
+        await held
+        // Flush the handoff hops so the queued task's gate body runs (and bails)
+        // before we assert — otherwise generateCalls reads 0 by timing, not by
+        // the abandonment we are pinning.
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+      expect(engine.generateCalls).toBe(0) // never started on the dead view
+      expect(errorSpy).not.toHaveBeenCalled() // no act() warning, no leak
+    } finally {
+      errorSpy.mockRestore()
+    }
+  })
+
+  it('an in-flight generation is aborted on unmount — silently, no console output', async () => {
+    const engine = new FakeLlmEngine({
+      default: 'jamais rendu',
+      generateDelayMs: 10_000, // still running when we unmount
+    })
+    await engine.load(() => {}, new AbortController().signal)
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { rerender, unmount } = setup({ engine, initial: view([]) })
+      rerender({ v: view([line('output', 'An unknown line.')]), lang: 'fr' })
+      // Wait until the generation is genuinely in flight (past the cacheGet
+      // miss, inside the gate body) — not merely shimmering.
+      await waitFor(() => expect(engine.generateCalls).toBe(1))
+      await act(async () => {
+        unmount() // aborts the controller; the AbortError must not surface
+      })
+      // the abort-driven rejection is expected control flow, not an engine fault
+      expect(
+        errorSpy.mock.calls.filter(c => String(c[0]).includes('[xlate]')),
+      ).toEqual([])
+    } finally {
+      errorSpy.mockRestore()
+    }
+  })
+})
+
 describe('append-merge memoization (spec §3)', () => {
   it('a line whose text changes re-translates (memo keyed on text, not id)', async () => {
     const engine = new FakeLlmEngine({

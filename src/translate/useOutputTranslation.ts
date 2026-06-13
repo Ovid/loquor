@@ -94,8 +94,11 @@ export function useOutputTranslation(args: {
   // rebuild): the backlog (spec §3). Misses there stay English.
   const backlogRef = useRef<Set<number>>(new Set())
   const lastStatusMissRef = useRef<string | null>(null)
-  // Stale-async guard: bumped on corpus identity change.
+  // Stale-async guard: bumped on corpus identity change (and on unmount, by the
+  // teardown effect below).
   const epochRef = useRef(0)
+  // AbortControllers of in-flight generations, so unmount/HMR can cancel them.
+  const acsRef = useRef<Set<AbortController>>(new Set())
 
   // EFFECT ORDER INVARIANT — do not reorder the three effects below: the
   // viewRef sync must be declared before the corpus-activation effect (the
@@ -110,6 +113,22 @@ export function useOutputTranslation(args: {
   useEffect(() => {
     installMissDump()
   }, [])
+
+  // Unmount / HMR teardown: invalidate any in-flight or queued resolve so its
+  // late settle() is a no-op (no setOverlay on an unmounted component → no
+  // act(...) warning routed through console.error, the pristine-output rule),
+  // and abort in-flight generations so a game the player left doesn't keep
+  // burning GPU. The epoch bump also makes queued gate tasks bail at their
+  // abandon check. Empty deps ⇒ this cleanup runs only on unmount, never on a
+  // turn-by-turn re-render (which would wrongly cancel live translations).
+  useEffect(
+    () => () => {
+      epochRef.current++
+      for (const ac of acsRef.current) ac.abort()
+      acsRef.current.clear()
+    },
+    [],
+  )
 
   // Corpus (re)activation: snapshot the backlog, reset all per-corpus state.
   // (The overlay needs no reset here — render drops a map tagged with another
@@ -189,6 +208,7 @@ export function useOutputTranslation(args: {
           if (!engine.isLoaded())
             throw new ExpectedXlateStop('engine unloaded while queued')
           const ac = new AbortController()
+          acsRef.current.add(ac)
           let watchdogId: ReturnType<typeof setTimeout>
           const watchdog = new Promise<never>((_, rej) => {
             watchdogId = setTimeout(() => {
@@ -201,6 +221,7 @@ export function useOutputTranslation(args: {
             return await Promise.race([gen, watchdog])
           } finally {
             clearTimeout(watchdogId!)
+            acsRef.current.delete(ac)
             // When the watchdog wins the race, ac.abort() only REQUESTS the
             // worker to stop — gen is still settling its interrupt on the
             // single shared engine. EngineGate's finally hands the gate off
@@ -218,7 +239,12 @@ export function useOutputTranslation(args: {
         // rendered line back to English. Persistence ≠ display.
         void cacheSet(signature, lang, en, out).catch(() => {})
       } catch (err) {
-        if (!(err instanceof ExpectedXlateStop))
+        // A superseded resolve (language/story switch or unmount → epoch
+        // bumped, the in-flight generation aborted) is expected control flow:
+        // its abort-driven rejection is not an engine fault, and settle() below
+        // is already an epoch-guarded no-op. Only a genuine failure under the
+        // STILL-CURRENT epoch is console-worthy.
+        if (epochRef.current === epoch && !(err instanceof ExpectedXlateStop))
           console.error('[xlate] output translation failed:', err)
         settle(id, en, 'english')
       }

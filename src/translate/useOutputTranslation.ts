@@ -152,7 +152,18 @@ export function useOutputTranslation(args: {
 
     const resolve = async (id: number, en: string) => {
       try {
-        const cached = await cacheGet(signature, lang, en)
+        // A cache-READ failure (transient IDB error: quota, private mode, tx
+        // abort/blocked) is neither a cache miss (undefined) nor an engine
+        // fault — treat it as a miss and fall through to the fallback, exactly
+        // as the backlog path's .catch(() => {}) does. Letting it reach the
+        // outer catch would both console.error a non-engine error (tripping the
+        // pristine-output guard) and skip the LLM fallback entirely.
+        let cached: string | undefined
+        try {
+          cached = await cacheGet(signature, lang, en)
+        } catch {
+          cached = undefined
+        }
         if (cached !== undefined) {
           settle(id, en, cached)
           return
@@ -170,6 +181,13 @@ export function useOutputTranslation(args: {
           // catch; settle() there is an epoch-guarded no-op.)
           if (epochRef.current !== epoch)
             throw new ExpectedXlateStop('xlate abandoned')
+          // The engine can be unloaded while this task waits in the gate queue;
+          // generating then throws 'engine not loaded' — a non-engine condition
+          // that must degrade to English silently, not surface as a broken
+          // engine. Re-checked here (inside the gate, with no await before
+          // generate()) so the check cannot go stale.
+          if (!engine.isLoaded())
+            throw new ExpectedXlateStop('engine unloaded while queued')
           const ac = new AbortController()
           let watchdogId: ReturnType<typeof setTimeout>
           const watchdog = new Promise<never>((_, rej) => {

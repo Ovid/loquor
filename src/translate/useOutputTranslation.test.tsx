@@ -5,6 +5,7 @@ import { useOutputTranslation } from './useOutputTranslation'
 import { EngineGate } from '../llm/engineGate'
 import { FakeLlmEngine } from '../llm/engine.fake'
 import { cacheGet, cacheSet } from './fallbackCache'
+import * as fallbackCache from './fallbackCache'
 import { readMisses } from './missLog'
 import type { ViewState, BufferLine } from '../glkote-react/types'
 import type { TranslationCorpus } from './types'
@@ -147,6 +148,65 @@ describe('LLM fallback on live misses (spec §6)', () => {
     expect(result.current.lines[0].text).toBe('An unknown line.')
     expect(result.current.lines[0].pending).toBeUndefined()
     expect(engine.generateCalls).toBe(0)
+  })
+
+  it('a transient cache-READ failure is treated as a miss → falls through to the fallback, no console.error (review I1)', async () => {
+    const engine = new FakeLlmEngine({ default: 'Repli généré.' })
+    await engine.load(() => {}, new AbortController().signal)
+    // The live resolve path consults the cache exactly once before generating;
+    // make that read reject (transient IDB error) — distinct from a miss.
+    const getSpy = vi
+      .spyOn(fallbackCache, 'cacheGet')
+      .mockRejectedValueOnce(new Error('idb read blew up'))
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { result, rerender } = setup({ engine, initial: view([]) })
+      rerender({ v: view([line('output', 'An unknown line.')]), lang: 'fr' })
+      await waitFor(() =>
+        expect(result.current.lines[0].text).toBe('Repli généré.'),
+      )
+      expect(engine.generateCalls).toBe(1) // read error → miss → generated
+      expect(
+        errorSpy.mock.calls.filter(c => String(c[0]).includes('[xlate]')),
+      ).toEqual([])
+    } finally {
+      errorSpy.mockRestore()
+      getSpy.mockRestore()
+    }
+  })
+
+  it('engine torn down while a translation is queued → English silently, no console.error (review I1)', async () => {
+    const engine = new FakeLlmEngine({ default: 'jamais rendu' })
+    await engine.load(() => {}, new AbortController().signal)
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { result, rerender, gate } = setup({ engine, initial: view([]) })
+      // Hold the gate so the live miss's generation QUEUES behind it…
+      let release!: () => void
+      const held = gate.run(
+        'output',
+        () => new Promise<void>(r => (release = r)),
+      )
+      rerender({ v: view([line('output', 'An unknown line.')]), lang: 'fr' })
+      await waitFor(() => expect(result.current.lines[0].pending).toBe(true))
+      // …then tear the engine down before the queued task acquires the gate.
+      await engine.unload()
+      await act(async () => {
+        release()
+        await held
+      })
+      await waitFor(() =>
+        expect(result.current.lines[0].text).toBe('An unknown line.'),
+      )
+      expect(result.current.lines[0].pending).toBeUndefined()
+      expect(engine.generateCalls).toBe(0) // never generated on a dead engine
+      // an unload mid-queue is expected control flow, not an engine failure
+      expect(
+        errorSpy.mock.calls.filter(c => String(c[0]).includes('[xlate]')),
+      ).toEqual([])
+    } finally {
+      errorSpy.mockRestore()
+    }
   })
 
   it('generation failure → English, logged', async () => {

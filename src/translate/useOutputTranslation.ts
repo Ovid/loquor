@@ -196,13 +196,18 @@ export function useOutputTranslation(args: {
               ac.abort()
             }, watchdogMs)
           })
+          const gen = engine.generate(xlPrompt(en, lang), null, ac.signal)
           try {
-            return await Promise.race([
-              engine.generate(xlPrompt(en, lang), null, ac.signal),
-              watchdog,
-            ])
+            return await Promise.race([gen, watchdog])
           } finally {
             clearTimeout(watchdogId!)
+            // When the watchdog wins the race, ac.abort() only REQUESTS the
+            // worker to stop — gen is still settling its interrupt on the
+            // single shared engine. EngineGate's finally hands the gate off
+            // immediately, so releasing now would let the next waiter call
+            // generate() before this one is idle, overlapping two generations
+            // on a non-reentrant engine. Await its settlement first.
+            await gen.catch(() => {})
           }
         })
         const out = normalize(text)

@@ -9,7 +9,12 @@ import * as fallbackCache from './fallbackCache'
 import { readMisses } from './missLog'
 import type { ViewState, BufferLine } from '../glkote-react/types'
 import type { TranslationCorpus } from './types'
-import type { NlLanguage } from '../llm/types'
+import type {
+  ChatMessages,
+  LlmEngine,
+  LoadProgress,
+  NlLanguage,
+} from '../llm/types'
 
 const corpus: TranslationCorpus = {
   strings: { 'Taken.': 'Pris.', 'West of House': "À l'ouest de la maison" },
@@ -368,6 +373,71 @@ describe('watchdog (spec §6)', () => {
     } finally {
       errorSpy.mockRestore()
     }
+  })
+})
+
+describe('gate mutual exclusion on the watchdog path (review I2)', () => {
+  // A generation that only ever settles via abort, and settles its interrupt
+  // LATE (the worker takes a beat to stop). Tracks concurrent in-flight calls:
+  // if the gate releases before the aborted call settles, the next waiter's
+  // generate() overlaps it and maxInFlight climbs to 2.
+  class OverlapEngine implements LlmEngine {
+    inFlight = 0
+    maxInFlight = 0
+    async load(_p: (p: LoadProgress) => void, _s: AbortSignal): Promise<void> {}
+    async unload(): Promise<void> {}
+    isLoaded(): boolean {
+      return true
+    }
+    async isCached(): Promise<boolean> {
+      return true
+    }
+    generate(
+      _prompt: ChatMessages,
+      _grammar: string | null,
+      signal?: AbortSignal,
+    ): Promise<string> {
+      this.inFlight++
+      this.maxInFlight = Math.max(this.maxInFlight, this.inFlight)
+      return new Promise<string>((_resolve, reject) => {
+        signal?.addEventListener('abort', () => {
+          setTimeout(() => {
+            this.inFlight--
+            reject(new DOMException('aborted', 'AbortError'))
+          }, 20)
+        })
+      })
+    }
+  }
+
+  it('does not release the gate until an aborted generation has settled', async () => {
+    const engine = new OverlapEngine()
+    const gate = new EngineGate()
+    const { result, rerender } = renderHook(
+      ({ v }: { v: ViewState }) =>
+        useOutputTranslation({
+          view: v,
+          language: 'fr',
+          signature: 'test-sig',
+          engine,
+          gate,
+          corpusOverride: corpus,
+          watchdogMs: 30,
+        }),
+      { initialProps: { v: view([]) } },
+    )
+    // Two live misses → two queued output generations on the one shared engine.
+    rerender({
+      v: view([
+        line('output', 'First unknown.'),
+        line('output', 'Second unknown.'),
+      ]),
+    })
+    await waitFor(() => {
+      expect(result.current.lines[0].pending).toBeUndefined()
+      expect(result.current.lines[1].pending).toBeUndefined()
+    })
+    expect(engine.maxInFlight).toBe(1)
   })
 })
 

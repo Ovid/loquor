@@ -385,6 +385,7 @@ export function useNaturalLanguage(
       engineGate.run('input', async () => {
         const ac = new AbortController()
         let watchdogId: ReturnType<typeof setTimeout>
+        let gen: Promise<string> | undefined
         try {
           if (!engine.isLoaded()) {
             // [M] Bound the lazy load (reload session, model cached on disk but
@@ -415,12 +416,17 @@ export function useNaturalLanguage(
               ac.abort()
             }, watchdogMs)
           })
-          return await Promise.race([
-            engine.generate(messages, grammar, ac.signal),
-            watchdog,
-          ])
+          gen = engine.generate(messages, grammar, ac.signal)
+          return await Promise.race([gen, watchdog])
         } finally {
           clearTimeout(watchdogId!)
+          // On a watchdog timeout the orphaned generate is still interrupting
+          // the single shared engine; ac.abort() only requests the stop. Hold
+          // the gate until it settles so the next waiter can't start an
+          // overlapping generation on a non-reentrant engine (EngineGate mutual
+          // exclusion). gen is undefined if we timed out during the lazy load.
+          // Mirrors useOutputTranslation's gate body (review I2).
+          await gen?.catch(() => {})
         }
       }),
     [engine, watchdogMs, engineGate],

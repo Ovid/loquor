@@ -45,7 +45,7 @@ export class FakeLlmEngine implements LlmEngine {
 
   async generate(
     prompt: ChatMessages,
-    _grammar: string | null,
+    grammar: string | null,
     signal?: AbortSignal,
   ): Promise<string> {
     this.generateCalls++
@@ -69,7 +69,13 @@ export class FakeLlmEngine implements LlmEngine {
     }
     const lastUser = [...prompt].reverse().find(m => m.role === 'user')
     const key = lastUser?.content ?? ''
-    return this.opts.completions?.[key] ?? this.opts.default ?? ABSTAIN
+    const content = this.opts.completions?.[key] ?? this.opts.default
+    if (content !== undefined) return content
+    // No scripted completion: mirror WebLlmEngine's empty-content contract so
+    // the fake faithfully models the path useOutputTranslation depends on — ''
+    // on the grammar-free output path (treated as "empty translation → English"),
+    // the ABSTAIN sentinel on the constrained input path (review I2).
+    return grammar === null ? '' : ABSTAIN
   }
 
   async unload(): Promise<void> {

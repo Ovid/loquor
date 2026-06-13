@@ -426,6 +426,18 @@ export function useNaturalLanguage(
           // overlapping generation on a non-reentrant engine (EngineGate mutual
           // exclusion). gen is undefined if we timed out during the lazy load.
           // Mirrors useOutputTranslation's gate body (review I2).
+          //
+          // DELIBERATELY NOT awaiting the orphaned load here (review I3): when
+          // the LOAD watchdog fires, gen is undefined and the gate is released
+          // while engine.load() may still be running. That is by design — the
+          // load can stall indefinitely (WebGPU init, cache eviction → network),
+          // and holding the gate until it settled would re-wedge ALL engine work
+          // (input AND output) for the session, the exact unbounded wedge
+          // LOAD_WATCHDOG_MS exists to break (anti-wedge invariant, the STALLED-
+          // load test). A waiter that calls generate() against a still-loading
+          // engine hits WebLlmEngine's `!this.engine` guard (engine is assigned
+          // only on load()'s final line) and throws 'engine not loaded' cleanly
+          // — no half-built engine is ever observed, so the release is safe.
           await gen?.catch(() => {})
         }
       }),

@@ -127,7 +127,7 @@ function parseStatus(c: Record<string, unknown>): StatusLine | null {
  * line in the walkthrough fixture: the exclusions demote exactly the 34
  * listing lines and keep all 71 room titles.
  */
-function classify(text: string): BufferLine['kind'] {
+export function classify(text: string): BufferLine['kind'] {
   if (/^\s/.test(text)) return 'output'
   const t = text.trim()
   if (t.endsWith(':')) return 'output'

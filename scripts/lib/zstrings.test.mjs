@@ -42,6 +42,10 @@ describe('z-machine v3 string extraction (spec §4)', () => {
     expect(decodeZString(new Uint8Array([0x00, 0x00]), 0)).toBeNull() // …but a never-terminating string is not
   })
   it('anchored extraction keeps the inventory-gate population manageable (no mid-instruction garbage flood)', () => {
+    // A LOOSE population sanity bound, NOT the coverage gate's fidelity
+    // predicate: the real gate (inventory.test.ts) calls the reducer's
+    // classify() directly (review I3). This heuristic only needs to catch a
+    // brute-scan garbage flood, so the exact room-title shape doesn't matter.
     const fullLine = s => /^[A-Z"'(]/.test(s) && /[.!?:")]$/.test(s)
     const roomTitle = s => /^[A-Z][^.!?]{2,40}$/.test(s)
     const shaped = lines.filter(l => fullLine(l) || roomTitle(l))

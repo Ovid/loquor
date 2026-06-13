@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import { extractStrings, displayLines } from '../../../scripts/lib/zstrings.mjs'
 import { compileCorpus, matchLine } from '../match'
+import { classify } from '../../glkote-react/reduce'
 import { ZORK1_FR } from './zork1.fr'
 import { ZORK1_EXTRACTION_IGNORE } from './zork1.extraction-ignore'
 
@@ -19,8 +20,11 @@ const buf = new Uint8Array(
 
 /** Full-line shape: starts like a sentence/title, ends terminated. */
 const fullLine = (s: string) => /^[A-Z"'(]/.test(s) && /[.!?:")]$/.test(s)
-/** Room-title shape (mirrors the reducer's classify()). */
-const roomTitle = (s: string) => /^[A-Z][^.!?]{2,40}$/.test(s)
+/** Room-title shape — the reducer's classify() IS the source of truth (review
+ * I3): call it directly so the gate can never drift from what the reducer
+ * actually emits as a room (the previous hand-copied regex missed classify()'s
+ * indent/trailing-colon exclusions). */
+const roomTitle = (s: string) => classify(s) === 'room'
 /** Star-delimited banner shape (death/end banners: "**** … ****"). These
  * lead with decoration, so neither fullLine nor roomTitle recognizes them —
  * yet they are full display lines the player sees and must be translated. */

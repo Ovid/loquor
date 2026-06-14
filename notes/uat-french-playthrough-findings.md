@@ -291,7 +291,20 @@ passages tortueux, tous semblables"; "passe-partout" for skeleton key — idioma
   output-translation corpus is missing it → English leaks into the French game.
   HIGH visibility: the thief roams the whole dungeon, so this fires often. Player
   carrying treasures underground will see it repeatedly.
-- → FIX (paad:vibe) after the thief encounter is secured (autosave holds state).
+- ROOT CAUSE: assembled from 3 TELL fragments (1actions.zil:1814) with a
+  conditional middle ("your possession" vs "the room"), so the full sentence is
+  neither a full-line z-string (inventory gate) nor on the golden path (coverage
+  gate) — both display gates skip it.
+- → ✅ FIXED (paad:vibe, TDD). Added BOTH ROBBED? branches to zork1.fr.strings.ts
+  and pinned them with a direct matcher test in match.test.ts. RED
+  (matchLine→null) → GREEN; `make all` green (801 tests, +1). Cannot re-verify
+  in-game (thief dead) — the unit test is the evidence. NOTE: this
+  assembled-fragment class is a structural blind spot in BOTH display gates;
+  other multi-piece TELL messages could leak the same way (follow-up: a
+  fragment-aware audit if more surface).
+- → FOLLOW-UP (not fixed): `Ulysse`→look NL gap — add `ulysses: ['ulysse']` to
+  fr.zork1.ts (mind the collision gate vs. `odysseus`); deferred (NL-input
+  subsystem, has the `"Ulysses"` passthrough workaround).
 
 ### ✅ GAME COMPLETED — 350/350, DEATHLESS, "Maître Aventurier"
 

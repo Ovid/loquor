@@ -1,5 +1,6 @@
 // Zork I × Spanish full-line table (spec §4.1). KEYS are normalized English
-// lines EXACTLY as the bridge delivers them (same keys as zork1.fr.strings.ts).
+// lines EXACTLY as the bridge delivers them (normalize(): collapsed whitespace,
+// trimmed; case/punctuation preserved) — same keys as zork1.fr.strings.ts.
 // Authored in Task 6; UAT hand-fixes edit entries here.
 //
 // TRANSLATION STYLE:

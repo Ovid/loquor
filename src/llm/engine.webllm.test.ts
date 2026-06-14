@@ -156,4 +156,21 @@ describe('WebLlmEngine.isCached (on-disk cache probe)', () => {
     const e = new WebLlmEngine('m')
     expect(await e.isCached()).toBe(true)
   })
+
+  it('surfaces a probe fault (warn) while still degrading to false (F-19)', async () => {
+    // A swallowed fault is indistinguishable from "not cached" with no
+    // diagnostic — uneven vs capability.ts, which warns on the same probe class.
+    vi.mocked(hasModelInCache).mockRejectedValueOnce(new Error('idb blocked'))
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const e = new WebLlmEngine('m')
+      expect(await e.isCached()).toBe(false) // never block play on a probe fault
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining('isCached'),
+        expect.anything(),
+      )
+    } finally {
+      warn.mockRestore()
+    }
+  })
 })

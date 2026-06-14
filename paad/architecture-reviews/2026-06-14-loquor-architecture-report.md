@@ -262,6 +262,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Explanation:** Many `.catch(() => {})` swallows are defensible "never break play" decisions, but the policy is uneven: `engine.webllm.ts` `isCached()` silently returns `false` on any fault — indistinguishable from "not cached", with no diagnostic — whereas `capability.ts` deliberately logs the same class of probe failure.
 - **Evidence:** `src/llm/engine.webllm.ts:114-121` vs `src/llm/capability.ts:71-74`; other swallows at `src/translate/useOutputTranslation.ts:163,335,372,376`, `src/translate/fallbackCache.ts:19`
 - **Found by:** Error Handling & Observability
+- **Status:** Fixed
+- **Status reason:** Aligned `isCached()`'s swallow with the deliberate policy already used by `capability.ts` for the same probe class: the catch now `console.warn('isCached: model-cache probe failed', err)` before returning `false`, so a genuine probe fault (e.g. IDB blocked) is no longer indistinguishable from a real cache miss. The degrade-to-false contract is preserved — a probe fault still never blocks play. (The other listed swallows in `useOutputTranslation`/`fallbackCache` were assessed as defensible "never break play" decisions and left as-is; F-19's specific complaint was the _inconsistency_ at this site.) Red/green: new test in `engine.webllm.test.ts` rejects the probe and asserts the warn fires + `false` is returned; preceded by the Safety Net characterization pinning the happy path.
+- **Status date:** 2026-06-14 08:38 UTC
+- **Status commit:** (this commit)
 
 ### [F-16] Observability is two good islands surrounded by ad hoc logging
 

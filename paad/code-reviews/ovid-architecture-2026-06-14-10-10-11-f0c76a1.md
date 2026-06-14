@@ -29,7 +29,7 @@ None found.
 
 ## Suggestions
 
-- `src/test/setup.ts` — the unconditional global `caches` stub (added for F-19's new warn) is faithful today (empty cache → "not cached"), but a future *partial* `caches` implementation could slip through it. Low-priority latent coupling, already self-flagged in the in-diff code-review notes.
+- `src/test/setup.ts` — the unconditional global `caches` stub (added for F-19's new warn) is faithful today (empty cache → "not cached"), but a future _partial_ `caches` implementation could slip through it. Low-priority latent coupling, already self-flagged in the in-diff code-review notes.
 - `src/zmachine/engine.ts:22-32` (F-4) — the Dialog contract declares `preload?`/`hasSave?`/`dispose?` as **optional** so minimal test stubs stay assignable. This makes the contract visible-but-not-type-enforced; the original "silently skip preload" risk is instead caught at runtime by the F-5/F-11 guard. Deliberate and documented — noted only so the trade-off is on record.
 
 ## Plan Alignment
@@ -46,7 +46,7 @@ Report reviewed: `paad/architecture-reviews/2026-06-14-loquor-architecture-repor
   - **F-14** — new `logger.ts`; adopted everywhere; zero `console.*` remain in first-party non-test code.
   - **F-15** — new `storageKeys.ts` registry; key strings preserved exactly (no orphaned user data).
   - **F-19** — `engine.webllm.ts` `isCached` warns then degrades to `false`; new test asserts both.
-  - **F-16** — honestly downgraded to *Partially fixed* (logger consolidates; durable sink deferred).
+  - **F-16** — honestly downgraded to _Partially fixed_ (logger consolidates; durable sink deferred).
 - **Not yet implemented (out of scope — neutral, partial is expected):** F-8 (flat `kv` store ownership), F-10 (GlkOte schema/versioning), F-12 (per-key transaction atomicity), F-17 (game-loop logic in `Terminal.tsx`), F-20 (unpinned remote WASM / no SRI — the headline security item, still documented + opt-in-gated). F-1/F-2/F-3/F-18 are marked Fixed in the report but landed on prior branches (already on `main`); not part of this diff.
 - **Deviations:** None substantive. All ten claimed-fixed findings do what the finding asked.
 

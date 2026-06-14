@@ -204,6 +204,42 @@ describe('LLM fallback on live misses (spec §6)', () => {
     }
   })
 
+  it('a model completion that echoes the English line unchanged is rejected — not settled, never cached (review I1)', async () => {
+    // A model that "refuses" (short lines, proper nouns) returns the EN line
+    // verbatim. out is non-empty and non-">", so the untranslatable() guard
+    // alone lets it settle as a real translation AND cache it permanently under
+    // the clean EN key — a non-translation the activation-time ">" purge can
+    // never evict (spec §6: a miss costs one generation per device, ever).
+    // Treat an English-unchanged completion as a transient miss instead.
+    const engine = new FakeLlmEngine({ default: 'An unknown line.' })
+    await engine.load(() => {}, new AbortController().signal)
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { result, rerender } = setup({ engine, initial: view([]) })
+      rerender({ v: view([line('output', 'An unknown line.')]), lang: 'fr' })
+      await waitFor(() =>
+        expect(result.current.lines[0].text).toBe('An unknown line.'),
+      )
+      expect(result.current.lines[0].pending).toBeUndefined()
+      expect(engine.generateCalls).toBe(1)
+      // the EN key is never poisoned with the unchanged-English completion
+      expect(
+        await cacheGet('test-sig', 'fr', 'An unknown line.'),
+      ).toBeUndefined()
+      // surfaced as a transient retry, not a silent settle
+      expect(
+        warnSpy.mock.calls.filter(c => String(c[0]).includes('will retry')),
+      ).not.toEqual([])
+      expect(
+        errorSpy.mock.calls.filter(c => String(c[0]).includes('[xlate]')),
+      ).toEqual([])
+    } finally {
+      warnSpy.mockRestore()
+      errorSpy.mockRestore()
+    }
+  })
+
   it('engine not loaded → English shown, miss logged, nothing generated, queued for retry (spec §6 failure + review F1)', async () => {
     const engine = new FakeLlmEngine({}) // never loaded
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})

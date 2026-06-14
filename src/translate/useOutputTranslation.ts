@@ -300,6 +300,18 @@ export function useOutputTranslation(args: {
         // miss so the throw below skips both settle() and cacheSet().
         if (untranslatable(out))
           throw new ExpectedXlateStop('untranslatable output (empty or chrome)')
+        // A model that "refuses" (short lines, proper nouns, prompt echo)
+        // returns the English CORE unchanged. out is non-empty and non-'>', so
+        // the untranslatable() guard alone would settle+cache it as a real
+        // translation — a PERMANENT cached non-translation the '>' purge can
+        // never evict (spec §6: one generation per device, ever). Treat an
+        // English-unchanged completion as a transient miss too (review I1): the
+        // line stays English regardless, but the budget retries it and the
+        // clean EN key is never poisoned, so a better model later still gets a
+        // shot. (A line whose French form is genuinely identical was already
+        // English on screen — re-attempting it costs only a generation.)
+        if (out === normalize(core))
+          throw new ExpectedXlateStop('untranslatable output (English unchanged)')
         retryRef.current.delete(id) // resolved — reset the retry budget
         settle(id, en, out + suffix)
         // Persist fire-and-forget: the translation is already on screen — a

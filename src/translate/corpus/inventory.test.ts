@@ -13,6 +13,11 @@ import { normalize } from '../normalize'
 import { classify } from '../../glkote-react/reduce'
 import { ZORK1_FR } from './zork1.fr'
 import { ZORK1_EXTRACTION_IGNORE } from './zork1.extraction-ignore'
+import type { TranslationCorpus } from '../types'
+
+const LANGS: { code: string; corpus: TranslationCorpus }[] = [
+  { code: 'fr', corpus: ZORK1_FR },
+]
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 const buf = new Uint8Array(
@@ -32,16 +37,28 @@ const roomTitle = (s: string) => classify(s) === 'room'
 const banner = (s: string) => /^\*{2,}\s*\S.*\S\s*\*{2,}$/.test(s)
 
 describe('string-inventory gate (spec §7.4)', () => {
-  it('every full-line inventory entry matches the corpus', () => {
-    const c = compileCorpus(ZORK1_FR)
-    const ignore = new Set<string>(ZORK1_EXTRACTION_IGNORE)
-    const misses: string[] = []
-    for (const line of displayLines(extractStrings(buf))) {
-      if (!fullLine(line) && !roomTitle(line) && !banner(line)) continue
-      if (ignore.has(line)) continue
-      if (matchLine(c, line) === null) misses.push(line)
-    }
-    expect(misses).toEqual([])
+  describe.each(LANGS)('$code corpus', ({ corpus }) => {
+    it('every full-line inventory entry matches the corpus', () => {
+      const c = compileCorpus(corpus)
+      const ignore = new Set<string>(ZORK1_EXTRACTION_IGNORE)
+      const misses: string[] = []
+      for (const line of displayLines(extractStrings(buf))) {
+        if (!fullLine(line) && !roomTitle(line) && !banner(line)) continue
+        if (ignore.has(line)) continue
+        if (matchLine(c, line) === null) misses.push(line)
+      }
+      expect(misses).toEqual([])
+    })
+
+    it('the ignore list stays honest: no entry shadows a corpus match', () => {
+      // An ignore entry that the corpus CAN translate is stale review data —
+      // either the line became real (delete the ignore) or a key collides.
+      const c = compileCorpus(corpus)
+      const translatable = ZORK1_EXTRACTION_IGNORE.filter(
+        s => matchLine(c, s) !== null,
+      )
+      expect(translatable).toEqual([])
+    })
   })
 
   it("displayLines' per-line collapse equals normalize() (review S7)", () => {
@@ -60,15 +77,5 @@ describe('string-inventory gate (spec §7.4)', () => {
       ),
     ]
     expect(viaDisplay).toEqual(viaNormalize)
-  })
-
-  it('the ignore list stays honest: no entry shadows a corpus match', () => {
-    // An ignore entry that the corpus CAN translate is stale review data —
-    // either the line became real (delete the ignore) or a key collides.
-    const c = compileCorpus(ZORK1_FR)
-    const translatable = ZORK1_EXTRACTION_IGNORE.filter(
-      s => matchLine(c, s) !== null,
-    )
-    expect(translatable).toEqual([])
   })
 })

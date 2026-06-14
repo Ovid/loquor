@@ -148,6 +148,19 @@ export const ZORK1_FR_TEMPLATES: readonly Template[] = [
   //    /:481). Rephrased verbally to dodge «pris(e)/posé(e)» agreement. ───
   { en: '{obj}: Taken.', out: 'Vous prenez {obj.def}.' },
   { en: '{obj}: Dropped.', out: 'Vous posez {obj.def}.' },
+  // The per-object FAILURE reason carries the same "<obj>: " prefix (UAT: a
+  // `take all` over capacity printed "broken timber: Your load is too heavy.",
+  // leaking English because only the success reasons above were templated).
+  // Keep the label form ("<obj> : <reason>") — the reason is about the whole
+  // load, not the item — with the corpus's space-before-colon convention.
+  {
+    en: '{obj}: Your load is too heavy.',
+    out: '{obj.bare} : Votre chargement est trop lourd.',
+  },
+  {
+    en: '{obj}: Your load is too heavy, especially in light of your condition.',
+    out: '{obj.bare} : Votre chargement est trop lourd, surtout vu votre état.',
+  },
 
   // ── take/drop/have family (gverbs.zil :1969, :1105, :185) ──────────────
   {

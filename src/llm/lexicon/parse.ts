@@ -203,6 +203,16 @@ export function parseLexicon(
   if (tokens.length === 0)
     return verbArityOk(verb, vocab, 0) ? { kind: 'command', text: verb } : MISS
 
+  // --- "All" quantifier: a bare-quantifier remainder (tout/tous/… or 'all')
+  // maps to the Z-parser's ALL object — 'prends tout' → 'take all', 'pose
+  // tout' → 'drop all'. Arity allows verbs1 OR verbs2 (the Z-parser
+  // orphan-prompts for a missing instrument), matching the whole-remainder
+  // path; a verb-only verb ('attends tout') misses rather than emit nonsense. ---
+  if (tokens.length === 1 && (core.quantifiersAll ?? []).includes(tokens[0]))
+    return verbArity1or2(verb, vocab)
+      ? { kind: 'command', text: `${verb} all` }
+      : MISS
+
   // --- Pronoun-only remainder (clitics already split by fold: 'prends le').
   // Standalone le/la/les (no following noun) is a PRONOUN; in leading position
   // before a noun it is an article, stripped by resolveNoun (Task 12 note). ---

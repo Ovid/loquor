@@ -4,6 +4,8 @@ import { parseLexicon } from './parse'
 import { FR_CORE } from './fr.core'
 import { DE_CORE } from './de.core'
 import { ES_CORE } from './es.core'
+import { FR_ZORK1 } from './fr.zork1'
+import { ZORK1_VOCAB } from '../grammar/zork1.vocab'
 import type { NounLexicon } from './types'
 import type { Vocab } from '../grammar/types'
 import type { Scene } from '../scene/types'
@@ -274,6 +276,30 @@ describe('parseLexicon — French', () => {
       kind: 'miss',
     })
   })
+  it('"all" quantifier: tout/tous/toute/toutes → ALL (UAT: pose tout / prends tout)', () => {
+    // The bare "all" quantifier was unhandled → fell to the LLM, which
+    // hallucinated a stale noun ("drop advertisement"). Map it to the
+    // Z-parser's ALL object deterministically.
+    expect(parseLexicon('pose tout', FR_CORE, FR_NOUNS, vocab, empty)).toEqual({
+      kind: 'command',
+      text: 'drop all',
+    })
+    expect(
+      parseLexicon('prends tout', FR_CORE, FR_NOUNS, vocab, empty),
+    ).toEqual({ kind: 'command', text: 'take all' })
+    // gender/number variants all fold to the same ALL quantifier
+    for (const q of ['tous', 'toute', 'toutes']) {
+      expect(
+        parseLexicon(`prends ${q}`, FR_CORE, FR_NOUNS, vocab, empty),
+      ).toEqual({ kind: 'command', text: 'take all' })
+    }
+  })
+  it('"all" quantifier respects verb arity: a verb-only verb + tout → miss', () => {
+    // 'attends'/wait takes no object; "wait all" is nonsense → fall through.
+    expect(
+      parseLexicon('attends tout', FR_CORE, FR_NOUNS, vocab, empty),
+    ).toEqual({ kind: 'miss' })
+  })
 })
 
 describe('parseLexicon — German separable verbs (pushback issue 3)', () => {
@@ -502,5 +528,35 @@ describe('parseLexicon — UAT-3 regressions', () => {
     expect(
       parseLexicon('entrez dans le bateau', FR_CORE, nouns, boatVocab, empty),
     ).toEqual({ kind: 'command', text: 'enter raft' })
+  })
+})
+
+describe('parseLexicon — UAT French playthrough (real Zork I vocab + lexicon)', () => {
+  // UAT (Hades bell-book-candle ritual): "allume les bougies avec l'allumette"
+  // fell to the LLM (→ "light bottle", a failed exorcism) because the matchbook
+  // lexicon listed only the PLURAL "allumettes"; the natural singular "une
+  // allumette" ("a match") missed deterministic resolution. The 'pair of
+  // candles' entry already carries both bougies/bougie — matchbook must too.
+  it('singular "allumette" resolves to the matchbook (light match)', () => {
+    expect(
+      parseLexicon(
+        'allume une allumette',
+        FR_CORE,
+        FR_ZORK1,
+        ZORK1_VOCAB,
+        empty,
+      ),
+    ).toEqual({ kind: 'command', text: 'light match' })
+  })
+  it('two-object "light candles with match" resolves deterministically via the singular allumette', () => {
+    expect(
+      parseLexicon(
+        "allume les bougies avec l'allumette",
+        FR_CORE,
+        FR_ZORK1,
+        ZORK1_VOCAB,
+        empty,
+      ),
+    ).toEqual({ kind: 'command', text: 'light candles with match' })
   })
 })

@@ -87,7 +87,7 @@ export const FR_ZORK1: NounLexicon = {
   'lurking grue': ['grue'], // untranslatable proper noun — kept as-is by policy
   machine: ['machine', 'couvercle'], // couvercle = the machine's lid (vocab synonym 'lid' lives on machine) — UAT-3 N-5
   'magic boat': ['bateau', 'radeau', 'canot', 'bateau magique'],
-  matchbook: ['allumettes', 'pochette d allumettes'],
+  matchbook: ['allumettes', 'allumette', 'pochette d allumettes'], // singular 'une allumette' (UAT: Hades ritual two-object miss)
   mirror: ['miroir', 'reflet'],
   'mountain range': ['montagnes', 'montagne'],
   'nasty knife': ['couteau', 'vilain couteau'], // canonical is 'nasty knife', not 'knife'

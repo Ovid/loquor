@@ -302,6 +302,25 @@ describe('real Zork I French corpus smoke (Task 15)', () => {
       'Heureusement, il vous reste un vilain couteau.',
     )
   })
+  // UAT (Salle des poutres): `take all` leaked English on the per-object
+  // failure line "broken timber: Your load is too heavy." — the success
+  // analogs "{obj}: Taken." / "{obj}: Dropped." were templated but the
+  // too-heavy failure reason was not, so the whole line missed and leaked.
+  it('take-all per-object too-heavy failure composes {obj} (UAT — no English leak)', () => {
+    expect(matchLine(real, 'broken timber: Your load is too heavy.')).toBe(
+      'poutre brisée : Votre chargement est trop lourd.',
+    )
+  })
+  it('take-all too-heavy failure, wounded-condition variant composes {obj}', () => {
+    expect(
+      matchLine(
+        real,
+        'broken timber: Your load is too heavy, especially in light of your condition.',
+      ),
+    ).toBe(
+      'poutre brisée : Votre chargement est trop lourd, surtout vu votre état.',
+    )
+  })
 })
 
 describe('open form keys contract (spec §4, §7.1 — fake declined language)', () => {

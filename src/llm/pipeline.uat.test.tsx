@@ -610,14 +610,16 @@ describe('UAT compound regressions (dedicated)', () => {
     expect(hook.result.current.notice).toBeNull()
   })
 
-  it('F-S: 2-object conjunction — clause 1 emits deterministically, truncation is visible ([H])', async () => {
+  it('F-S: 2-object conjunction — clause 1 orphan-prompts, the compound STOPS there ([H])', async () => {
     // `et` splits mid-noun-phrase: clause 1 `mets le cercueil`, clause 2
-    // `le sceptre dans la vitrine` (verbless → LLM → abstain). Pre-[H] the
-    // whole line abstained; with verbs2-only verbs allowed one object,
-    // clause 1 now emits `put coffin` — the Z-parser orphan-prompts for the
-    // missing container (deterministic, never a guess) — and the truncation
-    // is visible via "Ran 1 of 2 actions." UAT-2's original failure (TWO
-    // silent wrong takes) stays impossible: nothing here is guessed.
+    // `le sceptre dans la vitrine`. Clause 1 emits `put coffin` — the Z-parser
+    // orphan-prompts for the missing container ("What do you want to put the
+    // coffin in?"). Verb-gapping WOULD let clause 2 inherit `mets` and resolve
+    // deterministically, but it must NOT be auto-fed into that orphan prompt
+    // (the player never saw the question), so the compound stops at clause 1 —
+    // truncation visible via "Ran 1 of 2 actions.", and the LLM is never
+    // consulted. UAT-2's original failure (TWO silent wrong takes) stays
+    // impossible: nothing here is guessed.
     const views = [
       viewState(
         'Living Room',
@@ -635,7 +637,7 @@ describe('UAT compound regressions (dedicated)', () => {
       )
     })
     expect(sent).toEqual(['put coffin'])
-    expect(engine.generateCalls).toBeGreaterThan(0) // clause 2 fell to the LLM
+    expect(engine.generateCalls).toBe(0) // orphan stop — clause 2 never runs
     expect(hook.result.current.notice).toMatch(/ran 1 of 2/i)
   })
 

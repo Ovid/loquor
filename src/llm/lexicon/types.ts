@@ -37,6 +37,10 @@ export interface CoreLexicon {
   }[]
   /** Self-reference ('moi'/'mich'/'me') → the Z-parser's 'me'. */
   pronounsSelf: readonly string[]
+  /** "All" quantifier words (folded): a bare-quantifier remainder maps to the
+   * Z-parser's ALL object — 'prends tout' → 'take all', 'pose tout' → 'drop
+   * all'. Optional: a language without it just falls these to the LLM. */
+  quantifiersAll?: readonly string[]
   /** Localized meta words → raw English command (migrates META_ALIASES). */
   metaAliases: Readonly<Record<string, string>>
 }

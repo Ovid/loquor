@@ -4,6 +4,7 @@ import type { Vocab } from './grammar/types'
 import { META_COMMANDS } from './meta'
 import type { CoreLexicon } from './lexicon/types'
 import { fold } from './lexicon/fold'
+import { parseDirection } from './directions'
 import { SOFT_NOOP_PAT } from './grammar/patterns'
 
 /**
@@ -14,21 +15,132 @@ import { SOFT_NOOP_PAT } from './grammar/patterns'
  */
 export const ABSTAIN = '__UNKNOWN__'
 
+/** Sequential conjunctions, one per supported language: `and`/`then` (en),
+ * `et`/`puis`/`ensuite` (fr), `und` (de), `y` (es). Matched whitespace-wrapped
+ * so substrings like "sand"/"under"/"xyzzy"/"strengthen" never trip them; the
+ * de/es words match what directions.ts/meta.ts cover (review C3). */
+const CLAUSE_CONJ = 'and|then|et|puis|ensuite|und|y'
+
+/** Clause separators: a whitespace-wrapped conjunction, OR sentence punctuation
+ * `.`/`;`/`,`. A comma now separates too (UAT: an object list "A, B et C" is the
+ * natural way to act on several things, and the foreign-language path can't
+ * leave it to the LLM — the single-command grammar can't express a multi-object
+ * take). After any punctuation an immediately-following conjunction is absorbed,
+ * so an Oxford comma ("A, B, et C") leaves no dangling "et …" clause. No
+ * capturing groups, so String.split never injects the separators. */
+const CLAUSE_SEP = new RegExp(
+  `\\s+(?:${CLAUSE_CONJ})\\s+|\\s*[.;,]\\s*(?:(?:${CLAUSE_CONJ})\\s+)?`,
+  'i',
+)
+
 /**
- * Split a compound instruction into ordered clauses. Separators are the
- * sequential words `and`/`then` (en), `et`/`puis`/`ensuite` (fr), `und` (de),
- * `y` (es) — each surrounded by whitespace so substrings like "sand"/"under"/
- * "xyzzy" never trip it — and the sentence punctuation `.`/`;`. The de/es words
- * match the languages directions.ts/meta.ts cover (review C3). Commas are NOT
- * separators (locked decision 1). A single clause (no separator) returns a
- * length-1 array — the caller treats that as "not compound" and uses the
- * existing single-command path. Pure, total, vocab-free.
+ * Split a compound instruction into ordered clauses (see CLAUSE_SEP). A single
+ * clause (no separator) returns a length-1 array — the caller treats that as
+ * "not compound" and uses the existing single-command path. Pure, total,
+ * vocab-free.
  */
 export function splitClauses(english: string): string[] {
   return english
-    .split(/\s+(?:and|then|et|puis|ensuite|und|y)\s+|\s*[.;]\s*/i)
+    .split(CLAUSE_SEP)
     .map(clause => clause.trim())
     .filter(clause => clause.length > 0)
+}
+
+/** First word of every game verb (incl. the leading word of a multiword verb
+ * like "turn on"), cached per Vocab — the English half of leading-verb
+ * detection, so en-mode compounds gap too. */
+const VOCAB_VERB_HEADS = new WeakMap<Vocab, Set<string>>()
+function vocabVerbHeads(vocab: Vocab): Set<string> {
+  const cached = VOCAB_VERB_HEADS.get(vocab)
+  if (cached) return cached
+  const out = new Set<string>()
+  for (const v of [...vocab.verbsOnly, ...vocab.verbs1, ...vocab.verbs2]) {
+    const head = v.toLowerCase().split(/\s+/)[0]
+    if (head) out.add(head)
+  }
+  VOCAB_VERB_HEADS.set(vocab, out)
+  return out
+}
+
+/**
+ * The verb phrase a clause OPENS with, in the player's own words, or null when
+ * the clause begins with no recognizable verb (a bare object, a direction, …).
+ * Recognizes foreign single verbs + idioms (the active core lexicon) and game
+ * verbs (the vocab), so it works in every language and in English mode
+ * (core===null). Returns the ORIGINAL-cased tokens so the phrase can be
+ * re-prepended verbatim. Pure.
+ */
+export function leadingVerbPhrase(
+  clause: string,
+  core: CoreLexicon | null,
+  vocab: Vocab,
+): string | null {
+  const stripped = clause.replace(/[!.?,;:]+$/, '').trim()
+  if (!stripped) return null
+  const tokens = stripped.split(/\s+/)
+  if (core) {
+    // Idioms first, longest-first, so 'laisse tomber' beats the bare 'laisse'.
+    const folded = fold(stripped)
+    const idioms = [...core.verbIdioms].sort(
+      (a, b) => b.phrase.split(' ').length - a.phrase.split(' ').length,
+    )
+    for (const { phrase } of idioms) {
+      if (folded === phrase || folded.startsWith(phrase + ' '))
+        return tokens.slice(0, phrase.split(' ').length).join(' ')
+    }
+    const head = fold(tokens[0])
+    if (core.verbs[head] || core.particleVerbs.some(pv => pv.verb === head))
+      return tokens[0]
+  }
+  if (vocabVerbHeads(vocab).has(tokens[0].toLowerCase())) return tokens[0]
+  return null
+}
+
+/** English determiners + (when foreign) the active core's, all folded. */
+const EN_ARTICLES: readonly string[] = ['the', 'a', 'an']
+function startsWithArticle(clause: string, core: CoreLexicon | null): boolean {
+  const first = fold(clause).split(' ')[0]
+  if (!first) return false
+  return (
+    EN_ARTICLES.includes(first) ||
+    (core ? core.articles.includes(first) : false)
+  )
+}
+
+/**
+ * Verb-gapping for compound commands: a conjunct that drops its verb ("prends
+ * le couteau ET la corde") inherits the previous clause's verb so it resolves
+ * deterministically ("prends la corde") instead of being handed verbless to the
+ * LLM, which would invent a wrong verb. ONLY an article-led bare object gaps
+ * ("la corde", "l'épée", "the rope") — the article is the reliable signal of a
+ * verbless object. A conjunct that carries its OWN verb (recognized or not, e.g.
+ * "check inventory"), a direction ("au nord"), a localized meta word
+ * ("inventaire"), or anything with no preceding verb to lend is left untouched.
+ * Pure + total; preserves length, so the compound loop's clause count (and the
+ * single-command degenerate case) is unchanged. */
+export function fillElidedVerbs(
+  clauses: readonly string[],
+  core: CoreLexicon | null,
+  vocab: Vocab,
+): string[] {
+  let lastVerb: string | null = null
+  return clauses.map((clause, i) => {
+    const verb = leadingVerbPhrase(clause, core, vocab)
+    if (verb !== null) {
+      lastVerb = verb
+      return clause
+    }
+    if (i === 0 || lastVerb === null) return clause
+    const stripped = clause.replace(/[!.?,;:]+$/, '').trim()
+    if (
+      !startsWithArticle(clause, core) ||
+      parseDirection(clause, vocab.movement) !== null ||
+      isMetaCommand(stripped) ||
+      metaAlias(stripped, core) !== null
+    )
+      return clause
+    return `${lastVerb} ${clause}`
+  })
 }
 
 // Z-machine meta-verbs that are not in-world actions: they have no canonical
@@ -164,6 +276,19 @@ const DISAMBIGUATION_PROMPT = /\bwhich\b[\s\S]*\bdo you mean\b/i
 /** True when the recent game output is a parser disambiguation question. */
 export function isDisambiguationPrompt(recentOutput: string): boolean {
   return DISAMBIGUATION_PROMPT.test(recentOutput)
+}
+
+// The parser's ORPHAN prompt: a partial command missing a noun — "What do you
+// want to put the coffin in?" (typed "put coffin" with no container). Like a
+// disambiguation question, the NEXT line answers the parser, not a fresh
+// command — so a compound must STOP here rather than auto-feed its following
+// clause into the orphan (which the player never saw when they typed ahead).
+const ORPHAN_PROMPT = /\bwhat do you want to\b/i
+
+/** True when the recent game output is a parser orphan prompt (partial command
+ * awaiting its missing noun). */
+export function isOrphanPrompt(recentOutput: string): boolean {
+  return ORPHAN_PROMPT.test(recentOutput)
 }
 
 /** Lowercased surface words (canonical tokens + synonyms) of every vocab noun the

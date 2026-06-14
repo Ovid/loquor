@@ -166,6 +166,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Explanation:** A single 1042-line hook owns the entire NL pipeline — its `translate` callback alone is ~540 lines with four nested closures, plus the queue, scene tracker, watchdogs, and an unrelated model-download lifecycle (308-395).
 - **Evidence:** `src/llm/useNaturalLanguage.ts:163-1042`; `translate` callback `468-1006`; download lifecycle `308-395`
 - **Found by:** Structure & Boundaries (already tracked in MEMORY.md as a deferred "hook pipeline extraction"; 49 commits of intentional work)
+- **Status:** Fixed
+- **Status reason:** Completed the hook decomposition begun by F-2/F-18/F-3. Extracted the entire input-translation engine into a new pure-logic `src/llm/translatePipeline.ts`: `createGenerateRaw` (the lazy-load + watchdog generate wrapper), the now-pure `runClause` (deterministic-first stages 3–7 for one clause), and `createTranslate` (the per-line stages 1–8 + the F-A drain), plus the moved `WatchdogTimeout`/`Stage`/`Lex`/`LiveState`/`QueuedLine` types and the `MAX_CLAUSES`/`QUEUE_CAP`/`LOAD_WATCHDOG_MS` constants. The factories close over the SAME refs/setters the hook holds (the `createFallbackResolver` idiom from F-3), so the hook now reads as an orchestrator — React state/refs, the scene-tracker lifecycle, the state/lex/grammar/liveRef memos, and the public `observe`/`isSequencing` seams — and dropped from **920 → 322 lines** (the `translate` god-callback is gone). Behavior-preserving: the full suite is green (753 tests, up from 746) including a new `translatePipeline.test.ts` that unit-tests the extracted pure `runClause` per stage. Dependency graph stays acyclic (translatePipeline imports only the `Internal` _type_ from useModelDownload).
+- **Status date:** 2026-06-14 08:19 UTC
+- **Status commit:** (this commit)
 
 ### [F-3] `useOutputTranslation` bundles too many concerns
 

@@ -304,6 +304,7 @@ export const ZORK1_ES_OBJECTS: ObjectsTable = {
     bare: 'cuchillo oxidado',
   },
   sailor: { indef: 'un marinero', def: 'el marinero', bare: 'marinero' },
+  // mass noun: indef carries no article (cf. water's partitive 'un poco de agua')
   sand: { indef: 'arena', def: 'la arena', bare: 'arena' },
   'sapphire-encrusted bracelet': {
     indef: 'una pulsera',

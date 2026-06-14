@@ -2,7 +2,7 @@
 // every display form in a language's objects table must resolve through that
 // language's input lexicon to the same canonical — display and input
 // vocabularies must not drift. List-driven so each language enrolls identically
-// (fr now; es in Task 5; de later is one row).
+// (fr and es now; de later is one row).
 import { describe, it, expect } from 'vitest'
 import { fold } from '../../llm/lexicon/fold'
 import type { CoreLexicon, NounLexicon } from '../../llm/lexicon/types'

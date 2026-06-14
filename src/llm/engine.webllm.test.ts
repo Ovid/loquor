@@ -4,6 +4,7 @@
 // never clobber the active one. The web-llm module is mocked so each create
 // resolves under test control.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { hasModelInCache } from '@mlc-ai/web-llm'
 import { WebLlmEngine } from './engine.webllm'
 
 interface FakeMlcEngine {
@@ -139,5 +140,20 @@ describe('WebLlmEngine.generate grammar plumbing', () => {
     await p
     engines[0].chat.completions.create.mockResolvedValueOnce({ choices: [] })
     expect(await e.generate([{ role: 'user', content: 'hi' }], null)).toBe('')
+  })
+})
+
+// Safety net for F-19: pin isCached()'s probe-passthrough behavior before
+// changing how it handles a probe FAULT (the fix adds diagnostics to the catch).
+describe('WebLlmEngine.isCached (on-disk cache probe)', () => {
+  it('returns false when the model is not in WebLLM’s on-disk cache', async () => {
+    const e = new WebLlmEngine('m')
+    expect(await e.isCached()).toBe(false)
+  })
+
+  it('returns true when the model is already in the on-disk cache', async () => {
+    vi.mocked(hasModelInCache).mockResolvedValueOnce(true)
+    const e = new WebLlmEngine('m')
+    expect(await e.isCached()).toBe(true)
   })
 })

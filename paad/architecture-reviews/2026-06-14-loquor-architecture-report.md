@@ -156,6 +156,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Explanation:** A 372-line hook owns corpus compilation, the sync match path, a 238-line async fallback effect with nested closures, a per-line retry budget, backlog snapshotting, and epoch/teardown — cohesive around the feature but heavy as one unit.
 - **Evidence:** `src/translate/useOutputTranslation.ts:63-435` (fallback effect `167-404`)
 - **Found by:** Structure & Boundaries
+- **Status:** Fixed
+- **Status reason:** Extracted the dense async-resolution pipeline (`put`/`settle`/`failEnglish`/`resolve` + `ExpectedXlateStop` and the `Resolution`/`OverlayEntry`/`OverlayState` types) into a new pure-logic `src/translate/fallbackResolve.ts` (`createFallbackResolver` factory closing over the hook's refs). The hook now reads as an orchestrator — React state/refs, the effect-order invariant, the miss scan, and the output memos — and dropped from 435 to 269 lines. Behavior-preserving: all 28 tests in `useOutputTranslation.test.tsx` (incl. the new F-18 safety net) pass unchanged.
+- **Status date:** 2026-06-14 07:25 UTC
+- **Status commit:** 45dab9b
 
 ### [F-4] `Dialog` interface under-specifies the contract the engine requires
 - **Category:** 6 — Leaky abstraction

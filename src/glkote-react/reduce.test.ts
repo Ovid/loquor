@@ -35,6 +35,26 @@ describe('reduce', () => {
     expect(before).toEqual(emptyView)
   })
 
+  // F-10 safety net: an `update` content entry matching NEITHER known shape
+  // (no `lines[]`, no `text[]`) is currently dropped silently. The F-10 fix adds
+  // a drift warning for that case; this pins that the reduction OUTPUT is
+  // unchanged either way — a drifted/unknown window must never corrupt or wipe
+  // the existing transcript, only (after the fix) get logged.
+  it('ignores an unrecognized content entry without altering output', () => {
+    const seeded = reduce(emptyView, {
+      type: 'update',
+      gen: 1,
+      content: [{ id: 1, text: [{ content: ['normal', 'Kept line'] }] }],
+    } as any)
+    const after = reduce(seeded, {
+      type: 'update',
+      gen: 2,
+      content: [{ id: 2, mystery: 'a future window shape' }],
+    } as any)
+    expect(after.lines.map(l => l.text)).toEqual(['Kept line'])
+    expect(after.status).toEqual(seeded.status)
+  })
+
   it('extracts flat alternating run arrays correctly from a synthetic buffer update', () => {
     const update = {
       type: 'update',

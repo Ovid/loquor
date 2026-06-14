@@ -17,6 +17,16 @@ describe('fallback cache (spec §6: each miss costs once per device, ever)', () 
     expect(await cacheGet('sig1', 'fr', 'Hello!')).toBeUndefined()
   })
 
+  // F-8 safety net: pin the LITERAL on-disk key. cacheGet/cacheSet read+write
+  // through the same private builder, so the round-trip test above stays green
+  // even if the builder string changed — which would silently orphan every
+  // device's cached translations. This fixes the exact key the F-8 registry
+  // extraction must preserve.
+  it('writes under the literal "xlate:<game>:<language>:<en>" key (F-8)', async () => {
+    await cacheSet('sig1', 'fr', 'Hello.', 'Bonjour.')
+    expect(await idb.idbGet('xlate:sig1:fr:Hello.')).toBe('Bonjour.')
+  })
+
   it('a transient READ failure resolves to undefined, never rejects (review S6)', async () => {
     // The read contract is "value or undefined, never throws" so no caller can
     // let an IDB rejection reach a pristine-output guard or skip the fallback.

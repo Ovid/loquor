@@ -212,7 +212,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 - [ ] **Step 1: Wrap the two corpus-dependent tests in `describe.each`; keep the normalize-equivalence test single**
 
-Replace the `describe('string-inventory gate …')` block. The shape helpers (`fullLine`/`roomTitle`/`banner`), the buffer load, and the `displayLines ≡ normalize` test are language-independent — only the two tests that `compileCorpus(...)` move under the per-language loop. Add the list and adjust imports:
+**Keep the entire module preamble unchanged** — the `readFileSync`/`fileURLToPath`/`dirname`/`resolve` imports, the `repoRoot`/`buf` buffer load, the `classify` import, and the `fullLine`/`roomTitle`/`banner` shape helpers all stay exactly as they are; the `describe.each` body below references them. **Only** restructure the `describe('string-inventory gate …')` block. The shape helpers, the buffer load, and the `displayLines ≡ normalize` test are language-independent — only the two tests that call `compileCorpus(...)` move under the per-language loop. Add the list and adjust the corpus imports:
 
 ```ts
 import { ZORK1_FR } from './zork1.fr'
@@ -369,7 +369,7 @@ to:
 - [ ] **Step 4: Typecheck and run the full translate suite — expect PASS**
 
 Run: `make typecheck && npx vitest run src/translate`
-Expected: PASS — no gate references `es` yet; the empty corpus compiles (`compileCorpus` uses a never-match alternation when objects are empty). `corpusFor(ZORK1_SIG, 'es')` now returns a (currently empty) corpus.
+Expected: PASS — no gate references `es` yet; the empty corpus compiles (`compileCorpus` uses a never-match alternation when objects are empty). `corpusFor(ZORK1_SIG, 'es')` now returns a (currently empty) corpus. Note: Spanish is now *selectable in the app but data-empty* — every line falls to the LLM fallback until Tasks 5–6 fill the corpus. That's acceptable and mirrors the fallback contract; the gates don't enroll `es` until Tasks 5–6, so the suite stays green meanwhile.
 
 - [ ] **Step 5: Commit**
 
@@ -421,26 +421,30 @@ Expected: FAIL — the `es` "populated table" test fails (`0` entries ≤ 100) a
 
 - [ ] **Step 3: Author `ZORK1_ES_OBJECTS` (batched, ~129 entries)**
 
-For **every** key in `zork1.fr.objects.ts`, emit the same English key with Spanish forms. Rules:
+For **every** key in `zork1.fr.objects.ts`, emit the same English key with Spanish forms.
+
+> **Dominant authoring cost — medial `de` does not strip.** `headExtra` strips only **leading** article/partitive tokens (`stripHead` halts at the first non-head token). A **medial** `de` survives: `'la lámpara de latón'` folds/strips to `'lampara de laton'`, and `'un poco de agua'` to `'poco de agua'` — neither is a member of `ES_ZORK1` as-is, so the round-trip gate FAILS. Spanish `X de Y` compounds (`figurilla de jade`, `bolsa de monedas`, `caja de cerillas`, `barra de platino`, …) are pervasive where French used a single trailing-modifier head. For **every** such object you must either (a) make the `bare` form a single lexicon-listed token (e.g. `bare: 'lámpara'`), or (b) append the full folded phrase (e.g. `'lampara de laton'`) to `ES_ZORK1[canonical]` in Step 4. Budget this per-object audit as the bulk of the work — it is the "real authoring audit" spec §2.5 warns about, not a value-swap.
+
+Rules:
 
 - Forms `{ indef, def, bare }` for every object: `bottle → { indef: 'una botella', def: 'la botella', bare: 'botella' }`; masculine `book → { indef: 'un libro', def: 'el libro', bare: 'libro' }`.
 - **Head-noun sourcing (round-trip rule):** the bare head noun of each form, after `fold()` + head-strip, MUST be a member of `ES_ZORK1[canonical]`. Use the FR entry's structure as a guide and the Spanish input lexicon as the vocabulary source. Example — `ES_ZORK1['brass lantern'] = ['lampara', 'linterna', 'farol']`, so `'brass lantern': { indef: 'una lámpara de latón', def: 'la lámpara de latón', bare: 'lámpara de latón' }` folds/strips to `lampara de laton` — **add `'lampara de laton'` to `ES_ZORK1['brass lantern']`** (Step 4) if the full phrase isn't already listed, OR use the bare lexicon form `'lámpara'` for the `bare` key. Follow the French precedent: the modifier mirrors the EN printed name, the head noun is a lexicon surface form.
 - **Mass/irregular nouns** (water, sand, etc.): mirror French's per-object choice. French used the partitive (`de l'eau`); Spanish uses `'un poco de agua'` / `'el agua'` / `'agua'`. Whatever forms you pick, each must head-strip to a listed `ES_ZORK1` surface form (add the phrase to the lexicon if a natural display form is missing — Step 4).
 - **Plural objects** (the nine French flagged — `blessings`, `pair of candles`, `set of teeth`, etc.): Spanish forms use plural articles (`las bendiciones` / `unas bendiciones` / `bendiciones`). These never agree at runtime because Task 6 keeps them in complement position (mirroring French's gender/number-neutrality rule).
-- **`ZORK1_ES_CANONICAL`:** mirror the French canonical map for any printed name whose lexicon canonical differs — at minimum `"ZORK owner's manual": "zork owner's manual"` (the printed name carries the brand; the Spanish display drops it: `'manual del propietario'`).
+- **`ZORK1_ES_CANONICAL`:** mirror the French canonical map for any printed name whose lexicon canonical differs. The **objects-table key** is the capitalized printed name `"ZORK owner's manual"` (matching `zork1.fr.objects.ts`, so it matches the actual printed line); `ZORK1_ES_CANONICAL` maps that key to the lowercase vocab canonical `"zork owner's manual"` (as in `es.zork1.ts`). The Spanish display drops the brand (`'manual del propietario'`). Do **not** key the objects table lowercase — it would never match the printed line.
 - Do **not** add `alDef`/`delDef` here yet — those are added in Task 6 only for the specific objects a contraction template references.
 
 - [ ] **Step 4: Reconcile the input lexicon and collision gate (only where Step 3 required new surface forms)**
 
-When Step 3 needs a Spanish display phrase that isn't yet a member of `ES_ZORK1[canonical]`, add it there (append to the array; keep the vocab-canonical order). If the new phrase's **folded head token** coincides with an English game-vocab word, `validate.test.ts` will fail the collision gate — add a reviewed entry to `KNOWN_COLLISIONS.es[ZORK1_SIG]` in `src/llm/lexicon/index.ts` with a one-line justifying comment (same pattern French used; see the existing `fr` entries). Never bend the Spanish to dodge the gate.
+Because of the medial-`de` audit above, expect this to recur — appending `X de Y` phrases to `ES_ZORK1` is the common case, not a rare one. When Step 3 needs a Spanish display phrase that isn't yet a member of `ES_ZORK1[canonical]`, add it there (append to the array; keep the vocab-canonical order). `validate.test.ts` asserts **set equality** between the es-lexicon∩vocab overlap and `KNOWN_COLLISIONS.es[ZORK1_SIG]`, so if the new phrase's **folded head token** coincides with an English game-vocab word, that gate fails — add a reviewed entry to `KNOWN_COLLISIONS.es[ZORK1_SIG]` in `src/llm/lexicon/index.ts` with a one-line justifying comment (same pattern French used; see the existing `fr`/`es` entries like `jade`, `manual`, `panel`, `control`). Never bend the Spanish to dodge the gate.
 
 Run after lexicon edits: `npx vitest run src/llm/lexicon/validate.test.ts`
 Expected: PASS (coverage, fold idempotence, and collision gate all green for `es`).
 
-- [ ] **Step 5: Run the round-trip gate, expect PASS**
+- [ ] **Step 5: Run the round-trip gate AND the collision gate, expect PASS**
 
-Run: `npx vitest run src/translate/corpus/roundtrip.test.ts`
-Expected: PASS — both `fr` and `es` rows green (`es` table > 100 entries; every form resolves).
+Run: `npx vitest run src/translate/corpus/roundtrip.test.ts src/llm/lexicon/validate.test.ts`
+Expected: PASS — both `fr` and `es` round-trip rows green (`es` table > 100 entries; every form resolves), AND the lexicon collision/coverage gate green (so a Step-4 `ES_ZORK1`/`KNOWN_COLLISIONS.es` edit can't slip a regression past before commit).
 
 - [ ] **Step 6: Commit**
 

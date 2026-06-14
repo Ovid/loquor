@@ -206,6 +206,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Explanation:** `file_write`/`file_remove_ref` use bare `void this.enqueue(...)` with no `.catch`, unlike the hardened `autosave_write` which attaches a `.catch` + error log — so a failed explicit SAVE persists to the sync `fileCache` but silently never reaches IndexedDB, and a later RESTORE finds nothing.
 - **Evidence:** `src/storage/dialog.ts:202,216` (no catch) vs `:136-147` (autosave catch)
 - **Found by:** Integration & Data
+- **Status:** Fixed
+- **Status reason:** Made the explicit SAVE/RESTORE file path symmetric with the hardened `autosave_write`: `file_write` and `file_remove_ref` now attach a `.catch` to the enqueued IndexedDB op and `console.error` a `[savefile] WRITE/REMOVE FAILED` line (name + message) instead of the bare `void this.enqueue(...)` that silently swallowed a failed put/delete. Behavior on the happy path is unchanged (sync `fileCache` still updates first); only the previously-invisible failure path now surfaces. Red/green: new `dialog.filewrite-error.test.ts` mocks `./idb` to reject and asserts both failures are logged; all 16 storage tests + typecheck green.
+- **Status date:** 2026-06-14 08:37 UTC
+- **Status commit:** (this commit)
 
 ### [F-10] GlkOte "update" protocol consumed by unversioned shape-sniffing
 

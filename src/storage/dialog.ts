@@ -198,8 +198,15 @@ export class IdbDialog {
   }
 
   file_remove_ref(ref: FileRef): void {
-    this.fileCache.delete(fileKey(ref))
-    void this.enqueue(() => idbDel(fileKey(ref)))
+    const k = fileKey(ref)
+    this.fileCache.delete(k)
+    // Symmetric with autosave_write (F-9): the sync fileCache is already
+    // updated, so a swallowed reject would leave cache and IndexedDB divergent
+    // for the session. Surface the failure instead of `void enqueue`.
+    this.enqueue(() => idbDel(k)).catch((err: unknown) => {
+      const e = err as { name?: string; message?: string }
+      console.error(`[savefile] REMOVE FAILED for ${k}: ${e?.name}: ${e?.message}`)
+    })
   }
 
   /** Return the stored byte array, or null if the slot does not exist. */
@@ -213,7 +220,13 @@ export class IdbDialog {
     const k = fileKey(ref)
     const bytes = israw || typeof data === 'string' ? [] : Array.from(data)
     this.fileCache.set(k, bytes)
-    void this.enqueue(() => idbSet(k, bytes))
+    // F-9: was a bare `void enqueue`, which silently swallowed a failed put —
+    // an explicit SAVE then looked exactly like success while never reaching
+    // IndexedDB, so a later RESTORE found nothing. Surface it, like autosave.
+    this.enqueue(() => idbSet(k, bytes)).catch((err: unknown) => {
+      const e = err as { name?: string; message?: string }
+      console.error(`[savefile] WRITE FAILED for ${k}: ${e?.name}: ${e?.message}`)
+    })
   }
 
   /** Load a slot into the sync fileCache before a synchronous restore. */

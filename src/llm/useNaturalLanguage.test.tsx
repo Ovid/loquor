@@ -698,6 +698,30 @@ describe('useNaturalLanguage', () => {
     expect(generateSpy).not.toHaveBeenCalled()
   })
 
+  it('a reply to a parser orphan prompt bypasses the model (review I1)', async () => {
+    // "put coffin" with no container → "What do you want to put the coffin in?"
+    // (a LINE read). The next line ("the trophy case") answers the parser and
+    // must reach Zork raw, not be translated — the mid-sequence compound loop
+    // already stops on this prompt; the single-command turn-entry guard must too.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"look"}',
+    })
+    const generateSpy = vi.spyOn(engine, 'generate')
+    const getContext = () => ({
+      location: 'Living Room',
+      recentOutput: 'What do you want to put the coffin in?',
+    })
+    const { hook, echoLocal, sendLine } = setup({ engine, getContext })
+    await reachOn(hook)
+    await act(async () => {
+      await hook.result.current.translate('the trophy case')
+    })
+    expect(sendLine).toHaveBeenCalledWith('the trophy case') // raw answer
+    expect(echoLocal).not.toHaveBeenCalled()
+    expect(generateSpy).not.toHaveBeenCalled()
+  })
+
   // (A hook-level "observe is idempotent" test used to live here asserting
   // only expect(true) — vacuous ([R]). The real invariant is pinned at the
   // reducer level: tracker.test.ts "reducer stays idempotent on duplicate

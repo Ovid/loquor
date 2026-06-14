@@ -465,9 +465,10 @@ export function createTranslate(
         live.internal.phase === 'on' ? live.internal.language : 'en'
       const lex = live.lex
       // STAGE 1 (spec §4): the game is asking. The interpreter's yes/no
-      // confirmations (restart/quit/restore) and the parser's disambiguation
-      // questions ("Which door…?") are read as ordinary LINE input, so the
-      // player's reply answers the INTERPRETER and must not be translated —
+      // confirmations (restart/quit/restore), the parser's disambiguation
+      // questions ("Which door…?"), and the parser's orphan prompts ("What do
+      // you want to put the coffin in?") are read as ordinary LINE input, so the
+      // player's reply answers the INTERPRETER/PARSER and must not be translated —
       // else "Y" → "look" (restart never confirms) or "wooden door" gets
       // mangled. Checked before the clause split so a reply containing "and"
       // is never split either. A QUEUED line cannot be such a reply — the
@@ -476,7 +477,8 @@ export function createTranslate(
       const recentOutput = (settled ?? getContext()).recentOutput
       if (
         isConfirmationPrompt(recentOutput) ||
-        isDisambiguationPrompt(recentOutput)
+        isDisambiguationPrompt(recentOutput) ||
+        isOrphanPrompt(recentOutput) // parser orphan ("What do you want to …?") — the reply answers the parser (review I1)
       ) {
         lastCommandRef.current = null
         if (fromQueue) return 'flush'

@@ -54,7 +54,12 @@ function vocabVerbHeads(vocab: Vocab): Set<string> {
   const cached = VOCAB_VERB_HEADS.get(vocab)
   if (cached) return cached
   const out = new Set<string>()
-  for (const v of [...vocab.verbsOnly, ...vocab.verbs1, ...vocab.verbs2]) {
+  for (const v of [
+    ...vocab.verbsOnly,
+    ...vocab.verbs1,
+    ...vocab.verbs2,
+    ...vocab.verbSynonyms, // verbArityOk treats these as verbs (e.g. 'ulysses'), so the gap side must too — review I2
+  ]) {
     const head = v.toLowerCase().split(/\s+/)[0]
     if (head) out.add(head)
   }

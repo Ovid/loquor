@@ -424,6 +424,17 @@ describe('fillElidedVerbs (verb-gapping across compound conjuncts)', () => {
       'check inventory',
     ])
   })
+
+  it('inherits a verbSynonym leading verb (en mode) — review I2', () => {
+    // A verbSynonym is a real verb to verbArityOk/parseLexicon (the FR
+    // "ulysse → ulysses" fix relies on it), so the gap side must recognise it
+    // too — else "break the window and the door" leaves "the door" verbless and
+    // an LLM invents a wrong verb.
+    const v: Vocab = { ...vocab, verbSynonyms: ['break'] }
+    expect(
+      fillElidedVerbs(['break the window', 'the door'], null, v),
+    ).toEqual(['break the window', 'break the door'])
+  })
 })
 
 describe('clauseFailed', () => {

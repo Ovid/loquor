@@ -2,10 +2,11 @@
 // Mirrors src/ui/useTheme.ts (read-validate-fallback, swallow write errors).
 import { isNlLanguage, type NlLanguage } from './types'
 import { createLogger } from '../logger'
+import { LS_KEYS } from '../storageKeys'
 
 const log = createLogger('nl')
 
-const KEY = 'loquor.nl'
+const KEY = LS_KEYS.nlPref
 
 export interface NlPref {
   language: NlLanguage

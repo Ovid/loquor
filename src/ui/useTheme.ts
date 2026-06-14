@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
+import { LS_KEYS } from '../storageKeys'
 
 export type Theme = 'dark' | 'light'
-const KEY = 'loquor-theme'
+const KEY = LS_KEYS.theme
 
 export function useTheme() {
   const [theme, setTheme] = useState<Theme>(() => {

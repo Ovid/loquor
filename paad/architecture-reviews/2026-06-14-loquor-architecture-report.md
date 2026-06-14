@@ -366,6 +366,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Explanation:** Persisted keys mix schemes — `loquor-theme` (hyphen) vs `loquor.nl` and `loquor.xlate.misses` (dot) — each a private const in its own module, so collision-avoidance and migration rely on per-author discipline.
 - **Evidence:** `src/ui/useTheme.ts:4`, `src/llm/nlpref.ts:5`, `src/translate/missLog.ts:7`
 - **Found by:** Error Handling & Observability
+- **Status:** Fixed
+- **Status reason:** Added a central key registry `src/storageKeys.ts` (`LS_KEYS = { theme, nlPref, miss }`, sibling to `logger.ts`) and pointed all three modules at it (`useTheme`/`nlpref`/`missLog` now read `LS_KEYS.*` instead of a private `const KEY`), so every persisted key is declared and visible in one place — collision-avoidance and future migration no longer rely on per-author discipline. The string **values are deliberately preserved exactly** (mixed `loquor-theme` hyphen / `loquor.nl` / `loquor.xlate.misses` dot): changing one would orphan an existing user's saved theme choice, NL opt-in, or miss log — a data-migration cost, not a cosmetic cleanup — so the registry freezes and documents the drift rather than "fixing" the delimiters. Kept it a flat frozen object, not a key-builder (three static keys don't warrant one). Safety net: the existing `useTheme.test`/`nlpref.test`/`missLog.test` already pin the three literal strings, so any accidental value change in the registry breaks them; all 20 pass unchanged, full suite green (765), typecheck green.
+- **Status date:** 2026-06-14 07:53 UTC
+- **Status commit:** (this commit)
 
 ## Coverage Checklist
 

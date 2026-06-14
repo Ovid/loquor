@@ -19,9 +19,17 @@ export interface Dialog {
   streaming: boolean
   autosave_read(signature: string): unknown
   autosave_write(signature: string, snapshot: unknown): void
-  // Extended methods (preload/hasSave/file_*) are accessed via a local cast in
-  // boot()/flushAutosave(); no index signature here, so concrete Dialogs like
-  // IdbDialog remain assignable without a cast.
+  /**
+   * Warm the sync autosave cache before boot. ZVM.start() reads the autosave
+   * SYNCHRONOUSLY, so an async (IndexedDB-backed) Dialog MUST declare this and
+   * `boot()` awaits it first — otherwise autosave silently never resumes (F-4).
+   * Optional because a no-op / in-memory stub Dialog has nothing to warm.
+   */
+  preload?(signature: string): Promise<void>
+  /** Whether a settled autosave exists; `flushAutosave()` polls this. Optional. */
+  hasSave?(signature: string): Promise<boolean>
+  /** Stop persisting FUTURE writes when the owning engine is torn down. Optional. */
+  dispose?(): void
 }
 
 export interface ZMachineOptions {
@@ -94,9 +102,13 @@ export class ZMachine {
     this.signature = signature(bytes)
 
     // Warm the Dialog's sync cache before booting: ZVM.start() reads the
-    // autosave synchronously, so the snapshot must already be cached.
-    const dialog: any = this.opts.dialog
-    if (typeof dialog.preload === 'function') {
+    // autosave synchronously, so the snapshot must already be cached. This
+    // preload→prepare→init ordering (F-5) is temporal coupling the type system
+    // can't express; if a refactor moves Glk.init() ahead of this, IdbDialog's
+    // autosave_read guard (F-5/F-11) fires loudly during start() instead of
+    // silently failing to resume.
+    const dialog = this.opts.dialog
+    if (dialog.preload) {
       await dialog.preload(this.signature)
     }
     // glkapi.save_allstate() does getlibrary('Dialog') to read Dialog.streaming.
@@ -151,8 +163,8 @@ export class ZMachine {
    * flushes; normal play does not need to await this.
    */
   async flushAutosave(): Promise<void> {
-    const dialog: any = this.opts.dialog
-    if (typeof dialog.hasSave !== 'function') return
+    const dialog = this.opts.dialog
+    if (!dialog.hasSave) return
     for (let i = 0; i < 100; i++) {
       if (await dialog.hasSave(this.signature)) return
       await new Promise(r => setTimeout(r, 5))
@@ -170,8 +182,8 @@ export class ZMachine {
    */
   dispose() {
     this.bridge.dispose()
-    const dialog: any = this.opts.dialog
-    if (typeof dialog.dispose === 'function') dialog.dispose()
+    const dialog = this.opts.dialog
+    if (dialog.dispose) dialog.dispose()
   }
 
   /** UI-only source-line echo (the player's English). Pass-through to the bridge. */

@@ -10,7 +10,7 @@ import {
   refusalApplies,
   unquote,
   isVocabPassthrough,
-} from './translate'
+} from './inputTranslate'
 import { META_COMMANDS } from './meta'
 import { FR_CORE } from './lexicon/fr.core'
 import type { Vocab } from './grammar/types'

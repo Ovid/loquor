@@ -1,8 +1,12 @@
 // Validated localStorage persistence for the NL language picker + "declined".
 // Mirrors src/ui/useTheme.ts (read-validate-fallback, swallow write errors).
 import { isNlLanguage, type NlLanguage } from './types'
+import { createLogger } from '../logger'
+import { LS_KEYS } from '../storageKeys'
 
-const KEY = 'loquor.nl'
+const log = createLogger('nl')
+
+const KEY = LS_KEYS.nlPref
 
 export interface NlPref {
   language: NlLanguage
@@ -32,7 +36,7 @@ export function readNlPref(store?: Storage): NlPref {
     // Corrupt JSON falls back to DEFAULT — but say so, because a silent fallback
     // means a subsequent partial writeNlPref() resets the other field with no
     // signal (review I5). A diagnostic makes that data reset debuggable.
-    console.warn('readNlPref: ignoring unreadable stored prefs', err)
+    log.warn('ignoring unreadable stored prefs', err)
     return DEFAULT
   }
 }

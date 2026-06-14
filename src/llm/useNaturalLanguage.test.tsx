@@ -3,7 +3,7 @@ import { renderHook, act, waitFor } from '@testing-library/react'
 import { useNaturalLanguage } from './useNaturalLanguage'
 import { FakeLlmEngine } from './engine.fake'
 import { readNlPref } from './nlpref'
-import { EngineGate } from './engineGate'
+import { EngineGate } from '../shared/engineGate'
 import type { CapabilityResult } from './types'
 import type { Vocab } from './grammar/types'
 import {

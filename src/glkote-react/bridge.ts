@@ -1,5 +1,6 @@
 import { reduce } from './reduce'
 import { emptyView } from './types'
+import { createLogger } from '../logger'
 import type {
   GlkOteDisplay,
   GlkOteInitIface,
@@ -7,6 +8,8 @@ import type {
   ViewState,
   TurnResult,
 } from './types'
+
+const glkLog = createLogger('glk')
 
 const METRICS = {
   width: 80,
@@ -153,7 +156,7 @@ export class GlkOteBridge implements GlkOteDisplay {
   log(_msg: string) {}
   warning(_msg: string) {}
   error(msg: string) {
-    console.error('[glk]', msg)
+    glkLog.error(msg)
   }
 
   sendLine(text: string) {

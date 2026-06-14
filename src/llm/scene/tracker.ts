@@ -8,7 +8,7 @@ import type {
   SceneState,
 } from './types'
 import { emptySceneState } from './types'
-import { refusalApplies } from '../translate'
+import { refusalApplies } from '../inputTranslate'
 
 function esc(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')

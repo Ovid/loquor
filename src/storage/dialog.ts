@@ -1,6 +1,21 @@
 import { idbGet, idbSet, idbDel } from './idb'
+import { createLogger, type Logger } from '../logger'
+
+const autosaveLog = createLogger('autosave')
+const savefileLog = createLogger('savefile')
 
 const key = (sig: string) => `autosave:${sig}`
+
+/** F-9: a `.catch` handler that surfaces a failed IndexedDB op on the write
+ *  queue instead of swallowing it — a swallowed reject leaves the sync cache and
+ *  IndexedDB divergent for the session, so an explicit SAVE looks like success
+ *  while never persisting. Shared by all three persistence sites. */
+function onPersistFail(logger: Logger, verb: string, k: string) {
+  return (err: unknown) => {
+    const e = err as { name?: string; message?: string }
+    logger.error(`${verb} FAILED for ${k}: ${e?.name}: ${e?.message}`)
+  }
+}
 
 // Diagnostic logging for the autosave path. The reducer/engine work in tests
 // (fake-indexeddb), so a "starts over on return" report is environment-specific;
@@ -8,7 +23,7 @@ const key = (sig: string) => `autosave:${sig}`
 // browser console (filter by "[autosave]"). Cheap; safe to keep. Silent under
 // vitest so test output only shows unexpected problems.
 const alog = (...args: unknown[]) => {
-  if (import.meta.env.MODE !== 'test') console.info('[autosave]', ...args)
+  if (import.meta.env.MODE !== 'test') autosaveLog.info(...args)
 }
 
 /** Walk `value` and return the path of the first structured-clone-rejecting node. */
@@ -114,13 +129,26 @@ export class IdbDialog {
 
   // ---- synchronous API called by ifvms ----
   autosave_read(sig: string): unknown {
-    const has = this.cache.has(sig) && this.cache.get(sig) != null
+    // F-5/F-11 ordering guard. ifvms reads this SYNCHRONOUSLY during start(), so
+    // the cache is only warm if boot() ran `await preload(sig)` first. preload()
+    // always `cache.set(sig, v ?? null)`, so a *missing* entry (vs. an entry
+    // whose value is null) means preload was skipped — a boot-ordering bug that
+    // otherwise looks identical to "no save → fresh start" and silently never
+    // resumes. Surface it loudly; the type system can't enforce the intra-boot()
+    // sequence, so this runtime guard at the Dialog boundary does (review F-5).
+    if (!this.cache.has(sig)) {
+      autosaveLog.warn(
+        `autosave_read(${key(sig)}) before preload — autosave will not resume (boot ordering bug)`,
+      )
+      return null
+    }
+    const v = this.cache.get(sig)
     alog(
       'autosave_read',
       key(sig),
-      has ? 'snapshot present' : 'none → fresh start',
+      v != null ? 'snapshot present' : 'none → fresh start',
     )
-    return this.cache.has(sig) ? this.cache.get(sig) : null
+    return v ?? null
   }
   autosave_write(sig: string, snapshot: unknown): void {
     this.cache.set(sig, snapshot)
@@ -134,16 +162,12 @@ export class IdbDialog {
     )
     alog('autosave_write', key(sig), snapshot == null ? 'CLEAR' : 'save')
     op.catch((err: unknown) => {
-      const e = err as { name?: string; message?: string }
-      console.error(
-        `[autosave] PERSIST FAILED for ${key(sig)}: ${e?.name}: ${e?.message}`,
+      onPersistFail(autosaveLog, 'PERSIST', key(sig))(err)
+      if (
+        snapshot != null &&
+        (err as { name?: string })?.name === 'DataCloneError'
       )
-      if (snapshot != null && e?.name === 'DataCloneError') {
-        console.error(
-          '[autosave] non-cloneable field:',
-          uncloneablePath(snapshot),
-        )
-      }
+        autosaveLog.error('non-cloneable field:', uncloneablePath(snapshot))
     })
   }
 
@@ -198,8 +222,12 @@ export class IdbDialog {
   }
 
   file_remove_ref(ref: FileRef): void {
-    this.fileCache.delete(fileKey(ref))
-    void this.enqueue(() => idbDel(fileKey(ref)))
+    const k = fileKey(ref)
+    this.fileCache.delete(k)
+    // Symmetric with autosave_write (F-9): the sync fileCache is already
+    // updated, so a swallowed reject would leave cache and IndexedDB divergent
+    // for the session. Surface the failure instead of `void enqueue`.
+    this.enqueue(() => idbDel(k)).catch(onPersistFail(savefileLog, 'REMOVE', k))
   }
 
   /** Return the stored byte array, or null if the slot does not exist. */
@@ -213,7 +241,12 @@ export class IdbDialog {
     const k = fileKey(ref)
     const bytes = israw || typeof data === 'string' ? [] : Array.from(data)
     this.fileCache.set(k, bytes)
-    void this.enqueue(() => idbSet(k, bytes))
+    // F-9: was a bare `void enqueue`, which silently swallowed a failed put —
+    // an explicit SAVE then looked exactly like success while never reaching
+    // IndexedDB, so a later RESTORE found nothing. Surface it, like autosave.
+    this.enqueue(() => idbSet(k, bytes)).catch(
+      onPersistFail(savefileLog, 'WRITE', k),
+    )
   }
 
   /** Load a slot into the sync fileCache before a synchronous restore. */

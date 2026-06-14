@@ -21,10 +21,12 @@ import { useNaturalLanguage } from '../llm/useNaturalLanguage'
 import { useOutputTranslation } from '../translate/useOutputTranslation'
 import { WebLlmEngine } from '../llm/engine.webllm'
 import { selectedModelId } from '../llm/modelSelection'
-import { EngineGate } from '../llm/engineGate'
+import { EngineGate } from '../shared/engineGate'
+import { GENERATE_WATCHDOG_MS } from '../llm/config'
 import type { CapabilityResult, LoadProgress } from '../llm/types'
+import { createLogger } from '../logger'
 
-const WATCHDOG_MS = 8000 // starting value; tune at the gate
+const log = createLogger('ui')
 
 export function Terminal({
   storyBytes,
@@ -83,7 +85,7 @@ export function Terminal({
         if (!cancelled) setSignature(sig)
       })
       .catch(err => {
-        if (!cancelled) console.error('boot failed', err)
+        if (!cancelled) log.error('boot failed', err)
       })
     return () => {
       cancelled = true
@@ -122,7 +124,7 @@ export function Terminal({
     awaitTurn: () =>
       engineRef.current?.awaitTurn() ??
       Promise.resolve({ view: viewRef.current, reason: 'line' as const }),
-    watchdogMs: WATCHDOG_MS,
+    watchdogMs: GENERATE_WATCHDOG_MS,
     signature, // Task 21 consumes it (per-game noun lexicons); '' until boot resolves
     gate,
   })
@@ -195,7 +197,7 @@ export function Terminal({
             // Practically unreachable (engine is set synchronously and input is
             // disabled until a line request), but warn rather than silently
             // swallow the turn if it ever happens (review S11).
-            else console.warn('submit ignored: engine not ready')
+            else log.warn('submit ignored: engine not ready')
           }}
           // Never pending-disabled ([M]): while NL is on, typed-ahead lines
           // queue (F-A); when NL is off/left mid-drain, typing raw-sends —

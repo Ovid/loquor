@@ -1,6 +1,34 @@
 import '@testing-library/jest-dom/vitest'
 import { afterEach, beforeEach, vi, type MockInstance } from 'vitest'
 
+// --- Minimal CacheStorage stub (jsdom lacks `caches`) ----------------------
+// WebLlmEngine.isCached() → web-llm hasModelInCache → tvmjs reads the
+// CacheStorage API (`caches.open(scope).keys()`). jsdom has no `caches`, so the
+// real probe throws ReferenceError. Before F-19 that was swallowed silently;
+// F-19 now (correctly) warns on a probe fault, which the pristine-output guard
+// below would flag in every UI test that mounts Terminal with the real engine.
+// Provide an EMPTY CacheStorage so the probe resolves to "not cached" (false) —
+// faithful to a real browser where the model has not been downloaded, which is
+// exactly the state these tests assume. Installed UNCONDITIONALLY: vitest/jsdom
+// never supplies `caches`, and these tests always want this controlled empty
+// stub, so a presence check would only risk letting a partial pre-existing
+// `caches` (one missing `keys()`) slip through and make the real probe throw.
+const emptyCache = {
+  keys: async () => [],
+  match: async () => undefined,
+  add: async () => {},
+  addAll: async () => {},
+  put: async () => {},
+  delete: async () => false,
+}
+;(globalThis as { caches?: unknown }).caches = {
+  open: async () => emptyCache,
+  has: async () => false,
+  delete: async () => false,
+  keys: async () => [],
+  match: async () => undefined,
+}
+
 // --- Pristine-output guard (CLAUDE.md Conventions) -------------------------
 // A passing test must emit no stray console.error / console.warn. This also
 // traps React's `act(...)` warnings, which React routes through console.error,

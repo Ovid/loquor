@@ -6,7 +6,7 @@ import type {
   NlState,
   ViewContext,
 } from './types'
-import { EngineGate } from './engineGate'
+import { EngineGate } from '../shared/engineGate'
 import type { ViewState, TurnResult } from '../glkote-react/types'
 import type { Vocab } from './grammar/types'
 import type { SceneEvent } from './scene/types'

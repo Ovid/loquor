@@ -143,7 +143,7 @@ describe('GlkOteBridge', () => {
     bridge.warning('ignored')
     bridge.log('ignored')
     bridge.error('boom')
-    expect(spy).toHaveBeenCalledWith('[glk]', 'boom')
+    expect(spy).toHaveBeenCalledWith('[glk] boom')
     spy.mockRestore()
   })
 

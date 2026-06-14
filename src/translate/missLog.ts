@@ -3,8 +3,10 @@
 // buffer in localStorage; window.loquorMisses() lets a UAT session dump it
 // straight into the notes. Storage errors are swallowed (same policy as
 // nlpref.ts): logging must never break play.
+import { LS_KEYS } from '../storageKeys'
+
 export const MISS_CAP = 200
-const KEY = 'loquor.xlate.misses'
+const KEY = LS_KEYS.miss
 
 export interface MissEntry {
   en: string

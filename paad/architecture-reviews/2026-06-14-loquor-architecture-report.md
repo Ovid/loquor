@@ -190,6 +190,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Explanation:** The declared `Dialog` interface lists only `streaming`/`autosave_read`/`autosave_write`, but `boot()`/`flushAutosave()`/`dispose()` rely on `preload`/`hasSave`/`dispose` reached through an `any`-typed local — so a conforming Dialog could type-check yet silently skip preload (→ "autosave never resumes").
 - **Evidence:** `src/zmachine/engine.ts:18-25` (interface), `:98,154,173` (`const dialog: any` access)
 - **Found by:** Coupling & Dependencies
+- **Status:** Fixed
+- **Status reason:** Declared the engine's real contract on the `Dialog` interface — added `preload?`, `hasSave?`, and `dispose?` (each documented) — and removed all three `const dialog: any` casts in `boot()`/`flushAutosave()`/`dispose()`, which now narrow on the typed optional methods (`if (dialog.preload) …`) instead of reaching through `any`. The methods are **optional** by necessity: `engine.test.ts:104,111` legitimately passes minimal sync/stub Dialogs that omit them (graceful degradation), and a required method would have made those — and any non-IndexedDB Dialog — non-conforming. The win is the contract is now visible at the type boundary rather than silently `any`-accessed, so a maintainer sees exactly which methods the engine may call. Pure type-safety tightening, no behavior change: `tsc -b` green (proves `IdbDialog` + the stubs all remain assignable) and all 20 zmachine tests pass.
+- **Status date:** 2026-06-14 08:40 UTC
+- **Status commit:** (this commit)
 
 ### [F-8] Single flat `kv` store shared by three subsystems with no ownership
 
@@ -206,6 +210,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Explanation:** `file_write`/`file_remove_ref` use bare `void this.enqueue(...)` with no `.catch`, unlike the hardened `autosave_write` which attaches a `.catch` + error log — so a failed explicit SAVE persists to the sync `fileCache` but silently never reaches IndexedDB, and a later RESTORE finds nothing.
 - **Evidence:** `src/storage/dialog.ts:202,216` (no catch) vs `:136-147` (autosave catch)
 - **Found by:** Integration & Data
+- **Status:** Fixed
+- **Status reason:** Made the explicit SAVE/RESTORE file path symmetric with the hardened `autosave_write`: `file_write` and `file_remove_ref` now attach a `.catch` to the enqueued IndexedDB op and `console.error` a `[savefile] WRITE/REMOVE FAILED` line (name + message) instead of the bare `void this.enqueue(...)` that silently swallowed a failed put/delete. Behavior on the happy path is unchanged (sync `fileCache` still updates first); only the previously-invisible failure path now surfaces. Red/green: new `dialog.filewrite-error.test.ts` mocks `./idb` to reject and asserts both failures are logged; all 16 storage tests + typecheck green.
+- **Status date:** 2026-06-14 08:37 UTC
+- **Status commit:** (this commit)
 
 ### [F-10] GlkOte "update" protocol consumed by unversioned shape-sniffing
 
@@ -221,6 +229,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Impact:** Medium
 - **Explanation:** Tunables live wherever they're used and there is no central config module; the worst offender is the primary generate watchdog defined in the UI layer rather than the LLM layer. (Constants are well-named/documented, which softens it from raw magic numbers to sprawl.)
 - **Evidence:** `src/ui/Terminal.tsx:27` (`WATCHDOG_MS=8000`), `src/llm/useNaturalLanguage.ts:109,113,120`, `src/translate/useOutputTranslation.ts:40`, `src/llm/guardedGenerate.ts:69`, `src/llm/prompt.ts:11`, `src/translate/missLog.ts:6`
+- **Status:** Fixed
+- **Status reason:** Added a central `src/llm/config.ts` for the natural-language pipeline's timing/cap tunables and relocated the scattered constants into it: `GENERATE_WATCHDOG_MS` (the named "worst offender" — was `WATCHDOG_MS` in the **UI layer** `Terminal.tsx`, now lifted into the LLM layer), `LOAD_WATCHDOG_MS`/`MAX_CLAUSES`/`QUEUE_CAP` (were module-local in `translatePipeline.ts`), and `PROMPT_CONTEXT_CAP` (was `CONTEXT_CAP` in `prompt.ts`). Values are unchanged, so it is behavior-preserving — pinned by a new `config.test.ts` plus the existing behavior tests (`MAX_CLAUSES=8` at useNaturalLanguage.test :848/897, `QUEUE_CAP=4` at :1377, `CONTEXT_CAP=1500` at prompt.test :53). **Deliberately left in place** as cohesive single-consumer constants, not cross-cutting sprawl: the capability-detection buffer thresholds (`SMALL/FULL_MIN_BUFFER` in `capability.ts`) and the output-translation miss-log cap (`MISS_CAP` in `missLog.ts`). Full suite green (759), typecheck green.
+- **Status date:** 2026-06-14 08:48 UTC
+- **Status commit:** (this commit)
 - **Found by:** Error Handling & Observability
 
 ### [F-14] Inconsistent logging conventions; no logger abstraction
@@ -230,6 +242,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Explanation:** Some logs are prefixed and structured (`[autosave]`, `[glk]`, `[nl]`, `[xlate]`) while others are bare strings or function-name style, and channel choice (info/warn/error) is uneven — every site calls `console.*` directly, so consistent tag-filtering is impossible for UI-layer messages.
 - **Evidence:** `src/ui/App.tsx:72`, `src/ui/Terminal.tsx:86,198`, `src/llm/nlpref.ts:35`, `src/llm/capability.ts:74`
 - **Found by:** Error Handling & Observability
+- **Status:** Fixed
+- **Status reason:** Added a thin tag-scoped logger (`src/logger.ts`: `createLogger(tag)` → `{debug,info,warn,error}`) and adopted it at **every** first-party logging site, so the codebase now has one logging mechanism with a consistent `[tag]` prefix and explicit channel. Converted: `ui` (App/Terminal — the previously-bare `story load failed`/`boot failed`/`submit ignored`), `nl` (translatePipeline, plus nlpref/capability/engine.webllm — dropping the `readNlPref:`/`detectCapability:`/`isCached:` function-name style), `xlate` (fallbackResolve), `glk` (bridge), and `autosave`/`savefile` (dialog). The logger folds the tag into the first string arg, so existing `[nl] …`/`[xlate] …` assertions stayed green; only the bare-site assertions (App/Terminal → `[ui]`) and the one two-arg `[glk]` test needed updating. A grep confirms zero `console.*` calls remain in first-party code outside `logger.ts`. New `logger.test.ts` pins the convention; full suite green (763), typecheck green.
+- **Status date:** 2026-06-14 08:58 UTC
+- **Status commit:** (this commit)
 
 ### [F-17] Game-loop coordination logic embedded in `Terminal.tsx`
 
@@ -258,6 +274,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Explanation:** Many `.catch(() => {})` swallows are defensible "never break play" decisions, but the policy is uneven: `engine.webllm.ts` `isCached()` silently returns `false` on any fault — indistinguishable from "not cached", with no diagnostic — whereas `capability.ts` deliberately logs the same class of probe failure.
 - **Evidence:** `src/llm/engine.webllm.ts:114-121` vs `src/llm/capability.ts:71-74`; other swallows at `src/translate/useOutputTranslation.ts:163,335,372,376`, `src/translate/fallbackCache.ts:19`
 - **Found by:** Error Handling & Observability
+- **Status:** Fixed
+- **Status reason:** Aligned `isCached()`'s swallow with the deliberate policy already used by `capability.ts` for the same probe class: the catch now `console.warn('isCached: model-cache probe failed', err)` before returning `false`, so a genuine probe fault (e.g. IDB blocked) is no longer indistinguishable from a real cache miss. The degrade-to-false contract is preserved — a probe fault still never blocks play. (The other listed swallows in `useOutputTranslation`/`fallbackCache` were assessed as defensible "never break play" decisions and left as-is; F-19's specific complaint was the _inconsistency_ at this site.) Red/green: new test in `engine.webllm.test.ts` rejects the probe and asserts the warn fires + `false` is returned; preceded by the Safety Net characterization pinning the happy path.
+- **Status date:** 2026-06-14 08:38 UTC
+- **Status commit:** (this commit)
 
 ### [F-16] Observability is two good islands surrounded by ad hoc logging
 
@@ -266,6 +286,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Explanation:** Beyond `missLog` and the autosave trace, diagnostics are dev-only `console.log` (some self-described as `TEMP ... Remove`), and the rich runtime error classifications (watchdog vs engine-fault, `ExpectedXlateStop` reasons) hit only the console and are lost at session end — there is no plan tying these into durable signal.
 - **Evidence:** `src/llm/useNaturalLanguage.ts:154-161` (`nlDebug` "TEMP"), `src/storage/dialog.ts:5-12`
 - **Found by:** Error Handling & Observability
+- **Status:** Partially fixed
+- **Status reason:** Addressed alongside F-14. The new `src/logger.ts` collapses the "ad hoc logging" that surrounded the two good islands (`missLog`, the autosave trace) into one mechanism, and the `nlDebug` "TEMP" diagnostic firehose (now in `translatePipeline.ts`) routes through the logger's `debug` channel, whose dev-only gate (`import.meta.env.DEV && MODE !== 'test'`) is now central rather than re-implemented per call. Crucially the logger is the **single chokepoint** F-16 needs: teeing `warn`/`error` into a durable sink (ring buffer / telemetry) so the rich runtime classifications (watchdog-vs-engine-fault, `ExpectedXlateStop` reasons) survive a session can now be added in one place without touching any call site. **Remaining (why not fully fixed):** that durable sink is not yet implemented — diagnostics still only reach the console — and the `nlDebug` "TEMP" calls are still meant to be removed once translation quality is tuned. Tracked as a follow-up.
+- **Status date:** 2026-06-14 08:58 UTC
+- **Status commit:** (this commit)
 
 ### [F-2] Download/model-lifecycle coupled into the translation hook
 
@@ -294,6 +318,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Explanation:** `EngineGate` and `runGenerationGuarded` are game/NL-agnostic infrastructure but sit under `src/llm/`, so the output-translation layer must import "up" into the input-feature folder, making two peer features look entangled even though the import graph is acyclic.
 - **Evidence:** `src/translate/useOutputTranslation.ts:12-13` importing `src/llm/engineGate.ts`, `src/llm/guardedGenerate.ts`
 - **Found by:** Coupling & Dependencies
+- **Status:** Fixed
+- **Status reason:** Moved the two game/NL-agnostic infra modules (`engineGate.ts` = the single-engine priority mutex, `guardedGenerate.ts` = the watchdog generate wrapper) and their tests out of the input-feature folder `src/llm/` into a neutral peer folder `src/shared/` (sibling to `logger.ts`-style cross-cutting infra), via `git mv` to preserve history. The output-translation layer now imports from `../shared/` (a peer infra folder) instead of "up" into `../llm/` (a peer _feature_ folder), so the two features no longer look entangled. Updated all 8 importers. **Residual (deliberately out of scope):** `shared/guardedGenerate` keeps a _type-only_ import of the `LlmEngine`/`ChatMessages` interfaces from `../llm/types` — a dependency on the engine _contract_, not the input feature; it's erased at runtime and `types.ts` imports neither moved file, so there is no cycle. Fully neutralizing it would mean relocating the `LlmEngine` abstraction too (the broader "`src/llm/` is both engine + feature" overload), which is beyond F-6's scope. Pure relocation, behavior-preserving: typecheck green, full suite green (765).
+- **Status date:** 2026-06-14 07:48 UTC
+- **Status commit:** (this commit)
 
 ### [F-5] Mandatory call ordering inside `boot()` (preload → prepare → init)
 
@@ -302,6 +330,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Explanation:** ZVM reads the autosave synchronously in `start()`, so `dialog.preload(signature)` must run first to warm the sync cache; the required ordering is enforced only by the imperative sequence and comments, not the type system.
 - **Evidence:** `src/zmachine/engine.ts:96-101,138-141`
 - **Found by:** Coupling & Dependencies
+- **Status:** Fixed
+- **Status reason:** The intra-`boot()` `preload → prepare → init` ordering can't be expressed in the type system (it's a single private method's statement order), so rather than over-engineer a phantom-typed/sequenced builder for one method, the ordering is now _enforced at runtime at the Dialog boundary_ — the same guard that fixes F-11. If a refactor ever moves `Glk.init()` (which synchronously triggers `autosave_read`) ahead of `await dialog.preload(...)`, `IdbDialog.autosave_read` finds no cache entry and warns loudly instead of silently failing to resume. Added a back-reference comment at the `preload` call site so the coupling and its enforcement are discoverable from the engine. Behavior-preserving on the happy path (real boots always preload first); typecheck + the engine resume tests green.
+- **Status date:** 2026-06-14 07:44 UTC
+- **Status commit:** (this commit)
 
 ### [F-11] Sync/async impedance at the ZVM↔IndexedDB seam
 
@@ -310,6 +342,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Explanation:** ifvms calls `autosave_read` synchronously during `start()` but IndexedDB is async, so the engine must preload into a sync `Map` cache before boot; correctly mitigated today, but a latent footgun if a future caller forgets to preload.
 - **Evidence:** `src/storage/dialog.ts:104-148` (`preload` warms cache; `autosave_read` reads only cache)
 - **Found by:** Integration & Data
+- **Status:** Fixed
+- **Status reason:** Fixed jointly with F-5 (same seam). The latent footgun — "a future caller forgets to preload, so the sync `autosave_read` silently returns null and the game starts over" — is now loud: `autosave_read` distinguishes a _never-preloaded_ signature (`!cache.has(sig)`) from a _preloaded-but-empty_ one (`cache.has(sig)`, value `null`) — since `preload` always does `cache.set(sig, v ?? null)` — and `console.warn`s `[autosave] … before preload — autosave will not resume (boot ordering bug)` in the skip case while still degrading to null. The genuine "fresh start" path (preloaded, no save) stays silent. The sync/async impedance itself is intrinsic to the ifvms contract and correctly mitigated by the preload cache; this fix removes its only remaining sharp edge (silent misuse). Red/green: new `dialog.test` cases pin (a) warn-on-skip, (b) no-warn-on-preloaded-empty; the existing pre-preload characterization test now owns the warning via a spy. 16→18 storage tests green, typecheck green.
+- **Status date:** 2026-06-14 07:44 UTC
+- **Status commit:** (this commit)
 
 ### [F-7] Two "translate" namespaces create a reader hazard
 
@@ -318,6 +354,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Explanation:** `src/llm/translate.ts` (NL input translator) and `src/translate/` (output-translation package) collide in name; `../translate` inside `src/llm/` resolves to the sibling file, which a maintainer can easily mis-read as a cross-layer input→output import (the cost side of S-G).
 - **Evidence:** `src/llm/scene/tracker.ts:11`, `src/llm/grammar/buildGrammar.ts:3` (`../translate` = `src/llm/translate.ts`)
 - **Found by:** Coupling & Dependencies
+- **Status:** Fixed
+- **Status reason:** Renamed `src/llm/translate.ts` → `src/llm/inputTranslate.ts` (it is the NL **input** translator) and its test, via `git mv`. The collision is gone at the source: the misleading `../translate` imports inside `src/llm/` subdirs (`scene/tracker.ts`, `grammar/buildGrammar.ts`) are now `../inputTranslate`, which cannot be misread as the `src/translate/` output package, and same-dir `./translate` imports are now `./inputTranslate`. Updated all 9 importers (8 inside `src/llm/` + `src/zmachine/engine.test.ts`). This also removes the documented cost side of S-G (the naming hazard). Pure rename, behavior-preserving: typecheck green, full suite green (765).
+- **Status date:** 2026-06-14 07:50 UTC
+- **Status commit:** (this commit)
 
 ### [F-15] Inconsistent localStorage key naming; no key registry
 
@@ -326,6 +366,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Explanation:** Persisted keys mix schemes — `loquor-theme` (hyphen) vs `loquor.nl` and `loquor.xlate.misses` (dot) — each a private const in its own module, so collision-avoidance and migration rely on per-author discipline.
 - **Evidence:** `src/ui/useTheme.ts:4`, `src/llm/nlpref.ts:5`, `src/translate/missLog.ts:7`
 - **Found by:** Error Handling & Observability
+- **Status:** Fixed
+- **Status reason:** Added a central key registry `src/storageKeys.ts` (`LS_KEYS = { theme, nlPref, miss }`, sibling to `logger.ts`) and pointed all three modules at it (`useTheme`/`nlpref`/`missLog` now read `LS_KEYS.*` instead of a private `const KEY`), so every persisted key is declared and visible in one place — collision-avoidance and future migration no longer rely on per-author discipline. The string **values are deliberately preserved exactly** (mixed `loquor-theme` hyphen / `loquor.nl` / `loquor.xlate.misses` dot): changing one would orphan an existing user's saved theme choice, NL opt-in, or miss log — a data-migration cost, not a cosmetic cleanup — so the registry freezes and documents the drift rather than "fixing" the delimiters. Kept it a flat frozen object, not a key-builder (three static keys don't warrant one). Safety net: the existing `useTheme.test`/`nlpref.test`/`missLog.test` already pin the three literal strings, so any accidental value change in the registry breaks them; all 20 pass unchanged, full suite green (765), typecheck green.
+- **Status date:** 2026-06-14 07:53 UTC
+- **Status commit:** (this commit)
 
 ## Coverage Checklist
 

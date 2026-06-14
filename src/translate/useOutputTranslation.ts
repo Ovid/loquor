@@ -20,7 +20,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { BufferLine, StatusLine, ViewState } from '../glkote-react/types'
 import type { LlmEngine, NlLanguage } from '../llm/types'
 import type { LexLang } from '../llm/lexicon/types'
-import { EngineGate } from '../llm/engineGate'
+import { EngineGate } from '../shared/engineGate'
 import type { TranslationCorpus } from './types'
 import { corpusFor } from './corpus/index'
 import {

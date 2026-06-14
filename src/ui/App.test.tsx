@@ -108,7 +108,10 @@ describe('App', () => {
     )
     // Still on the landing screen, not crashed into a blank/garbage VM.
     expect(screen.getByText('Loquor')).toBeInTheDocument()
-    expect(errSpy).toHaveBeenCalledWith('story load failed', expect.anything())
+    expect(errSpy).toHaveBeenCalledWith(
+      '[ui] story load failed',
+      expect.anything(),
+    )
     errSpy.mockRestore()
   })
 
@@ -129,7 +132,10 @@ describe('App', () => {
     await waitFor(() =>
       expect(screen.getByText(/valid game/i)).toBeInTheDocument(),
     )
-    expect(errSpy).toHaveBeenCalledWith('story load failed', expect.anything())
+    expect(errSpy).toHaveBeenCalledWith(
+      '[ui] story load failed',
+      expect.anything(),
+    )
     errSpy.mockRestore()
   })
 })

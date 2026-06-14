@@ -4,6 +4,7 @@
 // never clobber the active one. The web-llm module is mocked so each create
 // resolves under test control.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { hasModelInCache } from '@mlc-ai/web-llm'
 import { WebLlmEngine } from './engine.webllm'
 
 interface FakeMlcEngine {
@@ -139,5 +140,41 @@ describe('WebLlmEngine.generate grammar plumbing', () => {
     await p
     engines[0].chat.completions.create.mockResolvedValueOnce({ choices: [] })
     expect(await e.generate([{ role: 'user', content: 'hi' }], null)).toBe('')
+  })
+})
+
+// Safety net for F-19: pin isCached()'s probe-passthrough behavior before
+// changing how it handles a probe FAULT (the fix adds diagnostics to the catch).
+// NOTE: isCached() reaches hasModelInCache via a dynamic `await import(...)`,
+// while these tests drive it through the statically-imported `hasModelInCache`.
+// Both resolve to the same instance because vitest's module cache returns one
+// mocked module — so `vi.mocked(hasModelInCache).mock*` controls the probe.
+describe('WebLlmEngine.isCached (on-disk cache probe)', () => {
+  it('returns false when the model is not in WebLLM’s on-disk cache', async () => {
+    const e = new WebLlmEngine('m')
+    expect(await e.isCached()).toBe(false)
+  })
+
+  it('returns true when the model is already in the on-disk cache', async () => {
+    vi.mocked(hasModelInCache).mockResolvedValueOnce(true)
+    const e = new WebLlmEngine('m')
+    expect(await e.isCached()).toBe(true)
+  })
+
+  it('surfaces a probe fault (warn) while still degrading to false (F-19)', async () => {
+    // A swallowed fault is indistinguishable from "not cached" with no
+    // diagnostic — uneven vs capability.ts, which warns on the same probe class.
+    vi.mocked(hasModelInCache).mockRejectedValueOnce(new Error('idb blocked'))
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const e = new WebLlmEngine('m')
+      expect(await e.isCached()).toBe(false) // never block play on a probe fault
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining('[nl] model-cache probe failed'),
+        expect.anything(),
+      )
+    } finally {
+      warn.mockRestore()
+    }
   })
 })

@@ -7,6 +7,9 @@ import { GAMES, gameBySlug, type Game } from '../games/catalog'
 import { IdbDialog } from '../storage/dialog'
 import { signature } from '../zmachine/signature'
 import { describeLoadError } from './loadError'
+import { createLogger } from '../logger'
+
+const log = createLogger('ui')
 
 /** Fetch a story file, failing loud on a 404/short body rather than feeding a
  *  non-story buffer into the VM. `fetch` resolves (does not reject) on HTTP
@@ -69,7 +72,7 @@ export default function App() {
       setSlug(s)
       setPicking(false)
     } catch (err) {
-      console.error('story load failed', err)
+      log.error('story load failed', err)
       setLoadError(describeLoadError(game.title, err))
     }
   }

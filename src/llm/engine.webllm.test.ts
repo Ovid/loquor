@@ -145,6 +145,10 @@ describe('WebLlmEngine.generate grammar plumbing', () => {
 
 // Safety net for F-19: pin isCached()'s probe-passthrough behavior before
 // changing how it handles a probe FAULT (the fix adds diagnostics to the catch).
+// NOTE: isCached() reaches hasModelInCache via a dynamic `await import(...)`,
+// while these tests drive it through the statically-imported `hasModelInCache`.
+// Both resolve to the same instance because vitest's module cache returns one
+// mocked module — so `vi.mocked(hasModelInCache).mock*` controls the probe.
 describe('WebLlmEngine.isCached (on-disk cache probe)', () => {
   it('returns false when the model is not in WebLLM’s on-disk cache', async () => {
     const e = new WebLlmEngine('m')

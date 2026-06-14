@@ -10,6 +10,9 @@ import type { ObjectsTable } from '../types'
 import { FR_ZORK1 } from '../../llm/lexicon/fr.zork1'
 import { FR_CORE } from '../../llm/lexicon/fr.core'
 import { ZORK1_FR_OBJECTS, ZORK1_FR_CANONICAL } from './zork1.fr.objects'
+import { ES_ZORK1 } from '../../llm/lexicon/es.zork1'
+import { ES_CORE } from '../../llm/lexicon/es.core'
+import { ZORK1_ES_OBJECTS, ZORK1_ES_CANONICAL } from './zork1.es.objects'
 
 interface Row {
   code: string
@@ -30,6 +33,14 @@ const LANGS: Row[] = [
     objects: ZORK1_FR_OBJECTS,
     canonical: ZORK1_FR_CANONICAL,
     headExtra: ['de', 'd'],
+  },
+  {
+    code: 'es',
+    nouns: ES_ZORK1,
+    core: ES_CORE,
+    objects: ZORK1_ES_OBJECTS,
+    canonical: ZORK1_ES_CANONICAL,
+    headExtra: ['del', 'al', 'de', 'd'],
   },
 ]
 

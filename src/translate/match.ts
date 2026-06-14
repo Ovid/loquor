@@ -35,8 +35,13 @@ const BUILTIN: Template[] = [
 ]
 
 export function compileCorpus(corpus: TranslationCorpus): CompiledCorpus {
-  // Longest-first alternation so 'glass bottle' wins over a hypothetical 'glass'.
-  const names = Object.keys(corpus.objects).sort((a, b) => b.length - a.length)
+  // Longest-first alternation so 'glass bottle' wins over a hypothetical
+  // 'glass'. The localeCompare tie-break makes the order TOTAL (review S6):
+  // length alone leaves equal-length names in object-insertion order, a latent
+  // non-determinism as corpora grow.
+  const names = Object.keys(corpus.objects).sort(
+    (a, b) => b.length - a.length || a.localeCompare(b),
+  )
   const objAlt = names.length > 0 ? names.map(escapeRe).join('|') : '(?!)' // never-match when empty
 
   const compile = (t: Template): CompiledTemplate => {

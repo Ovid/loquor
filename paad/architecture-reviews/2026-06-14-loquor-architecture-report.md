@@ -190,6 +190,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Explanation:** The declared `Dialog` interface lists only `streaming`/`autosave_read`/`autosave_write`, but `boot()`/`flushAutosave()`/`dispose()` rely on `preload`/`hasSave`/`dispose` reached through an `any`-typed local — so a conforming Dialog could type-check yet silently skip preload (→ "autosave never resumes").
 - **Evidence:** `src/zmachine/engine.ts:18-25` (interface), `:98,154,173` (`const dialog: any` access)
 - **Found by:** Coupling & Dependencies
+- **Status:** Fixed
+- **Status reason:** Declared the engine's real contract on the `Dialog` interface — added `preload?`, `hasSave?`, and `dispose?` (each documented) — and removed all three `const dialog: any` casts in `boot()`/`flushAutosave()`/`dispose()`, which now narrow on the typed optional methods (`if (dialog.preload) …`) instead of reaching through `any`. The methods are **optional** by necessity: `engine.test.ts:104,111` legitimately passes minimal sync/stub Dialogs that omit them (graceful degradation), and a required method would have made those — and any non-IndexedDB Dialog — non-conforming. The win is the contract is now visible at the type boundary rather than silently `any`-accessed, so a maintainer sees exactly which methods the engine may call. Pure type-safety tightening, no behavior change: `tsc -b` green (proves `IdbDialog` + the stubs all remain assignable) and all 20 zmachine tests pass.
+- **Status date:** 2026-06-14 08:40 UTC
+- **Status commit:** (this commit)
 
 ### [F-8] Single flat `kv` store shared by three subsystems with no ownership
 

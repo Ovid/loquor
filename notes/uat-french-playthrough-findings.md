@@ -270,3 +270,25 @@ barrage. Treasures: `prends la malle`→take trunk (+15, 192→207), `prends la 
   NOTE (scope): the `quitte le bateau`→quit risk is a NON-issue — metaAlias is
   bare-word-only (inputTranslate.ts:186), so "quitte le bateau" misses to the
   LLM (handles leave/exit), never quits. No fix needed.
+
+## SESSION 4 (2026-06-14, cont.) — Salon deposit → egg → maze/cyclops/thief → endgame
+
+Resumed at Salon, Score 221. Deposited 4 carried treasures (trident/malle/
+émeraude/scarabée) → Score 252, case at 12. Got the egg above ground (Score 257),
+grabbed coin bag in the maze (Score 267). All output flawless French through the
+deposit, the tree (gorgeous "œuf… orné de lapis-lazuli et de nacre… fermoir"),
+North-of-House/Forest-Path prose, and the maze rooms ("Labyrinthe… petits
+passages tortueux, tous semblables"; "passe-partout" for skeleton key — idiomatic).
+
+### 🟥 OUTPUT (PRIMARY): wandering-thief theft message leaks full ENGLISH
+
+- Trigger: while in the maze (skeleton room → SW), the roaming thief passed
+  through and robbed me. The message rendered ENTIRELY IN ENGLISH:
+  > "A seedy-looking individual with a large bag just wandered through the room.
+  > On the way through, he quietly abstracted some valuables from your possession,
+  > mumbling something about \"Doing unto others before...\""
+- This is the Zork I robber/thief "wandering rob" message (ROBBER daemon). The
+  output-translation corpus is missing it → English leaks into the French game.
+  HIGH visibility: the thief roams the whole dungeon, so this fires often. Player
+  carrying treasures underground will see it repeatedly.
+- → FIX (paad:vibe) after the thief encounter is secured (autosave holds state).

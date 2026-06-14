@@ -132,6 +132,25 @@ const TRANSLATED_STAGES: ReadonlySet<Stage> = new Set([
   'llm',
 ])
 
+/** In ENGLISH mode, a "translated" stage that hands back the player's OWN words
+ * did not actually translate — the engine's own '>' echo already shows the
+ * line, so the nl-source "(you) …" echo would just duplicate it (Zork III
+ * review #1: the model "thinks" and produces the exact command typed). Compare
+ * case-/whitespace-/trailing-punctuation-insensitively. A compound line never
+ * equals a single clause's command, so its original line still echoes once.
+ * Restricted to English: in a foreign-language picker the echo documents the
+ * canonical English command the game received — useful even on a coincidental
+ * match — so that contract (and its collision-guard test) is left untouched. */
+function isIdentityEcho(line: string, command: string): boolean {
+  const norm = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/[!.?,;:]+$/, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+  return norm(line) === norm(command)
+}
+
 /** TEMP [nl debug] diagnostics, dev browser only — release builds must not spam
  * the console or leak player input (review), and test runs stay quiet so real
  * problems stand out. Remove with the call sites once translation quality is
@@ -721,7 +740,11 @@ export function useNaturalLanguage(
             break // abstain → stop; stage 8 below decides what the player sees
           }
 
-          if (!echoed && TRANSLATED_STAGES.has(stage)) {
+          if (
+            !echoed &&
+            TRANSLATED_STAGES.has(stage) &&
+            !(activeLang === 'en' && isIdentityEcho(line, result.text))
+          ) {
             echoLocal(line)
             echoed = true
           }

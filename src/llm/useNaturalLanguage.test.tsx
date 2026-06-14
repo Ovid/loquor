@@ -1711,6 +1711,30 @@ describe('NL v2 pipeline stages (spec §4)', () => {
     expect(generateSpy).not.toHaveBeenCalled()
   })
 
+  it('does not echo when a translated stage returns the typed line verbatim (Zork III review #1)', async () => {
+    // 'mailbox' is not a parser dictionary word (canonical/emit tokens never
+    // are — F-Z), so 'open mailbox' misses stage-4 passthrough and reaches the
+    // LLM. When the model hands back the player's OWN words, no translation
+    // actually happened: the engine's '>' echo already shows the line, so the
+    // nl-source "(you) …" line would be a pure duplicate. Suppress it.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      completions: { 'open mailbox': '{"verb":"open","object":"mailbox"}' },
+    })
+    const { hook, echoLocal, sendLine } = setup({ engine })
+    await reachOn(hook)
+    act(() =>
+      hook.result.current.observe(
+        viewState('West of House', ['There is a small mailbox here.']),
+      ),
+    )
+    await act(async () => {
+      await hook.result.current.translate('open mailbox')
+    })
+    expect(sendLine).toHaveBeenCalledWith('open mailbox')
+    expect(echoLocal).not.toHaveBeenCalled()
+  })
+
   it("stage 4 collision guard: fr picker + a lexicon word ('examine') does NOT pass through — routes via the lexicon", async () => {
     // 'examine trapdoor' is all-vocab in English, but 'examine' is ALSO a
     // French core-lexicon verb (a reviewed collision). With the picker on fr

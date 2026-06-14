@@ -30,7 +30,9 @@ import {
   metaAlias,
   isConfirmationPrompt,
   isDisambiguationPrompt,
+  isOrphanPrompt,
   splitClauses,
+  fillElidedVerbs,
   clauseFailed,
   unquote,
   isVocabPassthrough,
@@ -463,9 +465,10 @@ export function createTranslate(
         live.internal.phase === 'on' ? live.internal.language : 'en'
       const lex = live.lex
       // STAGE 1 (spec §4): the game is asking. The interpreter's yes/no
-      // confirmations (restart/quit/restore) and the parser's disambiguation
-      // questions ("Which door…?") are read as ordinary LINE input, so the
-      // player's reply answers the INTERPRETER and must not be translated —
+      // confirmations (restart/quit/restore), the parser's disambiguation
+      // questions ("Which door…?"), and the parser's orphan prompts ("What do
+      // you want to put the coffin in?") are read as ordinary LINE input, so the
+      // player's reply answers the INTERPRETER/PARSER and must not be translated —
       // else "Y" → "look" (restart never confirms) or "wooden door" gets
       // mangled. Checked before the clause split so a reply containing "and"
       // is never split either. A QUEUED line cannot be such a reply — the
@@ -474,7 +477,8 @@ export function createTranslate(
       const recentOutput = (settled ?? getContext()).recentOutput
       if (
         isConfirmationPrompt(recentOutput) ||
-        isDisambiguationPrompt(recentOutput)
+        isDisambiguationPrompt(recentOutput) ||
+        isOrphanPrompt(recentOutput) // parser orphan ("What do you want to …?") — the reply answers the parser (review I1)
       ) {
         lastCommandRef.current = null
         if (fromQueue) return 'flush'
@@ -495,7 +499,15 @@ export function createTranslate(
       // case of the compound machinery (locked decisions 1–9). Only when
       // total>1 does the hook own the turn boundary (awaitTurn + observe);
       // a single command leaves the turn to Terminal's observe effect.
-      const clauses = splitClauses(line)
+      // fillElidedVerbs lets a verbless conjunct inherit the previous clause's
+      // verb ("prends le couteau et la corde" → "…et prends la corde") so it
+      // resolves deterministically instead of an LLM-invented verb; length is
+      // preserved, so the single-command degenerate case is untouched.
+      const clauses = fillElidedVerbs(
+        splitClauses(line),
+        lex?.core ?? null,
+        vocab,
+      )
       const total = clauses.length
       if (total > 1) inSequenceRef.current = true
       const limit = Math.min(total, MAX_CLAUSES)
@@ -622,10 +634,11 @@ export function createTranslate(
         }
         if (
           isConfirmationPrompt(vc.recentOutput) ||
-          isDisambiguationPrompt(vc.recentOutput)
+          isDisambiguationPrompt(vc.recentOutput) ||
+          isOrphanPrompt(vc.recentOutput)
         ) {
           stopReason = 'interactive-prompt'
-          break // mid-sequence interactive prompt (decision 3)
+          break // mid-sequence interactive/orphan prompt (decision 3)
         }
       }
       if (stopReason)

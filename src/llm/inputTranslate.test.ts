@@ -5,7 +5,9 @@ import {
   metaAlias,
   isConfirmationPrompt,
   isDisambiguationPrompt,
+  isOrphanPrompt,
   splitClauses,
+  fillElidedVerbs,
   clauseFailed,
   refusalApplies,
   unquote,
@@ -224,6 +226,25 @@ describe('isDisambiguationPrompt', () => {
   })
 })
 
+describe('isOrphanPrompt', () => {
+  it('detects the parser’s "What do you want to …" orphan prompt', () => {
+    for (const p of [
+      'What do you want to put the coffin in?',
+      'What do you want to take?',
+    ])
+      expect(isOrphanPrompt(p)).toBe(true)
+  })
+
+  it('does NOT fire on ordinary output', () => {
+    for (const p of [
+      'You put the coffin in the trophy case.',
+      'It is pitch black. You are likely to be eaten by a grue.',
+      '',
+    ])
+      expect(isOrphanPrompt(p)).toBe(false)
+  })
+})
+
 describe('splitClauses', () => {
   it('returns a single-element array when there is no separator', () => {
     expect(splitClauses('open the mailbox')).toEqual(['open the mailbox'])
@@ -280,10 +301,31 @@ describe('splitClauses', () => {
     ])
   })
 
-  it('does NOT treat a comma as a separator', () => {
+  it('splits on commas (UAT: object lists like "A, B et C")', () => {
+    // A comma-separated object list is the natural way to take/drop several
+    // things; the foreign-language path can't leave it to the LLM (the
+    // single-command grammar can't express a 3-object take), so the comma
+    // must split into separate clauses (verb-gapping fills the bare objects).
     expect(splitClauses('take the lamp, sword and key')).toEqual([
-      'take the lamp, sword',
+      'take the lamp',
+      'sword',
       'key',
+    ])
+    expect(
+      splitClauses('prends le charbon, le tournevis et la torche'),
+    ).toEqual(['prends le charbon', 'le tournevis', 'la torche'])
+  })
+
+  it('absorbs an Oxford comma before the final conjunction', () => {
+    // 'A, B, et C' — the comma immediately before 'et'/'and' must not leave a
+    // dangling 'et la torche' clause.
+    expect(
+      splitClauses('prends le charbon, le tournevis, et la torche'),
+    ).toEqual(['prends le charbon', 'le tournevis', 'la torche'])
+    expect(splitClauses('take the lamp, the sword, and the key')).toEqual([
+      'take the lamp',
+      'the sword',
+      'the key',
     ])
   })
 
@@ -295,6 +337,103 @@ describe('splitClauses', () => {
   it('trims clauses and drops empties', () => {
     expect(splitClauses('  open mailbox  and  ')).toEqual(['open mailbox'])
     expect(splitClauses('open mailbox..')).toEqual(['open mailbox'])
+  })
+})
+
+describe('fillElidedVerbs (verb-gapping across compound conjuncts)', () => {
+  // UAT (French playthrough): "prends le couteau et la corde" split to
+  // ["prends le couteau", "la corde"]; the verbless 2nd conjunct fell to the
+  // LLM, which invented a verb ("move rope") instead of inheriting "take".
+  it('inherits the previous clause verb for a verbless object conjunct', () => {
+    expect(
+      fillElidedVerbs(
+        splitClauses('prends le couteau et la corde'),
+        FR_CORE,
+        vocab,
+      ),
+    ).toEqual(['prends le couteau', 'prends la corde'])
+  })
+
+  it('chains the inherited verb across several bare-object conjuncts', () => {
+    expect(
+      fillElidedVerbs(
+        splitClauses('prends le couteau et la corde puis la lampe'),
+        FR_CORE,
+        vocab,
+      ),
+    ).toEqual(['prends le couteau', 'prends la corde', 'prends la lampe'])
+  })
+
+  it('does NOT borrow a verb for a conjunct that already has one', () => {
+    expect(
+      fillElidedVerbs(
+        splitClauses("pose le couteau et prends l'épée"),
+        FR_CORE,
+        vocab,
+      ),
+    ).toEqual(['pose le couteau', "prends l'épée"])
+  })
+
+  it('does NOT borrow a verb for a bare direction conjunct', () => {
+    expect(
+      fillElidedVerbs(
+        splitClauses('prends la lampe puis au nord'),
+        FR_CORE,
+        vocab,
+      ),
+    ).toEqual(['prends la lampe', 'au nord'])
+  })
+
+  it('does NOT borrow a verb for a localized meta conjunct', () => {
+    expect(
+      fillElidedVerbs(
+        splitClauses('prends la lampe et inventaire'),
+        FR_CORE,
+        vocab,
+      ),
+    ).toEqual(['prends la lampe', 'inventaire'])
+  })
+
+  it('leaves a lone clause and the first clause untouched', () => {
+    expect(
+      fillElidedVerbs(splitClauses('ouvre la porte'), FR_CORE, vocab),
+    ).toEqual(['ouvre la porte'])
+  })
+
+  it('does not gap when the first clause has no verb to lend', () => {
+    // "va au nord" is a direction (no transitive verb to inherit), so the bare
+    // object stays verbless and falls to the LLM as before.
+    expect(
+      fillElidedVerbs(splitClauses('va au nord et la lampe'), FR_CORE, vocab),
+    ).toEqual(['va au nord', 'la lampe'])
+  })
+
+  it('gaps an article-led object via English vocab verbs (en mode, core=null)', () => {
+    expect(fillElidedVerbs(['take key', 'the leaflet'], null, vocab)).toEqual([
+      'take key',
+      'take the leaflet',
+    ])
+  })
+
+  it('does NOT gap a conjunct that carries its own (LLM-only) verb', () => {
+    // "check inventory" has a verb the deterministic sets don't know, but it is
+    // NOT article-led, so it must reach the LLM intact — never "look check
+    // inventory". (Regression: an over-eager gap broke the compound here.)
+    expect(fillElidedVerbs(['look', 'check inventory'], null, vocab)).toEqual([
+      'look',
+      'check inventory',
+    ])
+  })
+
+  it('inherits a verbSynonym leading verb (en mode) — review I2', () => {
+    // A verbSynonym is a real verb to verbArityOk/parseLexicon (the FR
+    // "ulysse → ulysses" fix relies on it), so the gap side must recognise it
+    // too — else "break the window and the door" leaves "the door" verbless and
+    // an LLM invents a wrong verb.
+    const v: Vocab = { ...vocab, verbSynonyms: ['break'] }
+    expect(
+      fillElidedVerbs(['break the window', 'the door'], null, v),
+    ).toEqual(['break the window', 'break the door'])
   })
 })
 

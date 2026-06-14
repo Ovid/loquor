@@ -66,8 +66,8 @@
 //         emit construction covered-by: vocab-invariants 'emit forms (F-Z)'
 //   F-AA → row (creuse le sable avec la pelle → dig sand with shovel) +
 //         covered-by: scene/tracker.test.ts 'NL v2 §8 — scope demoted (F-AA/F-T)'
-//   F-BB → rows ('ulysses' stage-4 passthrough; French 'Ulysse' is NOT mapped —
-//         abstains with a notice instead of UAT's bogus 'look')
+//   F-BB → rows ('ulysses' stage-4 passthrough; French 'Ulysse' now maps via
+//         fr.core verbs → 'ulysses' deterministically — UAT S4 fix)
 //   F-CC → row (remonte le canari → wind up canary)
 //   F-DD → rows ('écho' via the folding lexicon; 'echo' via stage 4)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -489,13 +489,14 @@ const CASES: UatCase[] = [
     llmAllowed: false,
   },
   {
-    finding: 'F-BB (French spelling still unmapped)',
+    finding: 'F-BB (French "Ulysse" → ulysses, UAT S4)',
     language: 'fr',
     input: 'Ulysse',
-    // Not vocab, not lexicon → the model abstains → notice, nothing sent.
-    // Strictly better than UAT's bogus 'look'; mapping 'Ulysse' is future data.
-    expectSent: null,
-    llmAllowed: true,
+    // Now mapped deterministically: fr.core verbs 'ulysse' → 'ulysses' (a
+    // verbSynonym, so the bare magic word clears the arity gate). Previously
+    // unmapped → the model returned a bogus 'look' at the Cyclops (UAT S4).
+    expectSent: 'ulysses',
+    llmAllowed: false,
   },
   {
     finding: 'F-DD (écho → examine brass bell)',
@@ -610,14 +611,16 @@ describe('UAT compound regressions (dedicated)', () => {
     expect(hook.result.current.notice).toBeNull()
   })
 
-  it('F-S: 2-object conjunction — clause 1 emits deterministically, truncation is visible ([H])', async () => {
+  it('F-S: 2-object conjunction — clause 1 orphan-prompts, the compound STOPS there ([H])', async () => {
     // `et` splits mid-noun-phrase: clause 1 `mets le cercueil`, clause 2
-    // `le sceptre dans la vitrine` (verbless → LLM → abstain). Pre-[H] the
-    // whole line abstained; with verbs2-only verbs allowed one object,
-    // clause 1 now emits `put coffin` — the Z-parser orphan-prompts for the
-    // missing container (deterministic, never a guess) — and the truncation
-    // is visible via "Ran 1 of 2 actions." UAT-2's original failure (TWO
-    // silent wrong takes) stays impossible: nothing here is guessed.
+    // `le sceptre dans la vitrine`. Clause 1 emits `put coffin` — the Z-parser
+    // orphan-prompts for the missing container ("What do you want to put the
+    // coffin in?"). Verb-gapping WOULD let clause 2 inherit `mets` and resolve
+    // deterministically, but it must NOT be auto-fed into that orphan prompt
+    // (the player never saw the question), so the compound stops at clause 1 —
+    // truncation visible via "Ran 1 of 2 actions.", and the LLM is never
+    // consulted. UAT-2's original failure (TWO silent wrong takes) stays
+    // impossible: nothing here is guessed.
     const views = [
       viewState(
         'Living Room',
@@ -635,7 +638,7 @@ describe('UAT compound regressions (dedicated)', () => {
       )
     })
     expect(sent).toEqual(['put coffin'])
-    expect(engine.generateCalls).toBeGreaterThan(0) // clause 2 fell to the LLM
+    expect(engine.generateCalls).toBe(0) // orphan stop — clause 2 never runs
     expect(hook.result.current.notice).toMatch(/ran 1 of 2/i)
   })
 

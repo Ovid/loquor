@@ -17,6 +17,9 @@ coverage/
 .vite/
 scripts/out/
 
+# session-local UAT resume brief (regenerated each session; not source control)
+/prompt.md
+
 # Logs
 logs
 *.log

@@ -9,6 +9,26 @@
 // players (and the spec'd tests) use, and the Z-parser accepts it.
 import type { CoreLexicon } from './types'
 
+// French boat launch (UAT S3, Frigid River). "lancer un bateau" = to LAUNCH a
+// boat, and "mettre à l'eau" is the boat label's own wording for it — both mean
+// Zork's LAUNCH. But lance→throw and mets→put everywhere else, so these can
+// only be FULL-PHRASE idioms (which also leave "lance le couteau" = throw
+// intact). Bare LAUNCH is what the Z-parser accepts in the boat (FIND VEHBIT;
+// the walkthrough types ">launch"). Boat words mirror fr.zork1's 'magic boat';
+// the cross-product keeps adding a synonym to one line. Folded ("à l'eau" →
+// "a l eau"). Rarer phrasings (full "bateau magique", reordered) fall to the LLM.
+const FR_BOAT_WORDS = ['bateau', 'radeau', 'canot']
+const FR_LAUNCH_IDIOMS = [
+  ...['lance', 'lancez'].flatMap(v =>
+    FR_BOAT_WORDS.map(b => ({ phrase: `${v} le ${b}`, to: 'launch' })),
+  ),
+  ...['mets', 'mettez'].flatMap(v =>
+    FR_BOAT_WORDS.map(b => ({ phrase: `${v} le ${b} a l eau`, to: 'launch' })),
+  ),
+  { phrase: 'mets a l eau', to: 'launch' },
+  { phrase: 'mettez a l eau', to: 'launch' },
+]
+
 export const FR_CORE: CoreLexicon = {
   verbs: {
     // take
@@ -212,6 +232,12 @@ export const FR_CORE: CoreLexicon = {
     criez: 'yell',
     hurle: 'yell',
     hurlez: 'yell',
+    // Magic word (verb-only spoken command — the Z-parser treats it as a verb).
+    // "Ulysse" is the French name of Ulysses/Odysseus; saying it makes the
+    // Cyclops flee. Targets 'ulysses', a verbSynonym in the vocab, so the bare
+    // command clears the arity gate. (UAT S4: bare "Ulysse" had missed to the
+    // LLM, which returned "look" and left the Cyclops blocking the stairs.)
+    ulysse: 'ulysses',
   },
   verbIdioms: [
     { phrase: 'laisse tomber', to: 'drop' },
@@ -234,6 +260,7 @@ export const FR_CORE: CoreLexicon = {
     { phrase: 'rentrez dans', to: 'enter' },
     { phrase: 'leve toi', to: 'stand' },
     { phrase: 'levez vous', to: 'stand' },
+    ...FR_LAUNCH_IDIOMS,
   ],
   particleVerbs: [],
   preps: {
@@ -269,6 +296,8 @@ export const FR_CORE: CoreLexicon = {
     { word: 'dessus', prep: 'on' },
   ],
   pronounsSelf: ['moi', 'me'],
+  // 'tout/tous/toute/toutes' (folded) and the bare English 'all' → ALL.
+  quantifiersAll: ['tout', 'tous', 'toute', 'toutes', 'all'],
   metaAliases: {
     inventaire: 'inventory', // fr (migrated from META_ALIASES)
     diagnostic: 'diagnose', // F5

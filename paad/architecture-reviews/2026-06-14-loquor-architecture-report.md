@@ -159,7 +159,7 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Status:** Fixed
 - **Status reason:** Extracted the dense async-resolution pipeline (`put`/`settle`/`failEnglish`/`resolve` + `ExpectedXlateStop` and the `Resolution`/`OverlayEntry`/`OverlayState` types) into a new pure-logic `src/translate/fallbackResolve.ts` (`createFallbackResolver` factory closing over the hook's refs). The hook now reads as an orchestrator — React state/refs, the effect-order invariant, the miss scan, and the output memos — and dropped from 435 to 269 lines. Behavior-preserving: all 28 tests in `useOutputTranslation.test.tsx` (incl. the new F-18 safety net) pass unchanged.
 - **Status date:** 2026-06-14 07:25 UTC
-- **Status commit:** 45dab9b
+- **Status commit:** f8f20f6
 
 ### [F-4] `Dialog` interface under-specifies the contract the engine requires
 - **Category:** 6 — Leaky abstraction
@@ -216,6 +216,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Explanation:** `useOutputTranslation` returns `{lines, status}` but its effect writes the IndexedDB fallback cache, deletes cache keys, appends to the localStorage miss-log, installs a global `window.loquorMisses`, and runs GPU generations — none of which is evident from the signature. (`useNaturalLanguage` is similar.)
 - **Evidence:** `src/translate/useOutputTranslation.ts:131,163,243,335,360,401`
 - **Found by:** Error Handling & Observability
+- **Status:** Fixed
+- **Status reason:** Two-part fix. (1) Structural: F-3 already relocated the heaviest hidden effects — IndexedDB cache reads/writes and gate-held GPU generations — into the documented `createFallbackResolver` (`fallbackResolve.ts`) with an explicit interface. (2) Disclosure: the residual hook-level effects are inherent to this overlay feature (scattering them would be worse), so they are now enumerated in an explicit "SIDE EFFECTS (F-18)" inventory in the hook header (the `window.loquorMisses` install, the activation-time `'>'` cache purge, the backlog/status miss-log appends, the unmount abort) and the `OutputTranslation` return type carries a note that producing it is effectful. The mount-time global install is pinned by a new safety-net test. The companion NL-hook disclosure (the report's "useNaturalLanguage is similar") rides with the F-2 commit.
+- **Status date:** 2026-06-14 07:27 UTC
+- **Status commit:** (this commit)
 
 ### [F-19] Uneven swallowed-error policy (`isCached` masks faults)
 - **Category:** 20 — Weak error handling strategy

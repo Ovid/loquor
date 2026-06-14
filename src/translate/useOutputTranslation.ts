@@ -5,6 +5,17 @@
 // present at corpus activation (language switch / restore rebuild) are
 // BACKLOG: matcher + CACHE hits only (spec §3) — no shimmer, no generation;
 // an uncached backlog miss stays English and is logged (kind 'backlog').
+//
+// SIDE EFFECTS (F-18) — this hook is NOT a pure derivation of {lines, status};
+// its effects are intentional but not evident from the return type, so they are
+// enumerated here. The async-resolution effects (IndexedDB cache reads/writes,
+// gate-held GPU generations) are owned and documented by createFallbackResolver
+// (./fallbackResolve); the hook itself additionally:
+//   • installs a `window.loquorMisses()` dev dump on mount (installMissDump);
+//   • on corpus (re)activation, purges a poisoned '>' cache key (cacheDelete);
+//   • appends corpus gaps to the localStorage miss-log (logMiss: 'backlog' on
+//     first sight of a backlog miss, 'status' for unmatched status fields);
+//   • aborts in-flight generations on unmount/HMR (acsRef teardown).
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { BufferLine, StatusLine, ViewState } from '../glkote-react/types'
 import type { LlmEngine, NlLanguage } from '../llm/types'
@@ -30,6 +41,9 @@ export interface DisplayLine extends BufferLine {
   pending?: boolean
 }
 
+/** The overlay's render output. NOTE: producing it is effectful — see the
+ * "SIDE EFFECTS (F-18)" inventory in this file's header; the hook persists to
+ * IndexedDB/localStorage, installs a window global, and may run GPU work. */
 export interface OutputTranslation {
   lines: DisplayLine[]
   status: StatusLine | null

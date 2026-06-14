@@ -1,10 +1,21 @@
 import { idbGet, idbSet, idbDel } from './idb'
-import { createLogger } from '../logger'
+import { createLogger, type Logger } from '../logger'
 
 const autosaveLog = createLogger('autosave')
 const savefileLog = createLogger('savefile')
 
 const key = (sig: string) => `autosave:${sig}`
+
+/** F-9: a `.catch` handler that surfaces a failed IndexedDB op on the write
+ *  queue instead of swallowing it — a swallowed reject leaves the sync cache and
+ *  IndexedDB divergent for the session, so an explicit SAVE looks like success
+ *  while never persisting. Shared by all three persistence sites. */
+function onPersistFail(logger: Logger, verb: string, k: string) {
+  return (err: unknown) => {
+    const e = err as { name?: string; message?: string }
+    logger.error(`${verb} FAILED for ${k}: ${e?.name}: ${e?.message}`)
+  }
+}
 
 // Diagnostic logging for the autosave path. The reducer/engine work in tests
 // (fake-indexeddb), so a "starts over on return" report is environment-specific;
@@ -138,13 +149,12 @@ export class IdbDialog {
     )
     alog('autosave_write', key(sig), snapshot == null ? 'CLEAR' : 'save')
     op.catch((err: unknown) => {
-      const e = err as { name?: string; message?: string }
-      autosaveLog.error(
-        `PERSIST FAILED for ${key(sig)}: ${e?.name}: ${e?.message}`,
+      onPersistFail(autosaveLog, 'PERSIST', key(sig))(err)
+      if (
+        snapshot != null &&
+        (err as { name?: string })?.name === 'DataCloneError'
       )
-      if (snapshot != null && e?.name === 'DataCloneError') {
         autosaveLog.error('non-cloneable field:', uncloneablePath(snapshot))
-      }
     })
   }
 
@@ -204,10 +214,7 @@ export class IdbDialog {
     // Symmetric with autosave_write (F-9): the sync fileCache is already
     // updated, so a swallowed reject would leave cache and IndexedDB divergent
     // for the session. Surface the failure instead of `void enqueue`.
-    this.enqueue(() => idbDel(k)).catch((err: unknown) => {
-      const e = err as { name?: string; message?: string }
-      savefileLog.error(`REMOVE FAILED for ${k}: ${e?.name}: ${e?.message}`)
-    })
+    this.enqueue(() => idbDel(k)).catch(onPersistFail(savefileLog, 'REMOVE', k))
   }
 
   /** Return the stored byte array, or null if the slot does not exist. */
@@ -224,10 +231,9 @@ export class IdbDialog {
     // F-9: was a bare `void enqueue`, which silently swallowed a failed put —
     // an explicit SAVE then looked exactly like success while never reaching
     // IndexedDB, so a later RESTORE found nothing. Surface it, like autosave.
-    this.enqueue(() => idbSet(k, bytes)).catch((err: unknown) => {
-      const e = err as { name?: string; message?: string }
-      savefileLog.error(`WRITE FAILED for ${k}: ${e?.name}: ${e?.message}`)
-    })
+    this.enqueue(() => idbSet(k, bytes)).catch(
+      onPersistFail(savefileLog, 'WRITE', k),
+    )
   }
 
   /** Load a slot into the sync fileCache before a synchronous restore. */

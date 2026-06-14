@@ -270,6 +270,16 @@ describe('parseLexicon — French', () => {
       text: 'wait',
     })
   })
+  it('French hero name "Ulysse" → cyclops magic word "ulysses" (UAT S4)', () => {
+    // "Ulysse" is the French name for Ulysses/Odysseus; folds to "ulysse".
+    // 'ulysses' is a verbSynonym in the REAL vocab (a verb-only magic word),
+    // so the bare command clears the arity gate (verbArityOk passes
+    // verbSynonyms at any arity). Uses ZORK1_VOCAB, not the fixture (whose
+    // verbSynonyms is empty), since the behavior depends on the real data.
+    expect(
+      parseLexicon('Ulysse', FR_CORE, FR_ZORK1, ZORK1_VOCAB, empty),
+    ).toEqual({ kind: 'command', text: 'ulysses' })
+  })
   it('verb arity respected: transitive verb without an object → miss', () => {
     // 'ring' is verbs1-only in the fixture; bare 'sonne' has no object
     expect(parseLexicon('sonne', FR_CORE, FR_NOUNS, vocab, empty)).toEqual({

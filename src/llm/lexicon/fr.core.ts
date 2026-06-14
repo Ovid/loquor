@@ -232,6 +232,12 @@ export const FR_CORE: CoreLexicon = {
     criez: 'yell',
     hurle: 'yell',
     hurlez: 'yell',
+    // Magic word (verb-only spoken command — the Z-parser treats it as a verb).
+    // "Ulysse" is the French name of Ulysses/Odysseus; saying it makes the
+    // Cyclops flee. Targets 'ulysses', a verbSynonym in the vocab, so the bare
+    // command clears the arity gate. (UAT S4: bare "Ulysse" had missed to the
+    // LLM, which returned "look" and left the Cyclops blocking the stairs.)
+    ulysse: 'ulysses',
   },
   verbIdioms: [
     { phrase: 'laisse tomber', to: 'drop' },

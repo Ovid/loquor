@@ -66,8 +66,8 @@
 //         emit construction covered-by: vocab-invariants 'emit forms (F-Z)'
 //   F-AA → row (creuse le sable avec la pelle → dig sand with shovel) +
 //         covered-by: scene/tracker.test.ts 'NL v2 §8 — scope demoted (F-AA/F-T)'
-//   F-BB → rows ('ulysses' stage-4 passthrough; French 'Ulysse' is NOT mapped —
-//         abstains with a notice instead of UAT's bogus 'look')
+//   F-BB → rows ('ulysses' stage-4 passthrough; French 'Ulysse' now maps via
+//         fr.core verbs → 'ulysses' deterministically — UAT S4 fix)
 //   F-CC → row (remonte le canari → wind up canary)
 //   F-DD → rows ('écho' via the folding lexicon; 'echo' via stage 4)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -489,13 +489,14 @@ const CASES: UatCase[] = [
     llmAllowed: false,
   },
   {
-    finding: 'F-BB (French spelling still unmapped)',
+    finding: 'F-BB (French "Ulysse" → ulysses, UAT S4)',
     language: 'fr',
     input: 'Ulysse',
-    // Not vocab, not lexicon → the model abstains → notice, nothing sent.
-    // Strictly better than UAT's bogus 'look'; mapping 'Ulysse' is future data.
-    expectSent: null,
-    llmAllowed: true,
+    // Now mapped deterministically: fr.core verbs 'ulysse' → 'ulysses' (a
+    // verbSynonym, so the bare magic word clears the arity gate). Previously
+    // unmapped → the model returned a bogus 'look' at the Cyclops (UAT S4).
+    expectSent: 'ulysses',
+    llmAllowed: false,
   },
   {
     finding: 'F-DD (écho → examine brass bell)',

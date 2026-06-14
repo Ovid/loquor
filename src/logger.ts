@@ -56,8 +56,10 @@ function record(level: 'warn' | 'error', args: unknown[]): void {
   ring.push({ level, args })
   if (ring.length > RING_CAP) ring.shift()
 }
-/** The session's recent warn/error records, oldest first. */
-export const recentLogs = (): readonly LogRecord[] => ring
+/** The session's recent warn/error records, oldest first. A copy, so a caller
+ *  (or `window.loquorLogs()`) can't mutate the live ring or watch it shift under
+ *  them as `record()` evicts. */
+export const recentLogs = (): readonly LogRecord[] => ring.slice()
 /** Clear the ring (tests / dev). */
 export const clearLogs = (): void => {
   ring.length = 0

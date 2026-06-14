@@ -7,8 +7,7 @@ import type {
   ViewState,
 } from './types'
 import type { Vocab } from './grammar/types'
-
-const CONTEXT_CAP = 1500
+import { PROMPT_CONTEXT_CAP as CONTEXT_CAP } from './config'
 
 /** Derive the pure view context from the live ViewState (location + recent output). */
 export function viewToContext(view: ViewState): ViewContext {

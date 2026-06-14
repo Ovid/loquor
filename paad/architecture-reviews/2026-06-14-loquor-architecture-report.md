@@ -229,6 +229,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Impact:** Medium
 - **Explanation:** Tunables live wherever they're used and there is no central config module; the worst offender is the primary generate watchdog defined in the UI layer rather than the LLM layer. (Constants are well-named/documented, which softens it from raw magic numbers to sprawl.)
 - **Evidence:** `src/ui/Terminal.tsx:27` (`WATCHDOG_MS=8000`), `src/llm/useNaturalLanguage.ts:109,113,120`, `src/translate/useOutputTranslation.ts:40`, `src/llm/guardedGenerate.ts:69`, `src/llm/prompt.ts:11`, `src/translate/missLog.ts:6`
+- **Status:** Fixed
+- **Status reason:** Added a central `src/llm/config.ts` for the natural-language pipeline's timing/cap tunables and relocated the scattered constants into it: `GENERATE_WATCHDOG_MS` (the named "worst offender" — was `WATCHDOG_MS` in the **UI layer** `Terminal.tsx`, now lifted into the LLM layer), `LOAD_WATCHDOG_MS`/`MAX_CLAUSES`/`QUEUE_CAP` (were module-local in `translatePipeline.ts`), and `PROMPT_CONTEXT_CAP` (was `CONTEXT_CAP` in `prompt.ts`). Values are unchanged, so it is behavior-preserving — pinned by a new `config.test.ts` plus the existing behavior tests (`MAX_CLAUSES=8` at useNaturalLanguage.test :848/897, `QUEUE_CAP=4` at :1377, `CONTEXT_CAP=1500` at prompt.test :53). **Deliberately left in place** as cohesive single-consumer constants, not cross-cutting sprawl: the capability-detection buffer thresholds (`SMALL/FULL_MIN_BUFFER` in `capability.ts`) and the output-translation miss-log cap (`MISS_CAP` in `missLog.ts`). Full suite green (759), typecheck green.
+- **Status date:** 2026-06-14 08:48 UTC
+- **Status commit:** (this commit)
 - **Found by:** Error Handling & Observability
 
 ### [F-14] Inconsistent logging conventions; no logger abstraction

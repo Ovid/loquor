@@ -22,9 +22,8 @@ import { useOutputTranslation } from '../translate/useOutputTranslation'
 import { WebLlmEngine } from '../llm/engine.webllm'
 import { selectedModelId } from '../llm/modelSelection'
 import { EngineGate } from '../llm/engineGate'
+import { GENERATE_WATCHDOG_MS } from '../llm/config'
 import type { CapabilityResult, LoadProgress } from '../llm/types'
-
-const WATCHDOG_MS = 8000 // starting value; tune at the gate
 
 export function Terminal({
   storyBytes,
@@ -122,7 +121,7 @@ export function Terminal({
     awaitTurn: () =>
       engineRef.current?.awaitTurn() ??
       Promise.resolve({ view: viewRef.current, reason: 'line' as const }),
-    watchdogMs: WATCHDOG_MS,
+    watchdogMs: GENERATE_WATCHDOG_MS,
     signature, // Task 21 consumes it (per-game noun lexicons); '' until boot resolves
     gate,
   })

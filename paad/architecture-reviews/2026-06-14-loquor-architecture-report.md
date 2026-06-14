@@ -266,6 +266,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Explanation:** `Terminal.tsx` is more than a view: it constructs the engine + gate, owns the watchdog config, runs the boot/dispose + capability lifecycle, and implements the subtle scene-observation timing gate (`nl.observe(view)` deferring to `nl.isSequencing()`) — core game-loop logic inside a component effect.
 - **Evidence:** `src/ui/Terminal.tsx:27,51-54,71-104,134-140`
 - **Found by:** Error Handling & Observability
+- **Status:** Fixed
+- **Status reason:** Extracted the game-loop coordination out of the view into a new `src/ui/useGameEngine.ts` module of three focused hooks: `useGameEngine(storyBytes)` (the ZMachine construction + boot/dispose lifecycle + view streaming + signature — the dominant chunk), `useCapability(override)` (device-tier detection), and `useSceneObservation(nl, view)` (the subtle turn-boundary scene-tracker gate that defers to the hook mid-sequence — the "core game-loop logic" the finding called out). `Terminal.tsx` now reads as a view: it composes those hooks and wires presentation, dropping from 224 to 176 lines. Coupling stays loose — `useSceneObservation` accepts only a `Pick<UseNaturalLanguage, 'isSequencing' | 'observe'>` (the two methods it uses), the `ui → llm` dependency is type-only and already existed, and no cycle or new god object is introduced. Behavior-preserving refactor verified by the committed safety nets (boot + echo, **ZMachine.dispose() on unmount**, LLM unload on unmount, English passthrough, queued-chip/input-enabled) all green; full suite green (777), typecheck + lint clean. (The lazy-init `WebLlmEngine`/`EngineGate` and the `viewRef`/`getContext` NL glue stay in the component — they are presentation wiring, not game-loop logic.)
+- **Status date:** 2026-06-14 08:29 UTC
+- **Status commit:** (this commit)
 
 ### [F-18] Hidden side effects behind a display-overlay signature
 

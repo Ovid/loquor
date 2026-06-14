@@ -1,20 +1,16 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useMemo,
-  type ReactNode,
-} from 'react'
-import { ZMachine } from '../zmachine/engine'
-import { IdbDialog } from '../storage/dialog'
-import { emptyView, type ViewState } from '../glkote-react/types'
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react'
+import type { ReactNode } from 'react'
+import type { ViewState } from '../glkote-react/types'
 import { StatusBar } from './StatusBar'
 import { Scrollback } from './Scrollback'
 import { CommandInput } from './CommandInput'
 import { NlLanguagePicker } from './NlLanguagePicker'
 import { ModelDownloadModal } from './ModelDownloadModal'
-import { detectCapability } from '../llm/capability'
+import {
+  useGameEngine,
+  useCapability,
+  useSceneObservation,
+} from './useGameEngine'
 import { vocabForSignature } from '../llm/grammar/index'
 import { viewToContext } from '../llm/prompt'
 import { useNaturalLanguage } from '../llm/useNaturalLanguage'
@@ -23,7 +19,7 @@ import { WebLlmEngine } from '../llm/engine.webllm'
 import { selectedModelId } from '../llm/modelSelection'
 import { EngineGate } from '../shared/engineGate'
 import { GENERATE_WATCHDOG_MS } from '../llm/config'
-import type { CapabilityResult, LoadProgress } from '../llm/types'
+import type { LoadProgress } from '../llm/types'
 import { createLogger } from '../logger'
 
 const log = createLogger('ui')
@@ -37,15 +33,12 @@ export function Terminal({
   onChangeStory: () => void
   themeToggle: ReactNode
 }) {
-  const [view, setView] = useState<ViewState>(emptyView)
-  const [signature, setSignature] = useState<string>('')
-  const [capability, setCapability] = useState<CapabilityResult>({
-    tier: 'none',
-    reasons: [],
-  })
   const [override, setOverride] = useState(false)
-  const engineRef = useRef<ZMachine | null>(null)
-  const viewRef = useRef<ViewState>(emptyView)
+  // Game-loop coordination lives in extracted hooks (F-17): the ZMachine
+  // boot/dispose lifecycle and device-capability detection.
+  const { view, signature, engineRef } = useGameEngine(storyBytes)
+  const capability = useCapability(override)
+  const viewRef = useRef<ViewState>(view)
   const inputRef = useRef<HTMLInputElement>(null)
   // One stable LLM engine instance for this Terminal (created once, lazily). The
   // model id honors a ?model=full / VITE_LLM_MODEL override (else the default),
@@ -69,41 +62,6 @@ export function Terminal({
       void llmEngine.unload()
     }
   }, [llmEngine])
-
-  useEffect(() => {
-    let cancelled = false
-    const engine = new ZMachine({
-      dialog: new IdbDialog(),
-      onState: v => {
-        if (!cancelled) setView(v)
-      },
-    })
-    engineRef.current = engine
-    engine
-      .boot(storyBytes)
-      .then(sig => {
-        if (!cancelled) setSignature(sig)
-      })
-      .catch(err => {
-        if (!cancelled) log.error('boot failed', err)
-      })
-    return () => {
-      cancelled = true
-      engine.dispose()
-      if (engineRef.current === engine) engineRef.current = null
-    }
-  }, [storyBytes])
-
-  // Detect capability once (re-runs if the player forces an override).
-  useEffect(() => {
-    let cancelled = false
-    detectCapability({ navigator: navigator as never }, override).then(c => {
-      if (!cancelled) setCapability(c)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [override])
 
   const vocab = useMemo(
     () => (signature ? vocabForSignature(signature) : null),
@@ -129,17 +87,9 @@ export function Terminal({
     gate,
   })
 
-  // Turn-boundary scene observation: when the VM is waiting for a line of input,
-  // the previous turn's output block is complete. Feed it to the NL scene tracker
-  // exactly once per turn (reduceScene dedups identical re-renders). Only meaningful
-  // while NL is on, but observing harmlessly seeds the scene even when off.
-  useEffect(() => {
-    // During a compound sequence the hook owns observe (in-order, per-clause);
-    // defer so an intermediate view isn't observed with a mismatched last command
-    // (locked decision 9).
-    if (nl.isSequencing()) return
-    if (view.inputRequest === 'line') nl.observe(view)
-  }, [view, nl])
+  // Turn-boundary scene observation (extracted, F-17): feed each completed turn
+  // to the NL scene tracker, deferring to the hook during a compound sequence.
+  useSceneObservation(nl, view)
 
   // Output translation (display overlay — spec §3): same language the input
   // layer is set to; passthrough for en/off.
@@ -160,7 +110,9 @@ export function Terminal({
 
   useEffect(() => {
     if (view.inputRequest === 'char') engineRef.current?.ackMore()
-  }, [view.inputRequest])
+    // engineRef is a stable RefObject (from useGameEngine); listed to satisfy
+    // exhaustive-deps now that it's a hook return rather than a local useRef.
+  }, [view.inputRequest, engineRef])
 
   return (
     <div className="screen term">

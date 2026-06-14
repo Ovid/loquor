@@ -33,9 +33,7 @@ import { coreLexicon, nounLexicon, lexiconWordSet } from './lexicon/index'
 import { parseLexicon } from './lexicon/parse'
 import type { LexLang } from './lexicon/types'
 import { parseDirection } from './directions'
-import { pct as toPct, estimateRemainingSeconds } from './progress'
-import type { ProgressSample } from './progress'
-import { readNlPref, writeNlPref } from './nlpref'
+import { useModelDownload, type Internal } from './useModelDownload'
 
 export interface UseNaturalLanguageArgs {
   engine: LlmEngine
@@ -82,16 +80,6 @@ export interface UseNaturalLanguage {
   /** True while a compound sequence is mid-flight (Terminal's observe effect defers to the hook). */
   isSequencing: () => boolean
 }
-
-type Internal =
-  | { phase: 'off' }
-  | {
-      phase: 'downloading'
-      loaded: number
-      total: number
-      etaSeconds: number | null
-    }
-  | { phase: 'on'; language: ActiveLanguage }
 
 /**
  * Watchdog-timeout sentinel — distinguishes a translation timeout from a genuine
@@ -160,6 +148,15 @@ function nlDebug(...debugArgs: unknown[]): void {
     console.log(...debugArgs)
 }
 
+/**
+ * The natural-language input layer. NOTE (F-18): this hook is effectful beyond
+ * its return value. The model download / install / preference-persistence
+ * effects are owned and documented by useModelDownload (F-2). The hook itself
+ * additionally drives the game via the injected `echoLocal`/`sendLine`
+ * callbacks, runs gate-held GPU generations (generateRaw), and mutates the
+ * scene tracker per observed turn — none of which is evident from the returned
+ * `state`/`queued`/etc.
+ */
 export function useNaturalLanguage(
   args: UseNaturalLanguageArgs,
 ): UseNaturalLanguage {
@@ -178,12 +175,8 @@ export function useNaturalLanguage(
   // One stable fallback gate when the caller doesn't supply a shared one.
   const [fallbackGate] = useState(() => new EngineGate())
   const engineGate = gateArg ?? fallbackGate
-  const [internal, setInternal] = useState<Internal>({ phase: 'off' })
-  const [installed, setInstalled] = useState(false)
   const [pending, setPending] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
-  const [modalOpen, setModalOpen] = useState(false)
-  const abortRef = useRef<AbortController | null>(null)
   // Guards against a second translate running concurrently; a line that arrives
   // while this is set QUEUES instead (F-A). A ref (vs. `pending` state) closes
   // the same-tick window synchronously.
@@ -200,16 +193,23 @@ export function useNaturalLanguage(
   // True for the duration of a compound sequence so Terminal's view-driven observe
   // effect defers to the hook's in-order, per-clause observes (locked decision 9).
   const inSequenceRef = useRef(false)
-  // (percent, time) samples for the active download, used to estimate the time
-  // remaining. Reset at the start of each requestDownload; sampled in its progress
-  // callback (a side-effect context — keeps the timing out of render).
-  const dlSamplesRef = useRef<ProgressSample[]>([])
-  // The language the player picked when the model wasn't cached yet — the
-  // download modal flow activates THIS language once the load resolves.
-  const pendingLangRef = useRef<ActiveLanguage>('en')
 
   const available = capability.tier !== 'none'
   const hasVocab = vocab !== null
+
+  // The model download / install / phase lifecycle lives in its own hook (F-2):
+  // it owns `internal` (the phase machine), the installed/modal flags, the
+  // download refs, the on-disk cache probe, and the four player actions. The
+  // shared `notice` channel stays here and is passed in.
+  const {
+    internal,
+    installed,
+    modalOpen,
+    setLanguage,
+    requestDownload,
+    declineDownload,
+    cancelDownload,
+  } = useModelDownload({ engine, available, hasVocab, setNotice })
 
   // Own a scene tracker; rebuild + reset when the game (vocab) changes.
   const trackerRef = useRef<TextSceneTracker | null>(null)
@@ -222,39 +222,6 @@ export function useNaturalLanguage(
     lastCommandRef.current = null
     epochRef.current++
   }, [vocab])
-
-  // Probe the ON-DISK cache (survives reloads) for the installed/not-installed
-  // distinction — distinct from isLoaded() (in-memory, this session only) — and,
-  // in the same async callback, restore the player's prior language choice once
-  // the model is known cached. (Don't auto-enable against an uncached model — that
-  // would re-prompt.) Doing this in the async callback (not synchronously in the
-  // effect body) avoids react-hooks/set-state-in-effect while preserving behavior.
-  //
-  // Depends on [engine] only (review S6): re-running on every phase change just
-  // re-probed redundantly. A successful download sets `installed` directly (below),
-  // and the functional setInternal flips on only when currently off — so we never
-  // need internal.phase as a dep.
-  useEffect(() => {
-    let cancelled = false
-    engine
-      .isCached()
-      .then(c => {
-        if (cancelled) return
-        const cached = c || engine.isLoaded()
-        setInstalled(cached)
-        const pref = readNlPref()
-        if (cached && pref.language !== 'off') {
-          const lang = pref.language // narrowed to ActiveLanguage; survives the closure
-          setInternal(prev =>
-            prev.phase === 'off' ? { phase: 'on', language: lang } : prev,
-          )
-        }
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [engine])
 
   const state: NlState = useMemo(() => {
     if (!available) return { phase: 'unavailable', reasons: capability.reasons }
@@ -304,95 +271,6 @@ export function useNaturalLanguage(
   useEffect(() => {
     liveRef.current = { internal, lex }
   })
-
-  const requestDownload = useCallback(() => {
-    setNotice(null)
-    setModalOpen(false)
-    // Abort any previous in-flight download FIRST ([L2]): re-picking a
-    // language must not stack a second concurrent engine.load on top of the
-    // old one (double VRAM on exactly the devices the capability gate
-    // worries about). The engine releases the loser's resources.
-    abortRef.current?.abort()
-    const ac = new AbortController()
-    abortRef.current = ac
-    dlSamplesRef.current = []
-    setInternal({ phase: 'downloading', loaded: 0, total: 0, etaSeconds: null })
-    // True once this load is no longer the active one — aborted (cancel) or
-    // superseded by a newer requestDownload. A load that resolves on/around the
-    // abort tick must NOT flip the state back to 'on' or persist a language against
-    // the player's cancel (review I2).
-    const stale = () => ac.signal.aborted || abortRef.current !== ac
-    engine
-      .load(p => {
-        if (stale()) return
-        dlSamplesRef.current = [
-          ...dlSamplesRef.current,
-          { pct: toPct(p.loaded, p.total), t: Date.now() },
-        ].slice(-60)
-        setInternal({
-          phase: 'downloading',
-          loaded: p.loaded,
-          total: p.total,
-          etaSeconds: estimateRemainingSeconds(dlSamplesRef.current),
-        })
-      }, ac.signal)
-      .then(() => {
-        if (stale()) return
-        // The model is now loaded (hence cached) — mark installed directly so the
-        // probe effect needn't re-run on the phase change to discover it (S6).
-        setInstalled(true)
-        // Activate the language the player picked when they triggered the modal.
-        setInternal({ phase: 'on', language: pendingLangRef.current })
-        writeNlPref({ language: pendingLangRef.current })
-      })
-      .catch(err => {
-        if (stale() || (err as Error).name === 'AbortError') {
-          setInternal({ phase: 'off' })
-        } else {
-          setNotice('Model download failed — staying grammar-only.')
-          setInternal({ phase: 'off' })
-        }
-      })
-  }, [engine])
-
-  const cancelDownload = useCallback(() => {
-    abortRef.current?.abort()
-    setInternal({ phase: 'off' })
-    // [P] Persist 'off' too: a cancel racing download COMPLETION (the load's
-    // .then already wrote the picked language) must not leave a pref that
-    // self-enables NL next session against an explicit cancel.
-    writeNlPref({ language: 'off' })
-  }, [])
-
-  const declineDownload = useCallback(() => {
-    setModalOpen(false)
-    setInternal({ phase: 'off' })
-    // Reset `language` alongside `declined`: an explicit "Not now" must not leave
-    // a stale active language that the isCached effect later auto-restores to 'on'
-    // once the model happens to be cached (review inline comment).
-    writeNlPref({ declined: true, language: 'off' })
-  }, [])
-
-  const setLanguage = useCallback(
-    (lang: NlLanguage) => {
-      if (!available || !hasVocab) return
-      if (lang === 'off') {
-        setInternal({ phase: 'off' }) // off is instant; model stays cached
-        writeNlPref({ language: 'off' })
-        return
-      }
-      if (installed || engine.isLoaded()) {
-        setInternal({ phase: 'on', language: lang }) // cached → no re-download
-        writeNlPref({ language: lang })
-      } else {
-        // No model yet: remember the choice and ask permission to download.
-        // requestDownload activates pendingLangRef.current once the load lands.
-        pendingLangRef.current = lang
-        setModalOpen(true)
-      }
-    },
-    [available, hasVocab, installed, engine],
-  )
 
   // One bounded inference: load the model if it isn't resident yet, then race
   // generate() against a watchdog. Throws WatchdogTimeout on timeout (aborting the

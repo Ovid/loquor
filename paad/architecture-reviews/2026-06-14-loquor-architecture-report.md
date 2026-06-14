@@ -219,7 +219,7 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Status:** Fixed
 - **Status reason:** Two-part fix. (1) Structural: F-3 already relocated the heaviest hidden effects — IndexedDB cache reads/writes and gate-held GPU generations — into the documented `createFallbackResolver` (`fallbackResolve.ts`) with an explicit interface. (2) Disclosure: the residual hook-level effects are inherent to this overlay feature (scattering them would be worse), so they are now enumerated in an explicit "SIDE EFFECTS (F-18)" inventory in the hook header (the `window.loquorMisses` install, the activation-time `'>'` cache purge, the backlog/status miss-log appends, the unmount abort) and the `OutputTranslation` return type carries a note that producing it is effectful. The mount-time global install is pinned by a new safety-net test. The companion NL-hook disclosure (the report's "useNaturalLanguage is similar") rides with the F-2 commit.
 - **Status date:** 2026-06-14 07:27 UTC
-- **Status commit:** (this commit)
+- **Status commit:** 079f65f
 
 ### [F-19] Uneven swallowed-error policy (`isCached` masks faults)
 - **Category:** 20 — Weak error handling strategy
@@ -241,6 +241,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Explanation:** Model-download orchestration (progress sampling, ETA, abort/stale guards, preference persistence, modal state) lives in the same hook as the per-clause translation pipeline despite sharing almost no state; a sub-cluster of F-1.
 - **Evidence:** `src/llm/useNaturalLanguage.ts:308-395`
 - **Found by:** Structure & Boundaries
+- **Status:** Fixed
+- **Status reason:** Extracted the entire model download / install / phase lifecycle into a new `src/llm/useModelDownload.ts` hook (the `Internal` phase machine, the installed/modal flags, the download refs, the on-disk `isCached` probe effect, and the four player actions `requestDownload`/`cancelDownload`/`declineDownload`/`setLanguage`). Confirmed the only state shared with the translation pipeline is the `notice` UI channel, which stays parent-owned and is passed in. `useNaturalLanguage` dropped from 1042 to 920 lines and now composes the lifecycle hook. Behavior-preserving: full suite (715 tests) green, incl. the new F-2 progress/ETA safety net. (Also added the companion F-18 side-effect disclosure to the NL-hook header.)
+- **Status date:** 2026-06-14 07:34 UTC
+- **Status commit:** (this commit)
 
 ### [F-12] Writes are per-key transactions on fresh connections — ordering, not atomicity
 - **Category:** 26 — Poor transactional boundaries

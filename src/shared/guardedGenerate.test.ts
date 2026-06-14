@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { runGenerationGuarded } from './guardedGenerate'
-import type { ChatMessages, LlmEngine, LoadProgress } from './types'
+import type { ChatMessages, LlmEngine, LoadProgress } from '../llm/types'
 
 const MSGS: ChatMessages = [{ role: 'user', content: 'hi' }]
 const timeout = () => new Error('TIMEOUT')

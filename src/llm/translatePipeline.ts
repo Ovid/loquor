@@ -17,12 +17,12 @@ import type {
   TranslateResult,
   ViewContext,
 } from './types'
-import { EngineGate } from './engineGate'
+import { EngineGate } from '../shared/engineGate'
 import type { TurnResult } from '../glkote-react/types'
 import type { Vocab } from './grammar/types'
 import type { Scene } from './scene/types'
 import { TextSceneTracker } from './scene/tracker'
-import { runGenerationGuarded } from './guardedGenerate'
+import { runGenerationGuarded } from '../shared/guardedGenerate'
 import { buildPrompt, viewToContext } from './prompt'
 import {
   parseCommand,

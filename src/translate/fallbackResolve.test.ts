@@ -7,7 +7,7 @@ import {
   type FallbackResolverDeps,
 } from './fallbackResolve'
 import { compileCorpus } from './match'
-import { EngineGate } from '../llm/engineGate'
+import { EngineGate } from '../shared/engineGate'
 import { FakeLlmEngine } from '../llm/engine.fake'
 import { cacheGet, cacheSet } from './fallbackCache'
 import { readMisses } from './missLog'

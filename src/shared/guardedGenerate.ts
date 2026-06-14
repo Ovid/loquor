@@ -8,7 +8,7 @@
 // source of truth for that core; the parts the two hooks DON'T share (NL's
 // lazy-load watchdog, the per-hook pre-checks and sentinel error types) stay in
 // the hooks.
-import type { ChatMessages, LlmEngine } from './types'
+import type { ChatMessages, LlmEngine } from '../llm/types'
 
 /** True for a cancellation (DOMException or any Error named 'AbortError') —
  * matches useNaturalLanguage's `err.name === 'AbortError'` check (review S5).

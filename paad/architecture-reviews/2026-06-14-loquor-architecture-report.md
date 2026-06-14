@@ -318,6 +318,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Explanation:** `EngineGate` and `runGenerationGuarded` are game/NL-agnostic infrastructure but sit under `src/llm/`, so the output-translation layer must import "up" into the input-feature folder, making two peer features look entangled even though the import graph is acyclic.
 - **Evidence:** `src/translate/useOutputTranslation.ts:12-13` importing `src/llm/engineGate.ts`, `src/llm/guardedGenerate.ts`
 - **Found by:** Coupling & Dependencies
+- **Status:** Fixed
+- **Status reason:** Moved the two game/NL-agnostic infra modules (`engineGate.ts` = the single-engine priority mutex, `guardedGenerate.ts` = the watchdog generate wrapper) and their tests out of the input-feature folder `src/llm/` into a neutral peer folder `src/shared/` (sibling to `logger.ts`-style cross-cutting infra), via `git mv` to preserve history. The output-translation layer now imports from `../shared/` (a peer infra folder) instead of "up" into `../llm/` (a peer *feature* folder), so the two features no longer look entangled. Updated all 8 importers. **Residual (deliberately out of scope):** `shared/guardedGenerate` keeps a *type-only* import of the `LlmEngine`/`ChatMessages` interfaces from `../llm/types` — a dependency on the engine *contract*, not the input feature; it's erased at runtime and `types.ts` imports neither moved file, so there is no cycle. Fully neutralizing it would mean relocating the `LlmEngine` abstraction too (the broader "`src/llm/` is both engine + feature" overload), which is beyond F-6's scope. Pure relocation, behavior-preserving: typecheck green, full suite green (765).
+- **Status date:** 2026-06-14 07:48 UTC
+- **Status commit:** (this commit)
 
 ### [F-5] Mandatory call ordering inside `boot()` (preload → prepare → init)
 

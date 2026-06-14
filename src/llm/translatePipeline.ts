@@ -39,7 +39,10 @@ import { parseLexicon } from './lexicon/parse'
 import type { CoreLexicon, NounLexicon } from './lexicon/types'
 import { parseDirection } from './directions'
 import { MAX_CLAUSES, QUEUE_CAP, LOAD_WATCHDOG_MS } from './config'
+import { createLogger } from '../logger'
 import type { Internal } from './useModelDownload'
+
+const log = createLogger('nl')
 
 /** A line waiting in the F-A queue. `id` is monotonic and never reused — the
  * Terminal keys queued rows on it, and the queue drains from the FRONT
@@ -123,8 +126,7 @@ function isIdentityEcho(line: string, command: string): boolean {
  * problems stand out. Remove with the call sites once translation quality is
  * tuned. */
 function nlDebug(...debugArgs: unknown[]): void {
-  if (import.meta.env.DEV && import.meta.env.MODE !== 'test')
-    console.log(...debugArgs)
+  log.debug(...debugArgs) // dev-only gate now lives in the logger (F-14/F-16)
 }
 
 /** Everything createGenerateRaw needs: the engine, the per-generate watchdog,
@@ -200,8 +202,8 @@ export function createGenerateRaw(deps: GenerateRawDeps): GenerateRaw {
         watchdogMs,
         timeoutError: () => new WatchdogTimeout(),
         onOrphanError: err =>
-          console.error(
-            '[nl] generation failed after the watchdog (engine fault, not a timeout):',
+          log.error(
+            'generation failed after the watchdog (engine fault, not a timeout):',
             err,
           ),
       })
@@ -547,7 +549,7 @@ export function createTranslate(
         // what it emitted, and WHICH stage produced it. Remove once quality
         // is tuned.
         nlDebug(
-          '[nl debug] clause',
+          'clause',
           JSON.stringify({
             i,
             clause,
@@ -628,7 +630,7 @@ export function createTranslate(
       }
       if (stopReason)
         nlDebug(
-          '[nl debug] sequence stop',
+          'sequence stop',
           JSON.stringify({ stopReason, done, total }),
         )
 
@@ -637,7 +639,7 @@ export function createTranslate(
       // branching, to keep the "generate failures stay diagnosable"
       // contract on every path ([B]).
       if (stopError !== null && !(stopError instanceof WatchdogTimeout))
-        console.error('[nl] translation failed:', stopError)
+        log.error('translation failed:', stopError)
 
       if (done === 0) {
         // STAGE 8 — abstain policy (spec §4, UAT F-R). English: the raw line
@@ -737,7 +739,7 @@ export function createTranslate(
           // visible notice, and the drain continues.
           lastCommandRef.current = null
           if (!(err instanceof WatchdogTimeout))
-            console.error('[nl] translation failed:', err)
+            log.error('translation failed:', err)
           setNotice(
             err instanceof WatchdogTimeout
               ? 'Translation timed out — sent as typed.'

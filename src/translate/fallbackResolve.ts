@@ -14,6 +14,9 @@ import { normalize, untranslatable } from './normalize'
 import { cacheGet, cacheSet } from './fallbackCache'
 import { logMiss } from './missLog'
 import { xlPrompt } from './xlPrompt'
+import { createLogger } from '../logger'
+
+const log = createLogger('xlate')
 
 export type Resolution = string | 'pending' | 'english'
 
@@ -38,8 +41,8 @@ export interface OverlayState {
  * timeout, empty model output, a momentary unload) apart from a genuine engine
  * throw. A SUPERSEDED stop (epoch moved on — language/story switch, unmount)
  * degrades to English silently. Every other stop is a transient FAILURE under
- * the current epoch: it surfaces (console.warn) and earns one retry once the
- * engine is idle again (review S1); a second failure is console.error'd so a
+ * the current epoch: it surfaces (log.warn) and earns one retry once the
+ * engine is idle again (review S1); a second failure is log.error'd so a
  * genuinely broken engine stays diagnosable. Mirrors useNaturalLanguage's [B]
  * policy and its WatchdogTimeout sentinel style. */
 export class ExpectedXlateStop extends Error {}
@@ -128,13 +131,13 @@ export function createFallbackResolver(
     put(id, en, 'english')
     if (failures === 1) {
       basisRef.current.delete(id)
-      console.warn(
-        `[xlate] output translation failed (${reason}); will retry once when the engine is idle:`,
+      log.warn(
+        `output translation failed (${reason}); will retry once when the engine is idle:`,
         en,
       )
     } else {
-      console.error(
-        `[xlate] output translation failed again (${reason}); leaving this line in English:`,
+      log.error(
+        `output translation failed again (${reason}); leaving this line in English:`,
         en,
       )
     }
@@ -154,7 +157,7 @@ export function createFallbackResolver(
       // cacheGet folds a transient READ failure (quota, private mode, tx
       // abort/blocked) into a miss (undefined) itself (review S6) — its
       // contract is "value or undefined, never throws" — so a read fault can't
-      // reach the outer catch (which would console.error a non-engine error,
+      // reach the outer catch (which would log.error a non-engine error,
       // trip the pristine-output guard, and skip the fallback entirely).
       const cached = await cacheGet(signature, lang, core)
       if (cached !== undefined) {
@@ -220,8 +223,8 @@ export function createFallbackResolver(
           timeoutError: () => new ExpectedXlateStop('xlate watchdog'),
           acs: acsRef.current,
           onOrphanError: err =>
-            console.error(
-              `[xlate] generation failed after the watchdog (engine fault, not a timeout):`,
+            log.error(
+              `generation failed after the watchdog (engine fault, not a timeout):`,
               err,
             ),
         })

@@ -242,6 +242,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Explanation:** Some logs are prefixed and structured (`[autosave]`, `[glk]`, `[nl]`, `[xlate]`) while others are bare strings or function-name style, and channel choice (info/warn/error) is uneven — every site calls `console.*` directly, so consistent tag-filtering is impossible for UI-layer messages.
 - **Evidence:** `src/ui/App.tsx:72`, `src/ui/Terminal.tsx:86,198`, `src/llm/nlpref.ts:35`, `src/llm/capability.ts:74`
 - **Found by:** Error Handling & Observability
+- **Status:** Fixed
+- **Status reason:** Added a thin tag-scoped logger (`src/logger.ts`: `createLogger(tag)` → `{debug,info,warn,error}`) and adopted it at **every** first-party logging site, so the codebase now has one logging mechanism with a consistent `[tag]` prefix and explicit channel. Converted: `ui` (App/Terminal — the previously-bare `story load failed`/`boot failed`/`submit ignored`), `nl` (translatePipeline, plus nlpref/capability/engine.webllm — dropping the `readNlPref:`/`detectCapability:`/`isCached:` function-name style), `xlate` (fallbackResolve), `glk` (bridge), and `autosave`/`savefile` (dialog). The logger folds the tag into the first string arg, so existing `[nl] …`/`[xlate] …` assertions stayed green; only the bare-site assertions (App/Terminal → `[ui]`) and the one two-arg `[glk]` test needed updating. A grep confirms zero `console.*` calls remain in first-party code outside `logger.ts`. New `logger.test.ts` pins the convention; full suite green (763), typecheck green.
+- **Status date:** 2026-06-14 08:58 UTC
+- **Status commit:** (this commit)
 
 ### [F-17] Game-loop coordination logic embedded in `Terminal.tsx`
 
@@ -282,6 +286,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Explanation:** Beyond `missLog` and the autosave trace, diagnostics are dev-only `console.log` (some self-described as `TEMP ... Remove`), and the rich runtime error classifications (watchdog vs engine-fault, `ExpectedXlateStop` reasons) hit only the console and are lost at session end — there is no plan tying these into durable signal.
 - **Evidence:** `src/llm/useNaturalLanguage.ts:154-161` (`nlDebug` "TEMP"), `src/storage/dialog.ts:5-12`
 - **Found by:** Error Handling & Observability
+- **Status:** Partially fixed
+- **Status reason:** Addressed alongside F-14. The new `src/logger.ts` collapses the "ad hoc logging" that surrounded the two good islands (`missLog`, the autosave trace) into one mechanism, and the `nlDebug` "TEMP" diagnostic firehose (now in `translatePipeline.ts`) routes through the logger's `debug` channel, whose dev-only gate (`import.meta.env.DEV && MODE !== 'test'`) is now central rather than re-implemented per call. Crucially the logger is the **single chokepoint** F-16 needs: teeing `warn`/`error` into a durable sink (ring buffer / telemetry) so the rich runtime classifications (watchdog-vs-engine-fault, `ExpectedXlateStop` reasons) survive a session can now be added in one place without touching any call site. **Remaining (why not fully fixed):** that durable sink is not yet implemented — diagnostics still only reach the console — and the `nlDebug` "TEMP" calls are still meant to be removed once translation quality is tuned. Tracked as a follow-up.
+- **Status date:** 2026-06-14 08:58 UTC
+- **Status commit:** (this commit)
 
 ### [F-2] Download/model-lifecycle coupled into the translation hook
 

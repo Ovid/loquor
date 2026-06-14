@@ -61,7 +61,7 @@ describe('Terminal', () => {
       />,
     )
     await waitFor(() =>
-      expect(spy).toHaveBeenCalledWith('boot failed', expect.anything()),
+      expect(spy).toHaveBeenCalledWith('[ui] boot failed', expect.anything()),
     )
     spy.mockRestore()
   })

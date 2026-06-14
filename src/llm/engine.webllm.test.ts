@@ -166,7 +166,7 @@ describe('WebLlmEngine.isCached (on-disk cache probe)', () => {
       const e = new WebLlmEngine('m')
       expect(await e.isCached()).toBe(false) // never block play on a probe fault
       expect(warn).toHaveBeenCalledWith(
-        expect.stringContaining('isCached'),
+        expect.stringContaining('[nl] model-cache probe failed'),
         expect.anything(),
       )
     } finally {

@@ -24,6 +24,9 @@ import { selectedModelId } from '../llm/modelSelection'
 import { EngineGate } from '../llm/engineGate'
 import { GENERATE_WATCHDOG_MS } from '../llm/config'
 import type { CapabilityResult, LoadProgress } from '../llm/types'
+import { createLogger } from '../logger'
+
+const log = createLogger('ui')
 
 export function Terminal({
   storyBytes,
@@ -82,7 +85,7 @@ export function Terminal({
         if (!cancelled) setSignature(sig)
       })
       .catch(err => {
-        if (!cancelled) console.error('boot failed', err)
+        if (!cancelled) log.error('boot failed', err)
       })
     return () => {
       cancelled = true
@@ -194,7 +197,7 @@ export function Terminal({
             // Practically unreachable (engine is set synchronously and input is
             // disabled until a line request), but warn rather than silently
             // swallow the turn if it ever happens (review S11).
-            else console.warn('submit ignored: engine not ready')
+            else log.warn('submit ignored: engine not ready')
           }}
           // Never pending-disabled ([M]): while NL is on, typed-ahead lines
           // queue (F-A); when NL is off/left mid-drain, typing raw-sends —

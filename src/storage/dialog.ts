@@ -1,4 +1,8 @@
 import { idbGet, idbSet, idbDel } from './idb'
+import { createLogger } from '../logger'
+
+const autosaveLog = createLogger('autosave')
+const savefileLog = createLogger('savefile')
 
 const key = (sig: string) => `autosave:${sig}`
 
@@ -8,7 +12,7 @@ const key = (sig: string) => `autosave:${sig}`
 // browser console (filter by "[autosave]"). Cheap; safe to keep. Silent under
 // vitest so test output only shows unexpected problems.
 const alog = (...args: unknown[]) => {
-  if (import.meta.env.MODE !== 'test') console.info('[autosave]', ...args)
+  if (import.meta.env.MODE !== 'test') autosaveLog.info(...args)
 }
 
 /** Walk `value` and return the path of the first structured-clone-rejecting node. */
@@ -135,14 +139,11 @@ export class IdbDialog {
     alog('autosave_write', key(sig), snapshot == null ? 'CLEAR' : 'save')
     op.catch((err: unknown) => {
       const e = err as { name?: string; message?: string }
-      console.error(
-        `[autosave] PERSIST FAILED for ${key(sig)}: ${e?.name}: ${e?.message}`,
+      autosaveLog.error(
+        `PERSIST FAILED for ${key(sig)}: ${e?.name}: ${e?.message}`,
       )
       if (snapshot != null && e?.name === 'DataCloneError') {
-        console.error(
-          '[autosave] non-cloneable field:',
-          uncloneablePath(snapshot),
-        )
+        autosaveLog.error('non-cloneable field:', uncloneablePath(snapshot))
       }
     })
   }
@@ -205,7 +206,7 @@ export class IdbDialog {
     // for the session. Surface the failure instead of `void enqueue`.
     this.enqueue(() => idbDel(k)).catch((err: unknown) => {
       const e = err as { name?: string; message?: string }
-      console.error(`[savefile] REMOVE FAILED for ${k}: ${e?.name}: ${e?.message}`)
+      savefileLog.error(`REMOVE FAILED for ${k}: ${e?.name}: ${e?.message}`)
     })
   }
 
@@ -225,7 +226,7 @@ export class IdbDialog {
     // IndexedDB, so a later RESTORE found nothing. Surface it, like autosave.
     this.enqueue(() => idbSet(k, bytes)).catch((err: unknown) => {
       const e = err as { name?: string; message?: string }
-      console.error(`[savefile] WRITE FAILED for ${k}: ${e?.name}: ${e?.message}`)
+      savefileLog.error(`WRITE FAILED for ${k}: ${e?.name}: ${e?.message}`)
     })
   }
 

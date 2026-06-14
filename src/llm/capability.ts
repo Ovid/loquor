@@ -1,4 +1,7 @@
 import type { CapabilityResult, Tier } from './types'
+import { createLogger } from '../logger'
+
+const log = createLogger('nl')
 
 interface AdapterLike {
   limits?: { maxBufferSize?: number; maxStorageBufferBindingSize?: number }
@@ -71,7 +74,7 @@ export async function detectCapability(
   } catch (err) {
     // Surface the real probe exception — otherwise a genuine WebGPU error is
     // indistinguishable from "no GPU" when debugging (review S8).
-    console.warn('detectCapability: WebGPU probe failed', err)
+    log.warn('WebGPU capability probe failed', err)
     reasons.push('probe-error')
     return bump()
   }

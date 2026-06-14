@@ -2,6 +2,9 @@ import type { MLCEngineInterface, InitProgressReport } from '@mlc-ai/web-llm'
 import type { ChatMessages, LlmEngine, LoadProgress } from './types'
 import { DEFAULT_MODEL } from './models'
 import { ABSTAIN } from './translate'
+import { createLogger } from '../logger'
+
+const log = createLogger('nl')
 
 /**
  * Real LLM boundary over @mlc-ai/web-llm (WebGPU). The single file that imports
@@ -120,7 +123,7 @@ export class WebLlmEngine implements LlmEngine {
       // surface it instead of swallowing silently (F-19). An unswallowed false
       // is otherwise indistinguishable from a genuine cache miss, with no clue
       // when debugging. Mirrors capability.ts's probe-failure warn.
-      console.warn('isCached: model-cache probe failed', err)
+      log.warn('model-cache probe failed', err)
       return false
     }
   }

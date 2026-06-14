@@ -118,9 +118,20 @@ function parseStatus(c: Record<string, unknown>): StatusLine | null {
  * Room headings are short, start with a capital letter, and have no terminal
  * punctuation. Style-based 'input' classification is not reliable from text
  * alone here, so we only detect 'room'; everything else is 'output'.
+ *
+ * Two exclusions keep container/inventory listings out (UAT-4): a room title
+ * is never INDENTED (listing entries carry their nesting indent: "  A
+ * quantity of water") and never ends with ':' (listing headers: "The glass
+ * bottle contains:"). The banner ("ZORK I: The Great Underground Empire")
+ * keeps its heading — its colon is mid-line. Verified against every buffer
+ * line in the walkthrough fixture: the exclusions demote exactly the 34
+ * listing lines and keep all 71 room titles.
  */
-function classify(text: string): BufferLine['kind'] {
-  if (/^[A-Z][^.!?]{2,40}$/.test(text.trim())) return 'room'
+export function classify(text: string): BufferLine['kind'] {
+  if (/^\s/.test(text)) return 'output'
+  const t = text.trim()
+  if (t.endsWith(':')) return 'output'
+  if (/^[A-Z][^.!?]{2,40}$/.test(t)) return 'room'
   return 'output'
 }
 

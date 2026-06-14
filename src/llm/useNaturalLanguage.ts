@@ -10,11 +10,13 @@ import type {
   TranslateResult,
   ViewContext,
 } from './types'
+import { EngineGate } from './engineGate'
 import type { ViewState, TurnResult } from '../glkote-react/types'
 import type { Vocab } from './grammar/types'
 import type { Scene, SceneEvent } from './scene/types'
 import { TextSceneTracker } from './scene/tracker'
 import { buildGrammar } from './grammar/buildGrammar'
+import { runGenerationGuarded } from './guardedGenerate'
 import { buildPrompt, viewToContext } from './prompt'
 import {
   parseCommand,
@@ -47,6 +49,10 @@ export interface UseNaturalLanguageArgs {
   /** Story signature of the running game — selects the per-game noun lexicon
    * for the active non-English language (spec §5.2). */
   signature: string
+  /** Shared engine gate (output-translation spec §6). Optional so existing
+   * tests need no change; Terminal passes ONE instance shared with the
+   * output-translation hook. Input work runs at 'input' priority. */
+  gate?: EngineGate
 }
 
 /** A line waiting in the F-A queue. `id` is monotonic and never reused — the
@@ -126,6 +132,25 @@ const TRANSLATED_STAGES: ReadonlySet<Stage> = new Set([
   'llm',
 ])
 
+/** In ENGLISH mode, a "translated" stage that hands back the player's OWN words
+ * did not actually translate — the engine's own '>' echo already shows the
+ * line, so the nl-source "(you) …" echo would just duplicate it (Zork III
+ * review #1: the model "thinks" and produces the exact command typed). Compare
+ * case-/whitespace-/trailing-punctuation-insensitively. A compound line never
+ * equals a single clause's command, so its original line still echoes once.
+ * Restricted to English: in a foreign-language picker the echo documents the
+ * canonical English command the game received — useful even on a coincidental
+ * match — so that contract (and its collision-guard test) is left untouched. */
+function isIdentityEcho(line: string, command: string): boolean {
+  const norm = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/[!.?,;:]+$/, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+  return norm(line) === norm(command)
+}
+
 /** TEMP [nl debug] diagnostics, dev browser only — release builds must not spam
  * the console or leak player input (review), and test runs stay quiet so real
  * problems stand out. Remove with the call sites once translation quality is
@@ -148,7 +173,11 @@ export function useNaturalLanguage(
     awaitTurn,
     watchdogMs,
     signature,
+    gate: gateArg,
   } = args
+  // One stable fallback gate when the caller doesn't supply a shared one.
+  const [fallbackGate] = useState(() => new EngineGate())
+  const engineGate = gateArg ?? fallbackGate
   const [internal, setInternal] = useState<Internal>({ phase: 'off' })
   const [installed, setInstalled] = useState(false)
   const [pending, setPending] = useState(false)
@@ -370,45 +399,70 @@ export function useNaturalLanguage(
   // orphaned generate) or the underlying error on failure. Shared by the single-
   // command path and the per-clause compound loop.
   const generateRaw = useCallback(
-    async (messages: ChatMessages, grammar: string): Promise<string> => {
-      const ac = new AbortController()
-      let watchdogId: ReturnType<typeof setTimeout>
-      try {
+    // grammar is `string | null` for symmetry with LlmEngine.generate's widened
+    // contract (review S8); generateRaw forwards it untouched. NL always passes
+    // a real grammar (the GBNF is the full vocab) — null would mean grammar-free
+    // generation, which the input pipeline never wants.
+    (messages: ChatMessages, grammar: string | null): Promise<string> =>
+      // The watchdogs start INSIDE the gate: time spent queued behind an
+      // output-translation generation must not burn the input watchdog.
+      engineGate.run('input', async () => {
+        // The lazy-load watchdog is NL-specific (the output hook pre-checks
+        // isLoaded and degrades to English instead), so it stays here — outside
+        // the shared generate core (review I2).
         if (!engine.isLoaded()) {
           // [M] Bound the lazy load (reload session, model cached on disk but
           // not in memory) with its own generous watchdog — see
-          // LOAD_WATCHDOG_MS. Same reject-then-abort ordering as the
-          // generate watchdog below.
+          // LOAD_WATCHDOG_MS. Same reject-then-abort ordering as the generate
+          // watchdog. Its own AbortController: the load's abort must not touch
+          // the generate controller that runGenerationGuarded creates below.
+          const loadAc = new AbortController()
           let loadId: ReturnType<typeof setTimeout>
           const loadWatchdog = new Promise<never>((_, rej) => {
             loadId = setTimeout(() => {
               rej(new WatchdogTimeout())
-              ac.abort()
+              loadAc.abort()
             }, LOAD_WATCHDOG_MS)
           })
           try {
-            await Promise.race([engine.load(() => {}, ac.signal), loadWatchdog])
+            await Promise.race([
+              engine.load(() => {}, loadAc.signal),
+              loadWatchdog,
+            ])
           } finally {
             clearTimeout(loadId!)
+            // DELIBERATELY NOT awaiting the orphaned load (review I3): when the
+            // LOAD watchdog fires the gate is released while engine.load() may
+            // still be running. By design — the load can stall indefinitely
+            // (WebGPU init, cache eviction → network), and holding the gate
+            // until it settled would re-wedge ALL engine work (input AND output)
+            // for the session, the exact unbounded wedge LOAD_WATCHDOG_MS exists
+            // to break (anti-wedge invariant, the STALLED-load test). A waiter
+            // that calls generate() against a still-loading engine hits
+            // WebLlmEngine's `!this.engine` guard (engine is assigned only on
+            // load()'s final line) and throws 'engine not loaded' cleanly — no
+            // half-built engine is ever observed, so the release is safe.
           }
         }
-        const watchdog = new Promise<never>((_, rej) => {
-          watchdogId = setTimeout(() => {
-            // Reject FIRST so the watchdog wins the race (keeping the "timed out"
-            // notice accurate), THEN abort the now-orphaned generate.
-            rej(new WatchdogTimeout())
-            ac.abort()
-          }, watchdogMs)
+        // Shared generate-under-watchdog core (review I2): holds the gate until
+        // an aborted generation settles so the next waiter can't overlap two
+        // generations on the non-reentrant engine. NL keeps its WatchdogTimeout
+        // sentinel (the translate() catch classifies the timeout off it) and
+        // surfaces a genuine post-timeout engine fault distinctly.
+        return runGenerationGuarded({
+          engine,
+          messages,
+          grammar,
+          watchdogMs,
+          timeoutError: () => new WatchdogTimeout(),
+          onOrphanError: err =>
+            console.error(
+              '[nl] generation failed after the watchdog (engine fault, not a timeout):',
+              err,
+            ),
         })
-        return await Promise.race([
-          engine.generate(messages, grammar, ac.signal),
-          watchdog,
-        ])
-      } finally {
-        clearTimeout(watchdogId!)
-      }
-    },
-    [engine, watchdogMs],
+      }),
+    [engine, watchdogMs, engineGate],
   )
 
   const translate = useCallback(
@@ -686,7 +740,11 @@ export function useNaturalLanguage(
             break // abstain → stop; stage 8 below decides what the player sees
           }
 
-          if (!echoed && TRANSLATED_STAGES.has(stage)) {
+          if (
+            !echoed &&
+            TRANSLATED_STAGES.has(stage) &&
+            !(activeLang === 'en' && isIdentityEcho(line, result.text))
+          ) {
             echoLocal(line)
             echoed = true
           }

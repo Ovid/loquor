@@ -1,0 +1,74 @@
+// Inventory gate (spec §7.4): every line-shaped entry in the decoded string
+// inventory must match the corpus. Catches drift on lines the golden path
+// never visits (death messages, off-path responses). Composition fragments
+// (mid-sentence TELL pieces) are not full lines — they're excluded by shape,
+// and reviewed stragglers live in the committed ignore list.
+import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, resolve } from 'node:path'
+import { extractStrings, displayLines } from '../../../scripts/lib/zstrings.mjs'
+import { compileCorpus, matchLine } from '../match'
+import { normalize } from '../normalize'
+import { classify } from '../../glkote-react/reduce'
+import { ZORK1_FR } from './zork1.fr'
+import { ZORK1_EXTRACTION_IGNORE } from './zork1.extraction-ignore'
+
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
+const buf = new Uint8Array(
+  readFileSync(resolve(repoRoot, 'public/games/zork1.z3')),
+)
+
+/** Full-line shape: starts like a sentence/title, ends terminated. */
+const fullLine = (s: string) => /^[A-Z"'(]/.test(s) && /[.!?:")]$/.test(s)
+/** Room-title shape — the reducer's classify() IS the source of truth (review
+ * I3): call it directly so the gate can never drift from what the reducer
+ * actually emits as a room (the previous hand-copied regex missed classify()'s
+ * indent/trailing-colon exclusions). */
+const roomTitle = (s: string) => classify(s) === 'room'
+/** Star-delimited banner shape (death/end banners: "**** … ****"). These
+ * lead with decoration, so neither fullLine nor roomTitle recognizes them —
+ * yet they are full display lines the player sees and must be translated. */
+const banner = (s: string) => /^\*{2,}\s*\S.*\S\s*\*{2,}$/.test(s)
+
+describe('string-inventory gate (spec §7.4)', () => {
+  it('every full-line inventory entry matches the corpus', () => {
+    const c = compileCorpus(ZORK1_FR)
+    const ignore = new Set<string>(ZORK1_EXTRACTION_IGNORE)
+    const misses: string[] = []
+    for (const line of displayLines(extractStrings(buf))) {
+      if (!fullLine(line) && !roomTitle(line) && !banner(line)) continue
+      if (ignore.has(line)) continue
+      if (matchLine(c, line) === null) misses.push(line)
+    }
+    expect(misses).toEqual([])
+  })
+
+  it("displayLines' per-line collapse equals normalize() (review S7)", () => {
+    // The extractor (.mjs) and the runtime (.ts) must collapse whitespace the
+    // SAME way or the gate would vet lines the runtime never produces. Pin the
+    // equivalence across the boundary: per emitted line, normalize() is a no-op
+    // (already collapsed+trimmed), and feeding raw multi-line strings through
+    // both paths agrees.
+    for (const line of displayLines(extractStrings(buf)))
+      expect(normalize(line)).toBe(line)
+    const raw = ['  A\tquantity   of water \n The   bottle:  ', 'Plain.']
+    const viaDisplay = displayLines(raw)
+    const viaNormalize = [
+      ...new Set(
+        raw.flatMap(s => s.split('\n').map(normalize).filter(Boolean)),
+      ),
+    ]
+    expect(viaDisplay).toEqual(viaNormalize)
+  })
+
+  it('the ignore list stays honest: no entry shadows a corpus match', () => {
+    // An ignore entry that the corpus CAN translate is stale review data —
+    // either the line became real (delete the ignore) or a key collides.
+    const c = compileCorpus(ZORK1_FR)
+    const translatable = ZORK1_EXTRACTION_IGNORE.filter(
+      s => matchLine(c, s) !== null,
+    )
+    expect(translatable).toEqual([])
+  })
+})

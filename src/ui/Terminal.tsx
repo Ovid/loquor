@@ -18,8 +18,10 @@ import { detectCapability } from '../llm/capability'
 import { vocabForSignature } from '../llm/grammar/index'
 import { viewToContext } from '../llm/prompt'
 import { useNaturalLanguage } from '../llm/useNaturalLanguage'
+import { useOutputTranslation } from '../translate/useOutputTranslation'
 import { WebLlmEngine } from '../llm/engine.webllm'
 import { selectedModelId } from '../llm/modelSelection'
+import { EngineGate } from '../llm/engineGate'
 import type { CapabilityResult, LoadProgress } from '../llm/types'
 
 const WATCHDOG_MS = 8000 // starting value; tune at the gate
@@ -47,6 +49,9 @@ export function Terminal({
   // model id honors a ?model=full / VITE_LLM_MODEL override (else the default),
   // so the 8B multilingual model can be A/B tested without a rebuild.
   const [llmEngine] = useState(() => new WebLlmEngine(selectedModelId()))
+  // One gate arbitrating the single engine between the NL input layer and the
+  // output-translation fallback (input preempts; output-translation spec §6).
+  const [gate] = useState(() => new EngineGate())
 
   // Keep a ref to the latest view so the NL hook's getContext() can read it at
   // translate-time. Written in an effect (not during render) per react-hooks/refs.
@@ -119,6 +124,7 @@ export function Terminal({
       Promise.resolve({ view: viewRef.current, reason: 'line' as const }),
     watchdogMs: WATCHDOG_MS,
     signature, // Task 21 consumes it (per-game noun lexicons); '' until boot resolves
+    gate,
   })
 
   // Turn-boundary scene observation: when the VM is waiting for a line of input,
@@ -132,6 +138,16 @@ export function Terminal({
     if (nl.isSequencing()) return
     if (view.inputRequest === 'line') nl.observe(view)
   }, [view, nl])
+
+  // Output translation (display overlay — spec §3): same language the input
+  // layer is set to; passthrough for en/off.
+  const xl = useOutputTranslation({
+    view,
+    language: nl.state.phase === 'on' ? nl.state.language : 'off',
+    signature,
+    engine: llmEngine,
+    gate,
+  })
 
   // Live download progress for the modal — derived from NL state during render
   // (no separate state or effect needed).
@@ -147,7 +163,7 @@ export function Terminal({
   return (
     <div className="screen term">
       <StatusBar
-        status={view.status}
+        status={xl.status}
         onChangeStory={onChangeStory}
         themeToggle={themeToggle}
         nlToggle={
@@ -158,10 +174,7 @@ export function Terminal({
           />
         }
       />
-      <Scrollback
-        lines={view.lines}
-        onActivate={() => inputRef.current?.focus()}
-      >
+      <Scrollback lines={xl.lines} onActivate={() => inputRef.current?.focus()}>
         {/* Lines typed ahead while a translation runs (F-A): dimmed, chipped,
             drained FIFO by the hook. Keyed on the hook's monotonic id — the
             queue shifts from the FRONT, so index keys would re-point a node

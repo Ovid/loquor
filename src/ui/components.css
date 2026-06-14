@@ -133,6 +133,9 @@
   margin: 0 0 14px;
   opacity: 0;
   animation: rise 0.5s ease forwards;
+  /* Listing entries carry a leading nesting indent ("  A quantity of
+     water") the VM means literally — preserve it (UAT-4). */
+  white-space: pre-wrap;
 }
 .scroll .echo {
   color: var(--brass-soft);
@@ -208,6 +211,20 @@
   border-radius: 8px;
   font-size: 0.72em;
   color: var(--text-dim);
+}
+
+/* Output-translation shimmer: a missed line pending its LLM fallback. */
+.xl-pending {
+  font-style: italic;
+  animation: xl-shimmer 1.1s ease-in-out infinite alternate;
+}
+@keyframes xl-shimmer {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 0.8;
+  }
 }
 
 /* Transient "…thinking" while a translation is in flight. */

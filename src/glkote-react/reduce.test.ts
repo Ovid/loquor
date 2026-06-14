@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { reduce } from './reduce'
+import { reduce, classify } from './reduce'
 import { emptyView } from './types'
 import fixture from '../../tests/fixtures/glkote-zork1-boot.json'
 import endFixture from '../../tests/fixtures/glkote-zork1-end.json'
@@ -282,5 +282,81 @@ describe('reduce', () => {
     }
     const view = reduce(emptyView, update as any)
     expect(view.lines[0].kind).toBe('room')
+  })
+
+  // UAT-4: container/inventory listings were styled as room headings. A room
+  // title is never indented and never ends with ':' — listing entries arrive
+  // with their nesting indent, listing headers with a trailing colon.
+  it('classifies a listing header (trailing colon) as output, not room (UAT-4)', () => {
+    const update = {
+      type: 'update',
+      gen: 1,
+      content: [
+        {
+          id: 102,
+          text: [{ content: ['normal', 'The glass bottle contains:'] }],
+        },
+      ],
+      input: [],
+    }
+    const view = reduce(emptyView, update as any)
+    expect(view.lines[0].kind).toBe('output')
+  })
+
+  it('classifies an indented listing entry as output, not room (UAT-4)', () => {
+    const update = {
+      type: 'update',
+      gen: 1,
+      content: [
+        {
+          id: 102,
+          text: [{ content: ['normal', '  A quantity of water'] }],
+        },
+      ],
+      input: [],
+    }
+    const view = reduce(emptyView, update as any)
+    expect(view.lines[0].kind).toBe('output')
+  })
+
+  it('keeps the banner title (mid-line colon) as a room heading', () => {
+    const update = {
+      type: 'update',
+      gen: 1,
+      content: [
+        {
+          id: 102,
+          text: [
+            { content: ['normal', 'ZORK I: The Great Underground Empire'] },
+          ],
+        },
+      ],
+      input: [],
+    }
+    const view = reduce(emptyView, update as any)
+    expect(view.lines[0].kind).toBe('room')
+  })
+})
+
+// The string-inventory coverage gate (inventory.test.ts) calls classify()
+// directly as its room-title predicate (review I3). These pin the exact shape —
+// especially the two UAT-4 exclusions — so a change here can't silently drift
+// the gate from runtime behavior.
+describe('classify (room-title shape — mirrored by the coverage gate)', () => {
+  it('treats a short capitalized line with no terminal punctuation as a room', () => {
+    expect(classify('West of House')).toBe('room')
+    expect(classify('Forest')).toBe('room')
+  })
+  it('excludes an INDENTED line (listing entry carries its nesting indent)', () => {
+    expect(classify('  A quantity of water')).toBe('output')
+  })
+  it('excludes a trailing-colon line (listing header)', () => {
+    expect(classify('The glass bottle contains:')).toBe('output')
+  })
+  it('keeps the mid-line-colon banner as a heading', () => {
+    expect(classify('ZORK I: The Great Underground Empire')).toBe('room')
+  })
+  it('treats sentence/terminated text as output', () => {
+    expect(classify('You are likely to be eaten by a grue.')).toBe('output')
   })
 })

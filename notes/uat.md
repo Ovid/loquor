@@ -11,6 +11,21 @@ session loses time to something avoidable.
   produces no `you` lines and the Turns counter doesn't move. One
   `left_click` on the `> type a command…` line fixes it. Verify the turn
   counter moved before assuming commands landed.
+- **The browser window can resize between screenshots** (UAT-5 saw
+  1400×846 → 1490×763 → 1531×784) — this MOVES the transcript input off
+  the y-coordinate you last clicked, so a whole batch of typed commands
+  silently vanishes (same signature as the focus-steal above: no `you`
+  lines, Turns counter frozen). After any gap, screenshot fresh, find the
+  `> type a command…` line at its CURRENT position, click it, and verify
+  the turn counter moved before batching more.
+- **Quoted-passthrough (`"take all"`) makes the transcript read
+  all-English.** It's the reliable way to reach exact game responses, but
+  it skips the target-language `you` line, leaving only the English `> …`
+  canonical echo. Harmless for testing, but MISLEADING if a human is
+  watching the screen (UAT-5: Ovid asked why the commands weren't French).
+  When demoing the feature, type real target-language input so both the
+  `you <French>` line and the `> <English canonical>` echo show. The
+  English canonical echo is BY DESIGN (spec §2.5), not a bug.
 - The language picker is a CUSTOM combobox (since 2026-06-10), not a native
   `<select>` — `form_input` no longer applies. Click the trigger (the
   `Language:` control), then click the option (`Français`, `Deutsch`,
@@ -21,6 +36,14 @@ session loses time to something avoidable.
   per-clause `{stage, antecedent, inScope, raw, result}` — the fastest way to
   tell deterministic-lexicon hits from LLM fallbacks and to find root causes.
   `clear: true` after big reads keeps later reads small.
+- **Console dumps DUPLICATE old messages** (UAT-4): the capture layer
+  re-delivers the page's buffered console history when tool calls re-attach,
+  stamping it with fresh timestamps — full waves of historical `nl debug`
+  lines bunched at one second look like the app replaying each turn. It
+  isn't. Before chasing "replayed logs", patch `console.log` in-page
+  (`javascript_tool`) to count REAL calls; duplicates carrying stale scene
+  data verbatim are the artifact. Tracking also resets on page reload —
+  an empty read after a reload doesn't mean the app logged nothing.
 - Batch moves 4–6 per `browser_batch` with 1s waits; screenshot only at the
   end. Deterministic translations are instant; only wait 4–8s when
   `…thinking` (LLM fallback) appears.

@@ -122,6 +122,24 @@ describe('Terminal', () => {
     }
   })
 
+  it('renders English transcript unchanged when NL is off (output-translation passthrough)', async () => {
+    // With NL off (default phase), useOutputTranslation is a passthrough — the
+    // English ViewState lines must reach the DOM unmodified (spec §3).
+    render(
+      <Terminal
+        storyBytes={bytes}
+        onChangeStory={() => {}}
+        themeToggle={null}
+      />,
+    )
+    await waitFor(
+      () => expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+      { timeout: 8000 },
+    )
+    // The opening room description is English and unchanged.
+    expect(screen.getAllByText('West of House')[0]).toBeInTheDocument()
+  })
+
   it('unloads the LLM engine when it unmounts (no resource leak)', async () => {
     const unload = vi
       .spyOn(WebLlmEngine.prototype, 'unload')

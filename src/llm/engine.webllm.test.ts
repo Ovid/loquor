@@ -8,6 +8,12 @@ import { WebLlmEngine } from './engine.webllm'
 
 interface FakeMlcEngine {
   unload: ReturnType<typeof vi.fn>
+  interruptGenerate: ReturnType<typeof vi.fn>
+  chat: {
+    completions: {
+      create: ReturnType<typeof vi.fn>
+    }
+  }
 }
 let engines: FakeMlcEngine[] = []
 let resolveCreate: Array<() => void> = []
@@ -16,7 +22,17 @@ vi.mock('@mlc-ai/web-llm', () => ({
   CreateMLCEngine: vi.fn(
     () =>
       new Promise(res => {
-        const eng: FakeMlcEngine = { unload: vi.fn(async () => {}) }
+        const eng: FakeMlcEngine = {
+          unload: vi.fn(async () => {}),
+          interruptGenerate: vi.fn(),
+          chat: {
+            completions: {
+              create: vi.fn(async (_req: unknown) => ({
+                choices: [{ message: { content: 'ok' } }],
+              })),
+            },
+          },
+        }
         engines.push(eng)
         resolveCreate.push(() => res(eng))
       }),
@@ -80,5 +96,48 @@ describe('WebLlmEngine.load cancel/race contract ([L2])', () => {
     expect(e.isLoaded()).toBe(true)
     expect(engines[0].unload).toHaveBeenCalled()
     expect(engines[1].unload).not.toHaveBeenCalled()
+  })
+})
+
+describe('WebLlmEngine.generate grammar plumbing', () => {
+  it('omits response_format entirely when grammar is null (output-translation fallback)', async () => {
+    const e = new WebLlmEngine('m')
+    const p = e.load(() => {}, new AbortController().signal)
+    await tick()
+    resolveCreate[0]()
+    await p
+    await e.generate([{ role: 'user', content: 'hi' }], null)
+    const req = engines[0].chat.completions.create.mock.calls[0][0] as Record<
+      string,
+      unknown
+    >
+    expect('response_format' in req).toBe(false)
+  })
+
+  it('still sends the grammar response_format when given a grammar', async () => {
+    const e = new WebLlmEngine('m')
+    const p = e.load(() => {}, new AbortController().signal)
+    await tick()
+    resolveCreate[0]()
+    await p
+    await e.generate([{ role: 'user', content: 'hi' }], 'root ::= "x"')
+    const req = engines[0].chat.completions.create.mock.calls[0][0] as Record<
+      string,
+      unknown
+    >
+    expect(req.response_format).toEqual({
+      type: 'grammar',
+      grammar: 'root ::= "x"',
+    })
+  })
+
+  it('grammar-free path surfaces nullish content as "" — never the ABSTAIN sentinel', async () => {
+    const e = new WebLlmEngine('m')
+    const p = e.load(() => {}, new AbortController().signal)
+    await tick()
+    resolveCreate[0]()
+    await p
+    engines[0].chat.completions.create.mockResolvedValueOnce({ choices: [] })
+    expect(await e.generate([{ role: 'user', content: 'hi' }], null)).toBe('')
   })
 })

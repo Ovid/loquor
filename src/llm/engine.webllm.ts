@@ -68,7 +68,7 @@ export class WebLlmEngine implements LlmEngine {
 
   async generate(
     prompt: ChatMessages,
-    grammar: string,
+    grammar: string | null,
     signal?: AbortSignal,
   ): Promise<string> {
     if (!this.engine) throw new Error('engine not loaded')
@@ -82,10 +82,15 @@ export class WebLlmEngine implements LlmEngine {
       const res = await engine.chat.completions.create({
         messages: prompt,
         temperature: 0,
-        // ResponseFormat in 0.2.84 supports { type: 'grammar', grammar: string } natively.
-        response_format: { type: 'grammar', grammar },
+        // ResponseFormat in 0.2.84 supports { type: 'grammar', grammar } natively;
+        // omit it entirely for the plain-text output-translation fallback.
+        ...(grammar === null
+          ? {}
+          : { response_format: { type: 'grammar', grammar } }),
       })
-      return res.choices[0]?.message?.content ?? ABSTAIN
+      return (
+        res.choices[0]?.message?.content ?? (grammar === null ? '' : ABSTAIN)
+      )
     } finally {
       signal?.removeEventListener('abort', onAbort)
     }

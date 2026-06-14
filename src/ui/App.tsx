@@ -6,6 +6,7 @@ import { useTheme } from './useTheme'
 import { GAMES, gameBySlug, type Game } from '../games/catalog'
 import { IdbDialog } from '../storage/dialog'
 import { signature } from '../zmachine/signature'
+import { describeLoadError } from './loadError'
 
 /** Fetch a story file, failing loud on a 404/short body rather than feeding a
  *  non-story buffer into the VM. `fetch` resolves (does not reject) on HTTP
@@ -69,7 +70,7 @@ export default function App() {
       setPicking(false)
     } catch (err) {
       console.error('story load failed', err)
-      setLoadError(`“${game.title}” could not be loaded. Please try again.`)
+      setLoadError(describeLoadError(game.title, err))
     }
   }
 

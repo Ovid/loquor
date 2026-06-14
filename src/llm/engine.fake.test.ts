@@ -39,6 +39,19 @@ describe('FakeLlmEngine', () => {
     expect(miss).toBe('__UNKNOWN__')
   })
 
+  it('mirrors WebLlmEngine on an empty result: "" for the grammar-free path, ABSTAIN otherwise (review I2)', async () => {
+    // No scripted completion and no default: the real WebLlmEngine returns ''
+    // when grammar === null (output-translation fallback) and the ABSTAIN
+    // sentinel when a grammar is set (constrained input decoding). The fake
+    // must match, or output tests get a non-empty '__UNKNOWN__' where
+    // useOutputTranslation expects '' to mean "empty translation → English".
+    const eng = new FakeLlmEngine({})
+    await eng.load(vi.fn(), new AbortController().signal)
+    const msg = [{ role: 'user' as const, content: 'an unknown line' }]
+    expect(await eng.generate(msg, null)).toBe('')
+    expect(await eng.generate(msg, 'GRAMMAR')).toBe('__UNKNOWN__')
+  })
+
   it('generate rejects when its abort signal fires (orphan cancellation)', async () => {
     vi.useFakeTimers()
     const eng = new FakeLlmEngine({ generateDelayMs: 10000, default: 'north' })

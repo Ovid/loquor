@@ -3,6 +3,7 @@ import 'fake-indexeddb/auto'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import App from './App'
+import { describeLoadError } from './loadError'
 
 beforeEach(() => {
   const bytes = readFileSync('public/games/zork1.z3')
@@ -42,6 +43,50 @@ describe('App', () => {
     expect(screen.getAllByText('West of House')[0]).toBeInTheDocument()
   })
 
+  describe('describeLoadError', () => {
+    // The generic "could not be loaded. Please try again." hid the real cause:
+    // a dead server reads identically to a missing file (review #2). Each case
+    // must explain WHY, while still containing "could not be loaded" so the UI
+    // copy stays recognizable.
+    it('names an unreachable server (fetch rejects with a TypeError)', () => {
+      const msg = describeLoadError('Zork I', new TypeError('Failed to fetch'))
+      expect(msg).toMatch(/could not be loaded/i)
+      expect(msg).toMatch(/server|reach/i)
+      expect(msg).not.toMatch(/try again/i)
+    })
+
+    it('names a missing file on HTTP 404', () => {
+      const msg = describeLoadError(
+        'Zork I',
+        new Error('HTTP 404 for /games/zork1.z3'),
+      )
+      expect(msg).toMatch(/could not be loaded/i)
+      expect(msg).toMatch(/404|missing/i)
+    })
+
+    it('reports the status on other HTTP errors', () => {
+      const msg = describeLoadError(
+        'Zork II',
+        new Error('HTTP 500 for /games/zork2.z3'),
+      )
+      expect(msg).toMatch(/500/)
+    })
+
+    it('flags a body that is not a valid game file', () => {
+      const msg = describeLoadError(
+        'Zork III',
+        new Error('/games/zork3.z3 is too short to be a game'),
+      )
+      expect(msg).toMatch(/could not be loaded/i)
+      expect(msg).toMatch(/valid game/i)
+    })
+
+    it('falls back to a generic message for an unrecognized error', () => {
+      const msg = describeLoadError('Zork I', new Error('something weird'))
+      expect(msg).toMatch(/could not be loaded/i)
+    })
+  })
+
   it('surfaces a load error (instead of crashing) when the story file 404s', async () => {
     // fetch resolves with ok:false on a 404 — it does NOT reject. Without a
     // guard this fed an HTML error body into the VM; now it must surface.
@@ -59,7 +104,7 @@ describe('App', () => {
     render(<App />)
     fireEvent.click(screen.getByText(/Light the lamp/))
     await waitFor(() =>
-      expect(screen.getByText(/could not be loaded/i)).toBeInTheDocument(),
+      expect(screen.getByText(/404|missing/i)).toBeInTheDocument(),
     )
     // Still on the landing screen, not crashed into a blank/garbage VM.
     expect(screen.getByText('Loquor')).toBeInTheDocument()
@@ -82,7 +127,7 @@ describe('App', () => {
     render(<App />)
     fireEvent.click(screen.getByText(/Light the lamp/))
     await waitFor(() =>
-      expect(screen.getByText(/could not be loaded/i)).toBeInTheDocument(),
+      expect(screen.getByText(/valid game/i)).toBeInTheDocument(),
     )
     expect(errSpy).toHaveBeenCalledWith('story load failed', expect.anything())
     errSpy.mockRestore()

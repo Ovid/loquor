@@ -13,7 +13,7 @@ This branch lands output-translation v1 (Zork I × French): a display-layer over
 a shared engine gate, the z-string extraction tooling, and strict coverage/inventory/
 roundtrip gates. **This is the fourth review of this branch**, and the author has, in
 the five most-recent commits, addressed every Important finding (I1–I4) and the key
-Suggestions (S6–S9, S13) from the prior pass. Six specialists re-reviewed the *current*
+Suggestions (S6–S9, S13) from the prior pass. Six specialists re-reviewed the _current_
 committed state and **independently re-verified that each of those fixes is genuinely
 in place** — not just claimed. **No Critical and no Important issues were found.** The
 only verified finding is a low-severity documentation-consistency gap: the `reduce.ts`
@@ -55,8 +55,8 @@ against the current code and confirmed **fixed**:
   container/inventory listings out of `room` classification, which the matcher needs)
   — this is purely a doc/code consistency gap. Fix: add one line to the spec's
   execution notes acknowledging the `classify()` edit so the "untouched" claim and the
-  code stop disagreeing. *(Plan Alignment; verified against the spec, confidence 70,
-  near-zero behavioral risk.)*
+  code stop disagreeing. _(Plan Alignment; verified against the spec, confidence 70,
+  near-zero behavioral risk.)_
 
 ## Plan Alignment
 
@@ -93,9 +93,9 @@ and `docs/superpowers/plans/2026-06-10-loquor-output-translation.md`.
   (excluding the ~4,000 lines of corpus DATA in `zork1.fr.strings/templates/objects.ts`
   and `extraction-ignore.ts`, which are validated by the coverage/inventory/roundtrip
   gates), `src/llm/{engineGate,guardedGenerate,useNaturalLanguage,engine.webllm,
-  engine.fake,types}.ts`, `src/glkote-react/reduce.ts`, `src/ui/{Terminal,Scrollback}.tsx`
-  + `components.css`, `scripts/lib/zstrings.mjs`, `scripts/*.mjs`, `src/test/setup.ts`,
-  and the corresponding test files — changed code plus callers/callees one level deep.
+engine.fake,types}.ts`, `src/glkote-react/reduce.ts`, `src/ui/{Terminal,Scrollback}.tsx`
+  - `components.css`, `scripts/lib/zstrings.mjs`, `scripts/*.mjs`, `src/test/setup.ts`,
+    and the corresponding test files — changed code plus callers/callees one level deep.
 - **Raw findings:** 1 (each specialist independently filtered already-fixed I1–I4 /
   S6–S9 and the prior review's accepted-latent items S2–S5, S10–S15, requiring a fresh
   concrete reproduction before re-raising; none surfaced).

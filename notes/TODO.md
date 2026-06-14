@@ -1,7 +1,7 @@
 I've noticed in Zork III that sometimes it's "thinking" and comes up with a
 legal command that is the same thing that I typed (the (you) is the game's
 indication of what I typed after it was "thinking", but is still something
-the game clearly understands.  See @notes/zorkiii.png
+the game clearly understands. See @notes/zorkiii.png
 
     Junction
 
@@ -22,7 +22,7 @@ the game clearly understands.  See @notes/zorkiii.png
     Pushing the sword isn't notably helpful.
 
 We see the following messsage when the server isn't running. It's misleading.
-The message should reflect *why* the game can't be loaded, not just that it
+The message should reflect _why_ the game can't be loaded, not just that it
 can't be loaded (so if it's something other than "Zork I" not being found, it
 should say that).
 
@@ -33,4 +33,3 @@ should say that).
 Sound effects?
 
 Map?
-

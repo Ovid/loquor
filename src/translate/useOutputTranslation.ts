@@ -256,6 +256,18 @@ export function useOutputTranslation(args: {
           // ExpectedXlateStop the queued-unload check below uses: the outer
           // catch routes it through failEnglish (frees the basis, records the
           // one-shot retry that the scan defers until engine.isLoaded()).
+          //
+          // DELIBERATE in-spec degradation (review I2): the output hook never
+          // initiates a model load itself — only the INPUT path (a typed NL
+          // command) lazy-loads the model (useNaturalLanguage's generateRaw).
+          // So a player who enables a non-English language purely to READ
+          // (never typing a command) gets matcher + cache hits only, with the
+          // LLM fallback dormant; uncovered live lines stay English. This is
+          // the spec §6 degradation ("model absent → English"), accepted as a
+          // product decision rather than auto-loading the model on language
+          // enable. If read-only NL ever becomes a supported flow, kick a
+          // background load when phase==='on' && !isLoaded() (NL hook) or have
+          // this hook load at 'output' gate priority.
           throw new ExpectedXlateStop('engine not loaded')
         const text = await gate.run('output', async () => {
           // Queued generations ABANDON on a language/story switch (spec §3/§6):

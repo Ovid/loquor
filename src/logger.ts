@@ -28,7 +28,8 @@ export interface Logger {
  * bare object) keep the tag as its own first argument.
  */
 function withPrefix(prefix: string, args: unknown[]): unknown[] {
-  if (typeof args[0] === 'string') return [`${prefix} ${args[0]}`, ...args.slice(1)]
+  if (typeof args[0] === 'string')
+    return [`${prefix} ${args[0]}`, ...args.slice(1)]
   return [prefix, ...args]
 }
 

@@ -629,10 +629,7 @@ export function createTranslate(
         }
       }
       if (stopReason)
-        nlDebug(
-          'sequence stop',
-          JSON.stringify({ stopReason, done, total }),
-        )
+        nlDebug('sequence stop', JSON.stringify({ stopReason, done, total }))
 
       // A genuine engine error mid-compound never propagates to the drain's
       // catch (total>1 swallows it above), so it is logged HERE, before any

@@ -129,13 +129,22 @@ export class IdbDialog {
 
   // ---- synchronous API called by ifvms ----
   autosave_read(sig: string): unknown {
-    const has = this.cache.has(sig) && this.cache.get(sig) != null
-    alog(
-      'autosave_read',
-      key(sig),
-      has ? 'snapshot present' : 'none → fresh start',
-    )
-    return this.cache.has(sig) ? this.cache.get(sig) : null
+    // F-5/F-11 ordering guard. ifvms reads this SYNCHRONOUSLY during start(), so
+    // the cache is only warm if boot() ran `await preload(sig)` first. preload()
+    // always `cache.set(sig, v ?? null)`, so a *missing* entry (vs. an entry
+    // whose value is null) means preload was skipped — a boot-ordering bug that
+    // otherwise looks identical to "no save → fresh start" and silently never
+    // resumes. Surface it loudly; the type system can't enforce the intra-boot()
+    // sequence, so this runtime guard at the Dialog boundary does (review F-5).
+    if (!this.cache.has(sig)) {
+      autosaveLog.warn(
+        `autosave_read(${key(sig)}) before preload — autosave will not resume (boot ordering bug)`,
+      )
+      return null
+    }
+    const v = this.cache.get(sig)
+    alog('autosave_read', key(sig), v != null ? 'snapshot present' : 'none → fresh start')
+    return v ?? null
   }
   autosave_write(sig: string, snapshot: unknown): void {
     this.cache.set(sig, snapshot)

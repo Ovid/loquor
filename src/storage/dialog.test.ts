@@ -25,9 +25,41 @@ describe('IdbDialog autosave', () => {
     await d.autosave_write_async('SIG2', { v: 7 })
     // A fresh Dialog must preload before the sync read ifvms performs at start().
     const fresh = new IdbDialog()
-    expect(fresh.autosave_read('SIG2')).toBeNull() // not preloaded yet
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      expect(fresh.autosave_read('SIG2')).toBeNull() // not preloaded yet
+    } finally {
+      warn.mockRestore()
+    }
     await fresh.preload('SIG2')
     expect(fresh.autosave_read('SIG2')).toEqual({ v: 7 })
+  })
+
+  it('warns loudly when autosave_read runs before preload (F-5/F-11 ordering guard)', () => {
+    // A never-preloaded signature has no cache entry — distinct from a preloaded
+    // empty slot (cache.has === true, value null). Without the guard this looks
+    // identical to "no save → fresh start" and the boot-ordering bug is silent.
+    const fresh = new IdbDialog()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      expect(fresh.autosave_read('NEVER')).toBeNull()
+      expect(warn).toHaveBeenCalledOnce()
+      expect(warn.mock.calls[0].join(' ')).toMatch(/before preload/)
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('does NOT warn for a preloaded-but-empty signature (genuine fresh start)', async () => {
+    const fresh = new IdbDialog()
+    await fresh.preload('EMPTY') // no save exists → cache.set('EMPTY', null)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      expect(fresh.autosave_read('EMPTY')).toBeNull()
+      expect(warn).not.toHaveBeenCalled()
+    } finally {
+      warn.mockRestore()
+    }
   })
 
   it('hasSave reflects presence', async () => {

@@ -326,6 +326,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Explanation:** ZVM reads the autosave synchronously in `start()`, so `dialog.preload(signature)` must run first to warm the sync cache; the required ordering is enforced only by the imperative sequence and comments, not the type system.
 - **Evidence:** `src/zmachine/engine.ts:96-101,138-141`
 - **Found by:** Coupling & Dependencies
+- **Status:** Fixed
+- **Status reason:** The intra-`boot()` `preload → prepare → init` ordering can't be expressed in the type system (it's a single private method's statement order), so rather than over-engineer a phantom-typed/sequenced builder for one method, the ordering is now *enforced at runtime at the Dialog boundary* — the same guard that fixes F-11. If a refactor ever moves `Glk.init()` (which synchronously triggers `autosave_read`) ahead of `await dialog.preload(...)`, `IdbDialog.autosave_read` finds no cache entry and warns loudly instead of silently failing to resume. Added a back-reference comment at the `preload` call site so the coupling and its enforcement are discoverable from the engine. Behavior-preserving on the happy path (real boots always preload first); typecheck + the engine resume tests green.
+- **Status date:** 2026-06-14 07:44 UTC
+- **Status commit:** (this commit)
 
 ### [F-11] Sync/async impedance at the ZVM↔IndexedDB seam
 
@@ -334,6 +338,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Explanation:** ifvms calls `autosave_read` synchronously during `start()` but IndexedDB is async, so the engine must preload into a sync `Map` cache before boot; correctly mitigated today, but a latent footgun if a future caller forgets to preload.
 - **Evidence:** `src/storage/dialog.ts:104-148` (`preload` warms cache; `autosave_read` reads only cache)
 - **Found by:** Integration & Data
+- **Status:** Fixed
+- **Status reason:** Fixed jointly with F-5 (same seam). The latent footgun — "a future caller forgets to preload, so the sync `autosave_read` silently returns null and the game starts over" — is now loud: `autosave_read` distinguishes a *never-preloaded* signature (`!cache.has(sig)`) from a *preloaded-but-empty* one (`cache.has(sig)`, value `null`) — since `preload` always does `cache.set(sig, v ?? null)` — and `console.warn`s `[autosave] … before preload — autosave will not resume (boot ordering bug)` in the skip case while still degrading to null. The genuine "fresh start" path (preloaded, no save) stays silent. The sync/async impedance itself is intrinsic to the ifvms contract and correctly mitigated by the preload cache; this fix removes its only remaining sharp edge (silent misuse). Red/green: new `dialog.test` cases pin (a) warn-on-skip, (b) no-warn-on-preloaded-empty; the existing pre-preload characterization test now owns the warning via a spy. 16→18 storage tests green, typecheck green.
+- **Status date:** 2026-06-14 07:44 UTC
+- **Status commit:** (this commit)
 
 ### [F-7] Two "translate" namespaces create a reader hazard
 

@@ -102,7 +102,11 @@ export class ZMachine {
     this.signature = signature(bytes)
 
     // Warm the Dialog's sync cache before booting: ZVM.start() reads the
-    // autosave synchronously, so the snapshot must already be cached.
+    // autosave synchronously, so the snapshot must already be cached. This
+    // preload→prepare→init ordering (F-5) is temporal coupling the type system
+    // can't express; if a refactor moves Glk.init() ahead of this, IdbDialog's
+    // autosave_read guard (F-5/F-11) fires loudly during start() instead of
+    // silently failing to resume.
     const dialog = this.opts.dialog
     if (dialog.preload) {
       await dialog.preload(this.signature)

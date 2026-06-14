@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { reduce, classify } from './reduce'
 import { emptyView } from './types'
 import fixture from '../../tests/fixtures/glkote-zork1-boot.json'
@@ -33,6 +33,35 @@ describe('reduce', () => {
     const before = emptyView
     reduce(before, (fixture as any).updates[0] as any)
     expect(before).toEqual(emptyView)
+  })
+
+  // F-10: an `update` content entry matching NEITHER known window shape (no
+  // `lines[]`, no `text[]`) means the SHA-pinned glkapi.js drifted from the
+  // contract we shape-sniff against. It must (a) warn loudly instead of
+  // degrading silently and (b) leave the reduction OUTPUT unchanged — a drifted
+  // window must never corrupt or wipe the existing transcript.
+  it('warns on an unrecognized content entry and leaves output unchanged', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const seeded = reduce(emptyView, {
+        type: 'update',
+        gen: 1,
+        content: [{ id: 1, text: [{ content: ['normal', 'Kept line'] }] }],
+      } as any)
+      const after = reduce(seeded, {
+        type: 'update',
+        gen: 2,
+        content: [{ id: 2, mystery: 'a future window shape' }],
+      } as any)
+      expect(after.lines.map(l => l.text)).toEqual(['Kept line'])
+      expect(after.status).toEqual(seeded.status)
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining('[glk]'),
+        expect.anything(),
+      )
+    } finally {
+      warn.mockRestore()
+    }
   })
 
   it('extracts flat alternating run arrays correctly from a synthetic buffer update', () => {

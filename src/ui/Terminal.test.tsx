@@ -4,6 +4,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { Terminal } from './Terminal'
 import { WebLlmEngine } from '../llm/engine.webllm'
+import { ZMachine } from '../zmachine/engine'
 import type { UseNaturalLanguage } from '../llm/useNaturalLanguage'
 
 // Passthrough mock: the real hook runs for every test, but a test can overlay
@@ -158,5 +159,31 @@ describe('Terminal', () => {
     unmount()
     expect(unload).toHaveBeenCalled()
     unload.mockRestore()
+  })
+
+  // F-17 safety net: the boot/dispose engine lifecycle currently lives in a
+  // Terminal effect; F-17 extracts it into a hook. Pin that the ZMachine is
+  // disposed on unmount (the StrictMode-safe teardown that stops a throwaway
+  // engine persisting stale autosaves) so the extraction preserves it.
+  it('disposes the ZMachine engine on unmount (F-17 lifecycle)', async () => {
+    const dispose = vi.spyOn(ZMachine.prototype, 'dispose')
+    try {
+      const { unmount } = render(
+        <Terminal
+          storyBytes={bytes}
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
+      )
+      await waitFor(
+        () =>
+          expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        { timeout: 8000 },
+      )
+      unmount()
+      expect(dispose).toHaveBeenCalled()
+    } finally {
+      dispose.mockRestore()
+    }
   })
 })

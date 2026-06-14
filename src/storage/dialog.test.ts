@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import 'fake-indexeddb/auto'
 import { IdbDialog } from './dialog'
+import { idbGet } from './idb'
 
 describe('IdbDialog autosave', () => {
   it('round-trips a snapshot by signature and clears on null', async () => {
@@ -107,5 +108,28 @@ describe('IdbDialog autosave', () => {
     for (let i = 1; i <= 25; i++) d.autosave_write('RACE', { turn: i })
     await d.flushWrites()
     expect(await d.autosave_read_async('RACE')).toEqual({ turn: 25 })
+  })
+})
+
+// F-8 safety net: pin the LITERAL IndexedDB key strings these subsystems write,
+// read straight from the raw `kv` store. The autosave/file APIs read+write
+// through the same private key builder, so a round-trip test stays green even if
+// the builder's string changed — which would silently ORPHAN every existing
+// user's saved game. These assertions fix the exact on-disk keys so the F-8 key
+// registry extraction cannot alter them without a (visible) migration.
+describe('IdbDialog on-disk key format (F-8)', () => {
+  it('writes an autosave snapshot under "autosave:<sig>"', async () => {
+    const d = new IdbDialog()
+    const snap = { ram: [9] }
+    await d.autosave_write_async('SIGKEY', snap)
+    expect(await idbGet('autosave:SIGKEY')).toEqual(snap)
+  })
+
+  it('writes an explicit save slot under "file:<usage>:<gameid>:<filename>"', async () => {
+    const d = new IdbDialog()
+    const ref = { filename: 'slot1', usage: 'save', gameid: 'GID' }
+    d.file_write(ref, [1, 2, 3])
+    await d.flushWrites()
+    expect(await idbGet('file:save:GID:slot1')).toEqual([1, 2, 3])
   })
 })

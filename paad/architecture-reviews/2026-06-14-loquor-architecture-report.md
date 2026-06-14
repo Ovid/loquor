@@ -158,6 +158,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Explanation:** Enabling the NL layer calls `CreateMLCEngine(modelId)` with no `appConfig`, so WebLLM's built-in `prebuiltAppConfig` fetches model weights from `huggingface.co` and the model-lib **WASM** from `raw.githubusercontent.com`; the WASM executes in the page origin with no Subresource Integrity, so a compromised/MITM'd host could run arbitrary code in-origin.
 - **Evidence:** `src/llm/engine.webllm.ts:40-46` (no `appConfig`; in-code comment at `:41-45` documents the gap)
 - **Found by:** Security & Code Quality (corroborated by CLAUDE.md "Known network egress")
+- **Status:** Won't fix
+- **Status reason:** Accepted, documented residual risk for this deployment. The textbook remediation — self-host the model weights + model-lib WASM under `public/` with integrity pinning — is **infeasible on the project's hosting (GitHub Pages):** the weights are hundreds of MB–GB, exceeding Pages' 100 MB/file and ~1 GB/repo limits, and Pages won't serve Git LFS, so they cannot be vendored. The residual risk is also disproportionate to the deployment: this is a static, no-backend, no-auth, **no-secrets** site, so in-origin code execution has a tiny blast radius — only the user's own browser storage for the origin (game saves / theme / NL opt-in), with nothing to exfiltrate. The trust roots (`huggingface.co`, `raw.githubusercontent.com`) are the same class GitHub Pages itself relies on. The meaningful mitigations are already in place: the fetch is HTTPS, gated behind **explicit opt-in** (the download modal), one-time then cached/offline, and **disclosed** in CLAUDE.md and an in-code comment (`engine.webllm.ts:44-48`). The remaining gap (SRI on a WebLLM `prebuiltAppConfig` fetch) is accepted as a documented trade-off for running a client-side LLM on static hosting. (A pragmatic `appConfig` pin to immutable refs was considered and declined for this session — modest gain, no SRI, not worth the maintenance of tracking upstream SHAs.)
+- **Status date:** 2026-06-14 08:29 UTC
+- **Status commit:** (decision only — no code change)
 
 ### [F-1] `useNaturalLanguage` is a god-object hook
 
@@ -310,6 +314,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Explanation:** Each `idbSet`/`idbDel` is its own single-key transaction on a freshly-opened connection; `writeChain` gives commit _ordering_ but not atomicity, and in-memory caches are updated before the async persist confirms — so a crash between cache-update and commit leaves cache and DB divergent for the session.
 - **Evidence:** `src/storage/idb.ts:16-37`, `src/storage/dialog.ts:73-97,126,215`
 - **Found by:** Integration & Data
+- **Status:** Won't fix
+- **Status reason:** Accepted for a single-process browser app (developer decision, 2026-06-14). Each `idbSet`/`idbDel` is its own single-key transaction on a fresh connection — commit _ordering_ (via the `writeChain`) but not multi-key atomicity, and caches update before the async persist confirms. The proportionate payoff is thin: there is exactly **one writer process** (no concurrent-process races — type 18 "shared database" is Not applicable here), the `writeChain` already prevents the real-world failure mode (stale-snapshot reordering / "resume a turn behind"), and the only remaining divergence window is a crash _between_ an in-memory cache update and the IndexedDB commit — which affects only single-user local game state and self-heals on the next successful turn-boundary autosave. Making writes atomic would mean batching multi-key transactions on a shared long-lived connection: real added complexity for a divergence with no data-loss consequence and no second observer. Deliberately accepted rather than built; revisit only if a future feature introduces a genuine multi-key all-or-nothing invariant.
+- **Status date:** 2026-06-14 08:29 UTC
+- **Status commit:** (decision only — no code change)
 
 ### [F-6] Shared engine infra misfiled under the NL feature directory
 

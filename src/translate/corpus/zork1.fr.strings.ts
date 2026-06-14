@@ -1694,6 +1694,14 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
     'Le voleur, ne trouvant rien de valeur, est parti dégoûté.',
   'A "lean and hungry" gentleman just wandered through, carrying a large bag. Finding nothing of value, he left disgruntled.':
     "Un gentilhomme « maigre et affamé » vient de passer par ici, un grand sac à l'épaule. Ne trouvant rien de valeur, il est reparti contrarié.",
+  // ROBBER-FUNCTION wandering rob (1actions.zil:1814): assembled from 3 TELL
+  // pieces with a conditional middle ("your possession" when robbed=player,
+  // "the room" when robbed=here), so neither display gate vets the full
+  // sentence — it leaked English in UAT S4. Both branches pinned here.
+  'A seedy-looking individual with a large bag just wandered through the room. On the way through, he quietly abstracted some valuables from your possession, mumbling something about "Doing unto others before..."':
+    "Un individu à l'air louche, tenant un grand sac, vient de traverser la salle. Au passage, il vous a discrètement subtilisé quelques objets de valeur, marmonnant quelque chose à propos de « faire aux autres avant... ».",
+  'A seedy-looking individual with a large bag just wandered through the room. On the way through, he quietly abstracted some valuables from the room, mumbling something about "Doing unto others before..."':
+    "Un individu à l'air louche, tenant un grand sac, vient de traverser la salle. Au passage, il a discrètement subtilisé quelques objets de valeur qui s'y trouvaient, marmonnant quelque chose à propos de « faire aux autres avant... ».",
   'The thief seems to have left you in the dark.':
     'Le voleur semble vous avoir laissé dans le noir.',
   'The thief is a strong, silent type.':

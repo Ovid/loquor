@@ -238,6 +238,29 @@ describe('real Zork I French corpus smoke (Task 15)', () => {
     ).toBe('Un œuf incrusté de joyaux, avec un canari mécanique doré')
   })
 
+  it('wandering-thief rob message translates (UAT S4 — assembled-fragment leak)', () => {
+    // 1actions.zil:1814 ROBBER-FUNCTION: assembled from 3 TELL pieces, so the
+    // full sentence is neither a full-line z-string (inventory gate) nor on the
+    // golden path (coverage gate) — it leaked English in UAT S4. Pin BOTH
+    // ROBBED? branches (the player vs. the room).
+    expect(
+      matchLine(
+        real,
+        'A seedy-looking individual with a large bag just wandered through the room. On the way through, he quietly abstracted some valuables from your possession, mumbling something about "Doing unto others before..."',
+      ),
+    ).toBe(
+      "Un individu à l'air louche, tenant un grand sac, vient de traverser la salle. Au passage, il vous a discrètement subtilisé quelques objets de valeur, marmonnant quelque chose à propos de « faire aux autres avant... ».",
+    )
+    expect(
+      matchLine(
+        real,
+        'A seedy-looking individual with a large bag just wandered through the room. On the way through, he quietly abstracted some valuables from the room, mumbling something about "Doing unto others before..."',
+      ),
+    ).toBe(
+      "Un individu à l'air louche, tenant un grand sac, vient de traverser la salle. Au passage, il a discrètement subtilisé quelques objets de valeur qui s'y trouvaient, marmonnant quelque chose à propos de « faire aux autres avant... ».",
+    )
+  })
+
   // ── Composed melee/diagnose/state shapes (review fix) — each EN side is
   //    byte-exact against the ZIL composition it pins down. ────────────────
   it('villain-disarm composes the player weapon agreement-free («votre arme» dodges it/Elle)', () => {

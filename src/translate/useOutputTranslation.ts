@@ -323,7 +323,9 @@ export function useOutputTranslation(args: {
         // shot. (A line whose French form is genuinely identical was already
         // English on screen — re-attempting it costs only a generation.)
         if (out === normalize(core))
-          throw new ExpectedXlateStop('untranslatable output (English unchanged)')
+          throw new ExpectedXlateStop(
+            'untranslatable output (English unchanged)',
+          )
         retryRef.current.delete(id) // resolved — reset the retry budget
         settle(id, en, out + suffix)
         // Persist fire-and-forget: the translation is already on screen — a

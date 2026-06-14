@@ -64,7 +64,10 @@ describe('translateStatus (spec §5 status bar)', () => {
       c,
       'fr',
     )
-    expect(r.status).toEqual({ location: 'Frobozz Room', right: 'Time: 9:00am' })
+    expect(r.status).toEqual({
+      location: 'Frobozz Room',
+      right: 'Time: 9:00am',
+    })
     expect(r.misses).toEqual(['Frobozz Room', 'Time: 9:00am'])
   })
   it('an out-of-16-bit-range score is treated as a miss, not a fabricated number (review S3)', () => {

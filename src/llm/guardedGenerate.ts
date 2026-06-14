@@ -34,6 +34,13 @@ export interface GuardedGenerateArgs {
    * an in-flight generation (the output hook's acsRef). Omitted by callers that
    * don't track in-flight controllers. */
   acs?: Set<AbortController>
+  /** Upper bound (ms) on how long the finally waits for an orphaned generation
+   * to settle after ac.abort() before treating the engine as DEAD and releasing
+   * the gate (review S2). A wedged worker / lost device can leave generate()
+   * pending forever; an unbounded await would hold the shared gate for the
+   * whole session. Generous by default so only a truly wedged engine trips it
+   * (a healthy engine honours the abort in well under a second). */
+  orphanSettleMs?: number
   /** Invoked when the WATCHDOG won the race AND the orphaned generation then
    * settled with a GENUINE (non-abort) rejection — a hard-dead engine (crash /
    * WebGPU device lost) that the bare `await gen.catch(() => {})` used to
@@ -59,6 +66,7 @@ export async function runGenerationGuarded(
   args: GuardedGenerateArgs,
 ): Promise<string> {
   const { engine, messages, grammar, watchdogMs, timeoutError, acs } = args
+  const orphanSettleMs = args.orphanSettleMs ?? 30_000
   const ac = new AbortController()
   acs?.add(ac)
   let watchdogId: ReturnType<typeof setTimeout>
@@ -82,8 +90,35 @@ export async function runGenerationGuarded(
     // swallow the duplicate here. But if the WATCHDOG won and the orphan then
     // rejected with a genuine non-abort error, surface it distinctly so a dead
     // engine isn't hidden behind the transient timeout (review I2).
-    await gen.catch(err => {
-      if (timedOut && !isAbortError(err)) args.onOrphanError?.(err)
+    //
+    // Normally gen has already settled (the race returned because gen won) or
+    // settles promptly after ac.abort(). But a wedged worker / lost device can
+    // leave gen pending forever; an unbounded await here would hold the shared
+    // EngineGate for the whole session, wedging BOTH input and output (review
+    // S2). Bound the wait: if the orphan doesn't settle within orphanSettleMs,
+    // treat the engine as dead, surface it, and release the gate. (Accepts a
+    // small overlap risk against a merely-very-slow engine in exchange for not
+    // deadlocking the session; the bound is generous so only a truly wedged
+    // engine trips it.) gen keeps its rejection handler attached either way, so
+    // a late settlement never becomes an unhandled rejection.
+    let settleTimer: ReturnType<typeof setTimeout>
+    const settleGuard = new Promise<'orphaned'>(res => {
+      settleTimer = setTimeout(() => res('orphaned'), orphanSettleMs)
     })
+    const settled = gen.then(
+      () => 'settled' as const,
+      err => {
+        if (timedOut && !isAbortError(err)) args.onOrphanError?.(err)
+        return 'settled' as const
+      },
+    )
+    const outcome = await Promise.race([settled, settleGuard])
+    clearTimeout(settleTimer!)
+    if (outcome === 'orphaned')
+      args.onOrphanError?.(
+        new Error(
+          `orphaned generation did not settle within ${orphanSettleMs}ms after abort — treating the engine as dead`,
+        ),
+      )
   }
 }

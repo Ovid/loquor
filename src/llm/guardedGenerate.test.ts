@@ -89,6 +89,33 @@ describe('runGenerationGuarded (review I2)', () => {
     )
   })
 
+  it('bounds the orphan-settle wait so a never-settling generation cannot wedge the gate for the session (review S2)', async () => {
+    const onOrphanError = vi.fn()
+    // generate() never settles — not even after ac.abort() (a wedged worker /
+    // lost device). An unbounded `await gen` in the finally would hold the
+    // shared EngineGate forever, wedging both input and output.
+    const engine = engineWith(() => new Promise<string>(() => {}))
+    let thrown: unknown
+    await runGenerationGuarded({
+      engine,
+      messages: MSGS,
+      grammar: null,
+      watchdogMs: 10,
+      timeoutError: timeout,
+      orphanSettleMs: 30,
+      onOrphanError,
+    }).catch(e => {
+      thrown = e
+    })
+    // still rejects with the watchdog's timeout (control flow unchanged)…
+    expect((thrown as Error).message).toBe('TIMEOUT')
+    // …but the finally returned (gate released) and reported the dead engine
+    expect(onOrphanError).toHaveBeenCalledTimes(1)
+    expect(String((onOrphanError.mock.calls[0][0] as Error).message)).toContain(
+      'did not settle',
+    )
+  })
+
   it('does NOT surface an expected AbortError orphan', async () => {
     const onOrphanError = vi.fn()
     const engine = engineWith(

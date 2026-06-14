@@ -5,11 +5,12 @@ import type { NlLanguage } from '../../llm/types'
 import type { TranslationCorpus } from '../types'
 import { ZORK1_SIG } from '../../llm/grammar/index'
 import { ZORK1_FR } from './zork1.fr'
+import { ZORK1_ES } from './zork1.es'
 
 const CORPORA: Readonly<
   Record<string, Partial<Record<string, TranslationCorpus>>>
 > = {
-  [ZORK1_SIG]: { fr: ZORK1_FR },
+  [ZORK1_SIG]: { fr: ZORK1_FR, es: ZORK1_ES },
 }
 
 export function corpusFor(

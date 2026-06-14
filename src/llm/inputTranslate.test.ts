@@ -431,9 +431,10 @@ describe('fillElidedVerbs (verb-gapping across compound conjuncts)', () => {
     // too — else "break the window and the door" leaves "the door" verbless and
     // an LLM invents a wrong verb.
     const v: Vocab = { ...vocab, verbSynonyms: ['break'] }
-    expect(
-      fillElidedVerbs(['break the window', 'the door'], null, v),
-    ).toEqual(['break the window', 'break the door'])
+    expect(fillElidedVerbs(['break the window', 'the door'], null, v)).toEqual([
+      'break the window',
+      'break the door',
+    ])
   })
 })
 

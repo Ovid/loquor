@@ -317,7 +317,11 @@ export const ZORK1_ES_OBJECTS: ObjectsTable = {
     def: 'el destornillador',
     bare: 'destornillador',
   },
-  'set of teeth': { indef: 'unos dientes', def: 'los dientes', bare: 'dientes' },
+  'set of teeth': {
+    indef: 'unos dientes',
+    def: 'los dientes',
+    bare: 'dientes',
+  },
   shovel: { indef: 'una pala', def: 'la pala', bare: 'pala' },
   skeleton: { indef: 'un esqueleto', def: 'el esqueleto', bare: 'esqueleto' },
   'skeleton key': {

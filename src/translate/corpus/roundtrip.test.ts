@@ -60,7 +60,9 @@ describe.each(LANGS)(
         const canonical = row.canonical[en] ?? en
         const lex = row.nouns[canonical]
         if (!lex) {
-          failures.push(`"${en}": no ${row.code} entry for canonical "${canonical}"`)
+          failures.push(
+            `"${en}": no ${row.code} entry for canonical "${canonical}"`,
+          )
           continue
         }
         for (const [key, form] of Object.entries(forms)) {

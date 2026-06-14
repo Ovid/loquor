@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { ZMachine } from './engine'
-import { isConfirmationPrompt } from '../llm/translate'
+import { isConfirmationPrompt } from '../llm/inputTranslate'
 import type { ViewState } from '../glkote-react/types'
 
 describe('ZMachine', () => {

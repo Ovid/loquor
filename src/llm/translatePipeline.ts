@@ -34,7 +34,7 @@ import {
   clauseFailed,
   unquote,
   isVocabPassthrough,
-} from './translate'
+} from './inputTranslate'
 import { parseLexicon } from './lexicon/parse'
 import type { CoreLexicon, NounLexicon } from './lexicon/types'
 import { parseDirection } from './directions'

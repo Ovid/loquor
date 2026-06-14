@@ -354,6 +354,10 @@ hole** exists (unpinned remote WASM), but it is documented and gated behind expl
 - **Explanation:** `src/llm/translate.ts` (NL input translator) and `src/translate/` (output-translation package) collide in name; `../translate` inside `src/llm/` resolves to the sibling file, which a maintainer can easily mis-read as a cross-layer input→output import (the cost side of S-G).
 - **Evidence:** `src/llm/scene/tracker.ts:11`, `src/llm/grammar/buildGrammar.ts:3` (`../translate` = `src/llm/translate.ts`)
 - **Found by:** Coupling & Dependencies
+- **Status:** Fixed
+- **Status reason:** Renamed `src/llm/translate.ts` → `src/llm/inputTranslate.ts` (it is the NL **input** translator) and its test, via `git mv`. The collision is gone at the source: the misleading `../translate` imports inside `src/llm/` subdirs (`scene/tracker.ts`, `grammar/buildGrammar.ts`) are now `../inputTranslate`, which cannot be misread as the `src/translate/` output package, and same-dir `./translate` imports are now `./inputTranslate`. Updated all 9 importers (8 inside `src/llm/` + `src/zmachine/engine.test.ts`). This also removes the documented cost side of S-G (the naming hazard). Pure rename, behavior-preserving: typecheck green, full suite green (765).
+- **Status date:** 2026-06-14 07:50 UTC
+- **Status commit:** (this commit)
 
 ### [F-15] Inconsistent localStorage key naming; no key registry
 

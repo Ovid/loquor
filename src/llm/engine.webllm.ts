@@ -1,7 +1,7 @@
 import type { MLCEngineInterface, InitProgressReport } from '@mlc-ai/web-llm'
 import type { ChatMessages, LlmEngine, LoadProgress } from './types'
 import { DEFAULT_MODEL } from './models'
-import { ABSTAIN } from './translate'
+import { ABSTAIN } from './inputTranslate'
 import { createLogger } from '../logger'
 
 const log = createLogger('nl')

@@ -9,7 +9,7 @@ import {
   lexiconWordSet,
   KNOWN_COLLISIONS,
 } from './index'
-import { vocabWordSet } from '../translate'
+import { vocabWordSet } from '../inputTranslate'
 import { fold } from './fold'
 import type { LexLang } from './types'
 import type { Vocab } from '../grammar/types'

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { viewToContext, buildPrompt } from './prompt'
-import { parseCommand } from './translate'
+import { parseCommand } from './inputTranslate'
 import { emptyView } from '../glkote-react/types'
 import type { ViewState } from '../glkote-react/types'
 import type { PromptContext } from './types'

@@ -52,9 +52,13 @@ export function translateStatus(
 
   const m = RIGHT.exec(normalize(status.right))
   const fmt = RIGHT_FORMAT[language]
-  const score = m && fmt ? signedScore(m[1]) : null
-  const right = m && fmt && score !== null ? fmt(score, m[2]) : status.right
-  if ((!m || !fmt || score === null) && status.right !== '')
+  const score = m && fmt !== undefined ? signedScore(m[1]) : null
+  const right =
+    m && fmt !== undefined && score !== null ? fmt(score, m[2]) : status.right
+  if (
+    (m === null || fmt === undefined || score === null) &&
+    status.right !== ''
+  )
     misses.push(status.right)
 
   return {

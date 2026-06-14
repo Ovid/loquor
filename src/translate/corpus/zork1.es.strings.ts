@@ -395,6 +395,14 @@ export const ZORK1_ES_STRINGS: Readonly<Record<string, string>> = {
     'Estás en la cocina de la casa blanca. Una mesa parece haber sido usada recientemente para preparar comida. Un pasadizo conduce al oeste y se ve una escalera oscura que sube. Una chimenea oscura baja, y al este hay una pequeña ventana abierta.',
   'You are in the living room. There is a doorway to the east, a wooden door with strange gothic lettering to the west, which appears to be nailed shut, a trophy case, and a large oriental rug in the center of the room.':
     'Estás en el salón. Hay una puerta al este, una puerta de madera con extraños caracteres góticos al oeste que parece clavada, una vitrina y una gran alfombra oriental en el centro de la sala.',
+  // Living Room re-described after the rug is moved and the trap door opened —
+  // composed at runtime, so missed by the coverage/inventory gates and pinned
+  // here from the UAT miss log (spec §4 "Spanish UAT loop"). Pre-cyclops form:
+  'You are in the living room. There is a doorway to the east, a wooden door with strange gothic lettering to the west, which appears to be nailed shut, a trophy case, and a rug lying beside an open trap door.':
+    'Estás en el salón. Hay una puerta al este, una puerta de madera con extraños caracteres góticos al oeste que parece clavada, una vitrina y una alfombra tendida junto a una trampilla abierta.',
+  // Same, AFTER the cyclops smashes the west door into a cyclops-shaped opening:
+  'You are in the living room. There is a doorway to the east. To the west is a cyclops-shaped opening in an old wooden door, above which is some strange gothic lettering, a trophy case, and a rug lying beside an open trap door.':
+    'Estás en el salón. Hay una puerta al este. Al oeste hay una abertura con forma de cíclope en una vieja puerta de madera, sobre la que hay unos extraños caracteres góticos, una vitrina y una alfombra tendida junto a una trampilla abierta.',
   'This is the attic. The only exit is a stairway leading down.':
     'Este es el desván. La única salida es una escalera que baja.',
   'You are in a dark and damp cellar with a narrow passageway leading north, and a crawlway to the south. On the west is the bottom of a steep metal ramp which is unclimbable.':

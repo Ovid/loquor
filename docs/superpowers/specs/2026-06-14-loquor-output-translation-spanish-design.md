@@ -20,16 +20,29 @@ exist and are language-agnostic.
 
 The NL **input** layer for Spanish is already complete and tested (`es.core.ts`,
 `es.zork1/2/3.ts`, prompt few-shots, the `Español` picker entry, collision
-gates). This spec does **not** touch input.
+gates). This spec does **not** touch input parsing or lexicon vocabulary. The
+**one** permitted input-layer edit is appending reviewed entries to
+`KNOWN_COLLISIONS.es[ZORK1_SIG]` (`src/llm/lexicon/index.ts`) when the round-trip
+authoring rule (§4) adds a Spanish display phrase whose folded head collides with
+an English vocab word — the same pattern French used.
 
 ## 2. Locked decisions
 
 1. **French corpus is the structural blueprint; Spanish swaps the values.** For
    every entry in the French corpus, Spanish emits a twin with the **identical
-   key** (string-table EN key, object EN key, or template EN side) and a Spanish
-   value. Because the gates check coverage over the same English fixtures, a
-   structurally-complete Spanish corpus passes the walkthrough and inventory
-   gates **by construction** — before quality is even assessed.
+   key** (string-table EN key, object EN key, or template **EN side**) and a
+   Spanish value. The template **out-side** is not always a literal value swap:
+   the `al`/`del` templates change the slot *reference* (`de {obj.def}` →
+   `{obj.delDef}`), see §3.3. Because the gates check coverage over the same
+   English fixtures, a structurally-complete Spanish corpus passes the
+   walkthrough and inventory gates **by construction** — *provided every
+   template's slot × bindable-object-set resolves*, including the new
+   `alDef`/`delDef` keys (§2.5). A template that binds an object missing a
+   referenced form key is a **miss, not a pass** (`match.ts`), so the al/del
+   object-set is a real authoring audit (the Spanish analog of French's
+   plural-agreement audit), not a free consequence of the shared key set. "By
+   construction" means the gate goes green once that audit is right — quality
+   then comes from the UAT loop.
 2. **Translate from the English source, not from French.** French→Spanish
    compounds any French liberty or error. Each Spanish value is authored from the
    English line (the French value is available as a same-meaning reference, not
@@ -48,6 +61,12 @@ gates). This spec does **not** touch input.
    per-object form keys** (`alDef` → `al altar`, `delDef` → `del altar`) supplied
    only on objects whose templates need them — exactly the open-form-keys escape
    hatch German will use for case forms. The matcher never interprets key names.
+   **No French precedent to copy:** French *rephrased its templates to avoid*
+   `de`/`à` before a slot (`zork1.fr.templates.ts` header rule), so the set of
+   objects needing `alDef`/`delDef` must be derived fresh from whichever Spanish
+   templates keep a `de {obj}` / `a {obj}` shape — and **every** object such a
+   template can bind must carry that key, or the line misses (coverage gate red).
+   Budget this as design work, not a value-swap.
 6. **The extraction-ignore list is shared.** `zork1.extraction-ignore.ts` lists
    English lines for language-*independent* structural classes (unbounded parser
    echoes, the CR-less tie-up sentence, multi-item reveal lists). Spanish leaves
@@ -115,6 +134,18 @@ parameterization is a pure refactor for French).
   `articles ∪ {de, d}`). Authoring rule, same as French: if a natural Spanish
   display phrase is missing from `ES_ZORK1`, **add it to the input lexicon**
   (keeping the lexicon validation suite green) — never bend the Spanish to fit.
+  When that added phrase's folded head collides with an English vocab word,
+  `validate.test.ts` requires a matching entry in `KNOWN_COLLISIONS.es[ZORK1_SIG]`
+  (`src/llm/lexicon/index.ts`) with a justifying comment — the one input-layer
+  file this branch may touch (§1). The gate proves the **noun resolves**, not
+  that `del`/`al` was composed correctly; contraction correctness is a UAT-only
+  net.
+- **German sufficiency check (keeps the "one list entry" promise honest):** the
+  per-row config's `headExtra` is a flat head-token **set**, which suffices for
+  German's case articles (`der/die/das/den/dem/des/…`) and `zum/zur/im/am`
+  contractions — so German stays a list entry, not a config-shape change. The
+  config grows only if German ever needs a per-row *transform function* rather
+  than a token set; call that out if/when it happens.
 - **Matcher units** (`match.test.ts`) — already cover the open-form-keys contract
   with a synthetic case-form language; **no change**. Spanish's `alDef`/`delDef`
   are just more data keys.

@@ -292,3 +292,46 @@ passages tortueux, tous semblables"; "passe-partout" for skeleton key — idioma
   HIGH visibility: the thief roams the whole dungeon, so this fires often. Player
   carrying treasures underground will see it repeatedly.
 - → FIX (paad:vibe) after the thief encounter is secured (autosave holds state).
+
+### ✅ GAME COMPLETED — 350/350, DEATHLESS, "Maître Aventurier"
+
+Full playthrough finished in French. Route from Salon (221): deposited 4 carried
+treasures (→252), egg from tree (→257), maze coin bag (→267), cyclops `"Ulysses"`
+flee, killed the thief WITH THE SWORD (deathless, ~11 rounds) recovering torch +
+opened egg/canary + chalice + coins (→302), bauble from canary at tree (→313),
+egg/canary/bauble deposited (→329), platinum bar via Loud Room `"echo"` (→339),
+final torch+bar deposit (→**350**). Whisper → map ("carte"→parchment) → read map
+→ West-of-House SW secret path → Stone Barrow (Tumulus de pierre) → enter → WIN.
+
+**Output translation was essentially FLAWLESS across the entire back half**, incl.
+the rarely-seen endgame: the thief death + treasure-reappear list, all 11 combat
+rounds (parry/wound/stun/KO/kill lines), the cyclops flee, the canary aria +
+"babiole en laiton", the whisper "« Cherchez le dernier secret du côté de vos
+trésors. »", the map text "« Vers le Tumulus de pierre »", the barrow room, and
+the FULL victory screen ("Vous avez triomphé de la première partie de la trilogie
+ZORK… Votre score est de 350 (sur un total de 350 points), en 392 tours. Cela vous
+confère le rang de Maître Aventurier."). Only leaks below.
+
+### 🟧 OUTPUT (minor): end-of-game prompt keywords stay English
+
+- Victory screen ends: "(Tapez RESTART, RESTORE ou QUIT) :" — "Tapez"/"ou" are
+  French but the three command KEYWORDS leak English. Same class as the S3
+  boat-label "dites « Launch »" finding (English command words in French flavor).
+  Debatable (they're literal commands the player types); low severity.
+
+### 🟧 INPUT (NL, minor): proper-noun magic word `Ulysse` → LLM picks `look`
+
+- At the cyclops, `Ulysse` (natural French spelling of Ulysses/Odysseus) hit the
+  LLM (`…thinking`) which returned `> look` — cyclops did NOT flee, a turn wasted.
+  Worked via quoted passthrough `"Ulysses"`. A FR player typing the French hero
+  name gets nothing. Candidate FR-lexicon fix: `ulysse`→`ulysses`,
+  `ulysses`/`odysseus` passthrough. (Magic words are English game tokens; same
+  family as `echo`.) Low-to-medium value.
+
+### 🟧 INPUT (NL, minor): `prends le sac` disambiguated to the (gone) "large bag"
+
+- In the Treasure Room after the thief died, `prends le sac` → `> take large bag`
+  → "Vous ne voyez le grand sac nulle part !" (the thief's grand sac vanished on
+  his death). It should have resolved to the present coin bag ("sac en cuir plein
+  de pièces"). `prends les pieces` → `> take coins` → Pris. worked. Scope/recency
+  disambiguation picked an absent antecedent over a present one. Low severity.

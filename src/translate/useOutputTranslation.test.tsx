@@ -80,6 +80,25 @@ describe('passthrough (spec §3)', () => {
   })
 })
 
+describe('hidden side effects (F-18 safety net)', () => {
+  // The hook's {lines, status} signature hides a mount-time global install
+  // (window.loquorMisses, the dev miss-dump). This pins that effect so a
+  // refactor making the side effects explicit (F-18) cannot drop it. Other
+  // effects (cache write/delete, miss-log append, generation) are already
+  // pinned by the fallback/backlog suites below.
+  it('mounting installs the window.loquorMisses dev dump', () => {
+    delete (window as unknown as { loquorMisses?: unknown }).loquorMisses
+    expect(
+      (window as unknown as { loquorMisses?: unknown }).loquorMisses,
+    ).toBeUndefined()
+    const { unmount } = setup({ initial: view([line('output', 'Taken.')]) })
+    expect(
+      typeof (window as unknown as { loquorMisses?: unknown }).loquorMisses,
+    ).toBe('function')
+    unmount()
+  })
+})
+
 describe('sync table hits (spec §3/§5)', () => {
   it('translates output and room lines; input/nl-source never reach the matcher', () => {
     const v = view([

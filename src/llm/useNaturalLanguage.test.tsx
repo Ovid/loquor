@@ -153,6 +153,66 @@ describe('useNaturalLanguage', () => {
     expect(hook.result.current.notice).toBeTruthy()
   })
 
+  it('progress callbacks surface as state.loaded/total/etaSeconds while downloading (F-2 safety net)', async () => {
+    // Characterizes the download lifecycle's progress→state wiring through the
+    // PUBLIC `state` contract — the modal's progress bar and ETA depend on it.
+    // Extracting that lifecycle out of this hook (F-2) must not silently drop
+    // the wiring. Date.now is controlled so estimateRemainingSeconds is
+    // deterministic rather than wall-clock-flaky.
+    let emit!: (p: import('./types').LoadProgress) => void
+    let resolveLoad!: () => void
+    const blockingEngine: import('./types').LlmEngine = {
+      isCached: async () => false,
+      isLoaded: () => false,
+      unload: async () => {},
+      generate: async () => '{"verb":"__UNKNOWN__"}',
+      load: (onProgress, signal) =>
+        new Promise<void>((resolve, reject) => {
+          emit = onProgress
+          resolveLoad = resolve
+          signal.addEventListener('abort', () =>
+            reject(new DOMException('aborted', 'AbortError')),
+          )
+        }),
+    }
+    const { hook } = setup({ engine: blockingEngine })
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
+    )
+
+    const nowSpy = vi.spyOn(Date, 'now')
+    try {
+      act(() => hook.result.current.requestDownload())
+      // First sample at t=1000ms: one point is not enough signal for an ETA.
+      act(() => {
+        nowSpy.mockReturnValue(1000)
+        emit({ loaded: 10, total: 100, text: '' })
+      })
+      expect(hook.result.current.state).toMatchObject({
+        phase: 'downloading',
+        loaded: 10,
+        total: 100,
+        etaSeconds: null,
+      })
+      // Second sample 1s later at +40% ⇒ 50% remaining at 40%/s ≈ 1.25s.
+      act(() => {
+        nowSpy.mockReturnValue(2000)
+        emit({ loaded: 50, total: 100, text: '' })
+      })
+      const s = hook.result.current.state
+      expect(s).toMatchObject({ phase: 'downloading', loaded: 50, total: 100 })
+      if (s.phase !== 'downloading') throw new Error('expected downloading')
+      expect(s.etaSeconds).toBeCloseTo(1.25)
+    } finally {
+      nowSpy.mockRestore()
+    }
+    // Resolve the now-stale load so its settle doesn't update state after the
+    // test returns (the post-resolve guard makes it a no-op).
+    await act(async () => {
+      resolveLoad()
+    })
+  })
+
   it('command translation echoes English then sends the canonical command', async () => {
     const engine = new FakeLlmEngine({
       cached: true,

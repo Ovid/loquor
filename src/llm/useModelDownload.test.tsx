@@ -1,0 +1,270 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { renderHook, act, waitFor } from '@testing-library/react'
+import { useModelDownload, type ModelDownloadParams } from './useModelDownload'
+import { FakeLlmEngine } from './engine.fake'
+import { readNlPref, writeNlPref } from './nlpref'
+import type { LlmEngine } from './types'
+
+// useModelDownload owns the model download / install / phase lifecycle that F-2
+// extracted out of useNaturalLanguage. The NL hook's suite covers the same flow
+// through its public `state`; here we drive the lifecycle hook DIRECTLY so its
+// own contract — the `internal` phase machine, `installed`/`modalOpen`, the
+// four player actions, and the nlpref persistence — is pinned at the unit
+// boundary the NL hook composes.
+
+function setup(
+  opts: { engine?: LlmEngine } & Partial<ModelDownloadParams> = {},
+) {
+  const setNotice = vi.fn()
+  const engine = opts.engine ?? new FakeLlmEngine()
+  const hook = renderHook(() =>
+    useModelDownload({
+      engine,
+      available: opts.available ?? true,
+      hasVocab: opts.hasVocab ?? true,
+      setNotice,
+    }),
+  )
+  return { hook, setNotice, engine }
+}
+
+beforeEach(() => localStorage.clear())
+
+describe('boot probe (isCached)', () => {
+  it('not cached → off, installed:false, modal closed', async () => {
+    const { hook } = setup()
+    await waitFor(() => expect(hook.result.current.installed).toBe(false))
+    expect(hook.result.current.internal).toEqual({ phase: 'off' })
+    expect(hook.result.current.modalOpen).toBe(false)
+  })
+
+  it('cached + a stored language auto-restores to on (no re-prompt)', async () => {
+    writeNlPref({ language: 'fr' })
+    const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
+    await waitFor(() =>
+      expect(hook.result.current.internal).toEqual({
+        phase: 'on',
+        language: 'fr',
+      }),
+    )
+    expect(hook.result.current.installed).toBe(true)
+  })
+
+  it('cached but the stored pref is off → installed:true, stays off (no auto-enable)', async () => {
+    const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
+    await waitFor(() => expect(hook.result.current.installed).toBe(true))
+    expect(hook.result.current.internal).toEqual({ phase: 'off' })
+  })
+
+  it('an isCached rejection is swallowed — installed:false, no throw', async () => {
+    const engine: LlmEngine = {
+      load: async () => {},
+      unload: async () => {},
+      isLoaded: () => false,
+      isCached: async () => {
+        throw new Error('probe blew up')
+      },
+      generate: async () => '',
+    }
+    const { hook } = setup({ engine })
+    await waitFor(() =>
+      expect(hook.result.current.internal).toEqual({ phase: 'off' }),
+    )
+    expect(hook.result.current.installed).toBe(false)
+  })
+})
+
+describe('requestDownload', () => {
+  it('success: downloading → on (the pending language), installed:true, persisted', async () => {
+    const engine = new FakeLlmEngine({
+      progress: [
+        { loaded: 1, total: 2, text: 'a' },
+        { loaded: 2, total: 2, text: 'b' },
+      ],
+    })
+    const { hook } = setup({ engine })
+    await waitFor(() => expect(hook.result.current.installed).toBe(false))
+    act(() => hook.result.current.requestDownload())
+    await waitFor(() =>
+      expect(hook.result.current.internal).toEqual({
+        phase: 'on',
+        language: 'en', // pendingLangRef default when no setLanguage preceded it
+      }),
+    )
+    expect(hook.result.current.installed).toBe(true)
+    expect(readNlPref().language).toBe('en')
+  })
+
+  it('surfaces download progress as the downloading phase', async () => {
+    // A load that emits one progress sample then blocks, so we can observe the
+    // downloading phase before it resolves.
+    let resolveLoad!: () => void
+    const engine: LlmEngine = {
+      unload: async () => {},
+      isLoaded: () => false,
+      isCached: async () => false,
+      generate: async () => '',
+      load: (onProgress, _signal) =>
+        new Promise<void>(resolve => {
+          onProgress({ loaded: 30, total: 100, text: '' })
+          resolveLoad = resolve
+        }),
+    }
+    const { hook } = setup({ engine })
+    act(() => hook.result.current.requestDownload())
+    await waitFor(() =>
+      expect(hook.result.current.internal).toMatchObject({
+        phase: 'downloading',
+        loaded: 30,
+        total: 100,
+      }),
+    )
+    // settle the blocked load so it doesn't update state after the test ends
+    await act(async () => {
+      resolveLoad()
+    })
+  })
+
+  it('failure reverts to off and reports it through the shared notice channel', async () => {
+    const { hook, setNotice } = setup({
+      engine: new FakeLlmEngine({ failLoad: true }),
+    })
+    act(() => hook.result.current.requestDownload())
+    await waitFor(() =>
+      expect(hook.result.current.internal).toEqual({ phase: 'off' }),
+    )
+    expect(setNotice).toHaveBeenCalledWith(
+      'Model download failed — staying grammar-only.',
+    )
+  })
+})
+
+describe('setLanguage', () => {
+  it('a cached model activates the chosen language immediately and persists it', async () => {
+    const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
+    await waitFor(() => expect(hook.result.current.installed).toBe(true))
+    act(() => hook.result.current.setLanguage('de'))
+    expect(hook.result.current.internal).toEqual({
+      phase: 'on',
+      language: 'de',
+    })
+    expect(readNlPref().language).toBe('de')
+  })
+
+  it('no cached model opens the modal; the subsequent download activates THAT language', async () => {
+    const { hook } = setup() // not cached, not loaded
+    await waitFor(() => expect(hook.result.current.installed).toBe(false))
+    act(() => hook.result.current.setLanguage('es'))
+    expect(hook.result.current.modalOpen).toBe(true)
+    expect(hook.result.current.internal).toEqual({ phase: 'off' }) // not yet on
+    act(() => hook.result.current.requestDownload())
+    await waitFor(() =>
+      expect(hook.result.current.internal).toEqual({
+        phase: 'on',
+        language: 'es', // the language picked when the modal opened
+      }),
+    )
+    expect(hook.result.current.modalOpen).toBe(false)
+    expect(readNlPref().language).toBe('es')
+  })
+
+  it("'off' turns the layer off instantly and persists 'off' (model stays cached)", async () => {
+    const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
+    await waitFor(() => expect(hook.result.current.installed).toBe(true))
+    act(() => hook.result.current.setLanguage('fr'))
+    expect(hook.result.current.internal).toEqual({
+      phase: 'on',
+      language: 'fr',
+    })
+    act(() => hook.result.current.setLanguage('off'))
+    expect(hook.result.current.internal).toEqual({ phase: 'off' })
+    expect(readNlPref().language).toBe('off')
+  })
+
+  it('is a no-op when the layer is unavailable (tier none)', async () => {
+    const { hook } = setup({ available: false })
+    await waitFor(() => expect(hook.result.current.installed).toBe(false))
+    act(() => hook.result.current.setLanguage('fr'))
+    expect(hook.result.current.internal).toEqual({ phase: 'off' })
+    expect(hook.result.current.modalOpen).toBe(false)
+  })
+
+  it('is a no-op when the game has no vocab', async () => {
+    const { hook } = setup({ hasVocab: false })
+    await waitFor(() => expect(hook.result.current.installed).toBe(false))
+    act(() => hook.result.current.setLanguage('fr'))
+    expect(hook.result.current.internal).toEqual({ phase: 'off' })
+    expect(hook.result.current.modalOpen).toBe(false)
+  })
+})
+
+describe('declineDownload', () => {
+  it('closes the modal, stays off, and persists declined + off', async () => {
+    const { hook } = setup()
+    await waitFor(() => expect(hook.result.current.installed).toBe(false))
+    act(() => hook.result.current.setLanguage('fr')) // opens the modal
+    expect(hook.result.current.modalOpen).toBe(true)
+    act(() => hook.result.current.declineDownload())
+    expect(hook.result.current.modalOpen).toBe(false)
+    expect(hook.result.current.internal).toEqual({ phase: 'off' })
+    expect(readNlPref()).toEqual({ language: 'off', declined: true })
+  })
+})
+
+describe('cancelDownload', () => {
+  it('aborts an in-flight load, reverts to off, and persists off', async () => {
+    let rejectLoad!: (e: unknown) => void
+    const engine: LlmEngine = {
+      unload: async () => {},
+      isLoaded: () => false,
+      isCached: async () => false,
+      generate: async () => '',
+      load: (_p, signal) =>
+        new Promise<void>((_resolve, reject) => {
+          rejectLoad = reject
+          signal.addEventListener('abort', () =>
+            reject(new DOMException('aborted', 'AbortError')),
+          )
+        }),
+    }
+    const { hook } = setup({ engine })
+    act(() => hook.result.current.requestDownload())
+    await waitFor(() =>
+      expect(hook.result.current.internal.phase).toBe('downloading'),
+    )
+    await act(async () => {
+      hook.result.current.cancelDownload()
+    })
+    expect(hook.result.current.internal).toEqual({ phase: 'off' })
+    expect(readNlPref().language).toBe('off')
+    expect(rejectLoad).toBeDefined() // (load was wired to the abort signal)
+  })
+
+  it('a load that RESOLVES after cancel does not flip on or persist a language ([P])', async () => {
+    // This load ignores the abort signal and resolves anyway — the stale()
+    // guard, not the rejection, must keep a cancelled download off.
+    let resolveLoad!: () => void
+    const engine: LlmEngine = {
+      unload: async () => {},
+      isLoaded: () => false,
+      isCached: async () => false,
+      generate: async () => '',
+      load: () =>
+        new Promise<void>(resolve => {
+          resolveLoad = resolve
+        }),
+    }
+    const { hook } = setup({ engine })
+    act(() => hook.result.current.requestDownload())
+    await waitFor(() =>
+      expect(hook.result.current.internal.phase).toBe('downloading'),
+    )
+    act(() => hook.result.current.cancelDownload())
+    await act(async () => {
+      resolveLoad() // the superseded load settles after the cancel
+      await Promise.resolve()
+    })
+    expect(hook.result.current.internal).toEqual({ phase: 'off' })
+    expect(readNlPref().language).toBe('off') // never flipped to a language
+  })
+})

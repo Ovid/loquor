@@ -375,11 +375,16 @@ export function useOutputTranslation(args: {
     }
 
     // Status-bar room/right misses: English fallback, logged once per value.
+    // Both the room-name and right-side miss are reported independently (review
+    // S4); logMiss dedups persistently by (game, language, en), and the joined
+    // signature skips re-logging the same status on every render.
     if (view.status) {
-      const { miss } = translateStatus(view.status, corpus, lang)
-      if (miss !== null && miss !== lastStatusMissRef.current) {
-        lastStatusMissRef.current = miss
-        logMiss({ en: miss, game: signature, language: lang, kind: 'status' })
+      const { misses } = translateStatus(view.status, corpus, lang)
+      const sig = misses.join(' ')
+      if (misses.length > 0 && sig !== lastStatusMissRef.current) {
+        lastStatusMissRef.current = sig
+        for (const en of misses)
+          logMiss({ en, game: signature, language: lang, kind: 'status' })
       }
     }
   }, [view, corpus, lang, signature, engine, gate, watchdogMs])

@@ -18,9 +18,13 @@ const RIGHT = /^Score:\s*(-?\d+)\s+(?:Moves|Turns):\s*(\d+)$/
 // Reinterpret values at/above 0x8000 as signed; Zork I's score caps at 350, so
 // no genuine positive score reaches that range and only real negatives are
 // affected. A literal "-10" (older fixtures) parses below 0x8000 and is left
-// as-is.
-function signedScore(raw: string): string {
+// as-is. Returns null for a value OUTSIDE the 16-bit window — the (-?\d+) regex
+// is arbitrary-width, so a ≥6-digit value would otherwise be folded into a
+// fabricated number (review S3); anything the VM's getUint16 could not have
+// emitted is reported as a miss instead.
+function signedScore(raw: string): string | null {
   const n = Number(raw)
+  if (!Number.isInteger(n) || n < -0x8000 || n > 0xffff) return null
   return String(n >= 0x8000 ? n - 0x10000 : n)
 }
 
@@ -36,19 +40,25 @@ export function translateStatus(
   status: StatusLine,
   c: CompiledCorpus,
   language: string,
-): { status: StatusLine; miss: string | null } {
-  let miss: string | null = null
+): { status: StatusLine; misses: string[] } {
+  // Report the location miss and the right-side miss INDEPENDENTLY (review S4):
+  // `miss = miss ?? status.right` previously let a room-name miss suppress an
+  // unparseable right-side miss on the same turn, so — combined with the
+  // caller's per-turn dedup — the right-side corpus gap was never logged.
+  const misses: string[] = []
 
   const loc = c.strings[normalize(status.location)]
-  if (loc === undefined && status.location !== '') miss = status.location
+  if (loc === undefined && status.location !== '') misses.push(status.location)
 
   const m = RIGHT.exec(normalize(status.right))
   const fmt = RIGHT_FORMAT[language]
-  const right = m && fmt ? fmt(signedScore(m[1]), m[2]) : status.right
-  if ((!m || !fmt) && status.right !== '') miss = miss ?? status.right
+  const score = m && fmt ? signedScore(m[1]) : null
+  const right = m && fmt && score !== null ? fmt(score, m[2]) : status.right
+  if ((!m || !fmt || score === null) && status.right !== '')
+    misses.push(status.right)
 
   return {
     status: { location: loc ?? status.location, right },
-    miss,
+    misses,
   }
 }

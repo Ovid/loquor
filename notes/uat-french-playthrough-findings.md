@@ -302,9 +302,9 @@ passages tortueux, tous semblables"; "passe-partout" for skeleton key — idioma
   assembled-fragment class is a structural blind spot in BOTH display gates;
   other multi-piece TELL messages could leak the same way (follow-up: a
   fragment-aware audit if more surface).
-- → FOLLOW-UP (not fixed): `Ulysse`→look NL gap — add `ulysses: ['ulysse']` to
-  fr.zork1.ts (mind the collision gate vs. `odysseus`); deferred (NL-input
-  subsystem, has the `"Ulysses"` passthrough workaround).
+- → `Ulysse`→look NL gap: ✅ FIXED (see the dedicated entry below). Note: the
+  earlier hunch to add it to fr.zork1.ts (nouns) was wrong — `ulysses`/`odysseus`
+  are vocab VERBS, so the fix went in fr.core.ts `verbs` (`ulysse: 'ulysses'`).
 
 ### ✅ GAME COMPLETED — 350/350, DEATHLESS, "Maître Aventurier"
 
@@ -332,14 +332,23 @@ confère le rang de Maître Aventurier."). Only leaks below.
   boat-label "dites « Launch »" finding (English command words in French flavor).
   Debatable (they're literal commands the player types); low severity.
 
-### 🟧 INPUT (NL, minor): proper-noun magic word `Ulysse` → LLM picks `look`
+### ✅ FIXED — INPUT (NL): proper-noun magic word `Ulysse` → LLM picked `look`
 
 - At the cyclops, `Ulysse` (natural French spelling of Ulysses/Odysseus) hit the
   LLM (`…thinking`) which returned `> look` — cyclops did NOT flee, a turn wasted.
-  Worked via quoted passthrough `"Ulysses"`. A FR player typing the French hero
-  name gets nothing. Candidate FR-lexicon fix: `ulysse`→`ulysses`,
-  `ulysses`/`odysseus` passthrough. (Magic words are English game tokens; same
-  family as `echo`.) Low-to-medium value.
+  Worked only via quoted passthrough `"Ulysses"`. `ulysses`/`odysseus` are vocab
+  VERBS (verbsOnly/verbSynonyms), not nouns — that's why the noun lexicon
+  (fr.zork1.ts) and its full-coverage gate never touched them.
+- → ✅ FIXED (paad:vibe, TDD). Mapped `ulysse: 'ulysses'` in fr.core.ts `verbs`.
+  `ulysses` is a verbSynonym, so `verbArityOk` passes the bare command at arity 0
+  (verbSynonyms branch) — no `FIND_DEFAULT_VERBS` entry needed. RED→GREEN in
+  parse.test.ts (real ZORK1_VOCAB); also updated the existing `F-BB` pipeline-UAT
+  row from its "still unmapped → notice, nothing sent" pin to assert deterministic
+  `ulysses` with **no LLM call**. `make all` green (802 tests). NOT re-verified
+  in-browser: the won autosave has the cyclops already defeated and the end-prompt
+  only accepts RESTART/RESTORE/QUIT, so the pipeline-level test is the evidence.
+  (Note: English `ulysses`/`odysseus` already worked via stage-4 vocab passthrough;
+  only the French spelling was missing.)
 
 ### 🟧 INPUT (NL, minor): `prends le sac` disambiguated to the (gone) "large bag"
 

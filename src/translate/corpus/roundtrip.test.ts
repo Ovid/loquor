@@ -1,44 +1,70 @@
 // Lexicon round-trip gate (spec §7.5): the player types what they read, so
-// every French form in the objects table must resolve through the FR input
-// lexicon to the same canonical — display and input vocabularies must not
-// drift, at authoring time or during UAT hand-fixes.
+// every display form in a language's objects table must resolve through that
+// language's input lexicon to the same canonical — display and input
+// vocabularies must not drift. List-driven so each language enrolls identically
+// (fr now; es in Task 5; de later is one row).
 import { describe, it, expect } from 'vitest'
+import { fold } from '../../llm/lexicon/fold'
+import type { CoreLexicon, NounLexicon } from '../../llm/lexicon/types'
+import type { ObjectsTable } from '../types'
 import { FR_ZORK1 } from '../../llm/lexicon/fr.zork1'
 import { FR_CORE } from '../../llm/lexicon/fr.core'
-import { fold } from '../../llm/lexicon/fold'
 import { ZORK1_FR_OBJECTS, ZORK1_FR_CANONICAL } from './zork1.fr.objects'
 
-// Articles/partitives to strip at the phrase head (fold() already split
-// elisions: "l'œuf" → "l oeuf").
-const HEAD = new Set([...FR_CORE.articles, 'de', 'd'])
-
-function stripHead(folded: string): string {
-  const toks = folded.split(' ')
-  while (toks.length > 1 && HEAD.has(toks[0])) toks.shift()
-  return toks.join(' ')
+interface Row {
+  code: string
+  nouns: NounLexicon
+  core: CoreLexicon
+  objects: ObjectsTable
+  canonical: Readonly<Record<string, string>>
+  /** Extra phrase-head tokens stripped before the lexicon-membership check,
+   * beyond core.articles. FR: partitive de/d'. ES (Task 5): del/al/de/d. */
+  headExtra: readonly string[]
 }
 
-describe('objects table ↔ FR input lexicon round-trip (spec §7.5)', () => {
-  it('every form of every object resolves to its canonical', () => {
-    const failures: string[] = []
-    for (const [en, forms] of Object.entries(ZORK1_FR_OBJECTS)) {
-      const canonical = ZORK1_FR_CANONICAL[en] ?? en
-      const lex = FR_ZORK1[canonical]
-      if (!lex) {
-        failures.push(`"${en}": no FR_ZORK1 entry for canonical "${canonical}"`)
-        continue
-      }
-      for (const [key, form] of Object.entries(forms)) {
-        const phrase = stripHead(fold(form))
-        if (!lex.includes(phrase))
-          failures.push(
-            `"${en}".${key} = "${form}" → "${phrase}" missing from FR_ZORK1["${canonical}"]`,
-          )
-      }
+const LANGS: Row[] = [
+  {
+    code: 'fr',
+    nouns: FR_ZORK1,
+    core: FR_CORE,
+    objects: ZORK1_FR_OBJECTS,
+    canonical: ZORK1_FR_CANONICAL,
+    headExtra: ['de', 'd'],
+  },
+]
+
+describe.each(LANGS)(
+  'objects table ↔ $code input lexicon round-trip (spec §7.5)',
+  row => {
+    const HEAD = new Set<string>([...row.core.articles, ...row.headExtra])
+    const stripHead = (folded: string): string => {
+      const toks = folded.split(' ')
+      while (toks.length > 1 && HEAD.has(toks[0])) toks.shift()
+      return toks.join(' ')
     }
-    expect(failures).toEqual([])
-  })
-  it('a populated table (guards against the gate passing vacuously)', () => {
-    expect(Object.keys(ZORK1_FR_OBJECTS).length).toBeGreaterThan(100)
-  })
-})
+
+    it('every form of every object resolves to its canonical', () => {
+      const failures: string[] = []
+      for (const [en, forms] of Object.entries(row.objects)) {
+        const canonical = row.canonical[en] ?? en
+        const lex = row.nouns[canonical]
+        if (!lex) {
+          failures.push(`"${en}": no ${row.code} entry for canonical "${canonical}"`)
+          continue
+        }
+        for (const [key, form] of Object.entries(forms)) {
+          const phrase = stripHead(fold(form))
+          if (!lex.includes(phrase))
+            failures.push(
+              `"${en}".${key} = "${form}" → "${phrase}" missing from ${row.code}["${canonical}"]`,
+            )
+        }
+      }
+      expect(failures).toEqual([])
+    })
+
+    it('a populated table (guards against the gate passing vacuously)', () => {
+      expect(Object.keys(row.objects).length).toBeGreaterThan(100)
+    })
+  },
+)

@@ -1,4 +1,7 @@
 import type { BufferLine, GlkOteUpdate, StatusLine, ViewState } from './types'
+import { createLogger } from '../logger'
+
+const log = createLogger('glk')
 
 // --- Helpers -----------------------------------------------------------------
 
@@ -182,6 +185,17 @@ export function reduce(prev: ViewState, update: GlkOteUpdate): ViewState {
       // transcript (and its prev refs) so RESTART/screen-clears start fresh.
       if (entry.clear) paras = []
       paras = bufferParagraphs(entry, paras)
+    } else {
+      // F-10: the VM↔React "update" contract is parsed by structural
+      // shape-sniffing (lines[] ⇒ grid, text[] ⇒ buffer) with no version field.
+      // An entry matching NEITHER known shape means the SHA-pinned glkapi.js
+      // drifted from what we sniff against — warn loudly (the one place a drift
+      // is observable) instead of silently dropping it, then ignore it
+      // best-effort so a stray/unknown window can't corrupt the transcript.
+      log.warn(
+        'unrecognized content entry shape (glkapi drift?):',
+        Object.keys(entry),
+      )
     }
   }
 

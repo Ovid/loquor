@@ -10,6 +10,13 @@ import { fold, tokenize } from './fold'
 export type LexResult = { kind: 'command'; text: string } | { kind: 'miss' }
 const MISS: LexResult = { kind: 'miss' }
 
+// Verbs whose Zork syntax supplies the object via (FIND …), so the Z-parser
+// accepts the BARE form: in the boat, ">launch" finds the vehicle. Arity
+// extraction lists 'launch' as verbs1 (LAUNCH OBJECT (FIND VEHBIT)), so a
+// whole-phrase launch idiom ('lance le bateau' → 'launch', empty remainder)
+// would otherwise miss the verb-only arity gate. (UAT S3, Frigid River.)
+const FIND_DEFAULT_VERBS = new Set(['launch'])
+
 interface NounHit {
   emit: string
   canonical: string
@@ -201,7 +208,9 @@ export function parseLexicon(
 
   // --- No remainder: verb-only. ---
   if (tokens.length === 0)
-    return verbArityOk(verb, vocab, 0) ? { kind: 'command', text: verb } : MISS
+    return verbArityOk(verb, vocab, 0) || FIND_DEFAULT_VERBS.has(verb)
+      ? { kind: 'command', text: verb }
+      : MISS
 
   // --- "All" quantifier: a bare-quantifier remainder (tout/tous/… or 'all')
   // maps to the Z-parser's ALL object — 'prends tout' → 'take all', 'pose

@@ -559,4 +559,48 @@ describe('parseLexicon — UAT French playthrough (real Zork I vocab + lexicon)'
       ),
     ).toEqual({ kind: 'command', text: 'light candles with match' })
   })
+
+  // UAT S3 (Frigid River): "lance le bateau" is the natural, CORRECT French for
+  // "launch the boat" (lancer un bateau = to launch one), but lance→throw
+  // unconditionally emitted "throw raft" — the boat was un-launchable in French.
+  // Zork's LAUNCH (FIND VEHBIT) accepts the bare form (the walkthrough types a
+  // bare ">launch"). Full-phrase idioms keep the ambiguous "lance le couteau" =
+  // throw. "mettre à l'eau" (the boat label's own phrasing) also launches.
+  it('lance le bateau → launch (was: throw raft)', () => {
+    expect(
+      parseLexicon('lance le bateau', FR_CORE, FR_ZORK1, ZORK1_VOCAB, empty),
+    ).toEqual({ kind: 'command', text: 'launch' })
+  })
+  it('lancez le radeau (vous + synonym) → launch', () => {
+    expect(
+      parseLexicon('lancez le radeau', FR_CORE, FR_ZORK1, ZORK1_VOCAB, empty),
+    ).toEqual({ kind: 'command', text: 'launch' })
+  })
+  it("mets le bateau à l'eau → launch", () => {
+    expect(
+      parseLexicon(
+        "mets le bateau à l'eau",
+        FR_CORE,
+        FR_ZORK1,
+        ZORK1_VOCAB,
+        empty,
+      ),
+    ).toEqual({ kind: 'command', text: 'launch' })
+  })
+  it("mets à l'eau (elliptical) → launch", () => {
+    expect(
+      parseLexicon("mets à l'eau", FR_CORE, FR_ZORK1, ZORK1_VOCAB, empty),
+    ).toEqual({ kind: 'command', text: 'launch' })
+  })
+  it('regression: lance le couteau still → throw knife (not launch)', () => {
+    expect(
+      parseLexicon(
+        'lance le couteau',
+        FR_CORE,
+        FR_ZORK1,
+        ZORK1_VOCAB,
+        scene(['nasty knife']),
+      ),
+    ).toEqual({ kind: 'command', text: 'throw nasty knives' })
+  })
 })

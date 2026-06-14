@@ -197,3 +197,76 @@ molette et le tournevis` → take wrench + take screwdriver. All clause-2
   In-browser re-verify: ✅ DONE in the Timber Room — `pose tout` →
   `you pose tout` / `> drop all` → dropped all 7 carried items, each with a
   French "Vous posez X." Console stage:"lexicon" (deterministic, no LLM).
+
+## SESSION 3 (2026-06-14, cont.) — Reservoir → Dam Base → river launch
+
+Resumed at Salon (192/350). Route: descends→Cave→nord Troll→est Passage est-ouest
+→nord Gouffre→nord-est Sud du réservoir→nord Réservoir→nord Nord du réservoir→
+nord Salle de l'Atlantide. Then S,S,S→Sud du réservoir→est Barrage→est Pied du
+barrage. Treasures: `prends la malle`→take trunk (+15, 192→207), `prends la pompe`
+→take pump, `prends le trident`→take trident (+4, 207→211). Score 211, Coups ~241.
+
+### Output translation (PRIMARY) — all clean French this leg 🟩
+
+- Room names: Cave (Cellar), La salle du troll, Passage est-ouest, Gouffre
+  (Chasm), Sud/Nord du réservoir, Réservoir, Salle de l'Atlantide, Barrage (Dam),
+  Pied du barrage (Dam Base). All French in title bar + transcript.
+- Full descriptions French: Reservoir South/North ("le niveau de l'eau ayant
+  baissé…"), Réservoir ("un grand tas de boue… des « rives »…"), Atlantide
+  ("le trident de cristal de Poséidon lui-même"), Dam Base ("Barrage de
+  régulation des crues n° 3… La rivière Frigid… les Falaises blanches… vers
+  l'aval"). « rives » uses French guillemets.
+- `allume la lampe`→`light light`→"Vous allumez la lampe en laiton." ✓
+- `pose la torche`→`drop torch`→"Posé." ✓; `prends X`→"Pris." ✓
+- Load-too-heavy renders FRENCH in the simple-take path too:
+  `prends le trident` (overloaded) → "Votre chargement est trop lourd."
+  (Confirms the Session-2 take-all leak fix's sibling path is clean.)
+- BOAT LABEL fully French (`lis l'etiquette`→`read label`): "Salut, marin !
+  Mode d'emploi : Pour mettre à l'eau, dites « Launch ». Pour regagner la rive,
+  dites « Land »… Garantie : …76 millisecondes… Avertissement : Ce bateau est
+  en plastique fin. Bonne chance !"
+- `gonfle le plastique avec la pompe`→`inflate valve with pump`→"Le bateau se
+  gonfle et semble en état de naviguer." (instrument compound, deterministic) ✓
+
+### 🟧 OUTPUT (minor): boat label references English command words
+
+- The otherwise-fully-French label says `dites « Launch »` and `dites « Land »`
+  — English command keywords left untranslated inside French flavor text. A FR
+  player would expect French (which the NL layer accepts). Cosmetic; corpus
+  flavor-text gap. ("FROBOZZ MAGIC BOAT COMPANY" in English is fine — brand.)
+
+### 🟧 OUTPUT (minor, edge): parser assumed-object parenthetical leaks English
+
+- On the malformed `throw raft` below, Zork printed "(at the you)" as the
+  auto-supplied indirect object — English fragment not translated. Only appears
+  on malformed throw-style commands. Low severity.
+
+### 🟥 INPUT (NL): `lance le bateau` → `throw raft` (should be LAUNCH)
+
+- `you lance le bateau` → stage **lexicon** → `> throw raft` → "(at the you)
+  Vous n'avez pas le bateau magique." No turn consumed. "Lancer un bateau" is
+  the CORRECT, natural French for _launching_ a boat, but fr.core.ts maps
+  `lance`→`throw` unconditionally (for "lance le couteau"=throw knife). So a
+  French player CANNOT launch the boat with natural French — hard blocker for the
+  Frigid River. Zork's LAUNCH verb (`LAUNCH OBJECT (FIND VEHBIT)`, gsyntax 279)
+  accepts plain "launch". Sibling risk found in the lexicon: `quitte`→`quit`
+  (fr.core.ts:280), so "quitte le bateau" (leave the boat) → `quit boat` =
+  potential accidental GAME QUIT. Both are the same context-blind-verb pattern.
+  → FIX IN PROGRESS (paad:vibe): add launch idioms (lance le bateau/radeau,
+  mets à l'eau) → "launch". (Use `sors du bateau`=exit to leave the boat;
+  `quitte le bateau` quit-risk noted.)
+
+  → ✅ FIXED (vibe, TDD). fr.core.ts: added FR_LAUNCH_IDIOMS (cross-product of
+  lance/lancez/mets/mettez × bateau/radeau/canot, + "mets/mettez à l'eau") as
+  full-phrase verbIdioms → "launch" (full-phrase so "lance le couteau"=throw is
+  untouched). parse.ts: FIND_DEFAULT_VERBS = {launch} lets the verb-only arity
+  gate emit bare LAUNCH (launch is verbs1 via FIND VEHBIT; the Z-parser accepts
+  ">launch" in the boat). New parse.test.ts block pins lance le bateau→launch,
+  lancez le radeau→launch, mets le bateau à l'eau→launch, mets à l'eau→launch,
+  and a regression guard (lance le couteau→throw nasty knives). make all green
+  (800 tests). In-browser re-verify ✅: reloaded, resumed in the boat,
+  `lance le bateau`→`> launch`→"(bateau magique)"→"Rivière Frigid, dans le
+  bateau magique… Il y a un débarcadère sur la rive ouest." Boat launched.
+  NOTE (scope): the `quitte le bateau`→quit risk is a NON-issue — metaAlias is
+  bare-word-only (inputTranslate.ts:186), so "quitte le bateau" misses to the
+  LLM (handles leave/exit), never quits. No fix needed.

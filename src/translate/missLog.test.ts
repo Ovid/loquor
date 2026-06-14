@@ -63,6 +63,28 @@ describe('miss log (spec §6)', () => {
     logMiss({ en: 'x', game: 's', language: 'fr', kind: 'status' })
     expect(readMisses()).toHaveLength(1)
   })
+  it('drops well-formed-but-foreign elements, keeping only valid entries (review S5)', () => {
+    // A valid JSON array whose elements are not MissEntry-shaped (a foreign
+    // blob under the same key, or a future/older schema) was cast through
+    // unchecked — degrading type safety and able to break the dedup .some()
+    // silently. Each element is validated minimally; invalid ones drop, so a
+    // wholly-foreign blob self-heals to [].
+    localStorage.setItem(
+      'loquor.xlate.misses',
+      JSON.stringify([
+        'a bare string',
+        { en: 'no game/language' },
+        null,
+        { en: 'ok', game: 's', language: 'fr', kind: 'line' },
+      ]),
+    )
+    expect(readMisses()).toEqual([
+      { en: 'ok', game: 's', language: 'fr', kind: 'line' },
+    ])
+    // and a logMiss after the corrupt read still dedups correctly
+    logMiss({ en: 'ok', game: 's', language: 'fr', kind: 'backlog' })
+    expect(readMisses()).toHaveLength(1)
+  })
   it('installMissDump exposes window.loquorMisses()', () => {
     installMissDump()
     logMiss({ en: 'x', game: 's', language: 'fr', kind: 'line' })

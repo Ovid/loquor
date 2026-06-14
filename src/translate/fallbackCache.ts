@@ -3,9 +3,11 @@
 // prefix — a dedicated object store would force a DB version bump for a flat
 // string→string map the kv API already models.
 import { idbDel, idbGet, idbSet } from '../storage/idb'
+import { IDB_KEYS } from '../storage/idbKeys'
 
+// F-8: key strings are declared in the central kv-store registry (idbKeys.ts).
 const key = (game: string, language: string, en: string) =>
-  `xlate:${game}:${language}:${en}`
+  IDB_KEYS.xlate(game, language, en)
 
 export const cacheGet = async (
   game: string,

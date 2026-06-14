@@ -1,10 +1,12 @@
 import { idbGet, idbSet, idbDel } from './idb'
+import { IDB_KEYS } from './idbKeys'
 import { createLogger, type Logger } from '../logger'
 
 const autosaveLog = createLogger('autosave')
 const savefileLog = createLogger('savefile')
 
-const key = (sig: string) => `autosave:${sig}`
+// F-8: key strings are declared in the central kv-store registry (idbKeys.ts).
+const key = (sig: string) => IDB_KEYS.autosave(sig)
 
 /** F-9: a `.catch` handler that surfaces a failed IndexedDB op on the write
  *  queue instead of swallowing it — a swallowed reject leaves the sync cache and
@@ -58,7 +60,7 @@ export interface FileRef {
 
 /** IndexedDB key for an explicit (non-autosave) save slot. */
 const fileKey = (ref: FileRef) =>
-  `file:${ref.usage}:${ref.gameid}:${ref.filename}`
+  IDB_KEYS.file(ref.usage, ref.gameid, ref.filename)
 
 /**
  * IndexedDB-backed implementation of ifvms's native autosave `Dialog`.

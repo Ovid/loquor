@@ -143,7 +143,11 @@ export class IdbDialog {
       return null
     }
     const v = this.cache.get(sig)
-    alog('autosave_read', key(sig), v != null ? 'snapshot present' : 'none → fresh start')
+    alog(
+      'autosave_read',
+      key(sig),
+      v != null ? 'snapshot present' : 'none → fresh start',
+    )
     return v ?? null
   }
   autosave_write(sig: string, snapshot: unknown): void {

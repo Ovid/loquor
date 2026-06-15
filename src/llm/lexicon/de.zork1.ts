@@ -18,21 +18,31 @@ export const DE_ZORK1: NounLexicon = {
   'beautiful brass bauble': ['schmuckstuck', 'kleinod'],
   'beautiful jeweled scarab': ['skarabaus', 'kafer'],
   "bird's nest": ['nest', 'vogelnest'], // DE Nest = EN nest (same object)
-  'black book': ['buch', 'schwarzes buch'],
+  'black book': ['buch', 'schwarzes buch', 'schwarze buch'], // declined display forms (output-xl §4)
   'blast of air': ['luft', 'luftstoss', 'atem'],
   blessings: ['segen', 'segnungen'],
   'bloody axe': ['axt', 'beil', 'blutige axt'],
-  'blue button': ['blauer knopf', 'knopf'],
+  'blue button': ['blauer knopf', 'knopf', 'blaue knopf', 'blauen knopf'], // declined display forms (output-xl §4)
   board: ['brett', 'bretter'],
-  'boarded window': ['vernageltes fenster', 'verrammeltes fenster', 'fenster'],
+  'boarded window': [
+    'vernageltes fenster',
+    'verrammeltes fenster',
+    'fenster',
+    'vernagelte fenster', // declined display form (output-xl §4)
+  ],
   bolt: ['bolzen', 'riegel'], // the dam's metal bolt (synonym 'nut')
   'brass bell': ['glocke', 'messingglocke'],
   'brass lantern': ['lampe', 'laterne', 'messinglaterne'], // UAT trap (uat-1/uat-2)
-  'broken clockwork canary': ['kaputter kanarienvogel', 'kanarienvogel'],
-  'broken jewel-encrusted egg': ['kaputtes ei', 'ei'],
+  'broken clockwork canary': [
+    'kaputter kanarienvogel',
+    'kanarienvogel',
+    'kaputte kanarienvogel', // declined display forms (output-xl §4)
+    'kaputten kanarienvogel',
+  ],
+  'broken jewel-encrusted egg': ['kaputtes ei', 'ei', 'kaputte ei'], // declined display form (output-xl §4)
   'broken lantern': ['kaputte lampe', 'kaputte laterne'],
   'broken timber': ['balken', 'holzbalken'],
-  'brown button': ['brauner knopf', 'knopf'],
+  'brown button': ['brauner knopf', 'knopf', 'braune knopf', 'braunen knopf'], // declined display forms (output-xl §4)
   'brown sack': ['sack', 'beutel'],
   'burned-out lantern': ['ausgebrannte lampe', 'alte lampe'],
   carpet: ['teppich'],
@@ -51,7 +61,12 @@ export const DE_ZORK1: NounLexicon = {
   forest: ['wald'],
   'glass bottle': ['flasche'],
   'gold coffin': ['sarg', 'goldsarg'],
-  'golden clockwork canary': ['kanarienvogel', 'goldener kanarienvogel'],
+  'golden clockwork canary': [
+    'kanarienvogel',
+    'goldener kanarienvogel',
+    'goldene kanarienvogel', // declined display forms (output-xl §4)
+    'goldenen kanarienvogel',
+  ],
   'granite wall': ['granitwand', 'wand', 'mauer'],
   grating: ['gitter'],
   'green bubble': ['blase', 'grune blase'],
@@ -63,7 +78,7 @@ export const DE_ZORK1: NounLexicon = {
   'jewel-encrusted egg': ['ei', 'juwelenei'],
   'kitchen table': ['tisch', 'kuchentisch'],
   'kitchen window': ['fenster', 'kuchenfenster'],
-  'large bag': ['grosser sack', 'sack'], // the thief's bag
+  'large bag': ['grosser sack', 'sack', 'grosse sack', 'grossen sack'], // the thief's bag; declined display forms (output-xl §4)
   'large emerald': ['smaragd'],
   leaflet: ['prospekt', 'flugblatt', 'broschure'],
   leak: ['leck', 'rohr'], // synonym 'pipe'
@@ -73,11 +88,11 @@ export const DE_ZORK1: NounLexicon = {
   lunch: ['essen', 'mittagessen', 'proviant'],
   'lurking grue': ['grue'], // untranslatable proper noun — kept as-is by policy
   machine: ['maschine'],
-  'magic boat': ['boot', 'schlauchboot'], // the inflatable plastic boat
+  'magic boat': ['boot', 'schlauchboot', 'magisches boot', 'magische boot'], // the inflatable plastic boat; declined display forms (output-xl §4)
   matchbook: ['streichholzer', 'streichholzheftchen'],
   mirror: ['spiegel'],
   'mountain range': ['berge', 'gebirge'],
-  'nasty knife': ['messer'],
+  'nasty knife': ['messer', 'ubles messer', 'uble messer'], // declined display forms (output-xl §4)
   'number of ghosts': ['geister', 'gespenster'],
   painting: ['gemalde', 'bild'],
   'pair of candles': ['kerzen', 'kerze'],
@@ -90,15 +105,15 @@ export const DE_ZORK1: NounLexicon = {
   'platinum bar': ['barren', 'platinbarren'],
   'pot of gold': ['goldtopf', 'topf voll gold', 'gold'],
   prayer: ['gebet', 'inschrift'], // the altar inscription
-  'punctured boat': ['kaputtes boot', 'geplatztes boot', 'boot'],
+  'punctured boat': ['kaputtes boot', 'geplatztes boot', 'boot', 'kaputte boot'], // declined display form (output-xl §4)
   'quantity of water': ['wasser'],
   rainbow: ['regenbogen'],
   'red buoy': ['boje', 'rote boje'],
-  'red button': ['roter knopf', 'knopf'],
+  'red button': ['roter knopf', 'knopf', 'rote knopf', 'roten knopf'], // declined display forms (output-xl §4)
   'red hot brass bell': ['gluhende glocke', 'heisse glocke', 'glocke'],
   river: ['fluss'],
   rope: ['seil'],
-  'rusty knife': ['rostiges messer', 'messer'],
+  'rusty knife': ['rostiges messer', 'messer', 'rostige messer'], // declined display form (output-xl §4)
   sailor: ['seemann', 'matrose'],
   sand: ['sand'], // DE Sand = EN sand (same word, same object)
   // 'armband' instead of the loanword 'bracelet' — dodges fr's collision.
@@ -141,13 +156,13 @@ export const DE_ZORK1: NounLexicon = {
   'viscous material': ['schmiere', 'glibber', 'kleister'],
   'wall with engravings': ['gravuren', 'inschrift', 'wand mit gravuren'],
   water: ['wasser'],
-  'white cliffs': ['klippen', 'weisse klippen'],
-  'white house': ['haus', 'weisses haus'],
+  'white cliffs': ['klippen', 'weisse klippen', 'weissen klippen'], // declined display form (output-xl §4)
+  'white house': ['haus', 'weisses haus', 'weisse haus'], // declined display form (output-xl §4)
   'wooden door': ['holztur', 'tur'],
   'wooden ladder': ['leiter', 'holzleiter'],
   'wooden railing': ['gelander', 'brustung'],
   wrench: ['schlussel', 'schraubenschlussel'],
-  'yellow button': ['gelber knopf', 'knopf'],
+  'yellow button': ['gelber knopf', 'knopf', 'gelbe knopf', 'gelben knopf'], // declined display forms (output-xl §4)
   "zork owner's manual": ['handbuch', 'anleitung', 'bedienungsanleitung'],
   zorkmid: ['zorkmid'], // untranslatable currency proper noun
 }

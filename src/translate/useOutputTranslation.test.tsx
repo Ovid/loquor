@@ -43,7 +43,7 @@ function setup(opts: {
   const engine = opts.engine ?? new FakeLlmEngine({ default: 'fallback-fr' })
   const gate = new EngineGate()
   const r = renderHook(
-    ({ v, lang }: { v: ViewState; lang: NlLanguage }) =>
+    ({ v, lang, li }: { v: ViewState; lang: NlLanguage; li?: string | null }) =>
       useOutputTranslation({
         view: v,
         language: lang,
@@ -52,9 +52,17 @@ function setup(opts: {
         gate,
         corpusOverride: corpus,
         watchdogMs: opts.watchdogMs,
-        lastInput: opts.lastInput,
+        // Per-render override (li) so a test can advance the player's last word;
+        // defaults to the setup-time lastInput when a rerender omits it.
+        lastInput: li === undefined ? opts.lastInput : li,
       }),
-    { initialProps: { v: opts.initial, lang: opts.language ?? 'fr' } },
+    {
+      initialProps: {
+        v: opts.initial,
+        lang: opts.language ?? 'fr',
+        li: opts.lastInput,
+      } as { v: ViewState; lang: NlLanguage; li?: string | null },
+    },
   )
   return { ...r, engine, gate }
 }
@@ -939,7 +947,10 @@ describe('append-merge memoization (spec §3)', () => {
 // the VM gets the English canonical, the word is English even in a target-lang
 // game. It's dynamic (no corpus pin) — the hook substitutes the player's own
 // last typed word (lastInput) so the echo reads in their language, and treats
-// the line as DETERMINISTICALLY handled (no miss logged, no LLM). UAT F6.
+// the line as DETERMINISTICALLY handled (no miss logged, no LLM). The
+// substitution is GATED on the Loud Room location (review I3) and FROZEN per
+// line at emit time (review I2). UAT F6.
+const LOUD = { location: 'Loud Room', right: 'Score: 0   Moves: 1' }
 describe('Loud Room input echo (UAT F6)', () => {
   it("substitutes the player's last word, logs no miss, runs no generation", async () => {
     const engine = new FakeLlmEngine({ default: 'fallback-fr' })
@@ -950,7 +961,7 @@ describe('Loud Room input echo (UAT F6)', () => {
       lastInput: 'regarde',
     })
     const l = line('output', 'look look ...')
-    rerender({ v: view([l]), lang: 'fr' })
+    rerender({ v: view([l], LOUD), lang: 'fr' })
     // Synchronous, deterministic substitution — not the LLM fallback.
     expect(result.current.lines[0].text).toBe('regarde regarde ...')
     // The echo is NOT a corpus gap and is never sent to the engine.
@@ -965,7 +976,49 @@ describe('Loud Room input echo (UAT F6)', () => {
       initial: view([]),
       lastInput: 'regarde',
     })
-    rerender({ v: view([line('output', 'Taken.')]), lang: 'fr' })
+    rerender({ v: view([line('output', 'Taken.')], LOUD), lang: 'fr' })
     expect(result.current.lines[0].text).toBe('Pris.')
+  })
+
+  it('does NOT re-voice a doubled-word line outside the Loud Room (I3)', async () => {
+    // A coincidental doubled-word line elsewhere must NOT be hijacked by the echo
+    // regex: it falls through to the normal translation path (here, the fallback).
+    const engine = new FakeLlmEngine({ default: 'echo-fr' })
+    await engine.load(() => {}, new AbortController().signal)
+    const { result, rerender } = setup({
+      engine,
+      initial: view([]),
+      lastInput: 'regarde',
+    })
+    // status defaults to West of House, not the Loud Room.
+    rerender({ v: view([line('output', 'echo echo ...')]), lang: 'fr' })
+    expect(result.current.lines[0].text).not.toBe('regarde regarde ...')
+    // It's real output, so it IS routed to the engine (not suppressed as an echo).
+    await waitFor(() => expect(engine.generateCalls).toBe(1))
+  })
+
+  it('does NOT re-voice a compound command — English echo (I1)', () => {
+    // The VM echoes one clause, not the whole line, so the raw last word ("mira")
+    // is wrong; leave the English echo rather than mis-voice.
+    const { result, rerender } = setup({
+      initial: view([]),
+      lastInput: 'coge la barra y mira',
+    })
+    rerender({ v: view([line('output', 'bar bar ...')], LOUD), lang: 'fr' })
+    expect(result.current.lines[0].text).toBe('bar bar ...')
+  })
+
+  it('freezes the echo word per line — later commands do not restamp it (I2)', () => {
+    const l = line('output', 'look look ...')
+    const { result, rerender } = setup({
+      initial: view([]),
+      lastInput: 'regarde',
+    })
+    rerender({ v: view([l], LOUD), lang: 'fr', li: 'regarde' })
+    expect(result.current.lines[0].text).toBe('regarde regarde ...')
+    // A later turn advances lastInput; the historical echo line keeps its own
+    // word instead of restamping with the newest command's.
+    rerender({ v: view([l], LOUD), lang: 'fr', li: 'prends' })
+    expect(result.current.lines[0].text).toBe('regarde regarde ...')
   })
 })

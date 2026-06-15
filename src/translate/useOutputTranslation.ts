@@ -30,7 +30,7 @@ import {
   type CompiledCorpus,
 } from './match'
 import { normalize, splitIndent, untranslatable } from './normalize'
-import { loudEcho } from './loudEcho'
+import { isLoudEchoShape, loudEchoWord, LOUD_ROOM } from './loudEcho'
 import { translateStatus } from './statusTranslate'
 import { cacheDelete, cacheGet } from './fallbackCache'
 import { installMissDump, logMiss } from './missLog'
@@ -53,6 +53,37 @@ export interface OutputTranslation {
 /** Output generations run longer than command translations; bounded so a
  * wedged engine degrades to English instead of shimmering forever (spec §6). */
 const XLATE_WATCHDOG_MS = 15_000
+
+// Loud Room input-echo (F6) decision, FROZEN per BufferLine at emit time. Keyed
+// by the line object — the reducer reuses a line's object identity while its text
+// is unchanged (reduce.ts), so a scrollback echo keeps its decision across every
+// later render: it never restamps with a newer command's word (review I2) and
+// keeps its re-voicing after the player leaves the room (the location is read
+// once, at first sight — review I3). A WeakMap (not a ref) is read during render
+// without violating react-hooks/refs, and is safe under concurrent rendering
+// because the decision is idempotent and identity-keyed. Values:
+//   • string — the re-voiced word (in the Loud Room at emit time);
+//   • false  — in the Loud Room but NOT re-voiced (compound / no input) → leave
+//              the English echo, but still suppress miss-logging/generation;
+//   • null   — a coincidental doubled-word line OUTSIDE the Loud Room → fall
+//              through to the normal translation path (don't hijack — review I3).
+const echoFreeze = new WeakMap<BufferLine, string | false | null>()
+
+/** The frozen Loud Room echo decision for an echo-SHAPED `line` (callers gate on
+ * isLoudEchoShape first), computed once on first sight. `location` and
+ * `lastInput` are read only at that first sight (the freeze). */
+function echoDecision(
+  line: BufferLine,
+  location: string | undefined,
+  lastInput: string | null,
+): string | false | null {
+  const cached = echoFreeze.get(line)
+  if (cached !== undefined) return cached
+  const decision =
+    location === LOUD_ROOM ? (loudEchoWord(lastInput) ?? false) : null
+  echoFreeze.set(line, decision)
+  return decision
+}
 
 export function useOutputTranslation(args: {
   view: ViewState
@@ -202,8 +233,16 @@ export function useOutputTranslation(args: {
       if (matchLine(corpus, en) !== null) continue
       // The Loud Room input-echo is rendered deterministically from the player's
       // last word (loudEcho / F6) — never a corpus gap, so don't log it or spend
-      // a generation on it.
-      if (loudEcho(en, lastInput) !== null) continue
+      // a generation on it. The `lines` memo freezes the decision (echoFreeze)
+      // during the render that precedes this commit, so we only READ it here (no
+      // lastInput dependency — review S2): a string (re-voiced) or false (in-room
+      // compound, left English) both mean "handled" — skip, including historical
+      // echoes after the player has left the room; null/undefined means a
+      // coincidental doubled-word line elsewhere → fall through to translation.
+      if (isLoudEchoShape(en)) {
+        const d = echoFreeze.get(l)
+        if (d !== undefined && d !== null) continue
+      }
       if (backlogRef.current.has(l.id)) {
         // Gate on TEXT, not id: an append merge onto a backlog tail line
         // changes its text — that's a different EN line, so it logs again and
@@ -259,7 +298,10 @@ export function useOutputTranslation(args: {
           logMiss({ en, game: signature, language: lang, kind: 'status' })
       }
     }
-  }, [view, corpus, lang, signature, engine, gate, watchdogMs, lastInput])
+    // lastInput is intentionally NOT a dep (review S2): this effect no longer
+    // reads it — the Loud Room skip keys off echoRef (frozen in the memo), and
+    // re-scanning every view line on each keystroke would be pure wasted work.
+  }, [view, corpus, lang, signature, engine, gate, watchdogMs])
 
   const lines: DisplayLine[] = useMemo(() => {
     if (!corpus || lang === null) return view.lines
@@ -274,9 +316,18 @@ export function useOutputTranslation(args: {
       if (hit !== null) return { ...l, text: indent + hit }
       // Loud Room input-echo (F6): substitute the player's own last word so the
       // echo reads in their language ("mira mira ..."). Deterministic, so it
-      // takes precedence over any in-flight LLM overlay for this line.
-      const echo = loudEcho(en, lastInput)
-      if (echo !== null) return { ...l, text: indent + echo }
+      // takes precedence over any in-flight LLM overlay for this line. The
+      // decision is FROZEN per line at emit time (echoDecision / echoFreeze):
+      //   • string → re-voice (in the Loud Room);
+      //   • false  → in the Loud Room but compound/no input → English echo;
+      //   • null   → a doubled-word line OUTSIDE the Loud Room → fall through to
+      //              the normal translation path below (not hijacked — review I3).
+      if (isLoudEchoShape(en)) {
+        const d = echoDecision(l, view.status?.location, lastInput)
+        if (typeof d === 'string')
+          return { ...l, text: indent + `${d} ${d} ...` }
+        if (d === false) return l
+      }
       const o = resolved?.get(l.id)
       // Basis check: an entry resolved from different (pre-merge) text is
       // stale for THIS text — ignore it (English) until the new text settles.
@@ -287,7 +338,7 @@ export function useOutputTranslation(args: {
       }
       return l // backlog miss, failure, or superseded entry → English
     })
-  }, [view.lines, corpus, overlay, lang, lastInput])
+  }, [view.lines, view.status?.location, corpus, overlay, lang, lastInput])
 
   const status: StatusLine | null = useMemo(() => {
     if (!corpus || lang === null || view.status === null) return view.status

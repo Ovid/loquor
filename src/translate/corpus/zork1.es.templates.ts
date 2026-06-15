@@ -57,14 +57,14 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
   },
   {
     en: 'There is a {obj} here. (outside the {obj2})',
-    out: 'Hay {obj.indef} aquí. (fuera de {obj2.def})',
+    out: 'Hay {obj.indef} aquí. (fuera {obj2.delDef})',
   },
   {
     en: 'A {obj}, with a {obj2}',
     out: '{obj.indef}, con {obj2.indef}',
     cap: true,
   },
-  { en: 'The {obj} contains:', out: 'Dentro de {obj.def} hay:' },
+  { en: 'The {obj} contains:', out: 'Dentro {obj.delDef} hay:' },
   { en: '(You are in the {obj}.)', out: '(Estás en {obj.def}.)' },
   { en: '({obj})', out: '({obj.def})' },
   { en: '(with the {obj})', out: '(con {obj.def})' },
@@ -182,11 +182,11 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
   },
   {
     en: 'There is nothing behind the {obj}.',
-    out: 'No hay nada detrás de {obj.def}.',
+    out: 'No hay nada detrás {obj.delDef}.',
   },
   {
     en: "There's nothing special about the {obj}.",
-    out: 'Nada especial en cuanto a {obj.def}.',
+    out: 'Nada especial en cuanto {obj.alDef}.',
   },
   {
     en: 'The {obj} makes no sound.',
@@ -194,7 +194,7 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
   },
   {
     en: 'The {obj} pays no attention.',
-    out: 'Eso deja indiferente a {obj.def}.',
+    out: 'Eso deja indiferente {obj.alDef}.',
   },
   {
     en: "You can't give a {obj} to a {obj2}!",
@@ -257,7 +257,7 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
   },
   {
     en: 'It is hardly likely that the {obj} is interested.',
-    out: 'Es poco probable que esto le interese a {obj.def}.',
+    out: 'Es poco probable que esto le interese {obj.alDef}.',
   },
   {
     en: "There's no good surface on the {obj}.",
@@ -280,17 +280,17 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
   },
   {
     en: 'The {obj} is rudely awakened.',
-    out: 'Despiertas bruscamente a {obj.def}.',
+    out: 'Despiertas bruscamente {obj.alDef}.',
   },
   {
     en: "The {obj} isn't sleeping.",
-    out: 'Inútil despertar a {obj.def}: no hay señal de sueño.',
+    out: 'Inútil despertar {obj.alDef}: no hay señal de sueño.',
   },
 
   // ── Off-path composition shapes (melee LTABLEs etc.) ─────────────────────
   {
     en: 'A good slash, but it misses the {obj} by a mile.',
-    out: 'Un buen tajo, pero falla a {obj.def} por un buen trecho.',
+    out: 'Un buen tajo, pero falla {obj.alDef} por un buen trecho.',
   },
   {
     en: 'You charge, but the {obj} jumps nimbly aside.',
@@ -310,7 +310,7 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
   },
   {
     en: 'The haft of your {obj} knocks out the {obj2}.',
-    out: 'El mango de {obj.def} deja sin sentido a {obj2.def}.',
+    out: 'El mango {obj.delDef} deja sin sentido {obj2.alDef}.',
   },
   {
     en: "It's curtains for the {obj} as your {obj2} removes his head.",
@@ -318,15 +318,15 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
   },
   {
     en: 'The fatal blow strikes the {obj} square in the heart: He dies.',
-    out: 'El golpe fatal alcanza a {obj.def} de lleno en el corazón: muere.',
+    out: 'El golpe fatal alcanza {obj.alDef} de lleno en el corazón: muere.',
   },
   {
     en: 'The force of your blow knocks the {obj} back, stunned.',
-    out: 'La fuerza de tu golpe lanza a {obj.def} hacia atrás, aturdido.',
+    out: 'La fuerza de tu golpe lanza {obj.alDef} hacia atrás, aturdido.',
   },
   {
     en: 'The quickness of your thrust knocks the {obj} back, stunned.',
-    out: 'La rapidez de tu estocada lanza a {obj.def} hacia atrás, aturdido.',
+    out: 'La rapidez de tu estocada lanza {obj.alDef} hacia atrás, aturdido.',
   },
   {
     en: 'Almost as soon as the {obj} breathes his last breath, a cloud of sinister black fog envelops him, and when the fog lifts, the carcass has disappeared.',
@@ -334,7 +334,7 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
   },
   {
     en: 'Oh, no! A lurking grue slithered into the {obj} and devoured you!',
-    out: '¡Oh, no! ¡Un grue al acecho se deslizó dentro de {obj.def} y te devoró!',
+    out: '¡Oh, no! ¡Un grue al acecho se deslizó dentro {obj.delDef} y te devoró!',
   },
   {
     en: 'The {obj} catches fire. Unfortunately, you were holding it at the time.',
@@ -357,7 +357,7 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
   },
   {
     en: 'Why would you send for the {obj}?',
-    out: '¿Por qué mandarías llamar a {obj.def}?',
+    out: '¿Por qué mandarías llamar {obj.alDef}?',
   },
   {
     en: 'Ahoy -- {obj} overboard!',
@@ -371,7 +371,7 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
   // ── HERO-MELEE rows not covered above ────────────────────────────────────
   {
     en: 'Your {obj} misses the {obj2} by an inch.',
-    out: 'Tu {obj.bare} falla a {obj2.def} por un pelo.',
+    out: 'Tu {obj.bare} falla {obj2.alDef} por un pelo.',
   },
   {
     en: 'Clang! Crash! The {obj} parries.',
@@ -379,7 +379,7 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
   },
   {
     en: 'Your {obj} crashes down, knocking the {obj2} into dreamland.',
-    out: 'Tu {obj.bare} se abate y manda a {obj2.def} al país de los sueños.',
+    out: 'Tu {obj.bare} se abate y manda {obj2.alDef} al país de los sueños.',
   },
   {
     en: 'The {obj} is battered into unconsciousness.',
@@ -403,11 +403,11 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
   },
   {
     en: "Your {obj} pinks the {obj2} on the wrist, but it's not serious.",
-    out: 'Tu {obj.bare} pincha a {obj2.def} en la muñeca, pero no es grave.',
+    out: 'Tu {obj.bare} pincha {obj2.alDef} en la muñeca, pero no es grave.',
   },
   {
     en: "The blow lands, making a shallow gash in the {obj}'s arm!",
-    out: '¡El golpe acierta y abre un corte superficial en el brazo de {obj.def}!',
+    out: '¡El golpe acierta y abre un corte superficial en el brazo {obj.delDef}!',
   },
   {
     en: 'The {obj} receives a deep gash in his side.',
@@ -435,7 +435,7 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
   },
   {
     en: "The {obj}'s weapon is knocked to the floor, leaving him unarmed.",
-    out: 'El arma de {obj.def} cae al suelo, dejándolo desarmado.',
+    out: 'El arma {obj.delDef} cae al suelo, dejándolo desarmado.',
   },
   {
     en: 'The {obj} is disarmed by a subtle feint past his guard.',
@@ -459,7 +459,7 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
   },
   {
     en: 'Attacking the {obj} is pointless.',
-    out: 'Atacar a {obj.def} no sirve de nada.',
+    out: 'Atacar {obj.alDef} no sirve de nada.',
   },
   {
     en: 'Fortunately, you still have a {obj}.',
@@ -525,7 +525,7 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
   },
   {
     en: 'No doubt you propose to stab the {obj} with your pinky?',
-    out: '¿Acaso pretendes apuñalar a {obj.def} con el meñique?',
+    out: '¿Acaso pretendes apuñalar {obj.alDef} con el meñique?',
   },
   {
     en: 'Trying to destroy the {obj} with your bare hands is futile.',
@@ -547,15 +547,15 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
   // ── HACK-HACK verb defaults ──────────────────────────────────────────────
   {
     en: "Kicking the {obj} doesn't seem to work.",
-    out: 'Dar patadas a {obj.def} no parece funcionar.',
+    out: 'Dar patadas {obj.alDef} no parece funcionar.',
   },
   {
     en: "Kicking the {obj} isn't notably helpful.",
-    out: 'Dar patadas a {obj.def} no resulta de gran ayuda.',
+    out: 'Dar patadas {obj.alDef} no resulta de gran ayuda.',
   },
   {
     en: 'Kicking the {obj} has no effect.',
-    out: 'Dar patadas a {obj.def} no tiene ningún efecto.',
+    out: 'Dar patadas {obj.alDef} no tiene ningún efecto.',
   },
   {
     en: "Waving the {obj} doesn't seem to work.",
@@ -687,7 +687,7 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
   },
   {
     en: 'You must address the {obj} directly.',
-    out: 'Debes dirigirte a {obj.def} directamente.',
+    out: 'Debes dirigirte {obj.alDef} directamente.',
   },
   {
     en: 'The contents of the {obj} spill to the ground.',

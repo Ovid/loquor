@@ -1,7 +1,8 @@
 // Zork I × Spanish object forms (spec §4.2). Keys are EN printed names (same
 // keys as zork1.fr.objects.ts). Spanish form keys: indef ("una botella"),
-// def ("la botella"), bare ("botella"); add alDef/delDef ONLY where a template
-// needs the a+el→al / de+el→del contraction (Task 6). Authored in Task 5.
+// def ("la botella"), bare ("botella"). The a+el→al / de+el→del contraction
+// forms alDef/delDef (Task 6) are DERIVED from def by withContractions() below,
+// so every object exposes them and no contraction template can silently MISS.
 //
 // Authoring rules (round-trip gate, roundtrip.test.ts, spec §7.5):
 // - Gender/number live entirely in the pre-composed strings (no grammar code):
@@ -15,9 +16,9 @@
 //   has been appended to ES_ZORK1[canonical].
 // - Entries follow ZORK1_FR_OBJECTS' (vocab-canonical) order for side-by-side
 //   navigation.
-import type { ObjectsTable } from '../types'
+import type { ObjectForms, ObjectsTable } from '../types'
 
-export const ZORK1_ES_OBJECTS: ObjectsTable = {
+const ZORK1_ES_OBJECTS_RAW: ObjectsTable = {
   altar: { indef: 'un altar', def: 'el altar', bare: 'altar' },
   'ancient map': {
     indef: 'un mapa antiguo',
@@ -437,6 +438,30 @@ export const ZORK1_ES_OBJECTS: ObjectsTable = {
   },
   zorkmid: { indef: 'un zorkmid', def: 'el zorkmid', bare: 'zorkmid' },
 }
+
+/** Derive the a+el→al / de+el→del contraction forms (spec §2.5/§3.3) that
+ * templates reference as {obj.alDef} / {obj.delDef}. Pure orthographic
+ * contraction: gender/number already live in `def` (el/la/los/las), so a
+ * masculine "el X" yields "al X"/"del X" and everything else just takes the
+ * bare preposition ("a la X"/"de la X"). Deriving for EVERY object (rather than
+ * hand-authoring per the old "Task 6" note) means no contraction template can
+ * MISS for an object that lacks the form, and the matcher stays grammar-free. */
+function withContractions(table: ObjectsTable): ObjectsTable {
+  const out: Record<string, ObjectForms> = {}
+  for (const [en, forms] of Object.entries(table)) {
+    // Masculine-singular "el X" is the only form that contracts; the noun
+    // after "el " takes "al"/"del". Feminine/plural just prepend "a"/"de".
+    const afterEl = forms.def.startsWith('el ') ? forms.def.slice(3) : null
+    out[en] =
+      afterEl !== null
+        ? { ...forms, alDef: `al ${afterEl}`, delDef: `del ${afterEl}` }
+        : { ...forms, alDef: `a ${forms.def}`, delDef: `de ${forms.def}` }
+  }
+  return out
+}
+
+export const ZORK1_ES_OBJECTS: ObjectsTable =
+  withContractions(ZORK1_ES_OBJECTS_RAW)
 
 /** Printed name → vocab canonical, for entries whose printed name differs from
  * the extracted-vocab canonical key in ES_ZORK1. Identity when absent. */

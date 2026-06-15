@@ -21,7 +21,10 @@ interface Row {
   objects: ObjectsTable
   canonical: Readonly<Record<string, string>>
   /** Extra phrase-head tokens stripped before the lexicon-membership check,
-   * beyond core.articles. FR: partitive de/d'. ES (Task 5): del/al/de/d. */
+   * beyond core.articles. FR: partitive de/d'. ES: a/del/al/de/d — the bare
+   * prepositions plus their el-contractions, so derived alDef/delDef forms
+   * ("al trol", "a la cesta", "del saco", "de la botella") fold to the same
+   * canonical noun as def (Task 6). */
   headExtra: readonly string[]
 }
 
@@ -40,7 +43,7 @@ const LANGS: Row[] = [
     core: ES_CORE,
     objects: ZORK1_ES_OBJECTS,
     canonical: ZORK1_ES_CANONICAL,
-    headExtra: ['del', 'al', 'de', 'd'],
+    headExtra: ['a', 'del', 'al', 'de', 'd'],
   },
 ]
 

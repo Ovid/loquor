@@ -38,3 +38,60 @@ describe('Zork I × Spanish — runtime-composed Living Room variants (UAT)', ()
     expect(out).toContain('trampilla abierta')
   })
 })
+
+// a+el→al / de+el→del contraction (spec §2.5/§3.3, the un-done "Task 6").
+// Templates that put a masculine {obj.def} directly after `a` or `de` used to
+// leak the ungrammatical "a el …" / "de el …" instead of "al …" / "del …".
+// Found in UAT play: container header "Dentro de el huevo/saco hay:" and the
+// combat death "alcanza a el trol". Feminine ("de la botella") was always fine.
+describe('Zork I × Spanish — a+el→al / de+el→del contraction (UAT)', () => {
+  const c = compileCorpus(ZORK1_ES)
+
+  it('contracts "de el" → "del" in the container header (masculine)', () => {
+    expect(matchLine(c, 'The brown sack contains:')).toBe(
+      'Dentro del saco hay:',
+    )
+    expect(matchLine(c, 'The jewel-encrusted egg contains:')).toBe(
+      'Dentro del huevo hay:',
+    )
+  })
+
+  it('leaves feminine container headers uncontracted ("de la")', () => {
+    expect(matchLine(c, 'The basket contains:')).toBe('Dentro de la cesta hay:')
+  })
+
+  it('contracts "a el" → "al" in the fatal-blow line (masculine creature)', () => {
+    expect(
+      matchLine(
+        c,
+        'The fatal blow strikes the troll square in the heart: He dies.',
+      ),
+    ).toBe('El golpe fatal alcanza al trol de lleno en el corazón: muere.')
+  })
+
+  it('never emits the ungrammatical "de el" / "a el" sequence', () => {
+    for (const en of [
+      'The brown sack contains:',
+      'The magic boat contains:',
+      'The fatal blow strikes the troll square in the heart: He dies.',
+      'Attacking the troll is pointless.',
+    ]) {
+      const out = matchLine(c, en)
+      expect(out).not.toBeNull()
+      expect(out).not.toMatch(/\b(de|a) el\b/)
+    }
+  })
+})
+
+// A cap:true template whose output starts with inverted punctuation (¡/¿) must
+// capitalize the first LETTER, not the '¡'. Found in UAT: the knockout line
+// rendered "¡el ladrón queda fuera de combate!" (lowercase el).
+describe('Zork I × Spanish — capitalize the first letter after ¡ (UAT)', () => {
+  const c = compileCorpus(ZORK1_ES)
+
+  it('capitalizes the noun after a leading ¡ in the knockout line', () => {
+    expect(matchLine(c, 'The thief is knocked out!')).toBe(
+      '¡El ladrón queda fuera de combate!',
+    )
+  })
+})

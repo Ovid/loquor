@@ -1,3 +1,7 @@
+Landing page is English and the text is out of date.
+
+---
+
 agentic-a11y
 
 ---

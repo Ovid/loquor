@@ -105,7 +105,12 @@ export const DE_ZORK1: NounLexicon = {
   'platinum bar': ['barren', 'platinbarren'],
   'pot of gold': ['goldtopf', 'topf voll gold', 'gold'],
   prayer: ['gebet', 'inschrift'], // the altar inscription
-  'punctured boat': ['kaputtes boot', 'geplatztes boot', 'boot', 'kaputte boot'], // declined display form (output-xl §4)
+  'punctured boat': [
+    'kaputtes boot',
+    'geplatztes boot',
+    'boot',
+    'kaputte boot',
+  ], // declined display form (output-xl §4)
   'quantity of water': ['wasser'],
   rainbow: ['regenbogen'],
   'red buoy': ['boje', 'rote boje'],

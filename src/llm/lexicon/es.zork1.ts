@@ -19,7 +19,7 @@ export const ES_ZORK1: NounLexicon = {
   'beautiful jeweled scarab': ['escarabajo'],
   "bird's nest": ['nido', 'nido de pajaro'],
   'black book': ['libro', 'libro negro'],
-  'blast of air': ['aire', 'soplo', 'pulmones'],
+  'blast of air': ['aire', 'soplo', 'pulmones', 'soplo de aire'],
   blessings: ['bendiciones'],
   'bloody axe': ['hacha', 'hacha ensangrentada'],
   'blue button': ['boton azul', 'boton'],
@@ -27,7 +27,7 @@ export const ES_ZORK1: NounLexicon = {
   'boarded window': ['ventana tapiada', 'ventana clavada', 'ventana'],
   bolt: ['perno', 'tuerca'], // the dam's metal bolt (synonym 'nut')
   'brass bell': ['campana'],
-  'brass lantern': ['lampara', 'linterna', 'farol'], // UAT trap (uat-1/uat-2)
+  'brass lantern': ['lampara', 'linterna', 'farol', 'lampara de laton'], // UAT trap (uat-1/uat-2)
   'broken clockwork canary': ['canario roto', 'canario'],
   'broken jewel-encrusted egg': ['huevo roto', 'huevo'],
   'broken lantern': ['lampara rota', 'linterna rota'],
@@ -95,7 +95,7 @@ export const ES_ZORK1: NounLexicon = {
   'pot of gold': ['olla de oro', 'oro'],
   prayer: ['oracion', 'plegaria', 'inscripcion'], // the altar inscription
   'punctured boat': ['bote pinchado', 'bote roto', 'bote'],
-  'quantity of water': ['agua'],
+  'quantity of water': ['agua', 'poco de agua'],
   rainbow: ['arcoiris', 'arco iris'],
   'red buoy': ['boya', 'boya roja'],
   'red button': ['boton rojo', 'boton'],
@@ -140,7 +140,7 @@ export const ES_ZORK1: NounLexicon = {
   tube: ['tubo', 'pasta de dientes', 'dentifrico'], // the toothpaste-style tube of gunk
   'viscous material': ['masilla', 'pegote', 'sustancia viscosa'],
   'wall with engravings': ['grabados', 'inscripcion', 'pared con grabados'],
-  water: ['agua'],
+  water: ['agua', 'poco de agua'],
   'white cliffs': ['acantilados', 'acantilados blancos'],
   'white house': ['casa', 'casa blanca'],
   'wooden door': ['puerta de madera', 'puerta'],

@@ -38,11 +38,20 @@ function setup(opts: {
   engine?: FakeLlmEngine
   initial: ViewState
   watchdogMs?: number
+  echoMap?: ReadonlyMap<string, string>
 }) {
   const engine = opts.engine ?? new FakeLlmEngine({ default: 'fallback-fr' })
   const gate = new EngineGate()
   const r = renderHook(
-    ({ v, lang }: { v: ViewState; lang: NlLanguage }) =>
+    ({
+      v,
+      lang,
+      em,
+    }: {
+      v: ViewState
+      lang: NlLanguage
+      em?: ReadonlyMap<string, string>
+    }) =>
       useOutputTranslation({
         view: v,
         language: lang,
@@ -51,8 +60,17 @@ function setup(opts: {
         gate,
         corpusOverride: corpus,
         watchdogMs: opts.watchdogMs,
+        // Per-render override (em) so a test can advance the re-voice map;
+        // defaults to the setup-time echoMap when a rerender omits it.
+        echoMap: em === undefined ? opts.echoMap : em,
       }),
-    { initialProps: { v: opts.initial, lang: opts.language ?? 'fr' } },
+    {
+      initialProps: {
+        v: opts.initial,
+        lang: opts.language ?? 'fr',
+        em: opts.echoMap,
+      } as { v: ViewState; lang: NlLanguage; em?: ReadonlyMap<string, string> },
+    },
   )
   return { ...r, engine, gate }
 }
@@ -930,5 +948,101 @@ describe('append-merge memoization (spec §3)', () => {
     await waitFor(() =>
       expect(result.current.lines[0].text).toBe('Ligne complète.'),
     )
+  })
+})
+
+// The Loud Room echoes the last word of the line it READ ("look look ..."); the
+// VM gets the English canonical, so the word is English even in a target-lang
+// game. It's dynamic (no corpus pin) — the hook re-voices it by mapping the
+// canonical word the VM echoes back to the player's own word for the clause that
+// produced it (echoMap), and treats the line as DETERMINISTICALLY handled (no
+// miss logged, no LLM). GATED on the Loud Room location (review I3) and FROZEN
+// per line at emit time (review I2). UAT F6.
+const LOUD = { location: 'Loud Room', right: 'Score: 0   Moves: 1' }
+describe('Loud Room input echo (UAT F6)', () => {
+  it('re-voices the echo via the map, logs no miss, runs no generation', async () => {
+    const engine = new FakeLlmEngine({ default: 'fallback-fr' })
+    await engine.load(() => {}, new AbortController().signal)
+    const { result, rerender } = setup({
+      engine,
+      initial: view([]),
+      echoMap: new Map([['look', 'regarde']]), // canonical "look" ← player "regarde"
+    })
+    const l = line('output', 'look look ...')
+    rerender({ v: view([l], LOUD), lang: 'fr' })
+    // Synchronous, deterministic substitution — not the LLM fallback.
+    expect(result.current.lines[0].text).toBe('regarde regarde ...')
+    // The echo is NOT a corpus gap and is never sent to the engine.
+    expect(readMisses().some(m => m.en === 'look look ...')).toBe(false)
+    expect(engine.generateCalls).toBe(0)
+  })
+
+  it('re-voices EACH clause of a compound by its own word (I1)', () => {
+    // The compound is sent as two canonical clauses; each echo line maps to its
+    // own player word — "take bar"→"barra barra ...", "look"→"mira mira ...".
+    const { result, rerender } = setup({
+      initial: view([]),
+      echoMap: new Map([
+        ['bar', 'barra'],
+        ['look', 'mira'],
+      ]),
+    })
+    rerender({
+      v: view([line('output', 'bar bar ...'), line('output', 'look look ...')], LOUD),
+      lang: 'fr',
+    })
+    expect(result.current.lines[0].text).toBe('barra barra ...')
+    expect(result.current.lines[1].text).toBe('mira mira ...')
+  })
+
+  it('only rewrites the echo shape — ordinary output is untouched', () => {
+    const { result, rerender } = setup({
+      initial: view([]),
+      echoMap: new Map([['look', 'regarde']]),
+    })
+    rerender({ v: view([line('output', 'Taken.')], LOUD), lang: 'fr' })
+    expect(result.current.lines[0].text).toBe('Pris.')
+  })
+
+  it('leaves the English echo when the word is not in the map', () => {
+    // The player escaped to English (or no command produced this word): nothing
+    // to re-voice, but it's still an in-room echo — not a corpus gap.
+    const { result, rerender } = setup({
+      initial: view([]),
+      echoMap: new Map([['look', 'regarde']]),
+    })
+    rerender({ v: view([line('output', 'echo echo ...')], LOUD), lang: 'fr' })
+    expect(result.current.lines[0].text).toBe('echo echo ...')
+  })
+
+  it('does NOT re-voice a doubled-word line outside the Loud Room (I3)', async () => {
+    // A coincidental doubled-word line elsewhere must NOT be hijacked by the echo
+    // regex: it falls through to the normal translation path (here, the fallback).
+    const engine = new FakeLlmEngine({ default: 'echo-fr' })
+    await engine.load(() => {}, new AbortController().signal)
+    const { result, rerender } = setup({
+      engine,
+      initial: view([]),
+      echoMap: new Map([['echo', 'eco']]),
+    })
+    // status defaults to West of House, not the Loud Room.
+    rerender({ v: view([line('output', 'echo echo ...')]), lang: 'fr' })
+    expect(result.current.lines[0].text).not.toBe('eco eco ...')
+    // It's real output, so it IS routed to the engine (not suppressed as an echo).
+    await waitFor(() => expect(engine.generateCalls).toBe(1))
+  })
+
+  it('freezes the echo word per line — later commands do not restamp it (I2)', () => {
+    const l = line('output', 'look look ...')
+    const { result, rerender } = setup({
+      initial: view([]),
+      echoMap: new Map([['look', 'regarde']]),
+    })
+    rerender({ v: view([l], LOUD), lang: 'fr', em: new Map([['look', 'regarde']]) })
+    expect(result.current.lines[0].text).toBe('regarde regarde ...')
+    // A later turn remaps "look" to a different word; the historical echo line
+    // keeps its own frozen word instead of restamping.
+    rerender({ v: view([l], LOUD), lang: 'fr', em: new Map([['look', 'prends']]) })
+    expect(result.current.lines[0].text).toBe('regarde regarde ...')
   })
 })

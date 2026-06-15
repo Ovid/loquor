@@ -5,11 +5,12 @@ import type { NlLanguage } from '../../llm/types'
 import type { TranslationCorpus } from '../types'
 import { ZORK1_SIG } from '../../llm/grammar/index'
 import { ZORK1_FR } from './zork1.fr'
+import { ZORK1_ES } from './zork1.es'
 
 const CORPORA: Readonly<
   Record<string, Partial<Record<string, TranslationCorpus>>>
 > = {
-  [ZORK1_SIG]: { fr: ZORK1_FR },
+  [ZORK1_SIG]: { fr: ZORK1_FR, es: ZORK1_ES },
 }
 
 export function corpusFor(
@@ -18,4 +19,16 @@ export function corpusFor(
 ): TranslationCorpus | null {
   if (language === 'en' || language === 'off') return null
   return CORPORA[signature]?.[language] ?? null
+}
+
+/** Every (code, corpus) covered for a signature — the single source of truth
+ * the coverage + inventory gates iterate, so adding a language (spec §6) is
+ * truly one CORPORA entry, not a duplicated list per gate (review S2). */
+export function corporaFor(
+  signature: string,
+): { code: NlLanguage; corpus: TranslationCorpus }[] {
+  return Object.entries(CORPORA[signature] ?? {}).map(([code, corpus]) => ({
+    code: code as NlLanguage,
+    corpus: corpus!,
+  }))
 }

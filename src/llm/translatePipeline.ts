@@ -71,11 +71,17 @@ export class WatchdogTimeout extends Error {
 /** Which pipeline stage produced a clause's command (spec §4 stages 3–7). */
 export type Stage = 'meta' | 'alias' | 'vocab' | 'direction' | 'lexicon' | 'llm'
 
-/** Stages whose output DIFFERS from the player's typed words: these echo the
- * original input once as a UI-only nl-source line. Passthrough stages ('meta',
- * 'alias', 'vocab') send the player's own words (or a fixed canonical), so the
- * transcript needs no echo — today's contract, kept per stage. */
+/** Stages whose echoed command may DIFFER from the player's typed words: these
+ * echo the original input once as a UI-only nl-source line. 'direction',
+ * 'lexicon' and 'llm' translate. 'alias' is the localized meta-command map
+ * (es "inventario" → canonical "inventory"); it only ever fires in a non-English
+ * picker (metaAlias returns null without a core lexicon), where the typed word
+ * differs from the canonical the engine '>'-echoes, so its source must echo too
+ * (UAT: meta commands were silently skipping the "you …" line). The remaining
+ * passthrough stages ('meta', 'vocab') send the player's OWN words verbatim — the
+ * typed token IS the canonical — so they need no echo. */
 const TRANSLATED_STAGES: ReadonlySet<Stage> = new Set([
+  'alias',
   'direction',
   'lexicon',
   'llm',
@@ -319,6 +325,10 @@ export interface TranslateDeps {
   getContext: () => ViewContext
   echoLocal: (text: string) => void
   sendLine: (text: string) => void
+  /** Record a (canonical command sent → player's own source words) pair so the
+   * output overlay can re-voice the Loud Room input-echo in the player's language
+   * (loudEcho / UAT F6). Optional — omitted by tests/contexts with no overlay. */
+  recordEcho?: (canonical: string, source: string) => void
   awaitTurn: () => Promise<TurnResult>
   trackerRef: MutableRefObject<TextSceneTracker | null>
   translatingRef: MutableRefObject<boolean>
@@ -351,6 +361,7 @@ export function createTranslate(
     getContext,
     echoLocal,
     sendLine,
+    recordEcho,
     awaitTurn,
     trackerRef,
     translatingRef,
@@ -435,7 +446,13 @@ export function createTranslate(
     const turnBox: { pending: Promise<TurnResult | 'timeout'> | null } = {
       pending: null,
     }
-    const sendTracked = (text: string) => {
+    // `source` is the player's OWN words behind `text` (the canonical command):
+    // a translated clause passes its target-language clause; a verbatim send
+    // (raw/quoted/prompt reply) lets it default to `text`. Recorded BEFORE
+    // sendLine so the canonical→player echo map is current when the VM's
+    // synchronous turn produces the Loud Room echo line (loudEcho / F6).
+    const sendTracked = (text: string, source: string = text) => {
+      recordEcho?.(text, source)
       turnBox.pending = raceTurn()
       sendLine(text)
     }
@@ -507,6 +524,7 @@ export function createTranslate(
         splitClauses(line),
         lex?.core ?? null,
         vocab,
+        lex?.nouns ?? null,
       )
       const total = clauses.length
       if (total > 1) inSequenceRef.current = true
@@ -591,7 +609,7 @@ export function createTranslate(
         lastCommandRef.current = isMeta ? null : result.text
 
         if (total === 1) {
-          sendTracked(result.text)
+          sendTracked(result.text, clause)
           done++
           break // single command: Terminal's observe handles the turn
         }
@@ -599,7 +617,7 @@ export function createTranslate(
         // sendTracked registers the turn listener BEFORE sendLine (see its
         // comment above), so the synchronous VM turn cannot be missed; the
         // clause then awaits that same boundary.
-        sendTracked(result.text)
+        sendTracked(result.text, clause)
         done++
 
         const turn = await turnBox.pending!

@@ -114,6 +114,19 @@ describe('matchLine: builtin listing template (spec §5)', () => {
   })
 })
 
+describe('matchLine: cap is code-point safe (review S3)', () => {
+  // An astral-plane initial letter (Deseret 𐐨 → 𐐀) must not be split by charAt:
+  // capitalize the whole code point. Latent for es/fr (BMP-only) but pins the fix.
+  const astral = compileCorpus({
+    strings: {},
+    objects: { widget: { def: '𐐨deseret' } },
+    templates: [{ en: 'The {obj} contains:', out: '{obj.def} y más', cap: true }],
+  })
+  it('capitalizes an astral-plane initial letter without splitting the surrogate', () => {
+    expect(matchLine(astral, 'The widget contains:')).toBe('𐐀deseret y más')
+  })
+})
+
 describe('compileCorpus: repeated-slot contract (review S9)', () => {
   // The "each slot name appears AT MOST ONCE" rule (types.ts) was documented but
   // unenforced: a repeated {obj}/{raw} compiled to duplicate named groups and

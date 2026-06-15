@@ -87,6 +87,16 @@ export const ZORK1_FR_TEMPLATES: readonly Template[] = [
     en: "You can't see any {raw} here!",
     out: 'Vous ne voyez aucun « {raw} » ici !',
   },
+  // Parser object-disambiguation prompt (gparser.zil WHICH-PRINT, two
+  // candidates). Runtime-composed from the ambiguous books the player holds, in
+  // an order the parser does not guarantee; a {obj}/{obj2} template renders any
+  // book pair either way round, using each book's def form. No «de»/«à» precedes
+  // a slot, so contraction/elision is not engaged. es UAT finding F3, shared
+  // with French.
+  {
+    en: 'Which book do you mean, the {obj} or the {obj2}?',
+    out: 'De quel livre parlez-vous, {obj.def} ou {obj2.def} ?',
+  },
 
   // ── Presence & listings (gverbs.zil DESCRIBE-OBJECT :1704-1725,
   //    PRINT-CONT :1835; thief treasure listing 1actions.zil:2053) ─────────

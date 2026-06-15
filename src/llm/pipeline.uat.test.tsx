@@ -153,6 +153,7 @@ async function renderPipeline(opts: {
     default: opts.defaultCompletion ?? '{"verb":"__UNKNOWN__"}',
   })
   const sent: string[] = []
+  const recorded: Array<[string, string]> = []
   const echoLocal = vi.fn()
   const hook = renderHook(() =>
     useNaturalLanguage({
@@ -165,6 +166,9 @@ async function renderPipeline(opts: {
       echoLocal,
       sendLine: (t: string) => {
         sent.push(t)
+      },
+      recordEcho: (canonical: string, source: string) => {
+        recorded.push([canonical, source])
       },
       awaitTurn:
         opts.awaitTurn ??
@@ -188,7 +192,7 @@ async function renderPipeline(opts: {
       language: opts.language,
     })
   }
-  return { hook, engine, sent, echoLocal }
+  return { hook, engine, sent, recorded, echoLocal }
 }
 
 // Scene seeds (observe() text → tracker scope/antecedent, spec §8).
@@ -591,6 +595,29 @@ describe('UAT compound regressions (dedicated)', () => {
     ])
     expect(engine.generateCalls).toBe(0)
     expect(hook.result.current.notice).toBeNull() // no "Ran N of M actions."
+  })
+
+  it('F6: records (canonical → player clause) per clause for the Loud Room echo', async () => {
+    // The output overlay re-voices the Loud Room echo from this map: each
+    // canonical command the VM echoes maps back to the player's OWN clause, so a
+    // compound's clauses each re-voice from their own word (loudEcho / F6). Full
+    // strings are recorded; the Terminal reduces each to its last word.
+    const views = [
+      viewState('End of Rainbow', ['Dropped.'], 'drop coffin'),
+      viewState('End of Rainbow', ['Taken.'], 'take pot'),
+    ]
+    const { hook, sent, recorded } = await renderPipeline({
+      language: 'fr',
+      awaitTurn: turnScript(views),
+    })
+    await act(async () => {
+      await hook.result.current.translate("lâche le cercueil et prends l'or")
+    })
+    expect(sent).toEqual(['drop coffin', 'take pot'])
+    expect(recorded).toEqual([
+      ['drop coffin', 'lâche le cercueil'],
+      ['take pot', "prends l'or"],
+    ])
   })
 
   it("F-P: clause 2's l'or binds the pot of gold, not clause 1's coffin", async () => {

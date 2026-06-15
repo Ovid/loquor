@@ -307,6 +307,8 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
     'Il y a ici une bouée rouge (probablement un avertissement).',
   'The magic boat comes to a rest on the shore.':
     "Le bateau magique vient s'immobiliser sur le rivage.",
+  "The magic boat doesn't lead upward.":
+    'Le bateau magique ne mène pas vers le haut.',
   'You seem to be digging a hole here.': 'Vous semblez creuser un trou ici.',
   "The hole is getting deeper, but that's about it.":
     "Le trou devient plus profond, mais c'est à peu près tout.",
@@ -435,6 +437,21 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
     "Vous êtes dans la cuisine de la maison blanche. Une table semble avoir servi récemment à la préparation d'un repas. Un passage mène à l'ouest et un escalier sombre monte vers l'étage. Une cheminée obscure descend, et à l'est se trouve une petite fenêtre, ouverte.",
   'You are in the living room. There is a doorway to the east, a wooden door with strange gothic lettering to the west, which appears to be nailed shut, a trophy case, and a large oriental rug in the center of the room.':
     "Vous êtes dans le salon. Il y a une porte à l'est, une porte en bois à l'ouest couverte d'étranges caractères gothiques, qui semble clouée, une vitrine à trophées, et un grand tapis oriental au centre de la pièce.",
+  // Living Room after the rug is moved and the trap door opened, BEFORE the
+  // cyclops is defeated (west door still nailed shut). Composed at runtime; the
+  // es counterpart was already pinned, the fr one was missing.
+  'You are in the living room. There is a doorway to the east, a wooden door with strange gothic lettering to the west, which appears to be nailed shut, a trophy case, and a rug lying beside an open trap door.':
+    "Vous êtes dans le salon. Il y a une porte à l'est, une porte en bois à l'ouest couverte d'étranges caractères gothiques, qui semble clouée, une vitrine à trophées, et un tapis posé à côté d'une trappe ouverte.",
+  // Same moved-rug / open-trap-door state, AFTER the cyclops smashes the west
+  // door into a cyclops-shaped opening:
+  'You are in the living room. There is a doorway to the east. To the west is a cyclops-shaped opening in an old wooden door, above which is some strange gothic lettering, a trophy case, and a rug lying beside an open trap door.':
+    "Vous êtes dans le salon. Il y a une porte à l'est. À l'ouest se trouve une ouverture en forme de cyclope dans une vieille porte en bois, au-dessus de laquelle se trouvent d'étranges caractères gothiques, une vitrine à trophées, et un tapis posé à côté d'une trappe ouverte.",
+  // Living Room re-described AFTER the cyclops smashes the west door into a
+  // cyclops-shaped opening, with the trap door CLOSED at your feet. Composed at
+  // runtime, so missed by the coverage/inventory gates and pinned here from the
+  // UAT miss log (es+fr share this gap; surfaced on the Spanish branch).
+  'You are in the living room. There is a doorway to the east. To the west is a cyclops-shaped opening in an old wooden door, above which is some strange gothic lettering, a trophy case, and a closed trap door at your feet.':
+    "Vous êtes dans le salon. Il y a une porte à l'est. À l'ouest se trouve une ouverture en forme de cyclope dans une vieille porte en bois, au-dessus de laquelle se trouvent d'étranges caractères gothiques, une vitrine à trophées, et une trappe fermée à vos pieds.",
   'This is the attic. The only exit is a stairway leading down.':
     "C'est le grenier. La seule issue est un escalier qui descend.",
   'You are in a dark and damp cellar with a narrow passageway leading north, and a crawlway to the south. On the west is the bottom of a steep metal ramp which is unclimbable.':
@@ -463,6 +480,8 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
     "C'est un haut passage nord-sud, qui bifurque vers le nord-est.",
   'You are on the south edge of a deep canyon. Passages lead off to the east, northwest and southwest. A stairway leads down. You can hear the sound of flowing water from below.':
     "Vous êtes sur le bord sud d'un canyon profond. Des passages partent vers l'est, le nord-ouest et le sud-ouest. Un escalier descend. Vous entendez le bruit de l'eau qui coule venant d'en bas.",
+  'You are on the south edge of a deep canyon. Passages lead off to the east, northwest and southwest. A stairway leads down. You can hear a loud roaring sound, like that of rushing water, from below.':
+    "Vous êtes sur le bord sud d'un canyon profond. Des passages partent vers l'est, le nord-ouest et le sud-ouest. Un escalier descend. Vous entendez un fort rugissement, comme celui d'eaux tumultueuses, venant d'en bas.",
   'You are in a long room on the south shore of a large lake, far too deep and wide for crossing.':
     "Vous êtes dans une longue salle sur la rive sud d'un grand lac, bien trop profond et trop large pour être traversé.",
   'There is a path along the stream to the east or west, a steep pathway climbing southwest along the edge of a chasm, and a path leading into a canyon to the southeast.':
@@ -722,6 +741,9 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
     "La construction du BRC nº 3 a demandé 112 jours, du premier coup de pioche à l'inauguration. Elle a nécessité une main-d'œuvre de 384 esclaves, 34 gardes-chiourme, 12 ingénieurs, 2 tourterelles et une perdrix dans un poirier. Les travaux ont été dirigés par une équipe de commandement composée de 2345 bureaucrates, 2347 secrétaires (dont au moins deux savaient taper à la machine), 12 256 brasseurs de papier, 52 469 manieurs de tampons, 245 193 processeurs de paperasse et près d'un million d'arbres morts.",
   'We will now point out some of the more interesting features of FCD#3 as we conduct you on a guided tour of the facilities:':
     'Nous allons maintenant vous présenter quelques-uns des aspects les plus intéressants du BRC nº 3 au fil de la visite guidée des installations :',
+  '"Flood Control Dam #3': '"Barrage de régulation des crues nº 3',
+  '1) You start your tour here in the Dam Lobby. You will notice on your right that....':
+    '1) Vous commencez votre visite ici, dans le Hall du barrage. Vous remarquerez sur votre droite que....',
   'Hello, Sailor!': 'Salut, marin !',
   'Instructions for use:': "Mode d'emploi :",
   'To get into a body of water, say "Launch".':
@@ -731,6 +753,12 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
   'Warranty:': 'Garantie :',
   'Surely, thy eye shall be put out with a sharp stick!':
     "En vérité, ton œil sera crevé d'un bâton pointu !",
+  // This verse ends on "and": the sentence runs onto the next display line
+  // ("Unto the land of the dead…"). It must be pinned as its own line because
+  // the runtime matcher sees each display line separately (UAT finding, shared
+  // with the Spanish corpus).
+  'Even unto the ends of the earth shalt thou wander and':
+    "Jusqu'aux confins de la terre tu erreras, et",
   'Unto the land of the dead shalt thou be sent at last.':
     'Au royaume des morts tu seras envoyé pour finir.',
   'Surely thou shalt repent of thy cunning.':
@@ -1618,6 +1646,10 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
   "The all-purpose gunk isn't a lubricant.":
     "La pâte à tout faire n'est pas un lubrifiant.",
   'The tube is apparently empty.': 'Le tube est apparemment vide.',
+  // Tube label, printed across two display lines on READ/EXAMINE (UAT F7).
+  '---> Frobozz Magic Gunk Company <---':
+    '---> Compagnie Frobozz de Pâte Magique <---',
+  'All-Purpose Gunk': 'Pâte à tout faire',
   'Are you the little Dutch boy, then? Sorry, this is a big dam.':
     "Vous vous prenez pour le petit Hollandais ? Désolé, c'est un grand barrage.",
   'You are in a long room. To the north is a large lake, too deep to cross. You notice, however, that the water level appears to be dropping at a rapid rate. Before long, it might be possible to cross to the other side from here.':

@@ -84,7 +84,6 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
   'black book': {
     indef: 'ein schwarzes Buch',
     def: 'das schwarze Buch',
-    nomDef: 'das schwarze Buch',
     akkDef: 'das schwarze Buch',
     bare: 'buch',
   },

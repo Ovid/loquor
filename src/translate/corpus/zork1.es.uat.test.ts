@@ -261,3 +261,40 @@ describe('Zork I × Spanish — gunk tube label (UAT)', () => {
     expect(out).toBe('Pasta multiusos')
   })
 })
+
+// The Zork parser's object-disambiguation prompt — "Which book do you mean, the
+// X or the Y?" — is composed at RUNTIME from whichever ambiguous books the
+// player is holding, and the parser lists the two candidates in an order that
+// isn't guaranteed. A single static-string pin would catch only one wording;
+// there are three books in Zork I (black book, tour guidebook, matchbook), so
+// both the pair AND its order vary. A {obj}/{obj2} template renders any pair,
+// either way round, using each book's gendered def form. Surfaced by the Spanish
+// UAT loop (window.loquorMisses(): "Which book do you mean, the black book or
+// the tour guidebook?") — finding F3.
+describe('Zork I × Spanish — book-disambiguation prompt (UAT F3)', () => {
+  const c = compileCorpus(ZORK1_ES)
+
+  it('translates the black-book / guidebook prompt (the UAT line)', () => {
+    expect(
+      matchLine(
+        c,
+        'Which book do you mean, the black book or the tour guidebook?',
+      ),
+    ).toBe('¿A qué libro te refieres, el libro negro o la guía turística?')
+  })
+
+  it('renders the candidates in whichever order the parser lists them', () => {
+    expect(
+      matchLine(
+        c,
+        'Which book do you mean, the tour guidebook or the black book?',
+      ),
+    ).toBe('¿A qué libro te refieres, la guía turística o el libro negro?')
+  })
+
+  it('generalizes to any pair of books (black book or matchbook)', () => {
+    expect(
+      matchLine(c, 'Which book do you mean, the black book or the matchbook?'),
+    ).toBe('¿A qué libro te refieres, el libro negro o la caja de cerillas?')
+  })
+})

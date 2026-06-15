@@ -38,6 +38,16 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
     en: "You can't see any {raw} here!",
     out: '¡No ves ningún «{raw}» aquí!',
   },
+  // Parser object-disambiguation prompt (gparser.zil WHICH-PRINT, two
+  // candidates). Runtime-composed from the ambiguous books the player holds, in
+  // an order the parser does not guarantee; a {obj}/{obj2} template renders any
+  // book pair either way round, using each book's gendered def form. No «a»/«de»
+  // precedes a slot, so the al/del contraction rule above is not engaged. UAT
+  // finding F3 (window.loquorMisses()).
+  {
+    en: 'Which book do you mean, the {obj} or the {obj2}?',
+    out: '¿A qué libro te refieres, {obj.def} o {obj2.def}?',
+  },
 
   // ── Presence & listings ─────────────────────────────────────────────────
   { en: 'There is a {obj} here.', out: 'Hay {obj.indef} aquí.' },

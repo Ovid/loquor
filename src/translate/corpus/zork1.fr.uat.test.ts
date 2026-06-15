@@ -158,3 +158,37 @@ describe('Zork I × French — moved-rug / open-trap-door Living Room variants (
     expect(out).toContain('trappe ouverte')
   })
 })
+
+// French mirror of the es book-disambiguation finding (F3). The parser's "Which
+// book do you mean, the X or the Y?" prompt is runtime-composed from the
+// ambiguous books the player holds, in a non-guaranteed order, so it needs a
+// {obj}/{obj2} template (not a static pin) to render any pair, either way round.
+// The es corpus surfaced it first; both corpora share the gap (uat.md: omissions
+// are usually shared with French).
+describe('Zork I × French — book-disambiguation prompt (UAT F3)', () => {
+  const c = compileCorpus(ZORK1_FR)
+
+  it('translates the black-book / guidebook prompt (the es UAT line)', () => {
+    expect(
+      matchLine(
+        c,
+        'Which book do you mean, the black book or the tour guidebook?',
+      ),
+    ).toBe('De quel livre parlez-vous, le livre noir ou le guide touristique ?')
+  })
+
+  it('renders the candidates in whichever order the parser lists them', () => {
+    expect(
+      matchLine(
+        c,
+        'Which book do you mean, the tour guidebook or the black book?',
+      ),
+    ).toBe('De quel livre parlez-vous, le guide touristique ou le livre noir ?')
+  })
+
+  it('generalizes to any pair of books (black book or matchbook)', () => {
+    expect(
+      matchLine(c, 'Which book do you mean, the black book or the matchbook?'),
+    ).toBe('De quel livre parlez-vous, le livre noir ou les allumettes ?')
+  })
+})

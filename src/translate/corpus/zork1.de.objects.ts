@@ -34,14 +34,14 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Altar',
     nomDef: 'der Altar',
     akkDef: 'den Altar',
-    bare: 'altar',
+    bare: 'Altar',
   },
   // die Landkarte (f): article invariant nom=akk. bare 'karte' is a lexicon token.
   'ancient map': {
     indef: 'eine alte Karte',
     def: 'die alte Karte',
     akkDef: 'die alte Karte',
-    bare: 'karte',
+    bare: 'Karte',
   },
   // der Korb (m).
   basket: {
@@ -49,21 +49,21 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Korb',
     nomDef: 'der Korb',
     akkDef: 'den Korb',
-    bare: 'korb',
+    bare: 'Korb',
   },
   // die Fledermaus (f).
   bat: {
     indef: 'eine Fledermaus',
     def: 'die Fledermaus',
     akkDef: 'die Fledermaus',
-    bare: 'fledermaus',
+    bare: 'Fledermaus',
   },
   // das Schmuckstück (n): nom=akk das/ein.
   'beautiful brass bauble': {
     indef: 'ein Schmuckstück',
     def: 'das Schmuckstück',
     akkDef: 'das Schmuckstück',
-    bare: 'schmuckstuck',
+    bare: 'Schmuckstück',
   },
   // der Skarabäus (m).
   'beautiful jeweled scarab': {
@@ -71,21 +71,21 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Skarabäus',
     nomDef: 'der Skarabäus',
     akkDef: 'den Skarabäus',
-    bare: 'skarabaus',
+    bare: 'Skarabäus',
   },
   // das Vogelnest (n).
   "bird's nest": {
     indef: 'ein Vogelnest',
     def: 'das Vogelnest',
     akkDef: 'das Vogelnest',
-    bare: 'vogelnest',
+    bare: 'Vogelnest',
   },
   // das Buch (n) + adjective 'schwarz' — declines. bare 'buch' is a lexicon token.
   'black book': {
     indef: 'ein schwarzes Buch',
     def: 'das schwarze Buch',
     akkDef: 'das schwarze Buch',
-    bare: 'buch',
+    bare: 'Buch',
   },
   // der Luftstoß (m).
   'blast of air': {
@@ -93,21 +93,21 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Luftstoß',
     nomDef: 'der Luftstoß',
     akkDef: 'den Luftstoß',
-    bare: 'luftstoss',
+    bare: 'Luftstoß',
   },
   // plural die Segnungen.
   blessings: {
     indef: 'Segnungen',
     def: 'die Segnungen',
     akkDef: 'die Segnungen',
-    bare: 'segnungen',
+    bare: 'Segnungen',
   },
   // die Axt (f) + adjective 'blutig' — declines. bare 'axt' is a lexicon token.
   'bloody axe': {
     indef: 'eine blutige Axt',
     def: 'die blutige Axt',
     akkDef: 'die blutige Axt',
-    bare: 'axt',
+    bare: 'Axt',
   },
   // der Knopf (m) + adjective 'blau' — declines nom 'blaue'/akk 'blauen'.
   // bare 'knopf' is a lexicon token; medial declined forms appended in Step 5.
@@ -116,21 +116,21 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der blaue Knopf',
     nomDef: 'der blaue Knopf',
     akkDef: 'den blauen Knopf',
-    bare: 'knopf',
+    bare: 'Knopf',
   },
   // das Brett (n).
   board: {
     indef: 'ein Brett',
     def: 'das Brett',
     akkDef: 'das Brett',
-    bare: 'brett',
+    bare: 'Brett',
   },
   // das Fenster (n) + adjective 'vernagelt'. bare 'fenster' is a lexicon token.
   'boarded window': {
     indef: 'ein vernageltes Fenster',
     def: 'das vernagelte Fenster',
     akkDef: 'das vernagelte Fenster',
-    bare: 'fenster',
+    bare: 'Fenster',
   },
   // der Riegel (m).
   bolt: {
@@ -138,21 +138,21 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Riegel',
     nomDef: 'der Riegel',
     akkDef: 'den Riegel',
-    bare: 'riegel',
+    bare: 'Riegel',
   },
   // die Messingglocke (f).
   'brass bell': {
     indef: 'eine Messingglocke',
     def: 'die Messingglocke',
     akkDef: 'die Messingglocke',
-    bare: 'messingglocke',
+    bare: 'Messingglocke',
   },
   // die Messinglaterne (f) — compound, invariant. bare 'laterne' is a lexicon token.
   'brass lantern': {
     indef: 'eine Messinglaterne',
     def: 'die Messinglaterne',
     akkDef: 'die Messinglaterne',
-    bare: 'laterne',
+    bare: 'Laterne',
   },
   // der Kanarienvogel (m) + adjective 'kaputt'. bare 'kanarienvogel' is a lexicon token.
   'broken clockwork canary': {
@@ -160,21 +160,21 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der kaputte Kanarienvogel',
     nomDef: 'der kaputte Kanarienvogel',
     akkDef: 'den kaputten Kanarienvogel',
-    bare: 'kanarienvogel',
+    bare: 'Kanarienvogel',
   },
   // das Ei (n) + adjective 'kaputt'. bare 'ei' is a lexicon token.
   'broken jewel-encrusted egg': {
     indef: 'ein kaputtes Ei',
     def: 'das kaputte Ei',
     akkDef: 'das kaputte Ei',
-    bare: 'ei',
+    bare: 'Ei',
   },
   // die Laterne (f) + adjective 'kaputt'. bare 'kaputte laterne' (the lexicon form).
   'broken lantern': {
     indef: 'eine kaputte Laterne',
     def: 'die kaputte Laterne',
     akkDef: 'die kaputte Laterne',
-    bare: 'kaputte laterne',
+    bare: 'kaputte Laterne',
   },
   // der Holzbalken (m).
   'broken timber': {
@@ -182,7 +182,7 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Holzbalken',
     nomDef: 'der Holzbalken',
     akkDef: 'den Holzbalken',
-    bare: 'holzbalken',
+    bare: 'Holzbalken',
   },
   // der Knopf (m) + adjective 'braun'. bare 'knopf' is a lexicon token.
   'brown button': {
@@ -190,7 +190,7 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der braune Knopf',
     nomDef: 'der braune Knopf',
     akkDef: 'den braunen Knopf',
-    bare: 'knopf',
+    bare: 'Knopf',
   },
   // der Sack (m).
   'brown sack': {
@@ -198,14 +198,14 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Sack',
     nomDef: 'der Sack',
     akkDef: 'den Sack',
-    bare: 'sack',
+    bare: 'Sack',
   },
   // die Lampe (f) + adjective 'ausgebrannt'. bare 'ausgebrannte lampe' (lexicon form).
   'burned-out lantern': {
     indef: 'eine ausgebrannte Lampe',
     def: 'die ausgebrannte Lampe',
     akkDef: 'die ausgebrannte Lampe',
-    bare: 'ausgebrannte lampe',
+    bare: 'ausgebrannte Lampe',
   },
   // der Teppich (m).
   carpet: {
@@ -213,7 +213,7 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Teppich',
     nomDef: 'der Teppich',
     akkDef: 'den Teppich',
-    bare: 'teppich',
+    bare: 'Teppich',
   },
   // der Kelch (m).
   chalice: {
@@ -221,7 +221,7 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Kelch',
     nomDef: 'der Kelch',
     akkDef: 'den Kelch',
-    bare: 'kelch',
+    bare: 'Kelch',
   },
   // der Kamin (m).
   chimney: {
@@ -229,35 +229,35 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Kamin',
     nomDef: 'der Kamin',
     akkDef: 'den Kamin',
-    bare: 'kamin',
+    bare: 'Kamin',
   },
   // die Rutsche (f).
   chute: {
     indef: 'eine Rutsche',
     def: 'die Rutsche',
     akkDef: 'die Rutsche',
-    bare: 'rutsche',
+    bare: 'Rutsche',
   },
   // die Klippe (f).
   cliff: {
     indef: 'eine Klippe',
     def: 'die Klippe',
     akkDef: 'die Klippe',
-    bare: 'klippe',
+    bare: 'Klippe',
   },
   // die Knoblauchzehe (f).
   'clove of garlic': {
     indef: 'eine Knoblauchzehe',
     def: 'die Knoblauchzehe',
     akkDef: 'die Knoblauchzehe',
-    bare: 'knoblauchzehe',
+    bare: 'Knoblauchzehe',
   },
   // die Schalttafel (f).
   'control panel': {
     indef: 'eine Schalttafel',
     def: 'die Schalttafel',
     akkDef: 'die Schalttafel',
-    bare: 'schalttafel',
+    bare: 'Schalttafel',
   },
   // der Riss (m).
   crack: {
@@ -265,7 +265,7 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Riss',
     nomDef: 'der Riss',
     akkDef: 'den Riss',
-    bare: 'riss',
+    bare: 'Riss',
   },
   // der Kristallschädel (m).
   'crystal skull': {
@@ -273,7 +273,7 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Kristallschädel',
     nomDef: 'der Kristallschädel',
     akkDef: 'den Kristallschädel',
-    bare: 'kristallschadel',
+    bare: 'Kristallschädel',
   },
   // der Dreizack (m).
   'crystal trident': {
@@ -281,7 +281,7 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Dreizack',
     nomDef: 'der Dreizack',
     akkDef: 'den Dreizack',
-    bare: 'dreizack',
+    bare: 'Dreizack',
   },
   // der Zyklop (m).
   cyclops: {
@@ -289,7 +289,7 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Zyklop',
     nomDef: 'der Zyklop',
     akkDef: 'den Zyklop',
-    bare: 'zyklop',
+    bare: 'Zyklop',
   },
   // der Damm (m).
   dam: {
@@ -297,14 +297,14 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Damm',
     nomDef: 'der Damm',
     akkDef: 'den Damm',
-    bare: 'damm',
+    bare: 'Damm',
   },
   // die Tür (f).
   door: {
     indef: 'eine Tür',
     def: 'die Tür',
     akkDef: 'die Tür',
-    bare: 'tur',
+    bare: 'Tür',
   },
   // der Wald (m).
   forest: {
@@ -312,14 +312,14 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Wald',
     nomDef: 'der Wald',
     akkDef: 'den Wald',
-    bare: 'wald',
+    bare: 'Wald',
   },
   // die Flasche (f).
   'glass bottle': {
     indef: 'eine Flasche',
     def: 'die Flasche',
     akkDef: 'die Flasche',
-    bare: 'flasche',
+    bare: 'Flasche',
   },
   // der Goldsarg (m).
   'gold coffin': {
@@ -327,7 +327,7 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Goldsarg',
     nomDef: 'der Goldsarg',
     akkDef: 'den Goldsarg',
-    bare: 'goldsarg',
+    bare: 'Goldsarg',
   },
   // der Kanarienvogel (m) + adjective 'golden'. bare 'kanarienvogel' is a lexicon token.
   'golden clockwork canary': {
@@ -335,28 +335,28 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der goldene Kanarienvogel',
     nomDef: 'der goldene Kanarienvogel',
     akkDef: 'den goldenen Kanarienvogel',
-    bare: 'kanarienvogel',
+    bare: 'Kanarienvogel',
   },
   // die Granitwand (f).
   'granite wall': {
     indef: 'eine Granitwand',
     def: 'die Granitwand',
     akkDef: 'die Granitwand',
-    bare: 'granitwand',
+    bare: 'Granitwand',
   },
   // das Gitter (n).
   grating: {
     indef: 'ein Gitter',
     def: 'das Gitter',
     akkDef: 'das Gitter',
-    bare: 'gitter',
+    bare: 'Gitter',
   },
   // die Blase (f) + adjective 'grün'. bare 'blase' is a lexicon token.
   'green bubble': {
     indef: 'eine grüne Blase',
     def: 'die grüne Blase',
     akkDef: 'die grüne Blase',
-    bare: 'blase',
+    bare: 'Blase',
   },
   // der Boden (m).
   ground: {
@@ -364,21 +364,21 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Boden',
     nomDef: 'der Boden',
     akkDef: 'den Boden',
-    bare: 'boden',
+    bare: 'Boden',
   },
   // plural die Werkzeugkisten.
   'group of tool chests': {
     indef: 'Werkzeugkisten',
     def: 'die Werkzeugkisten',
     akkDef: 'die Werkzeugkisten',
-    bare: 'werkzeugkisten',
+    bare: 'Werkzeugkisten',
   },
   // die Luftpumpe (f).
   'hand-held air pump': {
     indef: 'eine Luftpumpe',
     def: 'die Luftpumpe',
     akkDef: 'die Luftpumpe',
-    bare: 'luftpumpe',
+    bare: 'Luftpumpe',
   },
   // der Diamant (m).
   'huge diamond': {
@@ -386,21 +386,21 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Diamant',
     nomDef: 'der Diamant',
     akkDef: 'den Diamant',
-    bare: 'diamant',
+    bare: 'Diamant',
   },
   // die Jadefigur (f).
   'jade figurine': {
     indef: 'eine Jadefigur',
     def: 'die Jadefigur',
     akkDef: 'die Jadefigur',
-    bare: 'jadefigur',
+    bare: 'Jadefigur',
   },
   // das Ei (n) — 'juwelenbesetzt' too long to decline cleanly; use compound bare.
   'jewel-encrusted egg': {
     indef: 'ein Ei',
     def: 'das Ei',
     akkDef: 'das Ei',
-    bare: 'ei',
+    bare: 'Ei',
   },
   // der Küchentisch (m).
   'kitchen table': {
@@ -408,14 +408,14 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Küchentisch',
     nomDef: 'der Küchentisch',
     akkDef: 'den Küchentisch',
-    bare: 'kuchentisch',
+    bare: 'Küchentisch',
   },
   // das Küchenfenster (n).
   'kitchen window': {
     indef: 'ein Küchenfenster',
     def: 'das Küchenfenster',
     akkDef: 'das Küchenfenster',
-    bare: 'kuchenfenster',
+    bare: 'Küchenfenster',
   },
   // der Sack (m) + adjective 'groß'. bare 'sack' is a lexicon token.
   'large bag': {
@@ -423,7 +423,7 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der große Sack',
     nomDef: 'der große Sack',
     akkDef: 'den großen Sack',
-    bare: 'sack',
+    bare: 'Sack',
   },
   // der Smaragd (m).
   'large emerald': {
@@ -431,7 +431,7 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Smaragd',
     nomDef: 'der Smaragd',
     akkDef: 'den Smaragd',
-    bare: 'smaragd',
+    bare: 'Smaragd',
   },
   // der Prospekt (m).
   leaflet: {
@@ -439,14 +439,14 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Prospekt',
     nomDef: 'der Prospekt',
     akkDef: 'den Prospekt',
-    bare: 'prospekt',
+    bare: 'Prospekt',
   },
   // das Leck (n).
   leak: {
     indef: 'ein Leck',
     def: 'das Leck',
     akkDef: 'das Leck',
-    bare: 'leck',
+    bare: 'Leck',
   },
   // der Münzbeutel (m).
   'leather bag of coins': {
@@ -454,14 +454,14 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Münzbeutel',
     nomDef: 'der Münzbeutel',
     akkDef: 'den Münzbeutel',
-    bare: 'munzbeutel',
+    bare: 'Münzbeutel',
   },
   // das Mittagessen (n).
   lunch: {
     indef: 'ein Mittagessen',
     def: 'das Mittagessen',
     akkDef: 'das Mittagessen',
-    bare: 'mittagessen',
+    bare: 'Mittagessen',
   },
   // 'grue' is the untranslatable Zork monster (lexicon policy). der Grue (m).
   'lurking grue': {
@@ -469,28 +469,28 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Grue',
     nomDef: 'der Grue',
     akkDef: 'den Grue',
-    bare: 'grue',
+    bare: 'Grue',
   },
   // die Maschine (f).
   machine: {
     indef: 'eine Maschine',
     def: 'die Maschine',
     akkDef: 'die Maschine',
-    bare: 'maschine',
+    bare: 'Maschine',
   },
   // das Boot (n) + adjective 'magisch'. bare 'boot' is a lexicon token.
   'magic boat': {
     indef: 'ein magisches Boot',
     def: 'das magische Boot',
     akkDef: 'das magische Boot',
-    bare: 'boot',
+    bare: 'Boot',
   },
   // plural die Streichhölzer.
   matchbook: {
     indef: 'Streichhölzer',
     def: 'die Streichhölzer',
     akkDef: 'die Streichhölzer',
-    bare: 'streichholzer',
+    bare: 'Streichhölzer',
   },
   // der Spiegel (m).
   mirror: {
@@ -498,49 +498,49 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Spiegel',
     nomDef: 'der Spiegel',
     akkDef: 'den Spiegel',
-    bare: 'spiegel',
+    bare: 'Spiegel',
   },
   // plural die Berge.
   'mountain range': {
     indef: 'Berge',
     def: 'die Berge',
     akkDef: 'die Berge',
-    bare: 'berge',
+    bare: 'Berge',
   },
   // das Messer (n) + adjective 'übel'. bare 'messer' is a lexicon token.
   'nasty knife': {
     indef: 'ein übles Messer',
     def: 'das üble Messer',
     akkDef: 'das üble Messer',
-    bare: 'messer',
+    bare: 'Messer',
   },
   // plural die Geister.
   'number of ghosts': {
     indef: 'Geister',
     def: 'die Geister',
     akkDef: 'die Geister',
-    bare: 'geister',
+    bare: 'Geister',
   },
   // das Gemälde (n).
   painting: {
     indef: 'ein Gemälde',
     def: 'das Gemälde',
     akkDef: 'das Gemälde',
-    bare: 'gemalde',
+    bare: 'Gemälde',
   },
   // plural die Kerzen.
   'pair of candles': {
     indef: 'Kerzen',
     def: 'die Kerzen',
     akkDef: 'die Kerzen',
-    bare: 'kerzen',
+    bare: 'Kerzen',
   },
   // plural die Hände.
   'pair of hands': {
     indef: 'Hände',
     def: 'die Hände',
     akkDef: 'die Hände',
-    bare: 'hande',
+    bare: 'Hände',
   },
   // der Pfad (m).
   passage: {
@@ -548,7 +548,7 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Pfad',
     nomDef: 'der Pfad',
     akkDef: 'den Pfad',
-    bare: 'pfad',
+    bare: 'Pfad',
   },
   // der Sockel (m).
   pedestal: {
@@ -556,7 +556,7 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Sockel',
     nomDef: 'der Sockel',
     akkDef: 'den Sockel',
-    bare: 'sockel',
+    bare: 'Sockel',
   },
   // der Leichenhaufen (m).
   'pile of bodies': {
@@ -564,7 +564,7 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Leichenhaufen',
     nomDef: 'der Leichenhaufen',
     akkDef: 'den Leichenhaufen',
-    bare: 'leichenhaufen',
+    bare: 'Leichenhaufen',
   },
   // der Laubhaufen (m).
   'pile of leaves': {
@@ -572,7 +572,7 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Laubhaufen',
     nomDef: 'der Laubhaufen',
     akkDef: 'den Laubhaufen',
-    bare: 'laubhaufen',
+    bare: 'Laubhaufen',
   },
   // der Plastikhaufen (m).
   'pile of plastic': {
@@ -580,7 +580,7 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Plastikhaufen',
     nomDef: 'der Plastikhaufen',
     akkDef: 'den Plastikhaufen',
-    bare: 'plastikhaufen',
+    bare: 'Plastikhaufen',
   },
   // der Platinbarren (m).
   'platinum bar': {
@@ -588,7 +588,7 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Platinbarren',
     nomDef: 'der Platinbarren',
     akkDef: 'den Platinbarren',
-    bare: 'platinbarren',
+    bare: 'Platinbarren',
   },
   // der Goldtopf (m).
   'pot of gold': {
@@ -596,28 +596,28 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Goldtopf',
     nomDef: 'der Goldtopf',
     akkDef: 'den Goldtopf',
-    bare: 'goldtopf',
+    bare: 'Goldtopf',
   },
   // das Gebet (n).
   prayer: {
     indef: 'ein Gebet',
     def: 'das Gebet',
     akkDef: 'das Gebet',
-    bare: 'gebet',
+    bare: 'Gebet',
   },
   // das Boot (n) + adjective 'kaputt'. bare 'kaputtes boot' (the lexicon form).
   'punctured boat': {
     indef: 'ein kaputtes Boot',
     def: 'das kaputte Boot',
     akkDef: 'das kaputte Boot',
-    bare: 'kaputtes boot',
+    bare: 'kaputtes Boot',
   },
   // das Wasser (n) — mass noun; indef carries no article.
   'quantity of water': {
     indef: 'Wasser',
     def: 'das Wasser',
     akkDef: 'das Wasser',
-    bare: 'wasser',
+    bare: 'Wasser',
   },
   // der Regenbogen (m).
   rainbow: {
@@ -625,14 +625,14 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Regenbogen',
     nomDef: 'der Regenbogen',
     akkDef: 'den Regenbogen',
-    bare: 'regenbogen',
+    bare: 'Regenbogen',
   },
   // die Boje (f) + adjective 'rot'. bare 'boje' is a lexicon token.
   'red buoy': {
     indef: 'eine rote Boje',
     def: 'die rote Boje',
     akkDef: 'die rote Boje',
-    bare: 'boje',
+    bare: 'Boje',
   },
   // der Knopf (m) + adjective 'rot'. bare 'knopf' is a lexicon token.
   'red button': {
@@ -640,14 +640,14 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der rote Knopf',
     nomDef: 'der rote Knopf',
     akkDef: 'den roten Knopf',
-    bare: 'knopf',
+    bare: 'Knopf',
   },
   // die Glocke (f) + adjective 'glühend'. bare 'glocke' is a lexicon token.
   'red hot brass bell': {
     indef: 'eine glühende Glocke',
     def: 'die glühende Glocke',
     akkDef: 'die glühende Glocke',
-    bare: 'glocke',
+    bare: 'Glocke',
   },
   // der Fluss (m).
   river: {
@@ -655,21 +655,21 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Fluss',
     nomDef: 'der Fluss',
     akkDef: 'den Fluss',
-    bare: 'fluss',
+    bare: 'Fluss',
   },
   // das Seil (n).
   rope: {
     indef: 'ein Seil',
     def: 'das Seil',
     akkDef: 'das Seil',
-    bare: 'seil',
+    bare: 'Seil',
   },
   // das Messer (n) + adjective 'rostig'. bare 'messer' is a lexicon token.
   'rusty knife': {
     indef: 'ein rostiges Messer',
     def: 'das rostige Messer',
     akkDef: 'das rostige Messer',
-    bare: 'messer',
+    bare: 'Messer',
   },
   // der Seemann (m).
   sailor: {
@@ -677,7 +677,7 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Seemann',
     nomDef: 'der Seemann',
     akkDef: 'den Seemann',
-    bare: 'seemann',
+    bare: 'Seemann',
   },
   // der Sand (m) — mass noun; indef carries no article.
   sand: {
@@ -685,21 +685,21 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Sand',
     nomDef: 'der Sand',
     akkDef: 'den Sand',
-    bare: 'sand',
+    bare: 'Sand',
   },
   // das Armband (n).
   'sapphire-encrusted bracelet': {
     indef: 'ein Armband',
     def: 'das Armband',
     akkDef: 'das Armband',
-    bare: 'armband',
+    bare: 'Armband',
   },
   // das Zepter (n).
   sceptre: {
     indef: 'ein Zepter',
     def: 'das Zepter',
     akkDef: 'das Zepter',
-    bare: 'zepter',
+    bare: 'Zepter',
   },
   // der Schraubenzieher (m).
   screwdriver: {
@@ -707,28 +707,28 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Schraubenzieher',
     nomDef: 'der Schraubenzieher',
     akkDef: 'den Schraubenzieher',
-    bare: 'schraubenzieher',
+    bare: 'Schraubenzieher',
   },
   // plural die Zähne.
   'set of teeth': {
     indef: 'Zähne',
     def: 'die Zähne',
     akkDef: 'die Zähne',
-    bare: 'zahne',
+    bare: 'Zähne',
   },
   // die Schaufel (f).
   shovel: {
     indef: 'eine Schaufel',
     def: 'die Schaufel',
     akkDef: 'die Schaufel',
-    bare: 'schaufel',
+    bare: 'Schaufel',
   },
   // das Skelett (n).
   skeleton: {
     indef: 'ein Skelett',
     def: 'das Skelett',
     akkDef: 'das Skelett',
-    bare: 'skelett',
+    bare: 'Skelett',
   },
   // der Schlüssel (m) — deliberately ambiguous with 'wrench' (lexicon policy).
   'skeleton key': {
@@ -736,7 +736,7 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Schlüssel',
     nomDef: 'der Schlüssel',
     akkDef: 'den Schlüssel',
-    bare: 'schlussel',
+    bare: 'Schlüssel',
   },
   // der Briefkasten (m) — needs a baked dative contraction for a bounded set.
   'small mailbox': {
@@ -745,14 +745,14 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     nomDef: 'der Briefkasten',
     akkDef: 'den Briefkasten',
     imDat: 'im Briefkasten',
-    bare: 'briefkasten',
+    bare: 'Briefkasten',
   },
   // die Glasschlacke (f).
   'small piece of vitreous slag': {
     indef: 'eine Glasschlacke',
     def: 'die Glasschlacke',
     akkDef: 'die Glasschlacke',
-    bare: 'glasschlacke',
+    bare: 'Glasschlacke',
   },
   // der Kohlehaufen (m).
   'small pile of coal': {
@@ -760,7 +760,7 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Kohlehaufen',
     nomDef: 'der Kohlehaufen',
     akkDef: 'den Kohlehaufen',
-    bare: 'kohlehaufen',
+    bare: 'Kohlehaufen',
   },
   // der Singvogel (m).
   songbird: {
@@ -768,42 +768,42 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Singvogel',
     nomDef: 'der Singvogel',
     akkDef: 'den Singvogel',
-    bare: 'singvogel',
+    bare: 'Singvogel',
   },
   // die Treppe (f).
   stairs: {
     indef: 'eine Treppe',
     def: 'die Treppe',
     akkDef: 'die Treppe',
-    bare: 'treppe',
+    bare: 'Treppe',
   },
   // das Stilett (n).
   stiletto: {
     indef: 'ein Stilett',
     def: 'das Stilett',
     akkDef: 'das Stilett',
-    bare: 'stilett',
+    bare: 'Stilett',
   },
   // das Hügelgrab (n).
   'stone barrow': {
     indef: 'ein Hügelgrab',
     def: 'das Hügelgrab',
     akkDef: 'das Hügelgrab',
-    bare: 'hugelgrab',
+    bare: 'Hügelgrab',
   },
   // die Steintür (f).
   'stone door': {
     indef: 'eine Steintür',
     def: 'die Steintür',
     akkDef: 'die Steintür',
-    bare: 'steintur',
+    bare: 'Steintür',
   },
   // die Mauer (f).
   'surrounding wall': {
     indef: 'eine Mauer',
     def: 'die Mauer',
     akkDef: 'die Mauer',
-    bare: 'mauer',
+    bare: 'Mauer',
   },
   // der Schalter (m).
   switch: {
@@ -811,14 +811,14 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Schalter',
     nomDef: 'der Schalter',
     akkDef: 'den Schalter',
-    bare: 'schalter',
+    bare: 'Schalter',
   },
   // das Schwert (n).
   sword: {
     indef: 'ein Schwert',
     def: 'das Schwert',
     akkDef: 'das Schwert',
-    bare: 'schwert',
+    bare: 'Schwert',
   },
   // der Tisch (m).
   table: {
@@ -826,14 +826,14 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Tisch',
     nomDef: 'der Tisch',
     akkDef: 'den Tisch',
-    bare: 'tisch',
+    bare: 'Tisch',
   },
   // das Etikett (n).
   'tan label': {
     indef: 'ein Etikett',
     def: 'das Etikett',
     akkDef: 'das Etikett',
-    bare: 'etikett',
+    bare: 'Etikett',
   },
   // der Dieb (m).
   thief: {
@@ -841,14 +841,14 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Dieb',
     nomDef: 'der Dieb',
     akkDef: 'den Dieb',
-    bare: 'dieb',
+    bare: 'Dieb',
   },
   // die Fackel (f).
   torch: {
     indef: 'eine Fackel',
     def: 'die Fackel',
     akkDef: 'die Fackel',
-    bare: 'fackel',
+    bare: 'Fackel',
   },
   // der Reiseführer (m).
   'tour guidebook': {
@@ -856,14 +856,14 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Reiseführer',
     nomDef: 'der Reiseführer',
     akkDef: 'den Reiseführer',
-    bare: 'reisefuhrer',
+    bare: 'Reiseführer',
   },
   // die Falltür (f).
   'trap door': {
     indef: 'eine Falltür',
     def: 'die Falltür',
     akkDef: 'die Falltür',
-    bare: 'falltur',
+    bare: 'Falltür',
   },
   // der Baum (m).
   tree: {
@@ -871,7 +871,7 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Baum',
     nomDef: 'der Baum',
     akkDef: 'den Baum',
-    bare: 'baum',
+    bare: 'Baum',
   },
   // der Troll (m).
   troll: {
@@ -879,84 +879,84 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Troll',
     nomDef: 'der Troll',
     akkDef: 'den Troll',
-    bare: 'troll',
+    bare: 'Troll',
   },
   // die Vitrine (f).
   'trophy case': {
     indef: 'eine Vitrine',
     def: 'die Vitrine',
     akkDef: 'die Vitrine',
-    bare: 'vitrine',
+    bare: 'Vitrine',
   },
   // die Schatztruhe (f).
   'trunk of jewels': {
     indef: 'eine Schatztruhe',
     def: 'die Schatztruhe',
     akkDef: 'die Schatztruhe',
-    bare: 'schatztruhe',
+    bare: 'Schatztruhe',
   },
   // die Tube (f).
   tube: {
     indef: 'eine Tube',
     def: 'die Tube',
     akkDef: 'die Tube',
-    bare: 'tube',
+    bare: 'Tube',
   },
   // die Schmiere (f).
   'viscous material': {
     indef: 'eine Schmiere',
     def: 'die Schmiere',
     akkDef: 'die Schmiere',
-    bare: 'schmiere',
+    bare: 'Schmiere',
   },
   // die Wand (f) + 'mit Gravuren' — bare 'wand mit gravuren' (the lexicon form).
   'wall with engravings': {
     indef: 'eine Wand mit Gravuren',
     def: 'die Wand mit Gravuren',
     akkDef: 'die Wand mit Gravuren',
-    bare: 'wand mit gravuren',
+    bare: 'Wand mit Gravuren',
   },
   // das Wasser (n).
   water: {
     indef: 'Wasser',
     def: 'das Wasser',
     akkDef: 'das Wasser',
-    bare: 'wasser',
+    bare: 'Wasser',
   },
   // plural die Klippen + adjective 'weiß'. bare 'klippen' is a lexicon token.
   'white cliffs': {
     indef: 'weiße Klippen',
     def: 'die weißen Klippen',
     akkDef: 'die weißen Klippen',
-    bare: 'klippen',
+    bare: 'Klippen',
   },
   // das Haus (n) + adjective 'weiß'. bare 'haus' is a lexicon token.
   'white house': {
     indef: 'ein weißes Haus',
     def: 'das weiße Haus',
     akkDef: 'das weiße Haus',
-    bare: 'haus',
+    bare: 'Haus',
   },
   // die Holztür (f).
   'wooden door': {
     indef: 'eine Holztür',
     def: 'die Holztür',
     akkDef: 'die Holztür',
-    bare: 'holztur',
+    bare: 'Holztür',
   },
   // die Holzleiter (f).
   'wooden ladder': {
     indef: 'eine Holzleiter',
     def: 'die Holzleiter',
     akkDef: 'die Holzleiter',
-    bare: 'holzleiter',
+    bare: 'Holzleiter',
   },
   // das Geländer (n).
   'wooden railing': {
     indef: 'ein Geländer',
     def: 'das Geländer',
     akkDef: 'das Geländer',
-    bare: 'gelander',
+    bare: 'Geländer',
   },
   // der Schraubenschlüssel (m).
   wrench: {
@@ -964,7 +964,7 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Schraubenschlüssel',
     nomDef: 'der Schraubenschlüssel',
     akkDef: 'den Schraubenschlüssel',
-    bare: 'schraubenschlussel',
+    bare: 'Schraubenschlüssel',
   },
   // der Knopf (m) + adjective 'gelb'. bare 'knopf' is a lexicon token.
   'yellow button': {
@@ -972,7 +972,7 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der gelbe Knopf',
     nomDef: 'der gelbe Knopf',
     akkDef: 'den gelben Knopf',
-    bare: 'knopf',
+    bare: 'Knopf',
   },
   // Printed name keeps the game's "ZORK" capitalization; ZORK1_DE_CANONICAL
   // maps it onto the lowercase vocab canonical. The display drops the brand
@@ -981,7 +981,7 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     indef: 'ein Handbuch',
     def: 'das Handbuch',
     akkDef: 'das Handbuch',
-    bare: 'handbuch',
+    bare: 'Handbuch',
   },
   // der Zorkmid (m) — untranslatable currency proper noun.
   zorkmid: {
@@ -989,7 +989,7 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     def: 'der Zorkmid',
     nomDef: 'der Zorkmid',
     akkDef: 'den Zorkmid',
-    bare: 'zorkmid',
+    bare: 'Zorkmid',
   },
 }
 

@@ -112,6 +112,17 @@ function startsWithArticle(clause: string, core: CoreLexicon | null): boolean {
   )
 }
 
+/** Flattened set of every noun surface form in a NounLexicon, cached per lexicon
+ * object — mirrors VOCAB_VERB_HEADS so the set is built once, not per input line. */
+const NOUN_WORD_SETS = new WeakMap<NounLexicon, Set<string>>()
+function nounWordSet(nouns: NounLexicon): Set<string> {
+  const cached = NOUN_WORD_SETS.get(nouns)
+  if (cached) return cached
+  const out = new Set(Object.values(nouns).flat())
+  NOUN_WORD_SETS.set(nouns, out)
+  return out
+}
+
 /** True when a verbless conjunct names a known game object in the player's
  * own language (the per-game noun lexicon), e.g. Spanish "destornillador" or
  * "llave inglesa". This lets a bare object inherit the previous clause's verb
@@ -153,7 +164,7 @@ export function fillElidedVerbs(
   vocab: Vocab,
   nouns: NounLexicon | null = null,
 ): string[] {
-  const nounSet = nouns ? new Set(Object.values(nouns).flat()) : null
+  const nounSet = nouns ? nounWordSet(nouns) : null
   let lastVerb: string | null = null
   return clauses.map((clause, i) => {
     const verb = leadingVerbPhrase(clause, core, vocab)

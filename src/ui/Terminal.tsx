@@ -52,6 +52,12 @@ export function Terminal({
   // input-echo renders in the player's language (loudEcho / UAT F6). Each entry
   // is recorded as a clause is sent (recordEcho), so a compound's clauses each
   // re-voice from their own word.
+  // Two clauses that share a canonical last word (e.g. "coge la barra" and
+  // "agarra barra" both → "take bar") collide on the key "bar"; last writer wins
+  // (review F2). That's harmless: the echo line carries ONLY the canonical word,
+  // so no finer key exists, and the overlay FREEZES each echo line's decision
+  // synchronously at emit (echoFreeze) — the map already holds the producing
+  // clause's word when its echo first renders, before any later clause overwrites.
   const [echoMap, setEchoMap] = useState<ReadonlyMap<string, string>>(
     () => new Map(),
   )

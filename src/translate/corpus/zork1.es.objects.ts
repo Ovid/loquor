@@ -446,16 +446,19 @@ const ZORK1_ES_OBJECTS_RAW: ObjectsTable = {
  * bare preposition ("a la X"/"de la X"). Deriving for EVERY object (rather than
  * hand-authoring per the old "Task 6" note) means no contraction template can
  * MISS for an object that lacks the form, and the matcher stays grammar-free. */
-function withContractions(table: ObjectsTable): ObjectsTable {
+export function withContractions(table: ObjectsTable): ObjectsTable {
   const out: Record<string, ObjectForms> = {}
   for (const [en, forms] of Object.entries(table)) {
     // Masculine-singular "el X" is the only form that contracts; the noun
     // after "el " takes "al"/"del". Feminine/plural just prepend "a"/"de".
-    const afterEl = forms.def.startsWith('el ') ? forms.def.slice(3) : null
-    out[en] =
-      afterEl !== null
-        ? { ...forms, alDef: `al ${afterEl}`, delDef: `del ${afterEl}` }
-        : { ...forms, alDef: `a ${forms.def}`, delDef: `de ${forms.def}` }
+    // Tolerant of a capitalized "El " / leading whitespace so a future entry
+    // can't silently slip through to the ungrammatical "a el …"/"de el …"
+    // branch (review F4). `def` is normally lower-case; we normalize defensively.
+    const def = forms.def.trimStart()
+    const m = /^el\s+(.+)$/i.exec(def)
+    out[en] = m
+      ? { ...forms, alDef: `al ${m[1]}`, delDef: `del ${m[1]}` }
+      : { ...forms, alDef: `a ${def}`, delDef: `de ${def}` }
   }
   return out
 }

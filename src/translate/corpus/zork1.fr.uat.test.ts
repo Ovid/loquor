@@ -128,3 +128,33 @@ describe('Zork I × French — post-cyclops closed-trap-door Living Room (UAT)',
     expect(out).toContain('trappe fermée')
   })
 })
+
+// The French corpus had only the original Living Room line; the moved-rug /
+// open-trap-door variants (the es counterparts already pinned in the Spanish
+// corpus) were missing, so a French player would hit the English fallback after
+// moving the rug. Pinned here to complete the Living Room variant family.
+describe('Zork I × French — moved-rug / open-trap-door Living Room variants (UAT)', () => {
+  const c = compileCorpus(ZORK1_FR)
+
+  it('translates the pre-cyclops moved-rug / open-trap-door variant', () => {
+    const en =
+      'You are in the living room. There is a doorway to the east, a wooden door with strange gothic lettering to the west, which appears to be nailed shut, a trophy case, and a rug lying beside an open trap door.'
+    const out = matchLine(c, en)
+    expect(out).not.toBeNull()
+    expect(out).not.toBe(en)
+    expect(out).toContain('salon')
+    expect(out).toContain('tapis')
+    expect(out).toContain('trappe ouverte')
+  })
+
+  it('translates the post-cyclops moved-rug / open-trap-door variant', () => {
+    const en =
+      'You are in the living room. There is a doorway to the east. To the west is a cyclops-shaped opening in an old wooden door, above which is some strange gothic lettering, a trophy case, and a rug lying beside an open trap door.'
+    const out = matchLine(c, en)
+    expect(out).not.toBeNull()
+    expect(out).not.toBe(en)
+    expect(out).toContain('salon')
+    expect(out).toContain('cyclope')
+    expect(out).toContain('trappe ouverte')
+  })
+})

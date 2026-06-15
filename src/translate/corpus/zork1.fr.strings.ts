@@ -437,6 +437,15 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
     "Vous êtes dans la cuisine de la maison blanche. Une table semble avoir servi récemment à la préparation d'un repas. Un passage mène à l'ouest et un escalier sombre monte vers l'étage. Une cheminée obscure descend, et à l'est se trouve une petite fenêtre, ouverte.",
   'You are in the living room. There is a doorway to the east, a wooden door with strange gothic lettering to the west, which appears to be nailed shut, a trophy case, and a large oriental rug in the center of the room.':
     "Vous êtes dans le salon. Il y a une porte à l'est, une porte en bois à l'ouest couverte d'étranges caractères gothiques, qui semble clouée, une vitrine à trophées, et un grand tapis oriental au centre de la pièce.",
+  // Living Room after the rug is moved and the trap door opened, BEFORE the
+  // cyclops is defeated (west door still nailed shut). Composed at runtime; the
+  // es counterpart was already pinned, the fr one was missing.
+  'You are in the living room. There is a doorway to the east, a wooden door with strange gothic lettering to the west, which appears to be nailed shut, a trophy case, and a rug lying beside an open trap door.':
+    "Vous êtes dans le salon. Il y a une porte à l'est, une porte en bois à l'ouest couverte d'étranges caractères gothiques, qui semble clouée, une vitrine à trophées, et un tapis posé à côté d'une trappe ouverte.",
+  // Same moved-rug / open-trap-door state, AFTER the cyclops smashes the west
+  // door into a cyclops-shaped opening:
+  'You are in the living room. There is a doorway to the east. To the west is a cyclops-shaped opening in an old wooden door, above which is some strange gothic lettering, a trophy case, and a rug lying beside an open trap door.':
+    "Vous êtes dans le salon. Il y a une porte à l'est. À l'ouest se trouve une ouverture en forme de cyclope dans une vieille porte en bois, au-dessus de laquelle se trouvent d'étranges caractères gothiques, une vitrine à trophées, et un tapis posé à côté d'une trappe ouverte.",
   // Living Room re-described AFTER the cyclops smashes the west door into a
   // cyclops-shaped opening, with the trap door CLOSED at your feet. Composed at
   // runtime, so missed by the coverage/inventory gates and pinned here from the

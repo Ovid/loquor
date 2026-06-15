@@ -21,6 +21,12 @@ describe('Zork I × Spanish — runtime-composed Living Room variants (UAT)', ()
   const postCyclops =
     'You are in the living room. There is a doorway to the east. To the west is a cyclops-shaped opening in an old wooden door, above which is some strange gothic lettering, a trophy case, and a rug lying beside an open trap door.'
 
+  // Post-cyclops, but the trap door is CLOSED (re-barred while the thief lives /
+  // shut again) so the rug clause collapses to "a closed trap door at your feet".
+  // Surfaced by the Spanish UAT loop after the thief kill (window.loquorMisses()).
+  const postCyclopsClosedTrap =
+    'You are in the living room. There is a doorway to the east. To the west is a cyclops-shaped opening in an old wooden door, above which is some strange gothic lettering, a trophy case, and a closed trap door at your feet.'
+
   it('translates the pre-cyclops moved-rug / open-trap-door variant', () => {
     const out = matchLine(c, preCyclops)
     expect(out).not.toBeNull()
@@ -36,6 +42,15 @@ describe('Zork I × Spanish — runtime-composed Living Room variants (UAT)', ()
     expect(out).toContain('salón')
     expect(out).toContain('cíclope')
     expect(out).toContain('trampilla abierta')
+  })
+
+  it('translates the post-cyclops closed-trap-door variant', () => {
+    const out = matchLine(c, postCyclopsClosedTrap)
+    expect(out).not.toBeNull()
+    expect(out).not.toBe(postCyclopsClosedTrap)
+    expect(out).toContain('salón')
+    expect(out).toContain('cíclope')
+    expect(out).toContain('trampilla cerrada')
   })
 })
 

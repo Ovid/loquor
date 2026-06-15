@@ -109,3 +109,22 @@ describe('Zork I × French — gunk tube label (UAT)', () => {
     expect(out).toBe('Pâte à tout faire')
   })
 })
+
+// The Living Room description is composed at RUNTIME from state-dependent
+// fragments (rug moved? trap door open? cyclops gone?), so it leaks English
+// unless pinned as a full line. Surfaced on the Spanish UAT branch; es+fr share
+// the gap (uat.md: "omissions are often shared with the French corpus").
+describe('Zork I × French — post-cyclops closed-trap-door Living Room (UAT)', () => {
+  const c = compileCorpus(ZORK1_FR)
+
+  it('translates the post-cyclops closed-trap-door variant', () => {
+    const en =
+      'You are in the living room. There is a doorway to the east. To the west is a cyclops-shaped opening in an old wooden door, above which is some strange gothic lettering, a trophy case, and a closed trap door at your feet.'
+    const out = matchLine(c, en)
+    expect(out).not.toBeNull()
+    expect(out).not.toBe(en)
+    expect(out).toContain('salon')
+    expect(out).toContain('cyclope')
+    expect(out).toContain('trappe fermée')
+  })
+})

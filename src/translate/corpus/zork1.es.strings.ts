@@ -405,6 +405,10 @@ export const ZORK1_ES_STRINGS: Readonly<Record<string, string>> = {
   // Same, AFTER the cyclops smashes the west door into a cyclops-shaped opening:
   'You are in the living room. There is a doorway to the east. To the west is a cyclops-shaped opening in an old wooden door, above which is some strange gothic lettering, a trophy case, and a rug lying beside an open trap door.':
     'Estás en el salón. Hay una puerta al este. Al oeste hay una abertura con forma de cíclope en una vieja puerta de madera, sobre la que hay unos extraños caracteres góticos, una vitrina y una alfombra tendida junto a una trampilla abierta.',
+  // Same cyclops opening, but the trap door is CLOSED (re-barred), so the rug
+  // clause collapses to "a closed trap door at your feet":
+  'You are in the living room. There is a doorway to the east. To the west is a cyclops-shaped opening in an old wooden door, above which is some strange gothic lettering, a trophy case, and a closed trap door at your feet.':
+    'Estás en el salón. Hay una puerta al este. Al oeste hay una abertura con forma de cíclope en una vieja puerta de madera, sobre la que hay unos extraños caracteres góticos, una vitrina y una trampilla cerrada a tus pies.',
   'This is the attic. The only exit is a stairway leading down.':
     'Este es el desván. La única salida es una escalera que baja.',
   'You are in a dark and damp cellar with a narrow passageway leading north, and a crawlway to the south. On the west is the bottom of a steep metal ramp which is unclimbable.':

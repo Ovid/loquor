@@ -30,6 +30,7 @@ import {
   type CompiledCorpus,
 } from './match'
 import { normalize, splitIndent, untranslatable } from './normalize'
+import { loudEcho } from './loudEcho'
 import { translateStatus } from './statusTranslate'
 import { cacheDelete, cacheGet } from './fallbackCache'
 import { installMissDump, logMiss } from './missLog'
@@ -64,9 +65,14 @@ export function useOutputTranslation(args: {
   /** Test-only watchdog override (mirrors useNaturalLanguage's injectable
    * watchdogMs); production omits it and gets XLATE_WATCHDOG_MS. */
   watchdogMs?: number
+  /** The player's last raw typed command (target language). Used only to render
+   * the Loud Room input-echo faithfully (loudEcho / UAT F6); null when none is
+   * recorded yet (fresh load, restore) — the echo then falls to the usual path. */
+  lastInput?: string | null
 }): OutputTranslation {
   const { view, language, signature, engine, gate, corpusOverride } = args
   const watchdogMs = args.watchdogMs ?? XLATE_WATCHDOG_MS
+  const lastInput = args.lastInput ?? null
 
   const lang: LexLang | null =
     language === 'fr' || language === 'de' || language === 'es'
@@ -194,6 +200,10 @@ export function useOutputTranslation(args: {
       const en = normalize(splitIndent(l.text).body)
       if (untranslatable(en)) continue
       if (matchLine(corpus, en) !== null) continue
+      // The Loud Room input-echo is rendered deterministically from the player's
+      // last word (loudEcho / F6) — never a corpus gap, so don't log it or spend
+      // a generation on it.
+      if (loudEcho(en, lastInput) !== null) continue
       if (backlogRef.current.has(l.id)) {
         // Gate on TEXT, not id: an append merge onto a backlog tail line
         // changes its text — that's a different EN line, so it logs again and
@@ -249,7 +259,7 @@ export function useOutputTranslation(args: {
           logMiss({ en, game: signature, language: lang, kind: 'status' })
       }
     }
-  }, [view, corpus, lang, signature, engine, gate, watchdogMs])
+  }, [view, corpus, lang, signature, engine, gate, watchdogMs, lastInput])
 
   const lines: DisplayLine[] = useMemo(() => {
     if (!corpus || lang === null) return view.lines
@@ -262,6 +272,11 @@ export function useOutputTranslation(args: {
       if (untranslatable(en)) return l
       const hit = matchLine(corpus, en)
       if (hit !== null) return { ...l, text: indent + hit }
+      // Loud Room input-echo (F6): substitute the player's own last word so the
+      // echo reads in their language ("mira mira ..."). Deterministic, so it
+      // takes precedence over any in-flight LLM overlay for this line.
+      const echo = loudEcho(en, lastInput)
+      if (echo !== null) return { ...l, text: indent + echo }
       const o = resolved?.get(l.id)
       // Basis check: an entry resolved from different (pre-merge) text is
       // stale for THIS text — ignore it (English) until the new text settles.
@@ -272,7 +287,7 @@ export function useOutputTranslation(args: {
       }
       return l // backlog miss, failure, or superseded entry → English
     })
-  }, [view.lines, corpus, overlay, lang])
+  }, [view.lines, corpus, overlay, lang, lastInput])
 
   const status: StatusLine | null = useMemo(() => {
     if (!corpus || lang === null || view.status === null) return view.status

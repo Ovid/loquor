@@ -38,6 +38,7 @@ function setup(opts: {
   engine?: FakeLlmEngine
   initial: ViewState
   watchdogMs?: number
+  lastInput?: string | null
 }) {
   const engine = opts.engine ?? new FakeLlmEngine({ default: 'fallback-fr' })
   const gate = new EngineGate()
@@ -51,6 +52,7 @@ function setup(opts: {
         gate,
         corpusOverride: corpus,
         watchdogMs: opts.watchdogMs,
+        lastInput: opts.lastInput,
       }),
     { initialProps: { v: opts.initial, lang: opts.language ?? 'fr' } },
   )
@@ -930,5 +932,40 @@ describe('append-merge memoization (spec §3)', () => {
     await waitFor(() =>
       expect(result.current.lines[0].text).toBe('Ligne complète.'),
     )
+  })
+})
+
+// The Loud Room echoes the player's last command word ("look look ..."); because
+// the VM gets the English canonical, the word is English even in a target-lang
+// game. It's dynamic (no corpus pin) — the hook substitutes the player's own
+// last typed word (lastInput) so the echo reads in their language, and treats
+// the line as DETERMINISTICALLY handled (no miss logged, no LLM). UAT F6.
+describe('Loud Room input echo (UAT F6)', () => {
+  it("substitutes the player's last word, logs no miss, runs no generation", async () => {
+    const engine = new FakeLlmEngine({ default: 'fallback-fr' })
+    await engine.load(() => {}, new AbortController().signal)
+    const { result, rerender } = setup({
+      engine,
+      initial: view([]),
+      lastInput: 'regarde',
+    })
+    const l = line('output', 'look look ...')
+    rerender({ v: view([l]), lang: 'fr' })
+    // Synchronous, deterministic substitution — not the LLM fallback.
+    expect(result.current.lines[0].text).toBe('regarde regarde ...')
+    // The echo is NOT a corpus gap and is never sent to the engine.
+    expect(readMisses().some(m => m.en === 'look look ...')).toBe(false)
+    expect(engine.generateCalls).toBe(0)
+  })
+
+  it('only rewrites the echo shape — ordinary output is untouched', () => {
+    // Even with a lastInput present, a normal line still resolves through the
+    // corpus (the echo regex must not over-match real prose).
+    const { result, rerender } = setup({
+      initial: view([]),
+      lastInput: 'regarde',
+    })
+    rerender({ v: view([line('output', 'Taken.')]), lang: 'fr' })
+    expect(result.current.lines[0].text).toBe('Pris.')
   })
 })

@@ -47,6 +47,9 @@ export function Terminal({
   // One gate arbitrating the single engine between the NL input layer and the
   // output-translation fallback (input preempts; output-translation spec §6).
   const [gate] = useState(() => new EngineGate())
+  // The player's last raw typed command — fed to the output overlay so the Loud
+  // Room input-echo renders in the player's language (loudEcho / UAT F6).
+  const [lastInput, setLastInput] = useState<string | null>(null)
 
   // Keep a ref to the latest view so the NL hook's getContext() can read it at
   // translate-time. Written in an effect (not during render) per react-hooks/refs.
@@ -99,6 +102,7 @@ export function Terminal({
     signature,
     engine: llmEngine,
     gate,
+    lastInput,
   })
 
   // Live download progress for the modal — derived from NL state during render
@@ -144,6 +148,9 @@ export function Terminal({
         <CommandInput
           inputRef={inputRef}
           onSubmit={text => {
+            // Remember the raw command so the Loud Room echo can be re-voiced in
+            // the player's language (loudEcho / F6).
+            setLastInput(text)
             if (nl.state.phase === 'on') void nl.translate(text)
             else if (engineRef.current) engineRef.current.sendLine(text)
             // Practically unreachable (engine is set synchronously and input is

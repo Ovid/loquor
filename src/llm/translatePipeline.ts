@@ -325,6 +325,10 @@ export interface TranslateDeps {
   getContext: () => ViewContext
   echoLocal: (text: string) => void
   sendLine: (text: string) => void
+  /** Record a (canonical command sent → player's own source words) pair so the
+   * output overlay can re-voice the Loud Room input-echo in the player's language
+   * (loudEcho / UAT F6). Optional — omitted by tests/contexts with no overlay. */
+  recordEcho?: (canonical: string, source: string) => void
   awaitTurn: () => Promise<TurnResult>
   trackerRef: MutableRefObject<TextSceneTracker | null>
   translatingRef: MutableRefObject<boolean>
@@ -357,6 +361,7 @@ export function createTranslate(
     getContext,
     echoLocal,
     sendLine,
+    recordEcho,
     awaitTurn,
     trackerRef,
     translatingRef,
@@ -441,7 +446,13 @@ export function createTranslate(
     const turnBox: { pending: Promise<TurnResult | 'timeout'> | null } = {
       pending: null,
     }
-    const sendTracked = (text: string) => {
+    // `source` is the player's OWN words behind `text` (the canonical command):
+    // a translated clause passes its target-language clause; a verbatim send
+    // (raw/quoted/prompt reply) lets it default to `text`. Recorded BEFORE
+    // sendLine so the canonical→player echo map is current when the VM's
+    // synchronous turn produces the Loud Room echo line (loudEcho / F6).
+    const sendTracked = (text: string, source: string = text) => {
+      recordEcho?.(text, source)
       turnBox.pending = raceTurn()
       sendLine(text)
     }
@@ -598,7 +609,7 @@ export function createTranslate(
         lastCommandRef.current = isMeta ? null : result.text
 
         if (total === 1) {
-          sendTracked(result.text)
+          sendTracked(result.text, clause)
           done++
           break // single command: Terminal's observe handles the turn
         }
@@ -606,7 +617,7 @@ export function createTranslate(
         // sendTracked registers the turn listener BEFORE sendLine (see its
         // comment above), so the synchronous VM turn cannot be missed; the
         // clause then awaits that same boundary.
-        sendTracked(result.text)
+        sendTracked(result.text, clause)
         done++
 
         const turn = await turnBox.pending!

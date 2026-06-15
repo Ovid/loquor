@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { isLoudEchoShape, loudEchoWord, LOUD_ROOM } from './loudEcho'
+import { isLoudEchoShape, loudEchoToken, loudEchoWord, LOUD_ROOM } from './loudEcho'
 
-// The Loud Room (Zork I) echoes the LAST word of the player's command twice +
-// " ..." (gverbs.zil V-ECHO). In Loquor the VM gets the English canonical
-// command, so it echoes an English word ("look look ...") even when the player
-// typed the target language. The word is dynamic, so it can't be corpus-pinned;
-// the overlay substitutes the player's OWN last typed word (gated on the Loud
-// Room location, frozen per line) so the echo reads in their language. UAT F6.
+// The Loud Room (Zork I) echoes the LAST word of the line it READ, twice + " ..."
+// (gverbs.zil V-ECHO). In Loquor the VM gets the English canonical, so it echoes
+// an English word ("look look ...") even in a target-language game. The word is
+// dynamic (no corpus pin) — the overlay re-voices it by mapping the canonical
+// word the VM echoes back to the player's own word for the clause that produced
+// it (gated on the Loud Room location, frozen per line). UAT F6.
 describe('loudEcho — Loud Room input echo (UAT F6)', () => {
   describe('isLoudEchoShape', () => {
     it('recognizes the doubled-word + ellipsis shape', () => {
@@ -21,44 +21,48 @@ describe('loudEcho — Loud Room input echo (UAT F6)', () => {
     })
   })
 
+  describe('loudEchoToken', () => {
+    it('returns the last word, lower-cased', () => {
+      expect(loudEchoToken('take bar')).toBe('bar')
+      expect(loudEchoToken('MIRA')).toBe('mira')
+    })
+
+    it('strips quotes, inverted (¡/¿) and trailing punctuation', () => {
+      expect(loudEchoToken('"take bar"')).toBe('bar')
+      expect(loudEchoToken('¡mira!')).toBe('mira')
+      expect(loudEchoToken('¿mira?')).toBe('mira')
+      expect(loudEchoToken('mira.')).toBe('mira')
+    })
+  })
+
   describe('loudEchoWord', () => {
-    it("returns the player's last word for a single-word command", () => {
-      expect(loudEchoWord('mira')).toBe('mira')
+    const revoice = new Map([
+      ['look', 'mira'], // canonical "look" ← player "mira"
+      ['bar', 'barra'], // canonical "take bar" ← player "coge la barra"
+    ])
+
+    it('re-voices an echo line via the canonical→player map', () => {
+      expect(loudEchoWord('look look ...', revoice)).toBe('mira')
+      expect(loudEchoWord('bar bar ...', revoice)).toBe('barra')
     })
 
-    it('returns the LAST word of a single-clause command (the platinum bar)', () => {
-      // "coge la barra" → canonical "take bar" → the VM echoes "bar bar ...";
-      // both languages end on the object, so the player's last word aligns.
-      expect(loudEchoWord('coge la barra')).toBe('barra')
+    it('re-voices EACH clause of a compound by its own word (I1)', () => {
+      // The compound "coge la barra y mira" is sent as two canonical clauses;
+      // each echo line maps to its own player word, not the whole-line last word.
+      expect(loudEchoWord('bar bar ...', revoice)).toBe('barra')
+      expect(loudEchoWord('look look ...', revoice)).toBe('mira')
     })
 
-    it('lowercases to match the VM echo casing', () => {
-      expect(loudEchoWord('MIRA')).toBe('mira')
+    it('falls through (null) when the echoed word is not in the map', () => {
+      // e.g. the player escaped to English, or no command produced this word.
+      expect(loudEchoWord('echo echo ...', revoice)).toBeNull()
     })
 
-    it('strips the quoted-English escape and trailing punctuation', () => {
-      expect(loudEchoWord('"take bar"')).toBe('bar')
-      expect(loudEchoWord('mira.')).toBe('mira')
-    })
-
-    it('strips leading inverted punctuation (¡/¿) — the target language (S1)', () => {
-      expect(loudEchoWord('¡mira!')).toBe('mira')
-      expect(loudEchoWord('¿mira?')).toBe('mira')
-    })
-
-    it('returns null for a COMPOUND command — the VM echoes one clause (I1)', () => {
-      // The whole-line last word ("mira") is not what the VM echoes for the
-      // first clause, so fall through to the English echo instead of mis-voicing.
-      expect(loudEchoWord('coge la barra y mira')).toBeNull()
-      expect(loudEchoWord('mira. coge la barra')).toBeNull()
-      expect(loudEchoWord('take bar and look')).toBeNull()
-    })
-
-    it('returns null with no recorded input (backlog / fresh load)', () => {
-      expect(loudEchoWord(null)).toBeNull()
-      expect(loudEchoWord(undefined)).toBeNull()
-      expect(loudEchoWord('')).toBeNull()
-      expect(loudEchoWord('   ')).toBeNull()
+    it('falls through (null) for a non-echo line or an empty map', () => {
+      expect(loudEchoWord('You open the door.', revoice)).toBeNull()
+      expect(loudEchoWord('look look ...', new Map())).toBeNull()
+      expect(loudEchoWord('look look ...', null)).toBeNull()
+      expect(loudEchoWord('look look ...', undefined)).toBeNull()
     })
   })
 

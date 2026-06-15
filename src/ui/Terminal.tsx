@@ -15,6 +15,7 @@ import { vocabForSignature } from '../llm/grammar/index'
 import { viewToContext } from '../llm/prompt'
 import { useNaturalLanguage } from '../llm/useNaturalLanguage'
 import { useOutputTranslation } from '../translate/useOutputTranslation'
+import { loudEchoToken } from '../translate/loudEcho'
 import { WebLlmEngine } from '../llm/engine.webllm'
 import { selectedModelId } from '../llm/modelSelection'
 import { EngineGate } from '../shared/engineGate'
@@ -47,9 +48,21 @@ export function Terminal({
   // One gate arbitrating the single engine between the NL input layer and the
   // output-translation fallback (input preempts; output-translation spec §6).
   const [gate] = useState(() => new EngineGate())
-  // The player's last raw typed command — fed to the output overlay so the Loud
-  // Room input-echo renders in the player's language (loudEcho / UAT F6).
-  const [lastInput, setLastInput] = useState<string | null>(null)
+  // Canonical-word → player-word map, fed to the output overlay so the Loud Room
+  // input-echo renders in the player's language (loudEcho / UAT F6). Each entry
+  // is recorded as a clause is sent (recordEcho), so a compound's clauses each
+  // re-voice from their own word.
+  const [echoMap, setEchoMap] = useState<ReadonlyMap<string, string>>(
+    () => new Map(),
+  )
+  const recordEcho = useCallback((canonical: string, source: string) => {
+    const k = loudEchoToken(canonical)
+    const v = loudEchoToken(source)
+    if (k === '' || v === '') return
+    setEchoMap(prev =>
+      prev.get(k) === v ? prev : new Map(prev).set(k, v),
+    )
+  }, [])
 
   // Keep a ref to the latest view so the NL hook's getContext() can read it at
   // translate-time. Written in an effect (not during render) per react-hooks/refs.
@@ -82,6 +95,7 @@ export function Terminal({
     getContext,
     echoLocal: t => engineRef.current?.echoLocal(t),
     sendLine: t => engineRef.current?.sendLine(t),
+    recordEcho,
     awaitTurn: () =>
       engineRef.current?.awaitTurn() ??
       Promise.resolve({ view: viewRef.current, reason: 'line' as const }),
@@ -102,7 +116,7 @@ export function Terminal({
     signature,
     engine: llmEngine,
     gate,
-    lastInput,
+    echoMap,
   })
 
   // Live download progress for the modal — derived from NL state during render
@@ -148,9 +162,8 @@ export function Terminal({
         <CommandInput
           inputRef={inputRef}
           onSubmit={text => {
-            // Remember the raw command so the Loud Room echo can be re-voiced in
-            // the player's language (loudEcho / F6).
-            setLastInput(text)
+            // The Loud Room echo is re-voiced per clause via recordEcho as the
+            // pipeline sends each canonical command (loudEcho / F6).
             if (nl.state.phase === 'on') void nl.translate(text)
             else if (engineRef.current) engineRef.current.sendLine(text)
             // Practically unreachable (engine is set synchronously and input is

@@ -63,25 +63,28 @@ const XLATE_WATCHDOG_MS = 15_000
 // without violating react-hooks/refs, and is safe under concurrent rendering
 // because the decision is idempotent and identity-keyed. Values:
 //   • string — the re-voiced word (in the Loud Room at emit time);
-//   • false  — in the Loud Room but NOT re-voiced (compound / no input) → leave
-//              the English echo, but still suppress miss-logging/generation;
+//   • false  — in the Loud Room but NOT re-voiced (no source word for this echo,
+//              e.g. an English escape) → leave the English echo, but still
+//              suppress miss-logging/generation;
 //   • null   — a coincidental doubled-word line OUTSIDE the Loud Room → fall
 //              through to the normal translation path (don't hijack — review I3).
 const echoFreeze = new WeakMap<BufferLine, string | false | null>()
 
-/** The frozen Loud Room echo decision for an echo-SHAPED `line` (callers gate on
- * isLoudEchoShape first), computed once on first sight. `location` and
- * `lastInput` are read only at that first sight (the freeze). */
+/** The frozen Loud Room echo decision for an echo-SHAPED line (callers gate on
+ * isLoudEchoShape first), computed once on first sight. `en` is the echo line
+ * text; `location` and `revoice` (the canonical→player word map) are read only at
+ * that first sight (the freeze). */
 function echoDecision(
-  line: BufferLine,
+  key: BufferLine,
+  en: string,
   location: string | undefined,
-  lastInput: string | null,
+  revoice: ReadonlyMap<string, string> | null,
 ): string | false | null {
-  const cached = echoFreeze.get(line)
+  const cached = echoFreeze.get(key)
   if (cached !== undefined) return cached
   const decision =
-    location === LOUD_ROOM ? (loudEchoWord(lastInput) ?? false) : null
-  echoFreeze.set(line, decision)
+    location === LOUD_ROOM ? (loudEchoWord(en, revoice) ?? false) : null
+  echoFreeze.set(key, decision)
   return decision
 }
 
@@ -96,14 +99,16 @@ export function useOutputTranslation(args: {
   /** Test-only watchdog override (mirrors useNaturalLanguage's injectable
    * watchdogMs); production omits it and gets XLATE_WATCHDOG_MS. */
   watchdogMs?: number
-  /** The player's last raw typed command (target language). Used only to render
-   * the Loud Room input-echo faithfully (loudEcho / UAT F6); null when none is
-   * recorded yet (fresh load, restore) — the echo then falls to the usual path. */
-  lastInput?: string | null
+  /** Canonical-word → player-word map for re-voicing the Loud Room input-echo
+   * faithfully (loudEcho / UAT F6): each entry is built as a clause is sent
+   * (canonical the VM echoes ← the player's own last word for that clause), so a
+   * compound's clauses each re-voice correctly. Null/empty when nothing is
+   * recorded yet — the echo then falls to the English path. */
+  echoMap?: ReadonlyMap<string, string> | null
 }): OutputTranslation {
   const { view, language, signature, engine, gate, corpusOverride } = args
   const watchdogMs = args.watchdogMs ?? XLATE_WATCHDOG_MS
-  const lastInput = args.lastInput ?? null
+  const echoMap = args.echoMap ?? null
 
   const lang: LexLang | null =
     language === 'fr' || language === 'de' || language === 'es'
@@ -298,8 +303,8 @@ export function useOutputTranslation(args: {
           logMiss({ en, game: signature, language: lang, kind: 'status' })
       }
     }
-    // lastInput is intentionally NOT a dep (review S2): this effect no longer
-    // reads it — the Loud Room skip keys off echoRef (frozen in the memo), and
+    // echoMap is intentionally NOT a dep (review S2): this effect no longer reads
+    // it — the Loud Room skip keys off echoFreeze (frozen in the memo), and
     // re-scanning every view line on each keystroke would be pure wasted work.
   }, [view, corpus, lang, signature, engine, gate, watchdogMs])
 
@@ -318,12 +323,13 @@ export function useOutputTranslation(args: {
       // echo reads in their language ("mira mira ..."). Deterministic, so it
       // takes precedence over any in-flight LLM overlay for this line. The
       // decision is FROZEN per line at emit time (echoDecision / echoFreeze):
-      //   • string → re-voice (in the Loud Room);
-      //   • false  → in the Loud Room but compound/no input → English echo;
+      //   • string → re-voice (in the Loud Room, mapped from this clause's word);
+      //   • false  → in the Loud Room but no source word (English escape) → leave
+      //              the English echo;
       //   • null   → a doubled-word line OUTSIDE the Loud Room → fall through to
       //              the normal translation path below (not hijacked — review I3).
       if (isLoudEchoShape(en)) {
-        const d = echoDecision(l, view.status?.location, lastInput)
+        const d = echoDecision(l, en, view.status?.location, echoMap)
         if (typeof d === 'string')
           return { ...l, text: indent + `${d} ${d} ...` }
         if (d === false) return l
@@ -338,7 +344,7 @@ export function useOutputTranslation(args: {
       }
       return l // backlog miss, failure, or superseded entry → English
     })
-  }, [view.lines, view.status?.location, corpus, overlay, lang, lastInput])
+  }, [view.lines, view.status?.location, corpus, overlay, lang, echoMap])
 
   const status: StatusLine | null = useMemo(() => {
     if (!corpus || lang === null || view.status === null) return view.status

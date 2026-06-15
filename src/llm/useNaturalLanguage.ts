@@ -32,6 +32,9 @@ export interface UseNaturalLanguageArgs {
   getContext: () => ViewContext
   echoLocal: (text: string) => void
   sendLine: (text: string) => void
+  /** Record a (canonical command → player's own source words) pair for the output
+   * overlay's Loud Room input-echo re-voicing (loudEcho / UAT F6). Optional. */
+  recordEcho?: (canonical: string, source: string) => void
   awaitTurn: () => Promise<TurnResult>
   watchdogMs: number
   /** Story signature of the running game — selects the per-game noun lexicon
@@ -88,6 +91,7 @@ export function useNaturalLanguage(
     getContext,
     echoLocal,
     sendLine,
+    recordEcho,
     awaitTurn,
     watchdogMs,
     signature,
@@ -217,6 +221,7 @@ export function useNaturalLanguage(
         getContext,
         echoLocal,
         sendLine,
+        recordEcho,
         awaitTurn,
         trackerRef,
         translatingRef,
@@ -239,6 +244,7 @@ export function useNaturalLanguage(
       getContext,
       echoLocal,
       sendLine,
+      recordEcho,
       awaitTurn,
       syncQueue,
     ],

@@ -245,6 +245,29 @@ describe('useNaturalLanguage', () => {
     expect(sendLine).toHaveBeenCalledWith('what should I do?')
   })
 
+  it('a localized meta command (es "inventario") echoes the source line too', async () => {
+    // The alias stage maps "inventario" → canonical "inventory". In a
+    // non-English picker the typed word DIFFERS from the canonical the engine
+    // echoes, so the nl-source "you …" line must still appear (UAT: it was
+    // silently skipped because 'alias' was excluded from TRANSLATED_STAGES).
+    const { hook, echoLocal, sendLine } = setup({
+      engine: new FakeLlmEngine({ cached: true }),
+    })
+    await waitFor(() =>
+      expect(hook.result.current.state).toEqual({
+        phase: 'off',
+        installed: true,
+      }),
+    )
+    act(() => hook.result.current.setLanguage('es'))
+    expect(hook.result.current.state).toEqual({ phase: 'on', language: 'es' })
+    await act(async () => {
+      await hook.result.current.translate('inventario')
+    })
+    expect(sendLine).toHaveBeenCalledWith('inventory')
+    expect(echoLocal).toHaveBeenCalledWith('inventario')
+  })
+
   it('locks input (pending=true) while a translation is in flight', async () => {
     const engine = new FakeLlmEngine({
       generateDelayMs: 50,

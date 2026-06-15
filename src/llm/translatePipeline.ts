@@ -71,11 +71,17 @@ export class WatchdogTimeout extends Error {
 /** Which pipeline stage produced a clause's command (spec §4 stages 3–7). */
 export type Stage = 'meta' | 'alias' | 'vocab' | 'direction' | 'lexicon' | 'llm'
 
-/** Stages whose output DIFFERS from the player's typed words: these echo the
- * original input once as a UI-only nl-source line. Passthrough stages ('meta',
- * 'alias', 'vocab') send the player's own words (or a fixed canonical), so the
- * transcript needs no echo — today's contract, kept per stage. */
+/** Stages whose echoed command may DIFFER from the player's typed words: these
+ * echo the original input once as a UI-only nl-source line. 'direction',
+ * 'lexicon' and 'llm' translate. 'alias' is the localized meta-command map
+ * (es "inventario" → canonical "inventory"); it only ever fires in a non-English
+ * picker (metaAlias returns null without a core lexicon), where the typed word
+ * differs from the canonical the engine '>'-echoes, so its source must echo too
+ * (UAT: meta commands were silently skipping the "you …" line). The remaining
+ * passthrough stages ('meta', 'vocab') send the player's OWN words verbatim — the
+ * typed token IS the canonical — so they need no echo. */
 const TRANSLATED_STAGES: ReadonlySet<Stage> = new Set([
+  'alias',
   'direction',
   'lexicon',
   'llm',

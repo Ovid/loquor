@@ -11,15 +11,11 @@ import { extractStrings, displayLines } from '../../../scripts/lib/zstrings.mjs'
 import { compileCorpus, matchLine } from '../match'
 import { normalize } from '../normalize'
 import { classify } from '../../glkote-react/reduce'
-import { ZORK1_FR } from './zork1.fr'
-import { ZORK1_ES } from './zork1.es'
+import { corporaFor } from './index'
+import { ZORK1_SIG } from '../../llm/grammar/index'
 import { ZORK1_EXTRACTION_IGNORE } from './zork1.extraction-ignore'
-import type { TranslationCorpus } from '../types'
 
-const LANGS: { code: string; corpus: TranslationCorpus }[] = [
-  { code: 'fr', corpus: ZORK1_FR },
-  { code: 'es', corpus: ZORK1_ES },
-]
+const LANGS = corporaFor(ZORK1_SIG)
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 const buf = new Uint8Array(

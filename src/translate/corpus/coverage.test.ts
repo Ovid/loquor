@@ -7,16 +7,12 @@ import updates from '../../test/zork1.walkthrough.en.json'
 import { reduce } from '../../glkote-react/reduce'
 import { emptyView } from '../../glkote-react/types'
 import type { GlkOteUpdate, ViewState } from '../../glkote-react/types'
-import type { TranslationCorpus } from '../types'
 import { compileCorpus, matchLine } from '../match'
 import { normalize, splitIndent, untranslatable } from '../normalize'
-import { ZORK1_FR } from './zork1.fr'
-import { ZORK1_ES } from './zork1.es'
+import { corporaFor } from './index'
+import { ZORK1_SIG } from '../../llm/grammar/index'
 
-const LANGS: { code: string; corpus: TranslationCorpus }[] = [
-  { code: 'fr', corpus: ZORK1_FR },
-  { code: 'es', corpus: ZORK1_ES },
-]
+const LANGS = corporaFor(ZORK1_SIG)
 
 /** Reduce the committed walkthrough fixture to the lines a player would see. */
 export function walkthroughLines(): ViewState['lines'] {

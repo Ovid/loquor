@@ -10,6 +10,9 @@ describe('corpusFor (spec §3 passthrough contract)', () => {
     expect(c!.objects).toBeDefined()
     expect(c!.templates).toBeDefined()
   })
+  it('returns the Zork I Spanish corpus', () => {
+    expect(corpusFor(ZORK1_SIG, 'es')).not.toBeNull()
+  })
   it('returns null for en / off (hook is a no-op passthrough)', () => {
     expect(corpusFor(ZORK1_SIG, 'en')).toBeNull()
     expect(corpusFor(ZORK1_SIG, 'off')).toBeNull()

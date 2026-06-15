@@ -20,3 +20,15 @@ export function corpusFor(
   if (language === 'en' || language === 'off') return null
   return CORPORA[signature]?.[language] ?? null
 }
+
+/** Every (code, corpus) covered for a signature — the single source of truth
+ * the coverage + inventory gates iterate, so adding a language (spec §6) is
+ * truly one CORPORA entry, not a duplicated list per gate (review S2). */
+export function corporaFor(
+  signature: string,
+): { code: NlLanguage; corpus: TranslationCorpus }[] {
+  return Object.entries(CORPORA[signature] ?? {}).map(([code, corpus]) => ({
+    code: code as NlLanguage,
+    corpus: corpus!,
+  }))
+}

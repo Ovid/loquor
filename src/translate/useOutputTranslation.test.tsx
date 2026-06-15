@@ -988,7 +988,10 @@ describe('Loud Room input echo (UAT F6)', () => {
       ]),
     })
     rerender({
-      v: view([line('output', 'bar bar ...'), line('output', 'look look ...')], LOUD),
+      v: view(
+        [line('output', 'bar bar ...'), line('output', 'look look ...')],
+        LOUD,
+      ),
       lang: 'fr',
     })
     expect(result.current.lines[0].text).toBe('barra barra ...')
@@ -1038,11 +1041,19 @@ describe('Loud Room input echo (UAT F6)', () => {
       initial: view([]),
       echoMap: new Map([['look', 'regarde']]),
     })
-    rerender({ v: view([l], LOUD), lang: 'fr', em: new Map([['look', 'regarde']]) })
+    rerender({
+      v: view([l], LOUD),
+      lang: 'fr',
+      em: new Map([['look', 'regarde']]),
+    })
     expect(result.current.lines[0].text).toBe('regarde regarde ...')
     // A later turn remaps "look" to a different word; the historical echo line
     // keeps its own frozen word instead of restamping.
-    rerender({ v: view([l], LOUD), lang: 'fr', em: new Map([['look', 'prends']]) })
+    rerender({
+      v: view([l], LOUD),
+      lang: 'fr',
+      em: new Map([['look', 'prends']]),
+    })
     expect(result.current.lines[0].text).toBe('regarde regarde ...')
   })
 })

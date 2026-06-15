@@ -120,7 +120,9 @@ describe('matchLine: cap is code-point safe (review S3)', () => {
   const astral = compileCorpus({
     strings: {},
     objects: { widget: { def: '𐐨deseret' } },
-    templates: [{ en: 'The {obj} contains:', out: '{obj.def} y más', cap: true }],
+    templates: [
+      { en: 'The {obj} contains:', out: '{obj.def} y más', cap: true },
+    ],
   })
   it('capitalizes an astral-plane initial letter without splitting the surrogate', () => {
     expect(matchLine(astral, 'The widget contains:')).toBe('𐐀deseret y más')

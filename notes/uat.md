@@ -169,14 +169,14 @@ quoted-passthrough escape hatch to progress, e.g. `"take gold"`):
   game verbSynonym, recognized even in es mode). Type `Ulysses`.
 - **CORRECTION (2026-06-15): the pot of gold IS gettable and the game CAN be won.**
   Earlier sessions wrongly concluded "350/the win is unreachable." It is reachable.
-  The pot is only un-takeable *at End of Rainbow* (`take gold`/`take pot`/`take
-  treasure` fail there, `look` doesn't list it) — a **player-scope quirk of that
+  The pot is only un-takeable _at End of Rainbow_ (`take gold`/`take pot`/`take
+treasure` fail there, `look` doesn't list it) — a **player-scope quirk of that
   room**, NOT a failure to clear the object's INVISIBLE bit, and NOT a Loquor bug.
   The **thief steals the pot**; when he dies in the Treasure Room his hoard reappears
   as normal floor objects incl. "una olla de oro" → `coger olla de oro` "Cogido."
   (+10) → `poner olla de oro en vitrina` "Hecho." (+10). Verified empirically. Root
   cause (background-agent z3/ifvms analysis): `POT-OF-GOLD`=obj 154 `IN
-  END-OF-RAINBOW`(125), `INVISIBLE` cleared by `SCEPTRE-FUNCTION` (`1actions.zil:2597`);
+END-OF-RAINBOW`(125), `INVISIBLE` cleared by `SCEPTRE-FUNCTION` (`1actions.zil:2597`);
   ifvms `clear_attr`/insert ruled out as correct. A runtime bit-read to pin the
   scope quirk is blocked (ZVM not on `window`); it's an escalation item, not a
   win-blocker. Don't burn turns taking the pot at the rainbow — get it from the
@@ -201,7 +201,7 @@ quoted-passthrough) to exercise the NL layer. Output stayed correctly Spanish
 throughout; these are all **input** mis-mappings. New findings:
 
 - **Conjoined objects + a trailing prep phrase FAILS:** `mete la antorcha y el
-  destornillador en la cesta` → only `put torch` (drops the 2nd object AND the
+destornillador en la cesta` → only `put torch` (drops the 2nd object AND the
   `en la cesta` destination). Single object + prep is fine (`mete X en la cesta` →
   `put X in cage`). Conjoined **without** a prep phrase works great:
   `deja la calavera, las velas, las cerillas, el ajo y la lámpara` distributed
@@ -209,7 +209,7 @@ throughout; these are all **input** mis-mappings. New findings:
   Movement chains (`norte, oeste, norte, oeste, norte y este`) also fine.
 - **Imperative `apaga` is UNKNOWN** ("No conozco la palabra «apaga»"); the
   **infinitive** works: `apagar las velas`→`extinguish candles`, `apagar la
-  lámpara`→`extinguish light`. (Refines the older "apagar velas works" note —
+lámpara`→`extinguish light`. (Refines the older "apagar velas works" note —
   it's the infinitive that's needed; the imperative is missing.)
 - **`deja todo` → `drop advertisement`** ("todo"/all mis-maps); drop explicitly.
 - **`abre la tapa` → `open cage`; `cierra la tapa` → `turn off candles`** (lid
@@ -224,9 +224,10 @@ throughout; these are all **input** mis-mappings. New findings:
 - `subir` (bare "up") stayed deterministic (`up`) this run but is still the flaky
   one — verify after each. `vitrina`→case, `pulsera`→bracelet, `figurilla`→jade,
   `baúl`→trunk, `bomba`→pump, `frota el espejo`→"rub reflection", `gira el
-  interruptor con el destornillador`→"turn switch with screwdriver" all GOOD.
+interruptor con el destornillador`→"turn switch with screwdriver" all GOOD.
 
 ### Browser/UAT mechanics (UAT-es-3)
+
 - **Input queue has a ~6-command cap** — submitting ~10 rapid commands prints
   "Queue full — dropped: «…»" and silently loses the overflow. Put a 1s wait
   between each type+Return; keep ≤~7 commands per batch.
@@ -235,8 +236,9 @@ throughout; these are all **input** mis-mappings. New findings:
   silently eats a whole batch).
 
 ### Output gap (UAT-es-3) — dynamic disambiguation template
+
 - The only es `loquorMisses()` entry was `"What do you want to put the torch
-  in?"`, rendered garbled as «¿Qué quieres poner la cera?» (object slot → "cera",
+in?"`, rendered garbled as «¿Qué quieres poner la cera?» (object slot → "cera",
   wrong structure). Off-golden-path (only fires on an incomplete `put X`), exactly
   the dynamic-template blind spot above. Likely shared with French.
 
@@ -260,6 +262,7 @@ the closing door, the bridge, the floating sign's complete congratulation
 II: El Mago de Frobozz» / «ZORK III: El Maestro del Calabozo»), score line («Tu
 puntuación es 350 (de un total de 350 puntos), en 373 jugadas»), and rank («…el
 rango de Maestro Aventurero»).
+
 - **Minor (NOT a miss — intentional):** the final line «(Escribe RESTART, RESTORE o
   QUIT):» keeps the command tokens in English while the question above it is Spanish
   («¿Quieres reiniciar… restaurar… o terminar…?»). No miss logged → it's in the
@@ -272,16 +275,19 @@ rango de Maestro Aventurero»).
   into darkness — you can case the torch even after dropping the lamp at Atlantis.
 
 ### Spanish INPUT-NL findings (UAT-es-4) — driving in es, output stayed clean
+
 NEW bugs:
+
 - **`sal del bote` → "move raft"** (should be exit/leave boat) → «Mover el bote no
   revela nada». Boat-exit broken in es. Workaround: `"get out of boat"` passthrough ✓.
 - **`mata al ladrón con el cuchillo` → "attack thief with stiletto"** → «No tienes el
-  estilete». The instrument-slot noun "cuchillo" mis-maps to the thief's *estilete*,
+  estilete». The instrument-slot noun "cuchillo" mis-maps to the thief's _estilete_,
   even though `coge el cuchillo` → "take nasty knives" is CORRECT and `deja el
-  cuchillo` → "drop knife" is CORRECT. So the bug is specific to the `con <arma>`
+cuchillo` → "drop knife" is CORRECT. So the bug is specific to the `con <arma>`
   instrument slot. Workaround: `"kill thief with knife"` passthrough ✓.
 
 CONFIRMED-GOOD this run (several BETTER than prior notes feared):
+
 - **`infla el plástico con la bomba` → "inflate valve with pump"** → the boat
   inflates! «El bote se hincha…». "plástico" dodges the `bote`→bottle false friend —
   no passthrough needed to inflate (only to enter/launch).
@@ -296,9 +302,9 @@ CONFIRMED-GOOD this run (several BETTER than prior notes feared):
   jeweled egg" ✓ (correct, unlike `coge el jade`→egg).
 - `cruza el arcoíris`→cross rainbow, `sube al árbol`→climb tree, `subir`→up (reliable
   all run), `cava la arena con la pala`→dig sand with shovel, `da el huevo al
-  ladrón`→give egg to thief, `abre la trampilla`→open trapdoor, `coge el canario`→take
+ladrón`→give egg to thief, `abre la trampilla`→open trapdoor, `coge el canario`→take
   canary — all ✓. Conjoined takes/drops (incl. 3-object `deja el baúl, el tridente y
-  la boya`) distribute the verb reliably; `mete X en la vitrina` (one obj + prep) ✓.
+la boya`) distribute the verb reliably; `mete X en la vitrina` (one obj + prep) ✓.
 - **Thief combat** (give egg → he admires it → 3× `"kill thief with knife"` → fatal
   blow → hoard reappears) renders in beautiful clean Spanish. The **platinum bar was
   in the thief's hoard** (he'd stolen it), so no Loud Room trip was needed.

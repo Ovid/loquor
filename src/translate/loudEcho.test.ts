@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { isLoudEchoShape, loudEchoToken, loudEchoWord, LOUD_ROOM } from './loudEcho'
+import {
+  isLoudEchoShape,
+  loudEchoToken,
+  loudEchoWord,
+  LOUD_ROOM,
+} from './loudEcho'
 
 // The Loud Room (Zork I) echoes the LAST word of the line it READ, twice + " ..."
 // (gverbs.zil V-ECHO). In Loquor the VM gets the English canonical, so it echoes

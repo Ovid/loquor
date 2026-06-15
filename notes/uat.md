@@ -83,3 +83,28 @@ session loses time to something avoidable.
 - Quoted commands (`"open mailbox"`) are the reliable escape hatch and each
   use doubles as a passthrough test; prefer them over toggling the picker to
   English so the session stays in-language end to end.
+
+## Output-translation testing (corpus gates have a known blind spot)
+
+- **`window.loquorMisses()` is the authoritative output-translation signal.**
+  It persists across sessions/languages in `localStorage['loquor.xlate.misses']`
+  — at the START of an output-translation UAT, `localStorage.removeItem(...)` it
+  (or filter by `m.language === 'es'` and recent `m.t`) so old `fr` misses don't
+  drown the new run. A successful LLM _fallback_ still leaves a `kind:"line"`
+  miss entry, so the log is the gap list to feed the corpus — empty log = every
+  line hit the deterministic corpus.
+- **Hunt for the inventory gate's blind spot: mid-sentence line breaks.** The
+  string-inventory gate only vets lines whose SHAPE is a full line
+  (`/^[A-Z"'(]/ … /[.!?:")]$/`), a room title, or a `**** banner ****`. A verse
+  or sentence split across two display lines where the FIRST line ends on a word
+  (e.g. the black-book prayer `"… shalt thou wander and"`, ending in "and") is
+  skipped as a "composition fragment" — but at runtime it IS its own display
+  line and hits the matcher, so a missing corpus entry leaks/LLM-falls-back
+  silently. The walkthrough-coverage gate misses it too (off the golden path).
+  **So deliberately read every multi-line text block in play** (leaflet, black
+  book/prayer, owner's manual, engravings, matchbook, guidebook, tour text) and
+  check `loquorMisses()` after each — that is where un-gated corpus gaps hide.
+- These omissions are often **shared with the French corpus** (Spanish was
+  authored by mirroring French § keys), so a missing es line usually means the
+  same fr line is missing too — note it as a French follow-up even on an es-only
+  branch.

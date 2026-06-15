@@ -672,6 +672,11 @@ export const ZORK1_ES_STRINGS: Readonly<Record<string, string>> = {
   'Warranty:': 'Garantía:',
   'Surely, thy eye shall be put out with a sharp stick!':
     '¡En verdad, tu ojo será reventado con un palo afilado!',
+  // This verse ends on "and": the sentence runs onto the next display line
+  // ("Unto the land of the dead…"). It must be pinned as its own line because
+  // the runtime matcher sees each display line separately (UAT finding).
+  'Even unto the ends of the earth shalt thou wander and':
+    'Hasta los confines de la tierra habrás de vagar, y',
   'Unto the land of the dead shalt thou be sent at last.':
     'Al reino de los muertos serás enviado al fin.',
   'Surely thou shalt repent of thy cunning.':

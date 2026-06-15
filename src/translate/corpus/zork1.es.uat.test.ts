@@ -83,6 +83,39 @@ describe('Zork I × Spanish — a+el→al / de+el→del contraction (UAT)', () =
   })
 })
 
+// The "catches fire … you were holding it" death binds {obj} to any BURNBIT
+// object the player holds — in Zork I that set is mostly MASCULINE (el libro
+// negro, el saco, el folleto, el cuadro, el nido, the three «montón» piles) plus
+// two feminine (la etiqueta, la guía turística). The template used to hardcode
+// the feminine clitic "la sostenías", mis-agreeing for every masculine binding.
+// (No candle reaches here: candles are FLAMEBIT, not BURNBIT.) The fix makes the
+// second clause's subject the object itself, so it agrees by gender automatically.
+describe('Zork I × Spanish — "catches fire / holding it" gender agreement (UAT)', () => {
+  const c = compileCorpus(ZORK1_ES)
+
+  it('agrees for a masculine held burnable (black book)', () => {
+    expect(
+      matchLine(
+        c,
+        'The black book catches fire. Unfortunately, you were holding it at the time.',
+      ),
+    ).toBe(
+      'El libro negro se prende fuego. Por desgracia, estaba en tus manos en ese momento.',
+    )
+  })
+
+  it('never emits the feminine clitic "la sostenías" for masculine bindings', () => {
+    for (const obj of ['black book', 'brown sack', 'leaflet', 'painting']) {
+      const out = matchLine(
+        c,
+        `The ${obj} catches fire. Unfortunately, you were holding it at the time.`,
+      )
+      expect(out).not.toBeNull()
+      expect(out).not.toMatch(/\bla sostenías\b/)
+    }
+  })
+})
+
 // A cap:true template whose output starts with inverted punctuation (¡/¿) must
 // capitalize the first LETTER, not the '¡'. Found in UAT: the knockout line
 // rendered "¡el ladrón queda fuera de combate!" (lowercase el).

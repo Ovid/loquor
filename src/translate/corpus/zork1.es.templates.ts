@@ -338,7 +338,10 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
   },
   {
     en: 'The {obj} catches fire. Unfortunately, you were holding it at the time.',
-    out: '{obj.def} se prende fuego. Por desgracia, la sostenías en ese momento.',
+    // 2nd-clause subject is the object itself ("estaba…"), so it agrees by
+    // gender automatically — the BURNBIT held set is mostly masculine (el libro,
+    // el saco, el folleto…). A "la/lo sostenías" clitic would mis-agree. (UAT)
+    out: '{obj.def} se prende fuego. Por desgracia, estaba en tus manos en ese momento.',
     cap: true,
   },
   {

@@ -1631,6 +1631,10 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
   "The all-purpose gunk isn't a lubricant.":
     "La pâte à tout faire n'est pas un lubrifiant.",
   'The tube is apparently empty.': 'Le tube est apparemment vide.',
+  // Tube label, printed across two display lines on READ/EXAMINE (UAT F7).
+  '---> Frobozz Magic Gunk Company <---':
+    '---> Compagnie Frobozz de Pâte Magique <---',
+  'All-Purpose Gunk': 'Pâte à tout faire',
   'Are you the little Dutch boy, then? Sorry, this is a big dam.':
     "Vous vous prenez pour le petit Hollandais ? Désolé, c'est un grand barrage.",
   'You are in a long room. To the north is a large lake, too deep to cross. You notice, however, that the water level appears to be dropping at a rapid rate. Before long, it might be possible to cross to the other side from here.':

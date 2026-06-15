@@ -217,3 +217,32 @@ describe('Zork I × Spanish — dam guidebook, Deep Canyon & boat leaks (UAT)', 
     expect(out).toBe('El bote mágico no lleva hacia arriba.')
   })
 })
+
+// The tube of gunk's printed label (READ/EXAMINE the tube near the dam) is one
+// .z3 TEXT split by a `|` into two display lines:
+//   "---> Frobozz Magic Gunk Company <---"  (starts on '-', not /^[A-Z"'(]/)
+//   "All-Purpose Gunk"                       (ends on a word, no terminal punct.)
+// Both line shapes are skipped by the string-inventory gate as "composition
+// fragments", and the maintenance/dam golden path never reads the tube — so the
+// label leaked English in UAT play (window.loquorMisses() at the Dam Lobby).
+// Proper noun «Frobozz» stays; "all-purpose gunk" is already «pasta multiusos»
+// elsewhere in the corpus, so the brand reuses «pasta». Shared with French.
+describe('Zork I × Spanish — gunk tube label (UAT)', () => {
+  const c = compileCorpus(ZORK1_ES)
+
+  it('translates the "Frobozz Magic Gunk Company" label line', () => {
+    const en = '---> Frobozz Magic Gunk Company <---'
+    const out = matchLine(c, en)
+    expect(out).not.toBeNull()
+    expect(out).not.toBe(en)
+    expect(out).toBe('---> Compañía Frobozz de Pasta Mágica <---')
+  })
+
+  it('translates the "All-Purpose Gunk" label line', () => {
+    const en = 'All-Purpose Gunk'
+    const out = matchLine(c, en)
+    expect(out).not.toBeNull()
+    expect(out).not.toBe(en)
+    expect(out).toBe('Pasta multiusos')
+  })
+})

@@ -85,3 +85,27 @@ describe('Zork I × French — dam guidebook, Deep Canyon & boat leaks (UAT)', (
     expect(out).toBe('Le bateau magique ne mène pas vers le haut.')
   })
 })
+
+// The gunk tube's printed label (READ/EXAMINE the tube near the dam) is one .z3
+// TEXT split by a `|` into two display lines, both of which the string-inventory
+// gate skips as composition fragments (one starts on '-', one ends on a word).
+// Mirror of the Spanish F7 finding — shared corpus gap, here in French.
+describe('Zork I × French — gunk tube label (UAT)', () => {
+  const c = compileCorpus(ZORK1_FR)
+
+  it('translates the "Frobozz Magic Gunk Company" label line', () => {
+    const en = '---> Frobozz Magic Gunk Company <---'
+    const out = matchLine(c, en)
+    expect(out).not.toBeNull()
+    expect(out).not.toBe(en)
+    expect(out).toBe('---> Compagnie Frobozz de Pâte Magique <---')
+  })
+
+  it('translates the "All-Purpose Gunk" label line', () => {
+    const en = 'All-Purpose Gunk'
+    const out = matchLine(c, en)
+    expect(out).not.toBeNull()
+    expect(out).not.toBe(en)
+    expect(out).toBe('Pâte à tout faire')
+  })
+})

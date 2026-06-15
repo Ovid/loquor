@@ -1550,6 +1550,10 @@ export const ZORK1_ES_STRINGS: Readonly<Record<string, string>> = {
   "The all-purpose gunk isn't a lubricant.":
     'La pasta multiusos no es un lubricante.',
   'The tube is apparently empty.': 'El tubo está aparentemente vacío.',
+  // Tube label, printed across two display lines on READ/EXAMINE (UAT F7).
+  '---> Frobozz Magic Gunk Company <---':
+    '---> Compañía Frobozz de Pasta Mágica <---',
+  'All-Purpose Gunk': 'Pasta multiusos',
   'Are you the little Dutch boy, then? Sorry, this is a big dam.':
     '¿Eres el niño holandés, entonces? Lo siento, esta es una gran presa.',
   'You are in a long room. To the north is a large lake, too deep to cross. You notice, however, that the water level appears to be dropping at a rapid rate. Before long, it might be possible to cross to the other side from here.':

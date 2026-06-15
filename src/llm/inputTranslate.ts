@@ -2,7 +2,7 @@
 import type { TranslateResult } from './types'
 import type { Vocab } from './grammar/types'
 import { META_COMMANDS } from './meta'
-import type { CoreLexicon } from './lexicon/types'
+import type { CoreLexicon, NounLexicon } from './lexicon/types'
 import { fold } from './lexicon/fold'
 import { parseDirection } from './directions'
 import { SOFT_NOOP_PAT } from './grammar/patterns'
@@ -112,22 +112,48 @@ function startsWithArticle(clause: string, core: CoreLexicon | null): boolean {
   )
 }
 
+/** True when a verbless conjunct names a known game object in the player's
+ * own language (the per-game noun lexicon), e.g. Spanish "destornillador" or
+ * "llave inglesa". This lets a bare object inherit the previous clause's verb
+ * even WITHOUT a leading article — Spanish/German routinely drop it in object
+ * lists ("coge el ajo y destornillador"), so the article alone misses them.
+ * A leading article is tolerated and stripped. Pure + total; `null` lexicon
+ * (English mode) yields false, leaving today's article-only behavior. */
+function isForeignNoun(
+  clause: string,
+  core: CoreLexicon | null,
+  nounSet: ReadonlySet<string> | null,
+): boolean {
+  if (!nounSet) return false
+  const tokens = fold(clause.replace(/[!.?,;:]+$/, '').trim()).split(/\s+/)
+  const articles = core?.articles ?? []
+  const phrase =
+    tokens.length > 1 && articles.includes(tokens[0])
+      ? tokens.slice(1).join(' ')
+      : tokens.join(' ')
+  return phrase.length > 0 && nounSet.has(phrase)
+}
+
 /**
  * Verb-gapping for compound commands: a conjunct that drops its verb ("prends
  * le couteau ET la corde") inherits the previous clause's verb so it resolves
  * deterministically ("prends la corde") instead of being handed verbless to the
- * LLM, which would invent a wrong verb. ONLY an article-led bare object gaps
- * ("la corde", "l'épée", "the rope") — the article is the reliable signal of a
- * verbless object. A conjunct that carries its OWN verb (recognized or not, e.g.
- * "check inventory"), a direction ("au nord"), a localized meta word
- * ("inventaire"), or anything with no preceding verb to lend is left untouched.
- * Pure + total; preserves length, so the compound loop's clause count (and the
- * single-command degenerate case) is unchanged. */
+ * LLM, which would invent a wrong verb. A bare object gaps when it is either
+ * article-led ("la corde", "the rope") OR a known game object in the player's
+ * language (the per-game noun lexicon: Spanish "destornillador", which drops
+ * the article in lists) — both are reliable signals of a verbless object. A
+ * conjunct that carries its OWN verb (recognized or not, e.g. "check
+ * inventory"), a direction ("au nord"), a localized meta word ("inventaire"),
+ * or anything with no preceding verb to lend is left untouched. Pure + total;
+ * preserves length, so the compound loop's clause count (and the single-command
+ * degenerate case) is unchanged. */
 export function fillElidedVerbs(
   clauses: readonly string[],
   core: CoreLexicon | null,
   vocab: Vocab,
+  nouns: NounLexicon | null = null,
 ): string[] {
+  const nounSet = nouns ? new Set(Object.values(nouns).flat()) : null
   let lastVerb: string | null = null
   return clauses.map((clause, i) => {
     const verb = leadingVerbPhrase(clause, core, vocab)
@@ -138,7 +164,8 @@ export function fillElidedVerbs(
     if (i === 0 || lastVerb === null) return clause
     const stripped = clause.replace(/[!.?,;:]+$/, '').trim()
     if (
-      !startsWithArticle(clause, core) ||
+      (!startsWithArticle(clause, core) &&
+        !isForeignNoun(clause, core, nounSet)) ||
       parseDirection(clause, vocab.movement) !== null ||
       isMetaCommand(stripped) ||
       metaAlias(stripped, core) !== null

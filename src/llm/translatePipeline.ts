@@ -513,6 +513,7 @@ export function createTranslate(
         splitClauses(line),
         lex?.core ?? null,
         vocab,
+        lex?.nouns ?? null,
       )
       const total = clauses.length
       if (total > 1) inSequenceRef.current = true

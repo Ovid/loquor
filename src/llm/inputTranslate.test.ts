@@ -15,7 +15,9 @@ import {
 } from './inputTranslate'
 import { META_COMMANDS } from './meta'
 import { FR_CORE } from './lexicon/fr.core'
+import { ES_CORE } from './lexicon/es.core'
 import type { Vocab } from './grammar/types'
+import type { NounLexicon } from './lexicon/types'
 import {
   TAKE_ACK,
   DROP_ACK,
@@ -435,6 +437,50 @@ describe('fillElidedVerbs (verb-gapping across compound conjuncts)', () => {
       'break the window',
       'break the door',
     ])
+  })
+
+  it('gaps a no-article foreign noun conjunct via the per-game noun lexicon (es)', () => {
+    // UAT (Spanish playthrough): "coger ajo y destornillador" splits to
+    // ["coger ajo", "destornillador"]. The bare, article-less 2nd conjunct is a
+    // known game object, so it must inherit "coger" instead of falling to the
+    // LLM (which invented a garbage "open cage"). Spanish drops the article in
+    // such lists, so the article signal alone misses it — the noun lexicon does.
+    const nouns: NounLexicon = {
+      screwdriver: ['destornillador'],
+      'clove of garlic': ['ajo'],
+    }
+    expect(
+      fillElidedVerbs(
+        splitClauses('coger ajo y destornillador'),
+        ES_CORE,
+        vocab,
+        nouns,
+      ),
+    ).toEqual(['coger ajo', 'coger destornillador'])
+  })
+
+  it('gaps a no-article MULTIWORD foreign noun conjunct', () => {
+    const nouns: NounLexicon = {
+      'brass lantern': ['lampara'],
+      wrench: ['llave inglesa'],
+    }
+    expect(
+      fillElidedVerbs(
+        splitClauses('coger lampara y llave inglesa'),
+        ES_CORE,
+        vocab,
+        nouns,
+      ),
+    ).toEqual(['coger lampara', 'coger llave inglesa'])
+  })
+
+  it('does NOT gap a no-article conjunct that is not a known noun', () => {
+    // Precision: only KNOWN game objects gap without an article. An unknown
+    // bare word stays verbless and reaches the LLM — never "coger xyzzy".
+    const nouns: NounLexicon = { 'clove of garlic': ['ajo'] }
+    expect(
+      fillElidedVerbs(splitClauses('coger ajo y xyzzy'), ES_CORE, vocab, nouns),
+    ).toEqual(['coger ajo', 'xyzzy'])
   })
 })
 

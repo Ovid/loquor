@@ -33,6 +33,15 @@ describe('loudEcho — Loud Room input echo (UAT F6)', () => {
       expect(loudEchoToken('¿mira?')).toBe('mira')
       expect(loudEchoToken('mira.')).toBe('mira')
     })
+
+    it("strips a leading French elision (l'/d') from the last token (I1)", () => {
+      // French elides the article/preposition onto the noun with no space, so the
+      // last whitespace token is "l'or" / "d'or" — re-voice with the noun "or",
+      // not "l'or l'or ...".
+      expect(loudEchoToken("prends l'or")).toBe('or')
+      expect(loudEchoToken("d'or")).toBe('or')
+      expect(loudEchoToken("l'épée")).toBe('épée')
+    })
   })
 
   describe('loudEchoWord', () => {

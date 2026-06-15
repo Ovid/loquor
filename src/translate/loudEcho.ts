@@ -33,13 +33,17 @@ export function isLoudEchoShape(line: string): boolean {
 }
 
 /** Normalize a command's LAST word for echo matching: lower-cased and stripped of
- * quotes / inverted (¡¿) and trailing punctuation. Used BOTH to key the
- * canonical→player re-voice map (from the canonical the VM echoes and the player
- * clause that produced it) and to read the doubled token off an echo line. */
+ * quotes / inverted (¡¿) and trailing punctuation. Also strips a leading French
+ * elision (l'/d') that fuses the article/preposition onto the noun with no space,
+ * so the last token "l'or"/"d'or" re-voices as the noun "or" (not "l'or l'or ...")
+ * — I1. Used BOTH to key the canonical→player re-voice map (from the canonical the
+ * VM echoes and the player clause that produced it) and to read the doubled token
+ * off an echo line. */
 export function loudEchoToken(s: string): string {
   const tokens = s.trim().split(/\s+/)
   return (tokens[tokens.length - 1] ?? '')
     .replace(/^[¡¿"'«»]+/, '')
+    .replace(/^[ld]'/i, '') // French elision: l'or → or, d'or → or
     .replace(/["'«».,!?;:]+$/, '')
     .toLowerCase()
 }

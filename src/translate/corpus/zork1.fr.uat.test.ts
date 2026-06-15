@@ -40,3 +40,48 @@ describe('Zork I × French — black-book prayer "ends of the earth" verse (UAT)
     }
   })
 })
+
+// French mirror of the es dam-guidebook / Deep Canyon / boat leaks (these
+// runtime-composed lines are shared by both corpora — see the es.uat suite for
+// the full why). The guidebook title arrives as the opening-quoted fragment
+// `"Flood Control Dam #3`; the "1)" tour step as a `|`-joined line; the pre-dam
+// Deep Canyon as a "roaring sound" combined line that only exists as separate
+// fragments; the boat refusal "doesn't lead upward" had no entry.
+describe('Zork I × French — dam guidebook, Deep Canyon & boat leaks (UAT)', () => {
+  const c = compileCorpus(ZORK1_FR)
+
+  it('translates the guidebook title line (was an LLM leak)', () => {
+    const en = '"Flood Control Dam #3'
+    const out = matchLine(c, en)
+    expect(out).not.toBeNull()
+    expect(out).not.toBe(en)
+    expect(out).toBe('"Barrage de régulation des crues nº 3')
+  })
+
+  it('translates the guidebook tour step; "Dam Lobby" is not left literal', () => {
+    const en =
+      '1) You start your tour here in the Dam Lobby. You will notice on your right that....'
+    expect(matchLine(c, en)).toBe(
+      '1) Vous commencez votre visite ici, dans le Hall du barrage. Vous remarquerez sur votre droite que....',
+    )
+  })
+
+  it('translates the pre-dam (roaring water) Deep Canyon variant', () => {
+    const en =
+      'You are on the south edge of a deep canyon. Passages lead off to the east, northwest and southwest. A stairway leads down. You can hear a loud roaring sound, like that of rushing water, from below.'
+    const out = matchLine(c, en)
+    expect(out).not.toBeNull()
+    expect(out).not.toBe(en)
+    expect(out).toBe(
+      "Vous êtes sur le bord sud d'un canyon profond. Des passages partent vers l'est, le nord-ouest et le sud-ouest. Un escalier descend. Vous entendez un fort rugissement, comme celui d'eaux tumultueuses, venant d'en bas.",
+    )
+  })
+
+  it('translates the magic boat "doesn\'t lead upward" refusal', () => {
+    const en = "The magic boat doesn't lead upward."
+    const out = matchLine(c, en)
+    expect(out).not.toBeNull()
+    expect(out).not.toBe(en)
+    expect(out).toBe('Le bateau magique ne mène pas vers le haut.')
+  })
+})

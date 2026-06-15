@@ -164,3 +164,56 @@ describe('Zork I × Spanish — capitalize the first letter after ¡ (UAT)', () 
     )
   })
 })
+
+// Three output-translation leaks surfaced by the Spanish UAT loop
+// (window.loquorMisses()), all runtime-composed lines the corpus gates miss:
+//
+//  • The dam tour guidebook's TITLE and its "1)" tour step. The whole book is
+//    one quoted .z3 string, so the title arrives as the opening-quoted fragment
+//    `"Flood Control Dam #3` and the "1)" step as a `|`-joined line; neither is
+//    a standalone .z3 string, so both fell to the LLM, which mis-rendered the
+//    title and translated "Dam Lobby" as «Salón de las Tumbas» (Hall of Tombs).
+//  • The DEEP CANYON has two runtime variants by dam state. The corpus pinned
+//    the post-dam "flowing water" combined line but not the pre-dam "loud
+//    roaring sound" combined line — it exists only as two separate fragments
+//    (room desc + roaring sentence), which never compose at the gate.
+//  • The magic boat's "doesn't lead upward" refusal (trying to climb up out of
+//    the boat) had no entry; the LLM rendered it with «barco» not «bote».
+describe('Zork I × Spanish — dam guidebook, Deep Canyon & boat leaks (UAT)', () => {
+  const c = compileCorpus(ZORK1_ES)
+
+  it('translates the guidebook title line (was an LLM leak)', () => {
+    const en = '"Flood Control Dam #3'
+    const out = matchLine(c, en)
+    expect(out).not.toBeNull()
+    expect(out).not.toBe(en)
+    expect(out).toBe('"Presa de Control de Crecidas n.º 3')
+  })
+
+  it('translates the guidebook tour step; "Dam Lobby" is not left literal', () => {
+    const en =
+      '1) You start your tour here in the Dam Lobby. You will notice on your right that....'
+    expect(matchLine(c, en)).toBe(
+      '1) Comienzas tu recorrido aquí, en el Vestíbulo de la presa. Notarás, a tu derecha, que....',
+    )
+  })
+
+  it('translates the pre-dam (roaring water) Deep Canyon variant', () => {
+    const en =
+      'You are on the south edge of a deep canyon. Passages lead off to the east, northwest and southwest. A stairway leads down. You can hear a loud roaring sound, like that of rushing water, from below.'
+    const out = matchLine(c, en)
+    expect(out).not.toBeNull()
+    expect(out).not.toBe(en)
+    expect(out).toBe(
+      'Estás en el borde sur de un cañón profundo. Hay pasadizos hacia el este, el noroeste y el suroeste. Una escalera baja. Oyes un fuerte rugido, como el de aguas turbulentas, que viene de abajo.',
+    )
+  })
+
+  it('translates the magic boat "doesn\'t lead upward" refusal', () => {
+    const en = "The magic boat doesn't lead upward."
+    const out = matchLine(c, en)
+    expect(out).not.toBeNull()
+    expect(out).not.toBe(en)
+    expect(out).toBe('El bote mágico no lleva hacia arriba.')
+  })
+})

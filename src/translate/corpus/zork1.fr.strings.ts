@@ -307,6 +307,8 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
     'Il y a ici une bouée rouge (probablement un avertissement).',
   'The magic boat comes to a rest on the shore.':
     "Le bateau magique vient s'immobiliser sur le rivage.",
+  "The magic boat doesn't lead upward.":
+    'Le bateau magique ne mène pas vers le haut.',
   'You seem to be digging a hole here.': 'Vous semblez creuser un trou ici.',
   "The hole is getting deeper, but that's about it.":
     "Le trou devient plus profond, mais c'est à peu près tout.",
@@ -463,6 +465,8 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
     "C'est un haut passage nord-sud, qui bifurque vers le nord-est.",
   'You are on the south edge of a deep canyon. Passages lead off to the east, northwest and southwest. A stairway leads down. You can hear the sound of flowing water from below.':
     "Vous êtes sur le bord sud d'un canyon profond. Des passages partent vers l'est, le nord-ouest et le sud-ouest. Un escalier descend. Vous entendez le bruit de l'eau qui coule venant d'en bas.",
+  'You are on the south edge of a deep canyon. Passages lead off to the east, northwest and southwest. A stairway leads down. You can hear a loud roaring sound, like that of rushing water, from below.':
+    "Vous êtes sur le bord sud d'un canyon profond. Des passages partent vers l'est, le nord-ouest et le sud-ouest. Un escalier descend. Vous entendez un fort rugissement, comme celui d'eaux tumultueuses, venant d'en bas.",
   'You are in a long room on the south shore of a large lake, far too deep and wide for crossing.':
     "Vous êtes dans une longue salle sur la rive sud d'un grand lac, bien trop profond et trop large pour être traversé.",
   'There is a path along the stream to the east or west, a steep pathway climbing southwest along the edge of a chasm, and a path leading into a canyon to the southeast.':
@@ -722,6 +726,9 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
     "La construction du BRC nº 3 a demandé 112 jours, du premier coup de pioche à l'inauguration. Elle a nécessité une main-d'œuvre de 384 esclaves, 34 gardes-chiourme, 12 ingénieurs, 2 tourterelles et une perdrix dans un poirier. Les travaux ont été dirigés par une équipe de commandement composée de 2345 bureaucrates, 2347 secrétaires (dont au moins deux savaient taper à la machine), 12 256 brasseurs de papier, 52 469 manieurs de tampons, 245 193 processeurs de paperasse et près d'un million d'arbres morts.",
   'We will now point out some of the more interesting features of FCD#3 as we conduct you on a guided tour of the facilities:':
     'Nous allons maintenant vous présenter quelques-uns des aspects les plus intéressants du BRC nº 3 au fil de la visite guidée des installations :',
+  '"Flood Control Dam #3': '"Barrage de régulation des crues nº 3',
+  '1) You start your tour here in the Dam Lobby. You will notice on your right that....':
+    '1) Vous commencez votre visite ici, dans le Hall du barrage. Vous remarquerez sur votre droite que....',
   'Hello, Sailor!': 'Salut, marin !',
   'Instructions for use:': "Mode d'emploi :",
   'To get into a body of water, say "Launch".':

@@ -267,6 +267,8 @@ export const ZORK1_ES_STRINGS: Readonly<Record<string, string>> = {
     'Hay aquí una boya roja (probablemente una advertencia).',
   'The magic boat comes to a rest on the shore.':
     'El bote mágico se detiene en la orilla.',
+  "The magic boat doesn't lead upward.":
+    'El bote mágico no lleva hacia arriba.',
   'You seem to be digging a hole here.':
     'Parece que estás cavando un hoyo aquí.',
   "The hole is getting deeper, but that's about it.":
@@ -431,6 +433,8 @@ export const ZORK1_ES_STRINGS: Readonly<Record<string, string>> = {
     'Este es un alto pasadizo norte-sur, que se bifurca hacia el noreste.',
   'You are on the south edge of a deep canyon. Passages lead off to the east, northwest and southwest. A stairway leads down. You can hear the sound of flowing water from below.':
     'Estás en el borde sur de un cañón profundo. Hay pasadizos hacia el este, el noroeste y el suroeste. Una escalera baja. Oyes el rumor de agua que fluye desde abajo.',
+  'You are on the south edge of a deep canyon. Passages lead off to the east, northwest and southwest. A stairway leads down. You can hear a loud roaring sound, like that of rushing water, from below.':
+    'Estás en el borde sur de un cañón profundo. Hay pasadizos hacia el este, el noroeste y el suroeste. Una escalera baja. Oyes un fuerte rugido, como el de aguas turbulentas, que viene de abajo.',
   'You are in a long room on the south shore of a large lake, far too deep and wide for crossing.':
     'Estás en una sala alargada en la orilla sur de un gran lago, demasiado profundo y ancho para cruzarlo.',
   'There is a path along the stream to the east or west, a steep pathway climbing southwest along the edge of a chasm, and a path leading into a canyon to the southeast.':
@@ -663,6 +667,9 @@ export const ZORK1_ES_STRINGS: Readonly<Record<string, string>> = {
     'La construcción de la PCC n.º 3 llevó 112 días, desde la primera palada hasta la inauguración. Requirió una mano de obra de 384 esclavos, 34 capataces de esclavos, 12 ingenieros, 2 tórtolas y una perdiz en un peral. Las obras fueron dirigidas por un equipo de mando compuesto por 2345 burócratas, 2347 secretarias (al menos dos de las cuales sabían mecanografiar), 12 256 barajadores de papeles, 52 469 estampadores de sellos, 245 193 procesadores de papeleo y casi un millón de árboles muertos.',
   'We will now point out some of the more interesting features of FCD#3 as we conduct you on a guided tour of the facilities:':
     'Ahora le señalaremos algunos de los aspectos más interesantes de la PCC n.º 3 mientras le guiamos en un recorrido por las instalaciones:',
+  '"Flood Control Dam #3': '"Presa de Control de Crecidas n.º 3',
+  '1) You start your tour here in the Dam Lobby. You will notice on your right that....':
+    '1) Comienzas tu recorrido aquí, en el Vestíbulo de la presa. Notarás, a tu derecha, que....',
   'Hello, Sailor!': '¡Hola, marinero!',
   'Instructions for use:': 'Instrucciones de uso:',
   'To get into a body of water, say "Launch".':

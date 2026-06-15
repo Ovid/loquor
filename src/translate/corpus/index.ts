@@ -6,11 +6,12 @@ import type { TranslationCorpus } from '../types'
 import { ZORK1_SIG } from '../../llm/grammar/index'
 import { ZORK1_FR } from './zork1.fr'
 import { ZORK1_ES } from './zork1.es'
+import { ZORK1_DE } from './zork1.de'
 
 const CORPORA: Readonly<
   Record<string, Partial<Record<string, TranslationCorpus>>>
 > = {
-  [ZORK1_SIG]: { fr: ZORK1_FR, es: ZORK1_ES },
+  [ZORK1_SIG]: { fr: ZORK1_FR, es: ZORK1_ES, de: ZORK1_DE },
 }
 
 export function corpusFor(

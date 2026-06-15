@@ -47,7 +47,15 @@ lexicon-vocabulary expansion here.
    inventory gates **by construction** — *provided every template's slot ×
    bindable-object-set resolves*, including every case-form key a template
    references (§2.3). A template that binds an object missing a referenced form
-   key is a **miss, not a pass** (`match.ts`).
+   key is a **miss, not a pass** (`match.ts`). Unlike Spanish — which *derived*
+   `alDef`/`delDef` for every object via `withContractions()`, so a contraction
+   template could never reference an absent key — German supplies case keys
+   **piecemeal** (§2.4) and has **no** derivation helper. "By construction" is
+   therefore **not** automatic: it holds only because the **form-key
+   completeness gate (§4)** statically proves every template-referenced key
+   exists on every object that template can bind. The coverage gate alone is
+   insufficient — it only replays one walkthrough fixture and so checks only the
+   object×template bindings that transcript happens to exercise.
 
 2. **Translate from the English source, not from French or Spanish.** Each German
    value is authored from the English line; the French/Spanish values are
@@ -61,6 +69,14 @@ lexicon-vocabulary expansion here.
    - `bare` — head noun alone (`'knopf'`), for lists/labels.
    - `nomDef` / `nomIndef` — subject position (`'der blaue Knopf'` /
      `'ein blauer Knopf'`).
+   - `indef` — **mandatory on every object**, set equal to `nomIndef`. The
+     matcher's built-in inventory/contents listing templates (`match.ts`
+     `BUILTIN`: `'A {obj}'`/`'An {obj}'` → `{obj.indef}`) are language-agnostic
+     and hardcode the `indef` key, exactly as the fr/es objects already supply.
+     German listings read as nominative indefinite (`eine Messinglaterne`), so
+     `indef === nomIndef`. Omitting it would silently drop every inventory line
+     to the LLM fallback (caught only for walked objects), and §6's "`match.ts`
+     does not change" requires the key to live in the data, not the matcher.
    - `akkDef` / `akkIndef` — direct object, **the default object case**
      (`'den blauen Knopf'` / `'einen blauen Knopf'`).
    - `datDef` / `datIndef` — only where a **bounded** template set needs dative.
@@ -110,9 +126,11 @@ Mirror the French/Spanish set 1:1 in key structure:
    full lines). German nouns capitalized in the values.
 2. **`zork1.de.objects.ts`** — `ObjectsTable` keyed by the **same English printed
    names** as `zork1.fr.objects.ts`. German case forms per §2.3, supplied only
-   where templates reference them. Exports `ZORK1_DE_OBJECTS` and a
-   `ZORK1_DE_CANONICAL` map (EN printed name → input-lexicon canonical) where the
-   display name differs from the lexicon's canonical key. **No** derivation helper.
+   where templates reference them, **plus the mandatory `indef` (= `nomIndef`)
+   on every object** for the matcher's built-in listing templates (§2.3). Exports
+   `ZORK1_DE_OBJECTS` and a `ZORK1_DE_CANONICAL` map (EN printed name →
+   input-lexicon canonical) where the display name differs from the lexicon's
+   canonical key. **No** derivation helper.
 3. **`zork1.de.templates.ts`** — same EN sides as `zork1.fr.templates.ts` (so the
    same compositions are covered), German `out` sides selecting the right case key
    per slot.
@@ -133,7 +151,9 @@ Mirror the French/Spanish set 1:1 in key structure:
 ## 4. Test gates — German enrolls in the existing list-driven gates
 
 The three corpus gates are already language-list-driven (built in the Spanish
-branch). German adds itself with **no gate refactor**:
+branch). German adds itself with **no gate refactor**, plus **one new gate**
+(the form-key completeness gate below) that replaces the `withContractions`
+guarantee German drops:
 
 - **Coverage gate** (`coverage.test.ts`) and **Inventory gate**
   (`inventory.test.ts`) iterate `corporaFor(ZORK1_SIG)` directly — the registry
@@ -152,6 +172,20 @@ branch). German adds itself with **no gate refactor**:
 - **Matcher units** (`match.test.ts`) already cover the open-form-keys contract
   with a synthetic case-form language; **no change**. German's `akkDef`/`datDef`/
   contraction keys are just more data keys.
+- **Form-key completeness gate** (new, `zork1.de.objects.test.ts` or a shared
+  `completeness.test.ts`). Pure data inspection — **no fixture, no LLM, no VM**.
+  For each compiled template (corpus templates **+** the matcher's `BUILTIN`
+  listings), scan its `out` for every `{obj.<key>}` / `{obj2.<key>}` reference;
+  for every object name the template's `{obj}` slot can bind, assert that key
+  exists on that object's forms. This is the German analog of Spanish's
+  `withContractions` "every object exposes them" guarantee, enforced as a test
+  instead of a derivation — so a piecemeal case key (`datDef`, a contraction,
+  the mandatory `indef`) that a template references but some bindable object
+  omits is a **red test at author time**, not a silent runtime LLM miss the
+  coverage gate's single walkthrough never exercises (§2.1). German is the first
+  language that needs it (fr/es carry every referenced key by construction), so
+  the gate may be authored de-only first; generalizing it to iterate
+  `corporaFor(ZORK1_SIG)` is a free follow-up.
 
 ### The German declension audit (the dominant authoring cost)
 
@@ -192,10 +226,13 @@ deathless golden-path run with zero transcript leaks.
 
 `match.ts`, `useOutputTranslation.ts`, `normalize.ts`, `statusTranslate.ts`,
 `fallbackCache.ts`, `missLog.ts`, `xlPrompt.ts`, the engine seam, every UI
-component, the three test gates' structure, the shared `zork1.extraction-ignore.ts`,
-and the language picker (German already listed). No new dependency, no extraction
-re-run (Zork I strings already extractable), no matcher feature, no declension
-helper.
+component, the **three existing** test gates' structure (coverage, inventory,
+round-trip — German enrolls via the registry line), the shared
+`zork1.extraction-ignore.ts`, and the language picker (German already listed).
+No new dependency, no extraction re-run (Zork I strings already extractable), no
+matcher feature, no declension helper. **One new gate is added** (the §4
+form-key completeness gate) — it's a pure data-inspection test, not a change to
+`match.ts` or the existing gates.
 
 ## 7. Follow-ups (out of scope here)
 

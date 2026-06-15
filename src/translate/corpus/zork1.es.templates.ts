@@ -4,10 +4,15 @@
 // beat {raw} ones of the same shape (match.ts owns the ordering).
 //
 // SPANISH COMPOSITION RULES (mirroring the FR discipline):
-// - NEVER put «de» or «a» immediately before a slot: a+el→al / de+el→del
-//   contractions cannot be composed at runtime. Prefer phrasings that keep
-//   {obj} in complement/object position; where a contraction is unavoidable
-//   the line is pinned per-object as a full string (zork1.es.strings.ts).
+// - «de»/«a» BEFORE a slot use the contraction FORMS, not a bare preposition:
+//   write {obj.delDef} / {obj.alDef} (not "de {obj.def}" / "a {obj.def}"), so
+//   a masculine "el X" composes the required «del X»/«al X» and everything else
+//   the bare «de la X»/«a la X». The forms are derived for EVERY object by
+//   withContractions() (zork1.es.objects.ts), so no contraction template can
+//   miss and the matcher stays grammar-free. (The FR corpus, which has no such
+//   contraction, instead bans de/a before a slot — that rule does NOT apply
+//   here.) A line whose Spanish still resists composition is pinned per-object
+//   as a full string (zork1.es.strings.ts).
 // - GENDER/NUMBER NEUTRALITY: prefer verbal phrasings where nothing agrees
 //   with the object (e.g. «Abres {obj.def}.» rather than «… está cerrado»),
 //   because the objects table has plural entries (velas, cerillas, manos,

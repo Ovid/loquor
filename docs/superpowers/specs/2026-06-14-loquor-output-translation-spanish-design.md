@@ -20,11 +20,25 @@ exist and are language-agnostic.
 
 The NL **input** layer for Spanish is already complete and tested (`es.core.ts`,
 `es.zork1/2/3.ts`, prompt few-shots, the `Español` picker entry, collision
-gates). This spec does **not** touch input parsing or lexicon vocabulary. The
-**one** permitted input-layer edit is appending reviewed entries to
+gates). The **planned** work here is corpus authoring + gate parameterization —
+it does **not** set out to redesign input parsing or expand lexicon vocabulary.
+The most common input-layer edit is appending reviewed entries to
 `KNOWN_COLLISIONS.es[ZORK1_SIG]` (`src/llm/lexicon/index.ts`) when the round-trip
 authoring rule (§4) adds a Spanish display phrase whose folded head collides with
 an English vocab word — the same pattern French used.
+
+**Scope note (input-layer fixes are in scope, by exception).** The
+generate-then-UAT-fix lifecycle (decision 3) genuinely surfaces input-layer
+*defects* when a Spanish player plays Zork I — e.g. a verb not distributing to a
+compound's bare-noun conjuncts, or a disambiguation prompt mis-templating. The
+end user can't tell "input bug" from "output bug"; both break the Spanish
+playthrough. So a **UAT-surfaced, tested, reviewed** fix to the input pipeline
+(`inputTranslate.ts`, `translatePipeline.ts`, …) **is permitted** under this
+branch — it is bug-fixing the same feature, not new input-layer feature work.
+The line this spec holds is on *intent*: don't open *new* input-layer features
+or planned lexicon-vocabulary expansion here. (Earlier drafts named
+`KNOWN_COLLISIONS.es` as the *only* permitted input file; that was too narrow and
+contradicted the UAT loop — review S4.)
 
 ## 2. Locked decisions
 
@@ -136,8 +150,10 @@ parameterization is a pure refactor for French).
   (keeping the lexicon validation suite green) — never bend the Spanish to fit.
   When that added phrase's folded head collides with an English vocab word,
   `validate.test.ts` requires a matching entry in `KNOWN_COLLISIONS.es[ZORK1_SIG]`
-  (`src/llm/lexicon/index.ts`) with a justifying comment — the one input-layer
-  file this branch may touch (§1). The gate proves the **noun resolves**, not
+  (`src/llm/lexicon/index.ts`) with a justifying comment — the routine input-layer
+  edit this corpus work entails (§1; other input-layer fixes are allowed by
+  exception when the UAT loop surfaces a defect). The gate proves the **noun
+  resolves**, not
   that `del`/`al` was composed correctly; contraction correctness is a UAT-only
   net.
 - **German sufficiency check (keeps the "one list entry" promise honest):** the

@@ -29,10 +29,14 @@ function escapeRe(s: string): string {
 
 /** Capitalize the first LETTER, skipping leading punctuation, so a cap:true
  * line that opens with «¡»/«¿» capitalizes the word and not the inverted mark
- * («¡El ladrón…», not «¡el ladrón…»). No letter → returned unchanged. */
+ * («¡El ladrón…», not «¡el ladrón…»). No letter → returned unchanged.
+ * Code-point safe (review S3): an astral-plane initial letter would be split by
+ * charAt, so slice by the matched code point's length. */
 function capitalizeFirstLetter(s: string): string {
   const i = s.search(/\p{L}/u)
-  return i < 0 ? s : s.slice(0, i) + s.charAt(i).toUpperCase() + s.slice(i + 1)
+  if (i < 0) return s
+  const ch = String.fromCodePoint(s.codePointAt(i)!)
+  return s.slice(0, i) + ch.toUpperCase() + s.slice(i + ch.length)
 }
 
 /** Built-in listing templates (spec §5): every inventory/contents entry is

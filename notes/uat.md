@@ -69,6 +69,25 @@ session loses time to something avoidable.
 - Above-ground "Clearing" confusion: Behind House → east is the canyon-path
   Clearing; Canyon View is one MORE east. The grating Clearing is north of
   Forest Path.
+- **The Frigid River drifts you downstream EVERY turn (probabilistically), not
+  only on `wait` — this killed UAT-Spanish.** At the buoy segment you are
+  overweight, so `take buoy` fails "load too heavy". DROP weight first, take the
+  buoy, then go east — all in ≤2 turns; NEVER `wait` or fiddle there or you
+  drift over Aragain Falls and die (the boat is destroyed and the buoy/emerald
+  stranded). Open the buoy on the BEACH. If you beach without it, re-enter the
+  boat + launch returns you to the buoy segment (the beach is its east shore).
+- **Post-death recovery (this z3, no `undo` — "No conozco la palabra «undo»").**
+  Death after visiting the South Temple resurrects you as a ghost at the
+  Entrance to Hades. While DEAD: all rooms are lit (`ALWAYS-LIT`, no grue) but
+  you cannot carry/use anything and the mirror is blocked ("excede tus
+  capacidades"). To revive, reach the **Altar (South Temple)** and **`pray`** →
+  Forest, alive; the lamp moves to the Living Room, other carried items scatter.
+  Ghost route: Hades cave → up (Cave) → north (Mirror Room-2, lit) → north
+  (Narrow Passage) → north (Round Room) → SE (Engravings Cave) → east (the dome
+  wind pulls the ghost DOWN to the Torch Room) → south (Temple) → south (Altar)
+  → pray. The Altar→cave hole is one-way down.
+- **DEATHS budget is hard:** a 3rd death is a PERMANENT game-over ("suicidal
+  maniac"). Once you have died, avoid risky combat (thief) entirely.
 
 ## NL-layer testing technique
 

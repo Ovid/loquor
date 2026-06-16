@@ -43,10 +43,27 @@ import { parseLexicon } from './lexicon/parse'
 import type { CoreLexicon, NounLexicon } from './lexicon/types'
 import { parseDirection } from './directions'
 import { MAX_CLAUSES, QUEUE_CAP, LOAD_WATCHDOG_MS } from './config'
+import {
+  queueFullDropped,
+  nothingSent,
+  couldntTranslate,
+  ranOfActions,
+  queueClearedNeedsAnswer,
+} from './notices'
 import { createLogger } from '../logger'
 import type { Internal } from './useModelDownload'
 
 const log = createLogger('nl')
+
+/** EN-only "translator broke, so the raw line went to the Z-parser" notice.
+ * Intentionally NOT in notices.ts (which is multilingual): it fires only in
+ * English mode — a non-EN player abstains instead (`nothingSent`) — so there is
+ * nothing to localize. Kept here so the two raw-send sites can't drift (S2). */
+function sentAsTyped(timedOut: boolean): string {
+  return timedOut
+    ? 'Translation timed out — sent as typed.'
+    : 'Translation failed — sent as typed.'
+}
 
 /** A line waiting in the F-A queue. `id` is monotonic and never reused — the
  * Terminal keys queued rows on it, and the queue drains from the FRONT
@@ -380,6 +397,14 @@ export function createTranslate(
 
   return async (english: string) => {
     const tracker = trackerRef.current
+    // The live picker language for notices set OUTSIDE runLine (queue guard /
+    // drain), where runLine's per-line `activeLang` isn't in scope (F1). Falls
+    // back to 'en' when the layer isn't 'on' — defensive; the call sites below
+    // only fire while it is.
+    const liveLang = (): ActiveLanguage =>
+      liveRef.current.internal.phase === 'on'
+        ? liveRef.current.internal.language
+        : 'en'
     // NL off / disabled / unavailable → behave exactly like the first pass.
     // Checked BEFORE the queue guard ([M]): 'off' must restore raw play
     // instantly even while a previous drain is still in flight — queueing
@@ -398,7 +423,7 @@ export function createTranslate(
     // through them either (review S4).
     if (translatingRef.current) {
       if (queueRef.current.length >= QUEUE_CAP) {
-        setNotice(`Queue full — dropped: "${english}"`)
+        setNotice(queueFullDropped(liveLang(), english))
         return
       }
       queueRef.current.push({ id: queueIdRef.current++, text: english })
@@ -696,35 +721,30 @@ export function createTranslate(
           const timedOut = stopError instanceof WatchdogTimeout
           if (activeLang === 'en') {
             sendTracked(line)
-            setNotice(
-              timedOut
-                ? 'Translation timed out — sent as typed.'
-                : 'Translation failed — sent as typed.',
-            )
+            setNotice(sentAsTyped(timedOut))
           } else {
             // Nothing was sent: the non-EN abstain policy still holds.
-            setNotice(
-              timedOut
-                ? 'Translation timed out — nothing sent.'
-                : 'Translation failed — nothing sent.',
-            )
+            setNotice(nothingSent(activeLang, timedOut))
           }
         } else if (activeLang === 'en') {
           sendTracked(line)
         } else {
-          setNotice(
-            'Couldn’t translate — try simpler wording, or quote a command: "open mailbox"',
-          )
+          setNotice(couldntTranslate(activeLang))
         }
       } else if (done < total) {
         // Truncated sequence → make it visible (decision 7); an engine
         // error labels the notice so it can't pass for a quiet stop ([B]).
         setNotice(
-          stopError === null
-            ? `Ran ${done} of ${total} actions.`
-            : stopError instanceof WatchdogTimeout
-              ? `Translation timed out — ran ${done} of ${total} actions.`
-              : `Translation failed — ran ${done} of ${total} actions.`,
+          ranOfActions(
+            activeLang,
+            done,
+            total,
+            stopError === null
+              ? 'ok'
+              : stopError instanceof WatchdogTimeout
+                ? 'timeout'
+                : 'failed',
+          ),
         )
       }
       // A mid-sequence interactive prompt must flush the queue too (F-A):
@@ -775,17 +795,24 @@ export function createTranslate(
           // kept per line so an engine error on one line cannot silently
           // abandon the rest of the queue. A genuine generate failure (vs. a
           // benign watchdog timeout) is logged so the root cause stays
-          // diagnosable; either way the line falls back to a raw send with a
-          // visible notice, and the drain continues.
+          // diagnosable, and the drain continues.
           lastCommandRef.current = null
           if (!(err instanceof WatchdogTimeout))
             log.error('translation failed:', err)
-          setNotice(
-            err instanceof WatchdogTimeout
-              ? 'Translation timed out — sent as typed.'
-              : 'Translation failed — sent as typed.',
-          )
-          sendTracked(line)
+          // F2/F-R: honor stage-8's abstain policy here too. EN raw-sends (the
+          // Z-parser's own error is useful); a non-EN line must NOT raw-send
+          // untranslated FR/DE/ES — that only earns a useless "I don't know the
+          // word…" AND burns a turn — so send NOTHING and show a notice. (The
+          // in-runLine stage-8 path already does this; this outer catch
+          // catches the total===1 rethrow that bypassed it.)
+          const lang = liveLang()
+          const timedOut = err instanceof WatchdogTimeout
+          if (lang === 'en') {
+            setNotice(sentAsTyped(timedOut))
+            sendTracked(line)
+          } else {
+            setNotice(nothingSent(lang, timedOut))
+          }
         }
         // A compound that stopped mid-sequence leaves this set; reset it per
         // line so Terminal's observe effect resumes for later queued lines.
@@ -805,7 +832,7 @@ export function createTranslate(
         if (outcome === 'flush' && (fromQueue || queueRef.current.length > 0)) {
           queueRef.current = []
           syncQueue()
-          setNotice('Queue cleared — the game needs an answer first.')
+          setNotice(queueClearedNeedsAnswer(liveLang()))
           break
         }
         line = queueRef.current.shift()?.text

@@ -147,10 +147,21 @@ describe('useNaturalLanguage', () => {
   })
 
   it('load failure reverts to off and sets a notice', async () => {
-    const { hook } = setup({ engine: new FakeLlmEngine({ failLoad: true }) })
-    act(() => hook.result.current.requestDownload())
-    await waitFor(() => expect(hook.result.current.state.phase).toBe('off'))
-    expect(hook.result.current.notice).toBeTruthy()
+    // The genuine (non-abort) load failure is now log.error'd by design (F7);
+    // own the log so it doesn't leak to stderr.
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { hook } = setup({ engine: new FakeLlmEngine({ failLoad: true }) })
+      act(() => hook.result.current.requestDownload())
+      await waitFor(() => expect(hook.result.current.state.phase).toBe('off'))
+      expect(hook.result.current.notice).toBeTruthy()
+      expect(errSpy).toHaveBeenCalledWith(
+        '[nl] model download failed:',
+        expect.anything(),
+      )
+    } finally {
+      errSpy.mockRestore()
+    }
   })
 
   it('progress callbacks surface as state.loaded/total/etaSeconds while downloading (F-2 safety net)', async () => {
@@ -1628,7 +1639,8 @@ describe('input queue (NL v2 §11, F-A)', () => {
     // Line 2 drained through the deterministic lexicon stage and ran.
     expect(sendLine.mock.calls.map(c => c[0])).toEqual(['open trapdoor'])
     // Line 1's abstain notice survives (line 2 set none); no "queue cleared".
-    expect(hook.result.current.notice).toMatch(/couldn.t translate/i)
+    // Localized (F1) — fr: "Traduction impossible …".
+    expect(hook.result.current.notice).toMatch(/traduction impossible/i)
   })
 
   it('a mid-drain language switch applies to queued lines ([N])', async () => {
@@ -1900,7 +1912,8 @@ describe('NL v2 pipeline stages (spec §4)', () => {
     })
     expect(sendLine).not.toHaveBeenCalled()
     expect(echoLocal).not.toHaveBeenCalled()
-    expect(hook.result.current.notice).toMatch(/couldn.t translate/i)
+    // Localized (F1) — fr abstain: "Traduction impossible …".
+    expect(hook.result.current.notice).toMatch(/traduction impossible/i)
   })
 
   it('stage 8: EN abstain falls back to the raw line — the Z-parser explains the failure', async () => {
@@ -1931,8 +1944,34 @@ describe('NL v2 pipeline stages (spec §4)', () => {
         )
       })
       expect(sendLine).not.toHaveBeenCalled() // non-EN abstain policy: nothing sent
-      expect(hook.result.current.notice).toMatch(/translation failed/i)
-      expect(hook.result.current.notice).not.toMatch(/couldn.t translate/i)
+      // Localized (F1) — fr translator FAILURE ("Échec de la traduction …"),
+      // distinct from the abstain notice ("Traduction impossible …").
+      expect(hook.result.current.notice).toMatch(/échec de la traduction/i)
+      expect(hook.result.current.notice).not.toMatch(/traduction impossible/i)
+      expect(
+        errorSpy.mock.calls.filter(c => String(c[0]).includes('[nl]')),
+      ).not.toEqual([])
+    } finally {
+      errorSpy.mockRestore()
+    }
+  })
+
+  it('stage 8: a SINGLE non-EN command that errors sends nothing — the drain catch honors the abstain policy (F2)', async () => {
+    // total===1, so runClause's failure rethrows out of runLine into the outer
+    // drain catch (NOT the in-runLine stage-8 path). That catch used to
+    // raw-send the untranslated French to the Z-parser regardless of language;
+    // it must instead obey the non-EN "nothing sent" policy.
+    const { hook, sendLine } = await setupFr({
+      engine: new FakeLlmEngine({ cached: true, failGenerate: true }),
+    })
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      await act(async () => {
+        await hook.result.current.translate('frobnicate la trappe')
+      })
+      expect(sendLine).not.toHaveBeenCalled() // non-EN: nothing sent
+      // Localized (F1) — fr "… rien envoyé.".
+      expect(hook.result.current.notice).toMatch(/rien envoyé/i)
       expect(
         errorSpy.mock.calls.filter(c => String(c[0]).includes('[nl]')),
       ).not.toEqual([])
@@ -1956,7 +1995,8 @@ describe('NL v2 pipeline stages (spec §4)', () => {
       await p
     })
     expect(sendLine).not.toHaveBeenCalled()
-    expect(hook.result.current.notice).toMatch(/timed out/i)
+    // Localized (F1) — fr timeout: "Délai de traduction dépassé …".
+    expect(hook.result.current.notice).toMatch(/délai de traduction dépassé/i)
     vi.useRealTimers()
   })
 

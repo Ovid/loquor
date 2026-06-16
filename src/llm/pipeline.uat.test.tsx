@@ -81,7 +81,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { useNaturalLanguage } from './useNaturalLanguage'
 import { FakeLlmEngine } from './engine.fake'
-import type { CapabilityResult, NlLanguage, ViewContext } from './types'
+import type {
+  ActiveLanguage,
+  CapabilityResult,
+  NlLanguage,
+  ViewContext,
+} from './types'
+import { couldntTranslate } from './notices'
 import { emptyView } from '../glkote-react/types'
 import type { ViewState, BufferLine, TurnResult } from '../glkote-react/types'
 import { ZORK1_SIG } from './grammar/index'
@@ -555,7 +561,10 @@ describe('UAT regression rows (pipeline-level, real Zork I data)', () => {
       })
       if (c.expectSent === null) {
         expect(sent).toEqual([]) // F-R policy: no raw foreign leak, no turn burned
-        expect(hook.result.current.notice).toMatch(/couldn.t translate/i)
+        // The abstain notice is localized (F1) — assert the player's-language string.
+        expect(hook.result.current.notice).toBe(
+          couldntTranslate(c.language as ActiveLanguage),
+        )
       } else {
         // Exact-array assert: every non-null row is single-clause, so this
         // also catches EXTRA sends (the F-S silent-turn-burn failure class).

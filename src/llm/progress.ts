@@ -4,7 +4,10 @@
  * triplicated (review S3).
  */
 export function pct(loaded: number, total: number): number {
-  return total > 0 ? Math.round((loaded / total) * 100) : 0
+  if (!(total > 0) || !Number.isFinite(loaded)) return 0
+  // Clamp to 0..100 (S4): the raw value feeds the progress bar, and a bad
+  // sample (loaded > total, or negative) must not paint past the ends.
+  return Math.min(100, Math.max(0, Math.round((loaded / total) * 100)))
 }
 
 /** One progress observation: integer percent at a wall-clock time (ms). */

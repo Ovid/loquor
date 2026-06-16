@@ -3,6 +3,7 @@ import { renderHook, act, waitFor } from '@testing-library/react'
 import { useModelDownload, type ModelDownloadParams } from './useModelDownload'
 import { FakeLlmEngine } from './engine.fake'
 import { readNlPref, writeNlPref } from './nlpref'
+import { DOWNLOAD_STALL_MS } from './config'
 import type { LlmEngine } from './types'
 
 // useModelDownload owns the model download / install / phase lifecycle that F-2
@@ -125,17 +126,170 @@ describe('requestDownload', () => {
     })
   })
 
-  it('failure reverts to off and reports it through the shared notice channel', async () => {
-    const { hook, setNotice } = setup({
-      engine: new FakeLlmEngine({ failLoad: true }),
-    })
-    act(() => hook.result.current.requestDownload())
-    await waitFor(() =>
-      expect(hook.result.current.internal).toEqual({ phase: 'off' }),
-    )
-    expect(setNotice).toHaveBeenCalledWith(
-      'Model download failed — staying grammar-only.',
-    )
+  it('failure reverts to off, reports it through the notice channel, and logs the cause (F7)', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { hook, setNotice } = setup({
+        engine: new FakeLlmEngine({ failLoad: true }),
+      })
+      act(() => hook.result.current.requestDownload())
+      await waitFor(() =>
+        expect(hook.result.current.internal).toEqual({ phase: 'off' }),
+      )
+      expect(setNotice).toHaveBeenCalledWith(
+        'Model download failed — staying grammar-only.',
+      )
+      // F7: the underlying error must reach the logger (ring buffer + console),
+      // not be discarded.
+      expect(errSpy).toHaveBeenCalledWith(
+        '[nl] model download failed:',
+        expect.objectContaining({ message: 'fake load failure' }),
+      )
+    } finally {
+      errSpy.mockRestore()
+    }
+  })
+
+  it('the failure notice is localized to the picked language (F1)', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      // Uncached engine → setLanguage('fr') opens the modal and records 'fr' as
+      // the pending language; requestDownload then fails against it.
+      const { hook, setNotice } = setup({
+        engine: new FakeLlmEngine({ failLoad: true }),
+      })
+      await waitFor(() => expect(hook.result.current.installed).toBe(false))
+      act(() => hook.result.current.setLanguage('fr'))
+      act(() => hook.result.current.requestDownload())
+      await waitFor(() =>
+        expect(hook.result.current.internal).toEqual({ phase: 'off' }),
+      )
+      expect(setNotice).toHaveBeenCalledWith(
+        'Échec du téléchargement du modèle — mode grammaire uniquement.',
+      )
+    } finally {
+      errSpy.mockRestore()
+    }
+  })
+
+  it('a stalled download (no further progress) trips the no-progress watchdog → off + notice + abort (F6)', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.useFakeTimers()
+    try {
+      let sig!: AbortSignal
+      const engine: LlmEngine = {
+        unload: async () => {},
+        isLoaded: () => false,
+        isCached: async () => false,
+        generate: async () => '',
+        // One progress sample, then silence forever — a stalled fetch.
+        load: (onProgress, signal) =>
+          new Promise<void>(() => {
+            sig = signal
+            onProgress({ loaded: 10, total: 100, text: '' })
+          }),
+      }
+      const { hook, setNotice } = setup({ engine })
+      act(() => hook.result.current.requestDownload())
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(DOWNLOAD_STALL_MS + 100)
+      })
+      expect(hook.result.current.internal).toEqual({ phase: 'off' })
+      expect(setNotice).toHaveBeenCalledWith(
+        'Model download stalled — staying grammar-only.',
+      )
+      expect(sig.aborted).toBe(true) // the orphaned load was actually aborted
+      expect(errSpy).toHaveBeenCalledWith(
+        '[nl] model download stalled — no progress, aborting',
+      )
+    } finally {
+      vi.useRealTimers()
+      errSpy.mockRestore()
+    }
+  })
+
+  it('a re-picked download keeps its OWN stall watchdog when the superseded load rejects ([I1])', async () => {
+    // Re-pick race: download #1 arms the (shared) stall timer; the player
+    // re-picks → download #2 supersedes it and re-arms the timer for ITSELF.
+    // Aborting #1 makes its load reject AbortError a microtask later — that
+    // .catch must NOT clear #2's live watchdog (the bug F6 would silently lose).
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.useFakeTimers()
+    try {
+      const signals: AbortSignal[] = []
+      let calls = 0
+      const engine: LlmEngine = {
+        unload: async () => {},
+        isLoaded: () => false,
+        isCached: async () => false,
+        generate: async () => '',
+        // Each load emits one progress sample then waits; it rejects only when
+        // its own signal aborts (supersede for #1, watchdog for #2).
+        load: (onProgress, signal) =>
+          new Promise<void>((_resolve, reject) => {
+            signals[calls++] = signal
+            onProgress({ loaded: 10, total: 100, text: '' })
+            signal.addEventListener('abort', () =>
+              reject(new DOMException('aborted', 'AbortError')),
+            )
+          }),
+      }
+      const { hook, setNotice } = setup({ engine })
+      act(() => hook.result.current.requestDownload()) // download #1
+      act(() => hook.result.current.requestDownload()) // re-pick → #2 supersedes
+      // Flush #1's AbortError .catch (the microtask that, pre-fix, cleared #2's timer).
+      await act(async () => {
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+      expect(signals[0].aborted).toBe(true) // #1 superseded
+      expect(signals[1].aborted).toBe(false) // #2 still live...
+      // ...and its watchdog must still be armed: genuine silence trips it.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(DOWNLOAD_STALL_MS + 100)
+      })
+      expect(hook.result.current.internal).toEqual({ phase: 'off' })
+      expect(setNotice).toHaveBeenCalledWith(
+        'Model download stalled — staying grammar-only.',
+      )
+      expect(signals[1].aborted).toBe(true) // #2's watchdog aborted it
+    } finally {
+      vi.useRealTimers()
+      errSpy.mockRestore()
+    }
+  })
+
+  it('unmount aborts the in-flight load and clears the stall timer — no post-unmount state ([I2])', async () => {
+    vi.useFakeTimers()
+    try {
+      let sig!: AbortSignal
+      const engine: LlmEngine = {
+        unload: async () => {},
+        isLoaded: () => false,
+        isCached: async () => false,
+        generate: async () => '',
+        // Ignores its signal and never settles — only the unmount cleanup can
+        // stop the timer and abort the fetch.
+        load: (onProgress, signal) =>
+          new Promise<void>(() => {
+            sig = signal
+            onProgress({ loaded: 10, total: 100, text: '' })
+          }),
+      }
+      const { hook, setNotice } = setup({ engine })
+      act(() => hook.result.current.requestDownload())
+      expect(sig.aborted).toBe(false)
+      act(() => hook.unmount())
+      expect(sig.aborted).toBe(true) // in-flight load aborted on unmount
+      // The stall timer must NOT fire after unmount (no setState on a dead tree).
+      setNotice.mockClear()
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(DOWNLOAD_STALL_MS + 100)
+      })
+      expect(setNotice).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 

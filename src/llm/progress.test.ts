@@ -12,6 +12,13 @@ describe('pct', () => {
     expect(pct(0, 0)).toBe(0)
     expect(pct(5, 0)).toBe(0)
   })
+
+  it('clamps a bad sample to 0..100 and rejects non-finite (S4)', () => {
+    expect(pct(150, 100)).toBe(100) // loaded > total → never past the end
+    expect(pct(-5, 100)).toBe(0) // negative → floor at 0
+    expect(pct(NaN, 100)).toBe(0) // non-finite loaded → 0, not NaN
+    expect(pct(50, Infinity)).toBe(0) // non-finite total → 0
+  })
 })
 
 describe('estimateRemainingSeconds', () => {

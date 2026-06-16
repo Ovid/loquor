@@ -535,6 +535,7 @@ describe('useNaturalLanguage', () => {
     // covered the load, so a stalled load (WebGPU init, cache eviction →
     // network) held translatingRef forever: every later line queued to the
     // cap, then dropped. The load gets its own generous watchdog.
+    // Task 5 finalizes this to demote→basic-mode + modelDownloadFailed notice.
     localStorage.setItem('loquor.nl', JSON.stringify({ language: 'en' }))
     const stalledEngine: import('./types').LlmEngine = {
       isCached: async () => true,
@@ -543,21 +544,32 @@ describe('useNaturalLanguage', () => {
       generate: async () => '{"verb":"__UNKNOWN__"}',
       load: () => new Promise<void>(() => {}), // stalls forever
     }
-    const { hook, sendLine } = setup({ engine: stalledEngine })
-    await waitFor(() => expect(hook.result.current.state.phase).toBe('on'))
-    vi.useFakeTimers()
-    let p!: Promise<void>
-    act(() => {
-      p = hook.result.current.translate('sing a ditty')
-    })
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(61_000)
-      await p
-    })
-    vi.useRealTimers()
-    expect(sendLine).toHaveBeenCalledWith('sing a ditty') // EN raw fallback
-    expect(hook.result.current.notice).toMatch(/timed out/i)
-    expect(hook.result.current.pending).toBe(false) // input not wedged
+    // A stalled load now throws ModelLoadError (not WatchdogTimeout), so
+    // createTranslate logs an error and shows "Translation failed" notice.
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { hook, sendLine } = setup({ engine: stalledEngine })
+      await waitFor(() => expect(hook.result.current.state.phase).toBe('on'))
+      vi.useFakeTimers()
+      let p!: Promise<void>
+      act(() => {
+        p = hook.result.current.translate('sing a ditty')
+      })
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(61_000)
+        await p
+      })
+      vi.useRealTimers()
+      expect(sendLine).toHaveBeenCalledWith('sing a ditty') // EN raw fallback
+      expect(hook.result.current.notice).toMatch(/failed/i)
+      expect(hook.result.current.pending).toBe(false) // input not wedged
+      expect(errSpy).toHaveBeenCalledWith(
+        '[nl] translation failed:',
+        expect.anything(),
+      )
+    } finally {
+      errSpy.mockRestore()
+    }
   })
 
   it("phase 'off' beats the queue: a line typed mid-drain after switching off goes raw ([M])", async () => {

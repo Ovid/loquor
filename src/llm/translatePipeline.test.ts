@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { runClause, createGenerateRaw } from './translatePipeline'
+import { runClause, createGenerateRaw, ModelLoadError } from './translatePipeline'
 import type { ClauseDeps, GenerateRaw, Lex } from './translatePipeline'
 import type { Vocab } from './grammar/types'
 import type { Scene } from './scene/types'
@@ -190,5 +190,24 @@ describe('runClause grammar-only', () => {
     const deps = { vocab: TEST_VOCAB, grammar: 'root ::= "x"', generateRaw, getContext: () => ({ location: '', recentOutput: '' }) }
     await runClause('frobnicate the gadget', emptyScene, 'fr', null, false, deps)
     expect(engine.generateCalls).toBe(1)
+  })
+})
+
+describe('createGenerateRaw load vs generate failures', () => {
+  it('a lazy-load failure throws ModelLoadError', async () => {
+    const engine = new FakeLlmEngine({ failLoad: true }) // not loaded → load() runs and throws
+    const g = createGenerateRaw({ engine, watchdogMs: 1000, engineGate: new EngineGate() })
+    await expect(g([{ role: 'user', content: 'x' }], 'root ::= "x"')).rejects.toBeInstanceOf(
+      ModelLoadError,
+    )
+  })
+
+  it('a generate failure (model loaded) is NOT a ModelLoadError', async () => {
+    const engine = new FakeLlmEngine({ failGenerate: true })
+    await engine.load(() => {}, new AbortController().signal) // model resident → skip the load path
+    const g = createGenerateRaw({ engine, watchdogMs: 1000, engineGate: new EngineGate() })
+    await expect(g([{ role: 'user', content: 'x' }], 'root ::= "x"')).rejects.not.toBeInstanceOf(
+      ModelLoadError,
+    )
   })
 })

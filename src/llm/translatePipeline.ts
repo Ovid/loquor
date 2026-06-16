@@ -85,6 +85,20 @@ export class WatchdogTimeout extends Error {
   }
 }
 
+/**
+ * Clause-time model **load** failure (lazy load into VRAM threw or its watchdog
+ * fired) — distinct from a generate-time WatchdogTimeout. Only this demotes a
+ * `full` language to grammar-only: a load failure means the model can't run at
+ * all, whereas a generate stall is per-clause and keeps `full`. Carries the
+ * underlying cause for the diagnostic log.
+ */
+export class ModelLoadError extends Error {
+  constructor(public readonly reason?: unknown) {
+    super('model-load')
+    this.name = 'ModelLoadError'
+  }
+}
+
 // MAX_CLAUSES / QUEUE_CAP / LOAD_WATCHDOG_MS now live in ./config (F-13).
 
 /** Which pipeline stage produced a clause's command (spec §4 stages 3–7). */
@@ -202,6 +216,11 @@ export function createGenerateRaw(deps: GenerateRawDeps): GenerateRaw {
             engine.load(() => {}, loadAc.signal),
             loadWatchdog,
           ])
+        } catch (err) {
+          // A load failure (watchdog or engine.load reject) demotes full →
+          // grammar (see createTranslate). Wrap so the caller can tell it apart
+          // from a generate-time WatchdogTimeout, which does NOT demote.
+          throw new ModelLoadError(err)
         } finally {
           clearTimeout(loadId!)
           // DELIBERATELY NOT awaiting the orphaned load (review I3): when the

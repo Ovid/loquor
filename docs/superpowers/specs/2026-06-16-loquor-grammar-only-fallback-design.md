@@ -37,6 +37,11 @@ as a first-class **grammar-only** mode.
   sentences"), not a precondition.
 - A failed/stalled download, and a no-capability device, both **stay in
   grammar-only** instead of falling to raw English / `unavailable`.
+- The picked **language persists across reloads** (localStorage, language only —
+  not model state), so a non-English player isn't silently reset to English-parser
+  Off every session. On load, a persisted language re-activates NL in grammar-only
+  **only for a game that has a vocab** (otherwise the `disabled`/`hasVocab` gate
+  wins and it stays silent).
 
 ## Non-goals
 
@@ -57,8 +62,9 @@ Mode is **per active language**: grammar-only means "NL on, no loaded model".
 | Pick a language, **model not loaded** | NL active **grammar-only**, immediately. The upgrade modal appears **once** for discoverability; **"Not now" keeps grammar-only active** (today it reverts to Off). |
 | Pick a language, **model already loaded** this session | NL active **full** (deterministic + LLM-on-miss), no modal. |
 | Use the **upgrade** affordance → accept | Download → on success **full**; on failure/stall **stays grammar-only**. |
-| Device capability `none` | NL active **grammar-only**; the upgrade affordance is hidden, but a **"try the model anyway" override** remains (today's force-enable). |
+| Device capability `none` | NL active **grammar-only**; the upgrade affordance is hidden, but a **"try the model anyway" override** remains (today's force-enable), now **gated behind an honest warning** that the device may not support the model and the download is large and may fail. If the player proceeds and it fails, the **shared "staying in basic mode" notice** applies (same as any failed upgrade) — they never land worse than they started. |
 | Game has **no vocab** | `disabled` (unchanged — silent, no picker). |
+| **Reload** with a persisted language | NL re-activates **grammar-only** for that language if the running game has a vocab; otherwise `disabled`. Model state is never persisted, so it's always grammar-only on load until the player upgrades again. |
 
 Abstain in grammar-only is the **existing** stage-8 policy: English misses
 raw-send to the Z-parser; non-English misses show the "couldn't translate"
@@ -74,6 +80,16 @@ Internal phase machine (`useModelDownload.ts`) — the active phase gains a mode
 { phase: 'downloading', loaded, total, etaSeconds }
 { phase: 'on', language, model: 'full' | 'grammar' }
 ```
+
+**`full` vs `grammar` is "is the model permitted?", not "is it in VRAM right
+now?":** `full` means the model is permitted and **loads lazily on the first
+stage-7 miss** (the existing `createGenerateRaw` lazy-load + watchdog path
+already handles the cold load). `grammar` means no model is permitted — stage 7
+is skipped entirely. So a player whose model is **cached on disk** picks a
+language and goes straight to `on/full` (matching today's "cached → enabled"
+behavior at `useModelDownload.ts:229`) with **no silent GPU spin-up on pick** —
+the weights load only when a clause actually reaches the model. Both the
+state-machine and pipeline tests are written against this definition.
 
 Derived `NlState` (`useNaturalLanguage`):
 
@@ -118,11 +134,26 @@ if (grammarOnly) return { result: { kind: 'abstain' }, raw: '(grammar-only)', st
 and body explain it improves understanding of complex sentences; **"Not now"**
 keeps grammar-only active rather than reverting to Off.
 
+- On `none`, before the "try the model anyway" override fires, an **honest
+  warning** explains the device may not support the model and the download is
+  large and may fail (so the player isn't surprised by a long fetch that lands
+  them back in grammar-only).
+
 **Notices (`notices.ts`):** the M12 failure/stall notices are re-reframed once
 more, now accurately: a failed upgrade **stays in basic mode** (common commands
 still understood) — e.g. EN "AI model download failed — staying in basic mode.
 Common commands still work; pick the upgrade again to retry." Applied across
-EN/FR/DE/ES.
+EN/FR/DE/ES. The **`none`-device override failure routes through this same
+notice** — never a worse-off message.
+
+A new **one-time educational first-abstain notice** fires on the *first* clause
+that abstains while in grammar-only (per active session), then reverts to the
+plain "couldn't translate" notice on subsequent misses — it connects the miss to
+the declined upgrade at the moment of confusion (the picker's "· basic" marker is
+not where the player is looking). E.g. EN "Didn't catch that — basic mode
+understands common commands; add the AI upgrade for full sentences." Applied
+across EN/FR/DE/ES. (English grammar-only raw-sends rather than abstaining, so in
+practice this surfaces for non-English players — exactly the audience it serves.)
 
 ## Testing (TDD)
 
@@ -132,12 +163,20 @@ EN/FR/DE/ES.
 - **State machine** (`useModelDownload` / `useNaturalLanguage`): pick a language
   with no model → `on/grammar`, no download started; upgrade → `downloading` →
   `on/full`; download failure → `on/grammar` (not `off`); capability `none` →
-  `on/grammar` with upgrade hidden + override present; pick with model loaded →
-  `on/full`.
+  `on/grammar` with upgrade hidden + override present; pick with model **cached**
+  → `on/full` and **no eager engine load** (the load happens only on the first
+  stage-7 miss).
+- **Persistence**: picking a language writes the language (only) to localStorage;
+  on a fresh mount with a persisted language, NL re-activates `on/grammar` when the
+  game has a vocab, and stays `disabled` when it doesn't; model state is never
+  persisted (always grammar-only on load).
 - **Picker UI** (`NlLanguagePicker`): grammar-only shows the basic marker +
-  upgrade affordance; `none` shows the override not the upgrade; full shows
-  neither.
-- **Notices**: the reframed strings, per language.
+  upgrade affordance; `none` shows the override (gated behind its warning), not the
+  upgrade; full shows neither.
+- **Notices**: the reframed failure/stall strings, per language; the `none`-override
+  failure routes through the shared "staying in basic mode" notice; the one-time
+  educational first-abstain notice fires once per session then reverts to the plain
+  notice, per language.
 - **Regression**: existing NL/UAT and output-translation suites stay green.
 
 ## Risks / notes

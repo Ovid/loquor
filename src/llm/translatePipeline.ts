@@ -260,6 +260,7 @@ export async function runClause(
   scene: Scene,
   activeLang: ActiveLanguage,
   lex: Lex | null,
+  grammarOnly: boolean,
   deps: ClauseDeps,
 ): Promise<{ result: TranslateResult; raw: string; stage: Stage }> {
   const { vocab, grammar, generateRaw, getContext } = deps
@@ -316,7 +317,11 @@ export async function runClause(
     if (r.kind === 'command')
       return { result: r, raw: '(lexicon)', stage: 'lexicon' }
   }
-  // 7. LLM fallback. NL v2 §7: the grammar is the FULL vocab — scope
+  // 7. LLM fallback — skipped in grammar-only: abstain so stage 8 applies the
+  //    existing policy (EN raw-send / non-EN notice). The engine is never touched.
+  if (grammarOnly)
+    return { result: { kind: 'abstain' }, raw: '(grammar-only)', stage: 'llm' }
+  // NL v2 §7: the grammar is the FULL vocab — scope
   // feeds the prompt hint below, never the grammar or the validator.
   const base = getContext()
   const ctx: PromptContext = {
@@ -597,6 +602,7 @@ export function createTranslate(
             scene,
             activeLang,
             lex,
+            false,
             clauseDeps,
           ))
         } catch (err) {

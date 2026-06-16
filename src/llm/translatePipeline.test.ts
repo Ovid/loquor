@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { runClause } from './translatePipeline'
+import { runClause, createGenerateRaw } from './translatePipeline'
 import type { ClauseDeps, GenerateRaw, Lex } from './translatePipeline'
 import type { Vocab } from './grammar/types'
 import type { Scene } from './scene/types'
@@ -8,6 +8,8 @@ import { coreLexicon, nounLexicon, lexiconWordSet } from './lexicon/index'
 import { ZORK1_SIG } from './grammar/index'
 import { ZORK1_VOCAB } from './grammar/zork1.vocab'
 import { TAKE_ACK, DROP_ACK, ABSENCE_PAT } from './grammar/patterns'
+import { FakeLlmEngine } from './engine.fake'
+import { EngineGate } from '../shared/engineGate'
 
 // Direct unit tests for the now-pure clause pipeline (F-1). The hook-level
 // suite (useNaturalLanguage.test.tsx) already exercises every stage through the
@@ -64,7 +66,7 @@ function detDeps(): {
 describe('runClause (NL v2 pipeline stages 3–7)', () => {
   it('stage 3 (meta): a Z-machine meta-verb routes raw, no model', async () => {
     const { deps, generateRaw } = detDeps()
-    const r = await runClause('restart', emptyScene, 'en', null, deps)
+    const r = await runClause('restart', emptyScene, 'en', null, false, deps)
     expect(r.stage).toBe('meta')
     expect(r.result).toEqual({ kind: 'command', text: 'restart' })
     expect(generateRaw).not.toHaveBeenCalled()
@@ -72,7 +74,7 @@ describe('runClause (NL v2 pipeline stages 3–7)', () => {
 
   it('stage 4 (vocab passthrough): an all-vocab clause is sent verbatim, no model', async () => {
     const { deps, generateRaw } = detDeps()
-    const r = await runClause('open trapdoor', emptyScene, 'en', null, deps)
+    const r = await runClause('open trapdoor', emptyScene, 'en', null, false, deps)
     expect(r.stage).toBe('vocab')
     expect(r.result).toEqual({ kind: 'command', text: 'open trapdoor' })
     expect(generateRaw).not.toHaveBeenCalled()
@@ -80,7 +82,7 @@ describe('runClause (NL v2 pipeline stages 3–7)', () => {
 
   it('stage 4 sends the trailing-punctuation-stripped form it gated on ([C])', async () => {
     const { deps, generateRaw } = detDeps()
-    const r = await runClause('open trapdoor!', emptyScene, 'en', null, deps)
+    const r = await runClause('open trapdoor!', emptyScene, 'en', null, false, deps)
     expect(r.stage).toBe('vocab')
     expect(r.result).toEqual({ kind: 'command', text: 'open trapdoor' })
     expect(generateRaw).not.toHaveBeenCalled()
@@ -91,7 +93,7 @@ describe('runClause (NL v2 pipeline stages 3–7)', () => {
     // 'go' isn't a parser word), so it falls through to the direction fast-path,
     // which strips the lead and resolves the closed multilingual set.
     const { deps, generateRaw } = detDeps()
-    const r = await runClause('go north', emptyScene, 'en', null, deps)
+    const r = await runClause('go north', emptyScene, 'en', null, false, deps)
     expect(r.stage).toBe('direction')
     expect(r.result).toEqual({ kind: 'command', text: 'north' })
     expect(generateRaw).not.toHaveBeenCalled()
@@ -112,7 +114,7 @@ describe('runClause (NL v2 pipeline stages 3–7)', () => {
       generateRaw,
       getContext: ctx,
     }
-    const r = await runClause('ouvre la trappe', emptyScene, 'fr', lex, deps)
+    const r = await runClause('ouvre la trappe', emptyScene, 'fr', lex, false, deps)
     expect(r.stage).toBe('lexicon')
     expect(r.result).toEqual({ kind: 'command', text: 'open trapdoor' })
     expect(generateRaw).not.toHaveBeenCalled()
@@ -129,7 +131,7 @@ describe('runClause (NL v2 pipeline stages 3–7)', () => {
       generateRaw,
       getContext: ctx,
     }
-    const r = await runClause('pop the mailbox', emptyScene, 'en', null, deps)
+    const r = await runClause('pop the mailbox', emptyScene, 'en', null, false, deps)
     expect(r.stage).toBe('llm')
     expect(r.result).toEqual({ kind: 'command', text: 'open mailbox' })
     // The validator's grammar is the FULL vocab (NL v2 §7), forwarded untouched.
@@ -152,12 +154,41 @@ describe('runClause (NL v2 pipeline stages 3–7)', () => {
       inScope: [{ canonical: 'leaflet' }, { canonical: 'mailbox' }],
       antecedent: 'leaflet',
     }
-    await runClause('grab it', scene, 'en', null, deps)
+    await runClause('grab it', scene, 'en', null, false, deps)
     // buildPrompt folds the scene into the messages; assert the in-scope
     // canonicals and antecedent reached the model.
     const messages = generateRaw.mock.calls[0][0]
     const serialized = JSON.stringify(messages)
     expect(serialized).toContain('leaflet')
     expect(serialized).toContain('mailbox')
+  })
+})
+
+describe('runClause grammar-only', () => {
+  it('skips stage 7 and abstains — engine.generate is never called', async () => {
+    const engine = new FakeLlmEngine({ default: '{"verb":"take","noun":"lamp"}' })
+    const generateRaw = createGenerateRaw({
+      engine,
+      watchdogMs: 1000,
+      engineGate: new EngineGate(),
+    })
+    const deps = { vocab: TEST_VOCAB, grammar: 'root ::= "x"', generateRaw, getContext: () => ({ location: '', recentOutput: '' }) }
+    // A clause that reaches stage 7 (not a meta/vocab/direction/lexicon hit):
+    const { result, stage } = await runClause('frobnicate the gadget', emptyScene, 'fr', null, true, deps)
+    expect(result).toEqual({ kind: 'abstain' })
+    expect(stage).toBe('llm')
+    expect(engine.generateCalls).toBe(0)
+  })
+
+  it('grammarOnly:false still calls the model at stage 7', async () => {
+    const engine = new FakeLlmEngine({ default: 'I_DONT_KNOW' })
+    const generateRaw = createGenerateRaw({
+      engine,
+      watchdogMs: 1000,
+      engineGate: new EngineGate(),
+    })
+    const deps = { vocab: TEST_VOCAB, grammar: 'root ::= "x"', generateRaw, getContext: () => ({ location: '', recentOutput: '' }) }
+    await runClause('frobnicate the gadget', emptyScene, 'fr', null, false, deps)
+    expect(engine.generateCalls).toBe(1)
   })
 })

@@ -78,7 +78,12 @@ export const DE_CORE: CoreLexicon = {
     besteige: 'board',
     // light/extinguish
     zunde: 'light', // zünde folded; 'zunde … an' particle also maps here
-    losche: 'extinguish', // lösche folded
+    losche: 'extinguish', // lösche folded; 'losche … aus' particle also maps here (F7)
+    // launch the boat (UAT F25): the river is otherwise un-launchable in real
+    // German without the English 'launch' keyword. 'launch' is FIND-default, so
+    // a bare 'starte' emits 'launch' and the Z-parser finds the vehicle.
+    starte: 'launch',
+    start: 'launch',
     aktiviere: 'activate',
     // UAT verb traps (mirrors fr.core.ts)
     schwenke: 'wave',
@@ -189,6 +194,8 @@ export const DE_CORE: CoreLexicon = {
     { phrase: 'lassen sie fallen', to: 'drop' },
     { phrase: 'geh an bord', to: 'board' }, // mirrors fr 'monte a bord'
     { phrase: 'gehe an bord', to: 'board' },
+    { phrase: 'fahr los', to: 'launch' }, // losfahren — launch the boat (F25)
+    { phrase: 'fahre los', to: 'launch' },
     { phrase: 'setz dich', to: 'sit' },
     { phrase: 'setze dich', to: 'sit' },
   ],
@@ -258,6 +265,36 @@ export const DE_CORE: CoreLexicon = {
     { verb: 'binde', particle: 'auf', to: 'untie' }, // aufbinden
     { verb: 'wache', particle: 'auf', to: 'wake' }, // aufwachen
     { verb: 'wach', particle: 'auf', to: 'wake' },
+    // Extinguish with a clause-final 'aus' particle (UAT F7, DEATH-TRAP): the
+    // natural 'lösche/puste/blase … aus' otherwise left a trailing 'aus' that
+    // broke the bare-verb parse and the LLM mis-mapped it to 'burn' (the
+    // OPPOSITE action) near open flames. blase+auf=inflate is unaffected.
+    { verb: 'losche', particle: 'aus', to: 'extinguish' }, // auslöschen
+    { verb: 'puste', particle: 'aus', to: 'extinguish' }, // auspusten
+    { verb: 'blase', particle: 'aus', to: 'extinguish' }, // ausblasen
+    { verb: 'blas', particle: 'aus', to: 'extinguish' },
+    // Climb DOWN with a clause-final directional particle (UAT F5): there is no
+    // object, but 'climb down' is verbs1 (needs one), so map to the bare
+    // movement direction the game accepts verb-only. 'klettere auf den Baum'
+    // (climb up, WITH an object) is unaffected — the particle must be last.
+    { verb: 'klettere', particle: 'hinunter', to: 'down' },
+    { verb: 'klettere', particle: 'hinab', to: 'down' },
+    { verb: 'klettere', particle: 'runter', to: 'down' },
+    { verb: 'kletter', particle: 'hinunter', to: 'down' },
+    { verb: 'kletter', particle: 'runter', to: 'down' },
+    { verb: 'steige', particle: 'hinunter', to: 'down' },
+    { verb: 'steige', particle: 'hinab', to: 'down' },
+    { verb: 'steige', particle: 'runter', to: 'down' },
+    { verb: 'steig', particle: 'hinunter', to: 'down' },
+    { verb: 'steig', particle: 'hinab', to: 'down' },
+    { verb: 'steig', particle: 'runter', to: 'down' },
+    { verb: 'klettere', particle: 'hinauf', to: 'up' },
+    { verb: 'klettere', particle: 'hoch', to: 'up' },
+    { verb: 'klettere', particle: 'rauf', to: 'up' },
+    { verb: 'steige', particle: 'hinauf', to: 'up' },
+    { verb: 'steige', particle: 'hoch', to: 'up' },
+    { verb: 'steig', particle: 'hinauf', to: 'up' },
+    { verb: 'steig', particle: 'hoch', to: 'up' },
   ],
   preps: {
     mit: 'with',

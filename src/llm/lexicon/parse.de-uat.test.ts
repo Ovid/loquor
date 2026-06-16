@@ -11,8 +11,12 @@ import { ZORK1_VOCAB } from '../grammar/zork1.vocab'
 import type { Scene } from '../scene/types'
 
 const empty: Scene = { inScope: [], antecedent: null }
-const de = (clause: string) =>
-  parseLexicon(clause, DE_CORE, DE_ZORK1, ZORK1_VOCAB, empty)
+const inScope = (...canonicals: string[]): Scene => ({
+  inScope: canonicals.map(c => ({ canonical: c })),
+  antecedent: null,
+})
+const de = (clause: string, scene: Scene = empty) =>
+  parseLexicon(clause, DE_CORE, DE_ZORK1, ZORK1_VOCAB, scene)
 
 describe('German UAT — noun surface forms (notes/uat-de-findings.md)', () => {
   it('F12: "lederbeutel" (the game\'s floor noun) → take coins', () => {
@@ -56,5 +60,42 @@ describe('German UAT — noun surface forms (notes/uat-de-findings.md)', () => {
       kind: 'command',
       text: 'put diamond in case',
     })
+  })
+})
+
+describe('German UAT — verbs (notes/uat-de-findings.md)', () => {
+  it('F7 (DEATH-TRAP): "lösche/puste/blase … aus" → extinguish, never a lighting verb', () => {
+    for (const c of [
+      'lösche die kerzen aus',
+      'puste die kerzen aus',
+      'blase die kerzen aus',
+    ])
+      expect(de(c)).toEqual({ kind: 'command', text: 'extinguish candles' })
+  })
+
+  it('F5: bare "klettere/steige hinunter" → down (climb down is verbs1, would miss)', () => {
+    for (const c of [
+      'klettere hinunter',
+      'klettere hinab',
+      'klettere runter',
+      'steige hinunter',
+      'steig runter',
+    ])
+      expect(de(c)).toEqual({ kind: 'command', text: 'down' })
+  })
+
+  it('F5: "klettere hinauf/hoch" → up', () => {
+    expect(de('klettere hinauf')).toEqual({ kind: 'command', text: 'up' })
+    expect(de('steig hoch')).toEqual({ kind: 'command', text: 'up' })
+  })
+
+  it('F25 (puzzle-critical): a German launch verb exists for the boat', () => {
+    // 'launch' is FIND-default, so the bare verb finds the vehicle.
+    // ('boot' is ambiguous magic/punctured boat; the live scene disambiguates.)
+    expect(de('starte das boot', inScope('magic boat'))).toEqual({
+      kind: 'command',
+      text: 'launch raft',
+    })
+    expect(de('fahr los')).toEqual({ kind: 'command', text: 'launch' })
   })
 })

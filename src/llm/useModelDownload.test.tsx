@@ -150,6 +150,28 @@ describe('requestDownload', () => {
     }
   })
 
+  it('the failure notice is localized to the picked language (F1)', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      // Uncached engine → setLanguage('fr') opens the modal and records 'fr' as
+      // the pending language; requestDownload then fails against it.
+      const { hook, setNotice } = setup({
+        engine: new FakeLlmEngine({ failLoad: true }),
+      })
+      await waitFor(() => expect(hook.result.current.installed).toBe(false))
+      act(() => hook.result.current.setLanguage('fr'))
+      act(() => hook.result.current.requestDownload())
+      await waitFor(() =>
+        expect(hook.result.current.internal).toEqual({ phase: 'off' }),
+      )
+      expect(setNotice).toHaveBeenCalledWith(
+        'Échec du téléchargement du modèle — mode grammaire uniquement.',
+      )
+    } finally {
+      errSpy.mockRestore()
+    }
+  })
+
   it('a stalled download (no further progress) trips the no-progress watchdog → off + notice + abort (F6)', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.useFakeTimers()

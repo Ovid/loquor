@@ -12,6 +12,7 @@ import { readNlPref, writeNlPref } from './nlpref'
 import { pct as toPct, estimateRemainingSeconds } from './progress'
 import type { ProgressSample } from './progress'
 import { DOWNLOAD_STALL_MS } from './config'
+import { modelDownloadFailed, modelDownloadStalled } from './notices'
 import { createLogger } from '../logger'
 
 const log = createLogger('nl')
@@ -131,7 +132,7 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
       stallTimerRef.current = setTimeout(() => {
         if (stale()) return
         log.error('model download stalled — no progress, aborting')
-        setNotice('Model download stalled — staying grammar-only.')
+        setNotice(modelDownloadStalled(pendingLangRef.current))
         setInternal({ phase: 'off' })
         ac.abort()
       }, DOWNLOAD_STALL_MS)
@@ -171,7 +172,7 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
           // (non-abort) load failure must reach the ring buffer / console, not
           // just the player notice, or the cause is undiagnosable.
           log.error('model download failed:', err)
-          setNotice('Model download failed — staying grammar-only.')
+          setNotice(modelDownloadFailed(pendingLangRef.current))
           setInternal({ phase: 'off' })
         }
       })

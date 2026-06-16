@@ -106,6 +106,35 @@ export function ranOfActions(
   return `${prefix[lang]} — ${body[lang]}`
 }
 
+/** The model download failed (genuine, non-abort) — the layer falls back to
+ * the deterministic grammar-only pipeline. Shown in the language the player
+ * picked when they triggered the download. */
+export function modelDownloadFailed(lang: ActiveLanguage): string {
+  return byLang(
+    {
+      en: 'Model download failed — staying grammar-only.',
+      fr: 'Échec du téléchargement du modèle — mode grammaire uniquement.',
+      de: 'Modell-Download fehlgeschlagen — nur Grammatikmodus.',
+      es: 'Error al descargar el modelo — solo modo gramática.',
+    },
+    lang,
+  )
+}
+
+/** The model download stalled (no progress) and was aborted by the watchdog —
+ * same grammar-only fallback as a failure. */
+export function modelDownloadStalled(lang: ActiveLanguage): string {
+  return byLang(
+    {
+      en: 'Model download stalled — staying grammar-only.',
+      fr: 'Téléchargement du modèle bloqué — mode grammaire uniquement.',
+      de: 'Modell-Download hängt — nur Grammatikmodus.',
+      es: 'Descarga del modelo estancada — solo modo gramática.',
+    },
+    lang,
+  )
+}
+
 /** A queued line was discarded because the game raised an interactive prompt. */
 export function queueClearedNeedsAnswer(lang: ActiveLanguage): string {
   return byLang(

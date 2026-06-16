@@ -104,6 +104,10 @@ describe('de core lexicon', () => {
       'um',
       'hoch',
       'runter',
+      'hinunter', // climb-down directional particles (UAT F5)
+      'hinab',
+      'hinauf',
+      'rauf',
       'fallen', // 'fallen lassen' verb cluster (UAT I3/I4/I5), clause-final
     ])
     for (const p of DE_CORE.particleVerbs)

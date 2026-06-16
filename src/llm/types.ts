@@ -74,9 +74,8 @@ export interface PromptContext extends ViewContext {
 
 /** Picker/state-machine state surfaced by useNaturalLanguage. */
 export type NlState =
-  | { phase: 'unavailable'; reasons: string[] } // no capable device (offer override)
-  | { phase: 'disabled' } // capable, but this game has no grammar (silent — no override)
-  | { phase: 'off'; installed: boolean }
+  | { phase: 'disabled' } // this game has no vocab (silent — no picker)
+  | { phase: 'off'; installed: boolean; canUpgrade: boolean }
   | {
       phase: 'downloading'
       loaded: number
@@ -84,7 +83,13 @@ export type NlState =
       /** Estimated seconds remaining, or null until a rate is known. */
       etaSeconds: number | null
     }
-  | { phase: 'on'; language: ActiveLanguage }
+  | {
+      phase: 'on'
+      language: ActiveLanguage
+      model: 'full' | 'grammar'
+      /** capability allows attempting the model upgrade (else only the override). */
+      canUpgrade: boolean
+    }
 
 /** Re-export for hook consumers that thread the live view in. */
 export type { ViewState }

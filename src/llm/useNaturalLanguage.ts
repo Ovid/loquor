@@ -54,6 +54,8 @@ export interface UseNaturalLanguage {
   /** Pick a language ('off' disables the layer). Sticky via writeNlPref. */
   setLanguage: (lang: NlLanguage) => void
   requestDownload: () => void
+  /** Open the upgrade modal on demand (picker "✦ improve" / "try the model anyway"). */
+  requestUpgrade: () => void
   declineDownload: () => void
   cancelDownload: () => void
   translate: (english: string) => Promise<void>
@@ -119,8 +121,17 @@ export function useNaturalLanguage(
   // effect defers to the hook's in-order, per-clause observes (locked decision 9).
   const inSequenceRef = useRef(false)
 
-  const available = capability.tier !== 'none'
+  // First-abstain education fires once per grammar-only STINT. Reset on each
+  // entry into grammar-only — a fresh non-loaded-language pick, a language switch
+  // while grammar, or a full→grammar demotion (spec §UI/notices).
+  const educatedRef = useRef(false)
+  const prevGrammarKeyRef = useRef<string | null>(null)
+
   const hasVocab = vocab !== null
+  // Capability no longer disables NL (hasVocab is the sole prerequisite); it only
+  // gates whether the model UPGRADE may be ATTEMPTED. A `none` device still gets
+  // grammar-only play and the override path.
+  const canUpgrade = capability.tier !== 'none'
 
   // The model download / install / phase lifecycle lives in its own hook (F-2):
   // it owns `internal` (the phase machine), the installed/modal flags, the
@@ -137,10 +148,6 @@ export function useNaturalLanguage(
     requestUpgrade,
     demoteToGrammar,
   } = useModelDownload({ engine, hasVocab, setNotice })
-  // requestUpgrade / demoteToGrammar are wired to the UI in Task 5;
-  // suppress unused-variable lint until then.
-  void requestUpgrade
-  void demoteToGrammar
 
   // Own a scene tracker; rebuild + reset when the game (vocab) changes.
   const trackerRef = useRef<TextSceneTracker | null>(null)
@@ -154,8 +161,22 @@ export function useNaturalLanguage(
     epochRef.current++
   }, [vocab])
 
+  // Reset the first-abstain education latch on each ENTRY into grammar-only: a
+  // fresh non-loaded-language pick, a language switch while grammar, or a
+  // full→grammar demotion. The key is the active grammar-only language (null
+  // when not grammar-only), so re-entering grammar-only — even on the same
+  // language after a full stint — re-arms the once-per-stint education.
+  useEffect(() => {
+    const key =
+      internal.phase === 'on' && internal.model === 'grammar'
+        ? internal.language
+        : null
+    if (key !== null && key !== prevGrammarKeyRef.current)
+      educatedRef.current = false
+    prevGrammarKeyRef.current = key
+  }, [internal])
+
   const state: NlState = useMemo(() => {
-    if (!available) return { phase: 'unavailable', reasons: capability.reasons }
     if (!hasVocab) return { phase: 'disabled' } // silent: this game has no vocab
     if (internal.phase === 'downloading')
       return {
@@ -165,9 +186,14 @@ export function useNaturalLanguage(
         etaSeconds: internal.etaSeconds,
       }
     if (internal.phase === 'on')
-      return { phase: 'on', language: internal.language }
-    return { phase: 'off', installed }
-  }, [available, hasVocab, capability.reasons, internal, installed])
+      return {
+        phase: 'on',
+        language: internal.language,
+        model: internal.model,
+        canUpgrade,
+      }
+    return { phase: 'off', installed, canUpgrade }
+  }, [hasVocab, canUpgrade, internal, installed])
 
   // The active picker language ('off' while the layer is off/downloading) and,
   // for non-English languages, the deterministic lexicons keyed by (language,
@@ -237,6 +263,8 @@ export function useNaturalLanguage(
         inSequenceRef,
         epochRef,
         liveRef,
+        demote: demoteToGrammar,
+        educatedRef,
         setPending,
         setNotice,
         syncQueue,
@@ -252,6 +280,7 @@ export function useNaturalLanguage(
       sendLine,
       recordEcho,
       awaitTurn,
+      demoteToGrammar,
       syncQueue,
     ],
   )
@@ -283,6 +312,7 @@ export function useNaturalLanguage(
     modalOpen,
     setLanguage,
     requestDownload,
+    requestUpgrade,
     declineDownload,
     cancelDownload,
     translate,

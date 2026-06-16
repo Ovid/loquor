@@ -71,7 +71,7 @@ describe('Terminal', () => {
 
   it('renders queued lines with a "queued" chip and keeps the input enabled (F-A)', async () => {
     nlOverride = {
-      state: { phase: 'on', language: 'en' },
+      state: { phase: 'on', language: 'en', model: 'full', canUpgrade: true },
       pending: true,
       queued: [{ id: 0, text: 'take the lamp' }],
     }
@@ -103,7 +103,7 @@ describe('Terminal', () => {
     // when a wedged/slow drain coincided with switching NL off — the one
     // moment raw play must be reachable. The input is never pending-disabled.
     nlOverride = {
-      state: { phase: 'off', installed: true },
+      state: { phase: 'off', installed: true, canUpgrade: true },
       pending: true,
       queued: [],
     }

@@ -25,11 +25,14 @@ const OPTIONS: { value: NlLanguage; label: string; lang: string }[] = [
 export function NlLanguagePicker({
   state,
   onSelect,
-  onOverride,
 }: {
   state: NlState
   onSelect: (lang: NlLanguage) => void
-  onOverride: () => void
+  // `onOverride` (capability force-enable) is still accepted from Terminal but
+  // no longer surfaced here: dropping the `unavailable` phase removed the
+  // "force-enable" affordance. The capability override now only gates the model
+  // UPGRADE, surfaced elsewhere; kept optional so Terminal needn't change.
+  onOverride?: () => void
 }) {
   const [open, setOpen] = useState(false)
   // Index of the keyboard/hover highlight while the listbox is open.
@@ -47,21 +50,8 @@ export function NlLanguagePicker({
     return () => document.removeEventListener('mousedown', onDocDown)
   }, [open])
 
-  // No grammar for this game → silently render nothing (no picker, no override).
+  // No vocab for this game → silently render nothing (no picker).
   if (state.phase === 'disabled') return null
-  if (state.phase === 'unavailable') {
-    return (
-      <span
-        className="nl-toggle"
-        title={`unavailable: ${state.reasons.join(', ')}`}
-      >
-        Language: unavailable{' '}
-        <button className="sw" type="button" onClick={onOverride}>
-          force-enable
-        </button>
-      </span>
-    )
-  }
   if (state.phase === 'downloading') {
     const pct = toPct(state.loaded, state.total)
     return <span className="nl-toggle">downloading… {pct}%</span>

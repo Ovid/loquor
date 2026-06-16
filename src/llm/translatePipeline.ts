@@ -49,6 +49,8 @@ import {
   couldntTranslate,
   ranOfActions,
   queueClearedNeedsAnswer,
+  modelDownloadFailed,
+  grammarOnlyFirstMiss,
 } from './notices'
 import { createLogger } from '../logger'
 import type { Internal } from './useModelDownload'
@@ -93,9 +95,13 @@ export class WatchdogTimeout extends Error {
  * underlying cause for the diagnostic log.
  */
 export class ModelLoadError extends Error {
-  constructor(public readonly reason?: unknown) {
+  // Plain field assignment (not a parameter property): `tsconfig`'s
+  // `erasableSyntaxOnly` forbids constructor parameter-property shorthand.
+  readonly reason?: unknown
+  constructor(reason?: unknown) {
     super('model-load')
     this.name = 'ModelLoadError'
+    this.reason = reason
   }
 }
 
@@ -381,6 +387,10 @@ export interface TranslateDeps {
   inSequenceRef: MutableRefObject<boolean>
   epochRef: MutableRefObject<number>
   liveRef: MutableRefObject<LiveState>
+  /** Flip the active language full → grammar after a clause-time load failure. */
+  demote: () => void
+  /** First-abstain education latch (once per grammar-only stint). */
+  educatedRef: MutableRefObject<boolean>
   setPending: Dispatch<SetStateAction<boolean>>
   setNotice: Dispatch<SetStateAction<string | null>>
   syncQueue: () => void
@@ -414,6 +424,8 @@ export function createTranslate(
     inSequenceRef,
     epochRef,
     liveRef,
+    demote,
+    educatedRef,
     setPending,
     setNotice,
     syncQueue,
@@ -532,6 +544,10 @@ export function createTranslate(
       const activeLang: ActiveLanguage =
         live.internal.phase === 'on' ? live.internal.language : 'en'
       const lex = live.lex
+      // Grammar-only: the model isn't loaded for this stint, so stage 7 abstains
+      // (runClause skips the engine) and stage 8 educates / EN raw-sends.
+      const grammarOnly =
+        live.internal.phase === 'on' && live.internal.model === 'grammar'
       // STAGE 1 (spec §4): the game is asking. The interpreter's yes/no
       // confirmations (restart/quit/restore), the parser's disambiguation
       // questions ("Which door…?"), and the parser's orphan prompts ("What do
@@ -621,10 +637,20 @@ export function createTranslate(
             scene,
             activeLang,
             lex,
-            false,
+            grammarOnly,
             clauseDeps,
           ))
         } catch (err) {
+          // A clause-time model LOAD failure demotes full → grammar for the rest
+          // of the session and stops; stage 8 surfaces the shared basic-mode
+          // notice (EN raw-send / non-EN nothing-sent). Handled FIRST so it can't
+          // be mistaken for a generate-time error or rethrown as a bare timeout.
+          if (err instanceof ModelLoadError) {
+            demote()
+            stopReason = 'load-failed'
+            stopError = err
+            break
+          }
           // Single command: surface through the outer catch (timeout/failure
           // notice + raw send — unchanged contract). Mid-compound: stop the
           // sequence (locked decision 4).
@@ -727,8 +753,14 @@ export function createTranslate(
       // A genuine engine error mid-compound never propagates to the drain's
       // catch (total>1 swallows it above), so it is logged HERE, before any
       // branching, to keep the "generate failures stay diagnosable"
-      // contract on every path ([B]).
-      if (stopError !== null && !(stopError instanceof WatchdogTimeout))
+      // contract on every path ([B]). A ModelLoadError is NOT a generate fault
+      // — it is a known degradation handled by demoting to grammar-only — so it
+      // is excluded (it would otherwise log on every clause-time load failure).
+      if (
+        stopError !== null &&
+        !(stopError instanceof WatchdogTimeout) &&
+        !(stopError instanceof ModelLoadError)
+      )
         log.error('translation failed:', stopError)
 
       if (done === 0) {
@@ -741,18 +773,30 @@ export function createTranslate(
         // masquerade as a deliberate abstain — it gets the failure notice.
         lastCommandRef.current = null
         if (stopError !== null) {
-          // The translator broke (timeout/engine error) — don't blame the
-          // player's wording (Task 21 review).
-          const timedOut = stopError instanceof WatchdogTimeout
-          if (activeLang === 'en') {
-            sendTracked(line)
-            setNotice(sentAsTyped(timedOut))
+          if (stopError instanceof ModelLoadError) {
+            // Clause-time load failure (demote already fired): the shared
+            // basic-mode notice; EN still raw-sends the typed line.
+            setNotice(modelDownloadFailed(activeLang))
+            if (activeLang === 'en') sendTracked(line)
           } else {
-            // Nothing was sent: the non-EN abstain policy still holds.
-            setNotice(nothingSent(activeLang, timedOut))
+            // The translator broke (timeout/engine error) — don't blame the
+            // player's wording (Task 21 review).
+            const timedOut = stopError instanceof WatchdogTimeout
+            if (activeLang === 'en') {
+              sendTracked(line)
+              setNotice(sentAsTyped(timedOut))
+            } else {
+              // Nothing was sent: the non-EN abstain policy still holds.
+              setNotice(nothingSent(activeLang, timedOut))
+            }
           }
         } else if (activeLang === 'en') {
           sendTracked(line)
+        } else if (grammarOnly && !educatedRef.current) {
+          // First grammar-only abstain this stint: connect the miss to the
+          // declined/absent upgrade at the moment of confusion (once per stint).
+          educatedRef.current = true
+          setNotice(grammarOnlyFirstMiss(activeLang))
         } else {
           setNotice(couldntTranslate(activeLang))
         }
@@ -822,6 +866,23 @@ export function createTranslate(
           // benign watchdog timeout) is logged so the root cause stays
           // diagnosable, and the drain continues.
           lastCommandRef.current = null
+          // Backstop: a clause-time load failure that reaches the drain catch
+          // (e.g. a future rethrow path) must still demote + show the shared
+          // basic-mode notice, then advance the drain like a normal stop. The
+          // in-runLine stage-8 path handles the total===1 case directly today,
+          // but mirroring it here keeps the contract on every path.
+          if (err instanceof ModelLoadError) {
+            demote()
+            const lang = liveLang()
+            setNotice(modelDownloadFailed(lang))
+            if (lang === 'en') sendTracked(line)
+            inSequenceRef.current = false
+            line = queueRef.current.shift()?.text
+            fromQueue = true
+            syncQueue()
+            settled = null
+            continue
+          }
           if (!(err instanceof WatchdogTimeout))
             log.error('translation failed:', err)
           // F2/F-R: honor stage-8's abstain policy here too. EN raw-sends (the

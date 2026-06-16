@@ -10,7 +10,7 @@ describe('NlLanguagePicker', () => {
   it('opens a themed listbox with Off · English · Français · Deutsch · Español', () => {
     render(
       <NlLanguagePicker
-        state={{ phase: 'off', installed: true }}
+        state={{ phase: 'off', installed: true, canUpgrade: true }}
         onSelect={() => {}}
         onOverride={() => {}}
       />,
@@ -27,7 +27,7 @@ describe('NlLanguagePicker', () => {
   it('names the listbox and tags non-English options with their language', () => {
     render(
       <NlLanguagePicker
-        state={{ phase: 'off', installed: true }}
+        state={{ phase: 'off', installed: true, canUpgrade: true }}
         onSelect={() => {}}
         onOverride={() => {}}
       />,
@@ -54,7 +54,7 @@ describe('NlLanguagePicker', () => {
     const onSelect = vi.fn()
     render(
       <NlLanguagePicker
-        state={{ phase: 'on', language: 'fr' }}
+        state={{ phase: 'on', language: 'fr', model: 'full', canUpgrade: true }}
         onSelect={onSelect}
         onOverride={() => {}}
       />,
@@ -75,7 +75,7 @@ describe('NlLanguagePicker', () => {
     const onSelect = vi.fn()
     render(
       <NlLanguagePicker
-        state={{ phase: 'on', language: 'fr' }}
+        state={{ phase: 'on', language: 'fr', model: 'full', canUpgrade: true }}
         onSelect={onSelect}
         onOverride={() => {}}
       />,
@@ -95,7 +95,7 @@ describe('NlLanguagePicker', () => {
     const onSelect = vi.fn()
     render(
       <NlLanguagePicker
-        state={{ phase: 'on', language: 'fr' }}
+        state={{ phase: 'on', language: 'fr', model: 'full', canUpgrade: true }}
         onSelect={onSelect}
         onOverride={() => {}}
       />,
@@ -112,23 +112,14 @@ describe('NlLanguagePicker', () => {
     expect(onSelect).not.toHaveBeenCalled()
   })
 
-  it('keeps the unavailable + downloading branches', () => {
-    const onOverride = vi.fn()
-    const { rerender } = render(
-      <NlLanguagePicker
-        state={{ phase: 'unavailable', reasons: ['no webgpu'] }}
-        onSelect={() => {}}
-        onOverride={onOverride}
-      />,
-    )
-    expect(screen.getByText(/force-enable/)).toBeInTheDocument()
-    screen.getByRole('button', { name: /force-enable/ }).click()
-    expect(onOverride).toHaveBeenCalled()
-    rerender(
+  it('keeps the downloading branch', () => {
+    // The `unavailable` phase was removed (capability no longer disables NL —
+    // it only gates the model upgrade), so the old "force-enable" affordance is
+    // gone; the downloading progress chip remains.
+    render(
       <NlLanguagePicker
         state={{ phase: 'downloading', loaded: 1, total: 2, etaSeconds: null }}
         onSelect={() => {}}
-        onOverride={() => {}}
       />,
     )
     expect(screen.getByText(/downloading/)).toBeInTheDocument()
@@ -138,7 +129,7 @@ describe('NlLanguagePicker', () => {
   it('shows the installed chip when off · installed', () => {
     render(
       <NlLanguagePicker
-        state={{ phase: 'off', installed: true }}
+        state={{ phase: 'off', installed: true, canUpgrade: true }}
         onSelect={() => {}}
         onOverride={() => {}}
       />,
@@ -152,7 +143,7 @@ describe('NlLanguagePicker', () => {
   it('shows the not-installed chip when off · not installed', () => {
     render(
       <NlLanguagePicker
-        state={{ phase: 'off', installed: false }}
+        state={{ phase: 'off', installed: false, canUpgrade: true }}
         onSelect={() => {}}
         onOverride={() => {}}
       />,

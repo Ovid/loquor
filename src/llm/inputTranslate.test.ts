@@ -199,10 +199,20 @@ describe('isConfirmationPrompt', () => {
       expect(isConfirmationPrompt(p)).toBe(true)
   })
 
+  it('detects the LOCALIZED German confirmation prompts (UAT F2)', () => {
+    for (const p of [
+      'Möchtest du neu beginnen? (Y bedeutet ja):',
+      'Möchtest du das Spiel verlassen? (Y für ja):',
+      'Möchtest du das Spiel von vorne beginnen…?\n(Tippe RESTART, RESTORE oder QUIT):',
+    ])
+      expect(isConfirmationPrompt(p)).toBe(true)
+  })
+
   it('does NOT fire on ordinary room / response text', () => {
     for (const p of [
       'You are standing in an open field west of a white house.',
       'Opening the small mailbox reveals a leaflet.',
+      'Du stehst auf einem offenen Feld westlich eines weißen Hauses.',
       '',
     ])
       expect(isConfirmationPrompt(p)).toBe(false)
@@ -216,6 +226,14 @@ describe('isDisambiguationPrompt', () => {
       'Which do you mean, the brass lantern or the lantern?',
     ])
       expect(isDisambiguationPrompt(p)).toBe(true)
+  })
+
+  it('detects the LOCALIZED German "Welche… meinst du" disambiguation (UAT F2)', () => {
+    expect(
+      isDisambiguationPrompt(
+        'Welches Buch meinst du, das schwarze Buch oder das blaue Buch?',
+      ),
+    ).toBe(true)
   })
 
   it('does NOT fire on prose that merely contains "which"', () => {
@@ -237,10 +255,15 @@ describe('isOrphanPrompt', () => {
       expect(isOrphanPrompt(p)).toBe(true)
   })
 
-  it('does NOT fire on ordinary output', () => {
+  it('detects the LOCALIZED German "Was willst du …" orphan prompt (UAT F16)', () => {
+    expect(isOrphanPrompt('Was willst du mit dem Schädel tun?')).toBe(true)
+  })
+
+  it('does NOT fire on ordinary output (incl. German "Wie willst du …")', () => {
     for (const p of [
       'You put the coffin in the trophy case.',
       'It is pitch black. You are likely to be eaten by a grue.',
+      'Wie genau willst du das läuten?', // "Wie", not "Was" — a refusal, not an orphan
       '',
     ])
       expect(isOrphanPrompt(p)).toBe(false)

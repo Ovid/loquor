@@ -303,8 +303,13 @@ export function isVocabPassthrough(
 // player's reply ("Y") is an answer to the game, NOT English to translate: the
 // model would turn "Y" into a bogus command (observed: "Y" → "look"), so the
 // restart could never confirm. Detect the prompt from its text and pass raw.
+// The recent output is the LOCALIZED display text (the output-translation
+// overlay has already run), so the detectors must match the player's language,
+// not just English — else a German "(Y bedeutet ja)" prompt is missed and "y"
+// is translated to "look", so restart/quit can never confirm (UAT F2). German:
+// "(Y bedeutet ja)"/"(Y für ja)" and the endgame "(Tippe RESTART …)".
 const CONFIRM_PROMPT =
-  /\(Y is affirmative\)|\bare you sure\b|\bdo you (?:really )?wish to\b/i
+  /\(Y is affirmative\)|\bare you sure\b|\bdo you (?:really )?wish to\b|\(Y [^)]*\bja\b[^)]*\)|\bTippe RESTART\b/i
 
 /** True when the recent game output is an interpreter yes/no confirmation prompt. */
 export function isConfirmationPrompt(recentOutput: string): boolean {
@@ -317,7 +322,9 @@ export function isConfirmationPrompt(recentOutput: string): boolean {
 // through the model it would be mistranslated; pass it raw so Zork resolves it.
 // Requires both "which" and "do you mean" so ordinary prose ("…which you read…")
 // can't trip it.
-const DISAMBIGUATION_PROMPT = /\bwhich\b[\s\S]*\bdo you mean\b/i
+// German: "Welches Buch meinst du, … oder …?" (UAT F2 cascade).
+const DISAMBIGUATION_PROMPT =
+  /\bwhich\b[\s\S]*\bdo you mean\b|\bwelche[nrs]?\b[\s\S]*\bmeinst du\b/i
 
 /** True when the recent game output is a parser disambiguation question. */
 export function isDisambiguationPrompt(recentOutput: string): boolean {
@@ -329,7 +336,10 @@ export function isDisambiguationPrompt(recentOutput: string): boolean {
 // disambiguation question, the NEXT line answers the parser, not a fresh
 // command — so a compound must STOP here rather than auto-feed its following
 // clause into the orphan (which the player never saw when they typed ahead).
-const ORPHAN_PROMPT = /\bwhat do you want to\b/i
+// German: "Was willst du mit dem Schädel tun?" (UAT F16/F19 — currently an LLM
+// fallback until the put-orphan template lands in the corpus, but the wording
+// is stable enough to pass the player's answer raw rather than mistranslate it).
+const ORPHAN_PROMPT = /\bwhat do you want to\b|\bwas (?:willst|möchtest) du\b/i
 
 /** True when the recent game output is a parser orphan prompt (partial command
  * awaiting its missing noun). */

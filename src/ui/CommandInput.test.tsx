@@ -6,6 +6,15 @@ const field = () =>
   screen.getByPlaceholderText('type a command…') as HTMLInputElement
 
 describe('CommandInput', () => {
+  it('exposes an accessible name (placeholder is not a label)', () => {
+    render(<CommandInput onSubmit={() => {}} />)
+    // The sole input of the game must be named for screen readers; the
+    // placeholder disappears on input and is not a reliable accessible name.
+    expect(
+      screen.getByRole('textbox', { name: 'Game command' }),
+    ).toBeInTheDocument()
+  })
+
   it('submits a non-empty command and clears the field', () => {
     const onSubmit = vi.fn()
     render(<CommandInput onSubmit={onSubmit} />)

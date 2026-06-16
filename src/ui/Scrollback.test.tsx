@@ -36,6 +36,15 @@ describe('Scrollback', () => {
     expect(document.querySelectorAll('p.nl-source')).toHaveLength(1)
   })
 
+  it('exposes the transcript as a polite live log so output is announced', () => {
+    render(<Scrollback lines={[line({ id: 1, text: 'West of House' })]} />)
+    // Screen readers must hear streamed game output; the always-mounted
+    // container is a polite log that announces additions.
+    const log = screen.getByRole('log', { name: 'Game transcript' })
+    expect(log).toHaveAttribute('aria-live', 'polite')
+    expect(log).toHaveAttribute('aria-relevant', 'additions')
+  })
+
   it('focuses the prompt on mouse-up when no text is selected', () => {
     const onActivate = vi.fn()
     const { container } = render(

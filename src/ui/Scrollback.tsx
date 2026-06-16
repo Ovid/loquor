@@ -30,6 +30,15 @@ export function Scrollback({
     <div
       className="scroll"
       ref={ref}
+      // The transcript is the entire game for a screen-reader player: every
+      // appended line (room descriptions, responses) must be announced. role=log
+      // implies aria-atomic=false; aria-relevant=additions so only new lines —
+      // not the inline prompt's removals — are read. The container is always
+      // mounted, so the live region is registered before updates arrive.
+      role="log"
+      aria-live="polite"
+      aria-relevant="additions"
+      aria-label="Game transcript"
       onMouseUp={() => {
         // Clicking anywhere in the transcript focuses the prompt — unless the
         // player is selecting text to copy.

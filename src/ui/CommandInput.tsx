@@ -51,6 +51,7 @@ export function CommandInput({
         value={value}
         disabled={disabled}
         autoFocus
+        aria-label="Game command"
         placeholder="type a command…"
         onKeyDown={e => {
           if (awaitingKey && onKey && e.key.length === 1) {

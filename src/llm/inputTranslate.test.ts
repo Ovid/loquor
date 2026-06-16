@@ -432,6 +432,29 @@ describe('distributePrepTail (shared container across same-verb conjuncts, UAT F
       'lege das blatt in die vitrine',
     ])
   })
+
+  it('does NOT distribute a SOURCE prep tail (aus/von → "from") — review I1', () => {
+    // "nimm das schwert und nimm den schlüssel aus der vitrine" — the second
+    // clause takes FROM the case; that source must NOT be appended to the first
+    // (else "take sword" is silently emitted as "take sword from case").
+    expect(
+      run('nimm das schwert und nimm den schlussel aus der vitrine'),
+    ).toEqual([
+      'nimm das schwert',
+      'nimm den schlussel aus der vitrine',
+    ])
+  })
+
+  it('does NOT append a destination to a clause that already has a container pronoun — review S1', () => {
+    // "lege es hinein und lege das blatt in die vitrine" — the first clause's
+    // "hinein" already supplies its destination; it must stay intact.
+    expect(
+      run('lege es hinein und lege das blatt in die vitrine'),
+    ).toEqual([
+      'lege es hinein',
+      'lege das blatt in die vitrine',
+    ])
+  })
 })
 
 describe('fillElidedVerbs (verb-gapping across compound conjuncts)', () => {

@@ -239,12 +239,21 @@ export function distributePrepTail(
   const tail = prepTail(last, core, vocab)
   const lastVerb = leadingVerbPhrase(last, core, vocab)
   if (tail === null || lastVerb === null) return [...clauses]
+  // Only a DESTINATION tail is shared across conjuncts. A source prep
+  // (aus/von → "from") belongs to its own clause: "nimm A und nimm B aus der
+  // Vitrine" must NOT rewrite "nimm A" into "take A from case" (review I1).
+  if (core.preps[fold(tail.split(/\s+/)[0])] === 'from') return [...clauses]
+  const containerPronouns = new Set(core.pronounsContainer.map(p => p.word))
   const lastVerbFolded = fold(lastVerb)
   const out = [...clauses]
   for (let i = clauses.length - 2; i >= 0; i--) {
     const verb = leadingVerbPhrase(out[i], core, vocab)
     if (verb === null || fold(verb) !== lastVerbFolded) break
     if (prepTail(out[i], core, vocab) !== null) break // already has its own tail
+    // A clause ending in a container anaphor ("lege es hinein") already names
+    // its destination — don't append a second one (review S1).
+    const toks = out[i].split(/\s+/)
+    if (containerPronouns.has(fold(toks[toks.length - 1]))) break
     out[i] = `${out[i]} ${tail}`
   }
   return out

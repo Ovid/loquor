@@ -25,14 +25,12 @@ const OPTIONS: { value: NlLanguage; label: string; lang: string }[] = [
 export function NlLanguagePicker({
   state,
   onSelect,
+  onUpgrade,
 }: {
   state: NlState
   onSelect: (lang: NlLanguage) => void
-  // `onOverride` (capability force-enable) is still accepted from Terminal but
-  // no longer surfaced here: dropping the `unavailable` phase removed the
-  // "force-enable" affordance. The capability override now only gates the model
-  // UPGRADE, surfaced elsewhere; kept optional so Terminal needn't change.
-  onOverride?: () => void
+  /** Called when the player requests a model upgrade (grammar → full). */
+  onUpgrade: () => void
 }) {
   const [open, setOpen] = useState(false)
   // Index of the keyboard/hover highlight while the listbox is open.
@@ -58,7 +56,7 @@ export function NlLanguagePicker({
   }
   const value: NlLanguage = state.phase === 'on' ? state.language : 'off'
   const current = OPTIONS.find(o => o.value === value) ?? OPTIONS[0]
-  const chip =
+  const offChip =
     state.phase === 'off'
       ? state.installed
         ? ' · installed'
@@ -159,7 +157,21 @@ export function NlLanguagePicker({
           </ul>
         )}
       </span>
-      {chip}
+      {offChip}
+      {state.phase === 'on' && state.model === 'grammar' && (
+        <>
+          <span className="nl-basic"> · basic</span>{' '}
+          <button className="sw" type="button" onClick={onUpgrade}>
+            {state.canUpgrade ? (
+              <>
+                <span aria-hidden="true">✦</span> improve
+              </>
+            ) : (
+              'try the model anyway'
+            )}
+          </button>
+        </>
+      )}
     </span>
   )
 }

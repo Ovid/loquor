@@ -12,7 +12,7 @@ describe('NlLanguagePicker', () => {
       <NlLanguagePicker
         state={{ phase: 'off', installed: true, canUpgrade: true }}
         onSelect={() => {}}
-        onOverride={() => {}}
+        onUpgrade={() => {}}
       />,
     )
     const btn = screen.getByRole('combobox')
@@ -29,7 +29,7 @@ describe('NlLanguagePicker', () => {
       <NlLanguagePicker
         state={{ phase: 'off', installed: true, canUpgrade: true }}
         onSelect={() => {}}
-        onOverride={() => {}}
+        onUpgrade={() => {}}
       />,
     )
     fireEvent.click(screen.getByRole('combobox'))
@@ -56,7 +56,7 @@ describe('NlLanguagePicker', () => {
       <NlLanguagePicker
         state={{ phase: 'on', language: 'fr', model: 'full', canUpgrade: true }}
         onSelect={onSelect}
-        onOverride={() => {}}
+        onUpgrade={() => {}}
       />,
     )
     const btn = screen.getByRole('combobox')
@@ -77,7 +77,7 @@ describe('NlLanguagePicker', () => {
       <NlLanguagePicker
         state={{ phase: 'on', language: 'fr', model: 'full', canUpgrade: true }}
         onSelect={onSelect}
-        onOverride={() => {}}
+        onUpgrade={() => {}}
       />,
     )
     const btn = screen.getByRole('combobox')
@@ -97,7 +97,7 @@ describe('NlLanguagePicker', () => {
       <NlLanguagePicker
         state={{ phase: 'on', language: 'fr', model: 'full', canUpgrade: true }}
         onSelect={onSelect}
-        onOverride={() => {}}
+        onUpgrade={() => {}}
       />,
     )
     const btn = screen.getByRole('combobox')
@@ -120,6 +120,7 @@ describe('NlLanguagePicker', () => {
       <NlLanguagePicker
         state={{ phase: 'downloading', loaded: 1, total: 2, etaSeconds: null }}
         onSelect={() => {}}
+        onUpgrade={() => {}}
       />,
     )
     expect(screen.getByText(/downloading/)).toBeInTheDocument()
@@ -131,7 +132,7 @@ describe('NlLanguagePicker', () => {
       <NlLanguagePicker
         state={{ phase: 'off', installed: true, canUpgrade: true }}
         onSelect={() => {}}
-        onOverride={() => {}}
+        onUpgrade={() => {}}
       />,
     )
     // Anchored on the separator ([S]): a bare /installed/ also matches the
@@ -145,7 +146,7 @@ describe('NlLanguagePicker', () => {
       <NlLanguagePicker
         state={{ phase: 'off', installed: false, canUpgrade: true }}
         onSelect={() => {}}
-        onOverride={() => {}}
+        onUpgrade={() => {}}
       />,
     )
     expect(screen.getByText(/not installed/)).toBeInTheDocument()
@@ -156,9 +157,49 @@ describe('NlLanguagePicker', () => {
       <NlLanguagePicker
         state={{ phase: 'disabled' }}
         onSelect={() => {}}
-        onOverride={() => {}}
+        onUpgrade={() => {}}
       />,
     )
     expect(container).toBeEmptyDOMElement()
+  })
+
+  it('grammar-only shows the basic marker and a ✦ improve affordance', () => {
+    const onUpgrade = vi.fn()
+    render(
+      <NlLanguagePicker
+        state={{ phase: 'on', language: 'fr', model: 'grammar', canUpgrade: true }}
+        onSelect={() => {}}
+        onUpgrade={onUpgrade}
+      />,
+    )
+    expect(screen.getByText(/· basic/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /improve/i }))
+    expect(onUpgrade).toHaveBeenCalled()
+  })
+
+  it('grammar-only on a none device shows "try the model anyway", not improve', () => {
+    const onUpgrade = vi.fn()
+    render(
+      <NlLanguagePicker
+        state={{ phase: 'on', language: 'de', model: 'grammar', canUpgrade: false }}
+        onSelect={() => {}}
+        onUpgrade={onUpgrade}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: /improve/i })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /try the model anyway/i }))
+    expect(onUpgrade).toHaveBeenCalled()
+  })
+
+  it('full shows neither the basic marker nor an upgrade affordance', () => {
+    render(
+      <NlLanguagePicker
+        state={{ phase: 'on', language: 'fr', model: 'full', canUpgrade: true }}
+        onSelect={() => {}}
+        onUpgrade={() => {}}
+      />,
+    )
+    expect(screen.queryByText(/· basic/)).toBeNull()
+    expect(screen.queryByRole('button', { name: /improve|try the model/i })).toBeNull()
   })
 })

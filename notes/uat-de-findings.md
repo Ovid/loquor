@@ -509,17 +509,21 @@ commands and are now fixed (this rule is now in CLAUDE.md):
   `disembark`, verbs1-only) via the particle + a `steig aus` idiom.
 - **F27** — bare `hebe den Korb` → `raise` (symmetric with `senke`→lower).
 
+### FIXED — round 3 (Ovid's call)
+- **F13** — compound no longer aborts after a failed clause. Ovid chose
+  skip-and-continue: a clause that no-ops/hard-refuses (unknown noun, absence,
+  refusal) is skipped and the rest still run, matching original Zork's
+  independent multi-command handling, so a valid later clause is never silently
+  lost. Mid-sequence interactive PROMPTS still stop (the next clause would answer
+  the parser). **Known trade-off surfaced:** stop-on-failure also acted as an
+  added safety net for dependent chains (e.g. a failed `lösche die Fackel aus`
+  followed by entering the Gas Room → death); skip-continue removes that net, but
+  it matches original Zork (which has the same risk) and the prompt-stop +
+  tracker gating are unchanged. A narrower carve-out (stop only when the next
+  clause is movement) is possible if we want the safety net back — `clauseFailed`
+  is retained for exactly that.
+
 ### STILL OPEN — flagged, NOT silently deferred
-- **F13** — compound aborts after a failed first clause ("Ran 1 of 2"). Kept as-is
-  on PURPOSE, and here's the player-experience reasoning (per the CLAUDE.md rule):
-  it is locked-decision-3 stop-on-error. It **protects dependent chains** (`öffne
-  die Tür und geh nach Norden` shouldn't walk into a wall after the open failed),
-  the truncation is **transparent** ("Ran 1 of N actions") and **recoverable**
-  (retype the rest), and it never guesses. The downside is only for INDEPENDENT
-  object-lists where an early item is unknown — less forgiving than original Zork.
-  Net: arguably a *good* UX trade. **Ovid — override if you'd rather it
-  skip-and-continue; the safe version is "continue on in-game FAILURE, still STOP
-  on a PROMPT" (the two stop conditions are already separate in the pipeline).**
 - **F8, F11, F19, F29 [output corpus, low player-harm]** — F8 wrong number
   agreement ("Hier ist Kerzen" → "sind"; the `{obj.indef}` floor template carries
   no number). F11 quiet Loud Room desc, F19 put-orphan template, F29 Frobozz boat

@@ -189,6 +189,67 @@ export function fillElidedVerbs(
   })
 }
 
+/** The trailing "<prep> <indirect>" phrase of a clause in the player's own
+ * words (original casing), or null. A prep is one the active core knows or a
+ * game prep; it must sit AFTER the leading verb plus ≥1 object token and be
+ * followed by ≥1 token, so "lege den Kelch in die Vitrine" yields "in die
+ * Vitrine" while "lege den Kelch" (and a verbless "geh nach norden") yield
+ * null. Pure + total. */
+function prepTail(
+  clause: string,
+  core: CoreLexicon,
+  vocab: Vocab,
+): string | null {
+  const verb = leadingVerbPhrase(clause, core, vocab)
+  const tokens = clause
+    .replace(/[!.?,;:]+$/, '')
+    .trim()
+    .split(/\s+/)
+  const start = verb ? verb.split(/\s+/).length : 0
+  for (let i = start + 1; i < tokens.length - 1; i++) {
+    const f = fold(tokens[i])
+    if (core.preps[f] !== undefined || vocab.preps.includes(f))
+      return tokens.slice(i).join(' ')
+  }
+  return null
+}
+
+/**
+ * Distribute a shared trailing prep-phrase across same-verb conjuncts (UAT F16):
+ * "lege A und B in die Vitrine" splits into ["lege A", "lege B in die Vitrine"],
+ * leaving the first conjunct destination-less ("put A" → the parser orphans
+ * "What do you want to put A in?" → "Ran 1 of 2 actions", and casing treasures
+ * — the endgame loop — breaks on the natural phrasing). When the LAST clause
+ * ends in "<obj> <prep> <indirect>", append that tail to the run of immediately
+ * preceding clauses that share its leading verb and carry no prep of their own.
+ *
+ * The same-verb guard is what keeps a genuine two-command line intact: in "nimm
+ * A und lege B in die Vitrine" the boundary verb differs (nimm ≠ lege), so the
+ * walk stops there and "nimm A" never inherits the container. Runs AFTER
+ * fillElidedVerbs so every conjunct already carries its (possibly inherited)
+ * verb. Pure + total; preserves length (English mode / no core → unchanged).
+ */
+export function distributePrepTail(
+  clauses: readonly string[],
+  core: CoreLexicon | null,
+  vocab: Vocab,
+): string[] {
+  if (!core || clauses.length < 2) return [...clauses]
+  const last = clauses[clauses.length - 1]
+  const tail = prepTail(last, core, vocab)
+  const lastVerb = leadingVerbPhrase(last, core, vocab)
+  if (tail === null || lastVerb === null) return [...clauses]
+  const lastVerbFolded = fold(lastVerb)
+  const out = [...clauses]
+  for (let i = clauses.length - 2; i >= 0; i--) {
+    const verb = leadingVerbPhrase(out[i], core, vocab)
+    if (verb === null || fold(verb) !== lastVerbFolded) break
+    if (prepTail(out[i], core, vocab) !== null) break // already has its own tail
+    out[i] = `${out[i]} ${tail}`
+  }
+  return out
+}
+
 // Z-machine meta-verbs that are not in-world actions: they have no canonical
 // game-command translation and must bypass the model entirely (sent raw to the
 // interpreter). The list is the shared source in ./meta so the vocab generator

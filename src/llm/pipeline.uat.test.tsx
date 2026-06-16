@@ -638,22 +638,18 @@ describe('UAT compound regressions (dedicated)', () => {
     expect(hook.result.current.notice).toBeNull()
   })
 
-  it('F-S: 2-object conjunction — clause 1 orphan-prompts, the compound STOPS there ([H])', async () => {
-    // `et` splits mid-noun-phrase: clause 1 `mets le cercueil`, clause 2
-    // `le sceptre dans la vitrine`. Clause 1 emits `put coffin` — the Z-parser
-    // orphan-prompts for the missing container ("What do you want to put the
-    // coffin in?"). Verb-gapping WOULD let clause 2 inherit `mets` and resolve
-    // deterministically, but it must NOT be auto-fed into that orphan prompt
-    // (the player never saw the question), so the compound stops at clause 1 —
-    // truncation visible via "Ran 1 of 2 actions.", and the LLM is never
-    // consulted. UAT-2's original failure (TWO silent wrong takes) stays
-    // impossible: nothing here is guessed.
+  it('F-S: a shared container distributes across both put-conjuncts (UAT F16)', async () => {
+    // `et` splits mid-phrase: ["mets le cercueil", "le sceptre dans la
+    // vitrine"]. The trailing `dans la vitrine` is the shared destination of
+    // BOTH objects ("put coffin in case AND put sceptre in case"), so
+    // distributePrepTail appends it to the first conjunct too. Neither clause
+    // orphan-prompts now — both resolve deterministically and run, so the
+    // player's natural multi-object casing just works (no LLM, no truncation).
+    // (Previously clause 1 emitted a container-less `put coffin`, orphaned, and
+    // the compound truncated at "Ran 1 of 2" — that was the bug, not the goal.)
     const views = [
-      viewState(
-        'Living Room',
-        ['What do you want to put the coffin in?'],
-        'put coffin',
-      ),
+      viewState('Living Room', ['Done.'], 'put coffin in case'),
+      viewState('Living Room', ['Done.'], 'put sceptre in case'),
     ]
     const { hook, engine, sent } = await renderPipeline({
       language: 'fr',
@@ -664,9 +660,9 @@ describe('UAT compound regressions (dedicated)', () => {
         'mets le cercueil et le sceptre dans la vitrine',
       )
     })
-    expect(sent).toEqual(['put coffin'])
-    expect(engine.generateCalls).toBe(0) // orphan stop — clause 2 never runs
-    expect(hook.result.current.notice).toMatch(/ran 1 of 2/i)
+    expect(sent).toEqual(['put coffin in case', 'put sceptre in case'])
+    expect(engine.generateCalls).toBe(0) // deterministic — no orphan, no LLM
+    expect(hook.result.current.notice).toBeNull() // both clauses ran
   })
 
   it('F-I: language off → verbatim passthrough, the model never runs', async () => {

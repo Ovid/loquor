@@ -33,6 +33,7 @@ import {
   isOrphanPrompt,
   splitClauses,
   fillElidedVerbs,
+  distributePrepTail,
   clauseFailed,
   unquote,
   isVocabPassthrough,
@@ -520,11 +521,15 @@ export function createTranslate(
       // verb ("prends le couteau et la corde" → "…et prends la corde") so it
       // resolves deterministically instead of an LLM-invented verb; length is
       // preserved, so the single-command degenerate case is untouched.
-      const clauses = fillElidedVerbs(
-        splitClauses(line),
+      const clauses = distributePrepTail(
+        fillElidedVerbs(
+          splitClauses(line),
+          lex?.core ?? null,
+          vocab,
+          lex?.nouns ?? null,
+        ),
         lex?.core ?? null,
         vocab,
-        lex?.nouns ?? null,
       )
       const total = clauses.length
       if (total > 1) inSequenceRef.current = true

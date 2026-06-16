@@ -8,6 +8,7 @@ import {
   isOrphanPrompt,
   splitClauses,
   fillElidedVerbs,
+  distributePrepTail,
   clauseFailed,
   refusalApplies,
   unquote,
@@ -16,6 +17,7 @@ import {
 import { META_COMMANDS } from './meta'
 import { FR_CORE } from './lexicon/fr.core'
 import { ES_CORE } from './lexicon/es.core'
+import { DE_CORE } from './lexicon/de.core'
 import type { Vocab } from './grammar/types'
 import type { NounLexicon } from './lexicon/types'
 import {
@@ -374,6 +376,61 @@ describe('splitClauses', () => {
   it('trims clauses and drops empties', () => {
     expect(splitClauses('  open mailbox  and  ')).toEqual(['open mailbox'])
     expect(splitClauses('open mailbox..')).toEqual(['open mailbox'])
+  })
+})
+
+describe('distributePrepTail (shared container across same-verb conjuncts, UAT F16)', () => {
+  const run = (line: string) =>
+    distributePrepTail(
+      fillElidedVerbs(splitClauses(line), DE_CORE, vocab),
+      DE_CORE,
+      vocab,
+    )
+
+  it('appends the trailing "in die Vitrine" to the earlier put-conjunct', () => {
+    // "lege den schlüssel und das blatt in die vitrine" (key + leaflet → case)
+    expect(run('lege den schlussel und das blatt in die vitrine')).toEqual([
+      'lege den schlussel in die vitrine',
+      'lege das blatt in die vitrine',
+    ])
+  })
+
+  it('distributes to ALL preceding same-verb conjuncts (3-object list)', () => {
+    expect(
+      run('lege den schlussel, das blatt und das gitter in die vitrine'),
+    ).toEqual([
+      'lege den schlussel in die vitrine',
+      'lege das blatt in die vitrine',
+      'lege das gitter in die vitrine',
+    ])
+  })
+
+  it('does NOT contaminate a genuine two-command line (different verbs)', () => {
+    // "nimm den schlüssel und lege das blatt in die vitrine" — take, then put.
+    // The take clause must NOT inherit the container.
+    expect(run('nimm den schlussel und lege das blatt in die vitrine')).toEqual(
+      ['nimm den schlussel', 'lege das blatt in die vitrine'],
+    )
+  })
+
+  it('is a no-op when the last clause has no prep tail', () => {
+    expect(run('nimm den schlussel und das blatt')).toEqual([
+      'nimm den schlussel',
+      'nimm das blatt',
+    ])
+  })
+
+  it('is a no-op when the last clause is verbless/a direction', () => {
+    expect(run('lege das blatt in die vitrine und geh nach norden')).toEqual([
+      'lege das blatt in die vitrine',
+      'geh nach norden',
+    ])
+  })
+
+  it('leaves a single command untouched (degenerate case)', () => {
+    expect(run('lege das blatt in die vitrine')).toEqual([
+      'lege das blatt in die vitrine',
+    ])
   })
 })
 

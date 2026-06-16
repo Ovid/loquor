@@ -28,6 +28,16 @@ export const GENERATE_WATCHDOG_MS = 8000
  */
 export const LOAD_WATCHDOG_MS = 60_000
 
+/**
+ * NO-PROGRESS watchdog for the MODAL download path (F6). Unlike LOAD_WATCHDOG_MS
+ * (a fixed total bound on a cached on-disk load), the modal fetches multi-GB
+ * weights, so a fixed total timeout would kill a legitimately slow download.
+ * This timer is RESET on every progress tick and fires only on genuine
+ * silence — a stalled fetch that otherwise sits in `phase:'downloading'`
+ * forever with manual cancel as the player's only recourse.
+ */
+export const DOWNLOAD_STALL_MS = 60_000
+
 /** Safety cap: at most this many clauses run per compound input (locked decision 6). */
 export const MAX_CLAUSES = 8
 

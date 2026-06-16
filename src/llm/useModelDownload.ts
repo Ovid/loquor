@@ -11,6 +11,7 @@ import type { ActiveLanguage, LlmEngine, NlLanguage } from './types'
 import { readNlPref, writeNlPref } from './nlpref'
 import { pct as toPct, estimateRemainingSeconds } from './progress'
 import type { ProgressSample } from './progress'
+import { DOWNLOAD_STALL_MS } from './config'
 import { createLogger } from '../logger'
 
 const log = createLogger('nl')
@@ -54,6 +55,10 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
   const [installed, setInstalled] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
+  // No-progress watchdog for the active download (F6). Reset on each progress
+  // tick; fires only on genuine silence. Held in a ref so cancelDownload can
+  // clear it too.
+  const stallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // (percent, time) samples for the active download, used to estimate the time
   // remaining. Reset at the start of each requestDownload; sampled in its progress
   // callback (a side-effect context — keeps the timing out of render).
@@ -112,9 +117,30 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
     // abort tick must NOT flip the state back to 'on' or persist a language against
     // the player's cancel (review I2).
     const stale = () => ac.signal.aborted || abortRef.current !== ac
+    // No-progress watchdog (F6): a stalled fetch would otherwise sit in
+    // 'downloading' forever. Reset on every progress tick; on genuine silence,
+    // abort the load and surface a notice. abort() routes into the .catch's
+    // stale/AbortError branch (which leaves the notice intact, only re-asserts
+    // 'off'), so we set the notice HERE before aborting.
+    const clearStall = () => {
+      if (stallTimerRef.current !== null) clearTimeout(stallTimerRef.current)
+      stallTimerRef.current = null
+    }
+    const armStall = () => {
+      clearStall()
+      stallTimerRef.current = setTimeout(() => {
+        if (stale()) return
+        log.error('model download stalled — no progress, aborting')
+        setNotice('Model download stalled — staying grammar-only.')
+        setInternal({ phase: 'off' })
+        ac.abort()
+      }, DOWNLOAD_STALL_MS)
+    }
+    armStall()
     engine
       .load(p => {
         if (stale()) return
+        armStall() // progress arrived — reset the no-progress timer
         dlSamplesRef.current = [
           ...dlSamplesRef.current,
           { pct: toPct(p.loaded, p.total), t: Date.now() },
@@ -127,6 +153,7 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
         })
       }, ac.signal)
       .then(() => {
+        clearStall()
         if (stale()) return
         // The model is now loaded (hence cached) — mark installed directly so the
         // probe effect needn't re-run on the phase change to discover it (S6).
@@ -136,6 +163,7 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
         writeNlPref({ language: pendingLangRef.current })
       })
       .catch(err => {
+        clearStall()
         if (stale() || (err as Error).name === 'AbortError') {
           setInternal({ phase: 'off' })
         } else {
@@ -150,6 +178,10 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
   }, [engine, setNotice])
 
   const cancelDownload = useCallback(() => {
+    if (stallTimerRef.current !== null) {
+      clearTimeout(stallTimerRef.current)
+      stallTimerRef.current = null
+    }
     abortRef.current?.abort()
     setInternal({ phase: 'off' })
     // [P] Persist 'off' too: a cancel racing download COMPLETION (the load's

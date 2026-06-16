@@ -3,6 +3,7 @@ import { renderHook, act, waitFor } from '@testing-library/react'
 import { useModelDownload, type ModelDownloadParams } from './useModelDownload'
 import { FakeLlmEngine } from './engine.fake'
 import { readNlPref, writeNlPref } from './nlpref'
+import { DOWNLOAD_STALL_MS } from './config'
 import type { LlmEngine } from './types'
 
 // useModelDownload owns the model download / install / phase lifecycle that F-2
@@ -145,6 +146,42 @@ describe('requestDownload', () => {
         expect.objectContaining({ message: 'fake load failure' }),
       )
     } finally {
+      errSpy.mockRestore()
+    }
+  })
+
+  it('a stalled download (no further progress) trips the no-progress watchdog → off + notice + abort (F6)', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.useFakeTimers()
+    try {
+      let sig!: AbortSignal
+      const engine: LlmEngine = {
+        unload: async () => {},
+        isLoaded: () => false,
+        isCached: async () => false,
+        generate: async () => '',
+        // One progress sample, then silence forever — a stalled fetch.
+        load: (onProgress, signal) =>
+          new Promise<void>(() => {
+            sig = signal
+            onProgress({ loaded: 10, total: 100, text: '' })
+          }),
+      }
+      const { hook, setNotice } = setup({ engine })
+      act(() => hook.result.current.requestDownload())
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(DOWNLOAD_STALL_MS + 100)
+      })
+      expect(hook.result.current.internal).toEqual({ phase: 'off' })
+      expect(setNotice).toHaveBeenCalledWith(
+        'Model download stalled — staying grammar-only.',
+      )
+      expect(sig.aborted).toBe(true) // the orphaned load was actually aborted
+      expect(errSpy).toHaveBeenCalledWith(
+        '[nl] model download stalled — no progress, aborting',
+      )
+    } finally {
+      vi.useRealTimers()
       errSpy.mockRestore()
     }
   })

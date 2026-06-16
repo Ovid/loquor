@@ -366,12 +366,14 @@ export const ZORK1_DE_OBJECTS: ObjectsTable = {
     akkDef: 'den Boden',
     bare: 'Boden',
   },
-  // plural die Werkzeugkisten.
+  // Listing template "Hier ist {obj.indef}." is singular, so a plural indef
+  // ("Werkzeugkisten") read as "Hier ist Werkzeugkisten." (number/article
+  // disagreement). Singular throughout fixes it (UAT O5).
   'group of tool chests': {
-    indef: 'Werkzeugkisten',
-    def: 'die Werkzeugkisten',
-    akkDef: 'die Werkzeugkisten',
-    bare: 'Werkzeugkisten',
+    indef: 'eine Werkzeugkiste',
+    def: 'die Werkzeugkiste',
+    akkDef: 'die Werkzeugkiste',
+    bare: 'Werkzeugkiste',
   },
   // die Luftpumpe (f).
   'hand-held air pump': {

@@ -71,7 +71,7 @@ export const DE_ZORK1: NounLexicon = {
   grating: ['gitter'],
   'green bubble': ['blase', 'grune blase'],
   ground: ['boden', 'erde'],
-  'group of tool chests': ['werkzeugkisten', 'kisten'],
+  'group of tool chests': ['werkzeugkisten', 'kisten', 'werkzeugkiste'], // singular display form too (UAT O5)
   'hand-held air pump': ['pumpe', 'luftpumpe'],
   'huge diamond': ['diamant'],
   'jade figurine': ['figur', 'jadefigur', 'statuette'],

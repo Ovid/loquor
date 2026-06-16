@@ -711,7 +711,7 @@ export const ZORK1_DE_STRINGS: Readonly<Record<string, string>> = {
     'Lose an einer Wand befestigt ist ein kleiner Zettel.',
   'Congratulations!': 'Glückwunsch!',
   'You are the privileged owner of ZORK I: The Great Underground Empire, a self-contained and self-maintaining universe. If used and maintained in accordance with normal operating practices for small universes, ZORK will provide many months of trouble-free operation.':
-    'Du bist der privilegierte Besitzer von ZORK I: Das Große Unterirdische Reich, einem in sich geschlossenen und sich selbst wartenden Universum. Bei Benutzung und Wartung gemäß den üblichen Betriebsregeln für kleine Universen wird ZORK dir viele Monate störungsfreien Betrieb bieten.',
+    'Du bist der privilegierte Besitzer von ZORK I: Das Große Unterirdische Imperium, einem in sich geschlossenen und sich selbst wartenden Universum. Bei Benutzung und Wartung gemäß den üblichen Betriebsregeln für kleine Universen wird ZORK dir viele Monate störungsfreien Betrieb bieten.',
   "It's a long way...": 'Es ist ein weiter Weg...',
   'The troll neatly removes your head.':
     'Der Troll entfernt sauber deinen Kopf.',
@@ -729,7 +729,7 @@ export const ZORK1_DE_STRINGS: Readonly<Record<string, string>> = {
   'The door is nailed shut.': 'Die Tür ist zugenagelt.',
   'Getting tired?': 'Wirst du müde?',
   'A small leaflet is on the ground.':
-    'Ein kleines Faltblatt liegt auf dem Boden.',
+    'Ein kleiner Prospekt liegt auf dem Boden.',
   '"WELCOME TO ZORK!': '„WILLKOMMEN BEI ZORK!',
   'ZORK is a game of adventure, danger, and low cunning. In it you will explore some of the most amazing territory ever seen by mortals. No computer should be without one!"':
     'ZORK ist ein Spiel voller Abenteuer, Gefahr und niederer List. Darin wirst du einige der erstaunlichsten Gebiete erkunden, die je von Sterblichen erblickt wurden. Kein Computer sollte ohne eines sein!“',
@@ -1056,7 +1056,7 @@ export const ZORK1_DE_STRINGS: Readonly<Record<string, string>> = {
   "Those things aren't here!": 'Diese Dinge sind nicht hier!',
   "You can't spin that!": 'Das kannst du nicht drehen!',
   'FCD#3 was constructed in year 783 of the Great Underground Empire to harness the mighty Frigid River. This work was supported by a grant of 37 million zorkmids from your omnipotent local tyrant Lord Dimwit Flathead the Excessive. This impressive structure is composed of 370,000 cubic feet of concrete, is 256 feet tall at the center, and 193 feet wide at the top. The lake created behind the dam has a volume of 1.7 billion cubic feet, an area of 12 million square feet, and a shore line of 36 thousand feet.':
-    'FCD#3 wurde im Jahr 783 des Großen Unterirdischen Reiches errichtet, um den mächtigen Frigid-Fluss zu bändigen. Dieses Werk wurde durch eine Zuwendung von 37 Millionen Zorkmids von deinem allmächtigen örtlichen Tyrannen Lord Dimwit Flathead dem Maßlosen unterstützt. Dieses beeindruckende Bauwerk besteht aus 370.000 Kubikfuß Beton, ist in der Mitte 256 Fuß hoch und an der Krone 193 Fuß breit. Der hinter dem Damm entstandene See hat ein Volumen von 1,7 Milliarden Kubikfuß, eine Fläche von 12 Millionen Quadratfuß und eine Uferlinie von 36 Tausend Fuß.',
+    'FCD#3 wurde im Jahr 783 des Großen Unterirdischen Imperiums errichtet, um den mächtigen Frigid-Fluss zu bändigen. Dieses Werk wurde durch eine Zuwendung von 37 Millionen Zorkmids von deinem allmächtigen örtlichen Tyrannen Lord Dimwit Flathead dem Maßlosen unterstützt. Dieses beeindruckende Bauwerk besteht aus 370.000 Kubikfuß Beton, ist in der Mitte 256 Fuß hoch und an der Krone 193 Fuß breit. Der hinter dem Damm entstandene See hat ein Volumen von 1,7 Milliarden Kubikfuß, eine Fläche von 12 Millionen Quadratfuß und eine Uferlinie von 36 Tausend Fuß.',
   'The water level behind the dam is low: The sluice gates have been opened. Water rushes through the dam and downstream.':
     'Der Wasserstand hinter dem Damm ist niedrig: Die Schleusentore wurden geöffnet. Wasser strömt durch den Damm und flussabwärts.',
   "You can't push things to that.": 'Du kannst keine Dinge dorthin schieben.',
@@ -1185,7 +1185,7 @@ export const ZORK1_DE_STRINGS: Readonly<Record<string, string>> = {
   "I can't help you there....": 'Da kann ich dir nicht helfen....',
   'Not a chance.': 'Keine Chance.',
   'The zorkmid is the unit of currency of the Great Underground Empire.':
-    'Der Zorkmid ist die Währungseinheit des Großen Unterirdischen Reiches.',
+    'Der Zorkmid ist die Währungseinheit des Großen Unterirdischen Imperiums.',
   'The best way to find zorkmids is to go out and look for them.':
     'Der beste Weg, Zorkmids zu finden, ist loszuziehen und nach ihnen zu suchen.',
   "It's too dark to see.": 'Es ist zu dunkel, um etwas zu sehen.',
@@ -1410,7 +1410,7 @@ export const ZORK1_DE_STRINGS: Readonly<Record<string, string>> = {
     'Die Nägel, tief in die Tür eingelassen, lassen sich nicht entfernen.',
   'There are no stairs leading down.':
     'Es gibt keine Treppe, die nach unten führt.',
-  'ZORK: The Great Underground Empire.': 'ZORK: Das Große Unterirdische Reich.',
+  'ZORK: The Great Underground Empire.': 'ZORK: Das Große Unterirdische Imperium.',
   'The door is too heavy.': 'Die Tür ist zu schwer.',
   'You see a rickety staircase descending into darkness.':
     'Du siehst eine wackelige Treppe, die in die Dunkelheit hinabführt.',

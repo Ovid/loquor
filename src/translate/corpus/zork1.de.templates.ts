@@ -138,7 +138,10 @@ export const ZORK1_DE_TEMPLATES: readonly Template[] = [
   { en: 'The {obj} opens.', out: 'Du öffnest {obj.akkDef}.' },
   {
     en: 'Opening the {obj} reveals a {obj2}.',
-    out: 'Beim Öffnen von {obj.bare} kommt {obj2.indef} zum Vorschein.',
+    // "von {obj.bare}" was ungrammatical (von + bare nominative); rephrase with
+    // the accusative so it works for every object without a per-object genitive
+    // form (UAT O1).
+    out: 'Als du {obj.akkDef} öffnest, kommt {obj2.indef} zum Vorschein.',
   },
   { en: 'The {obj} is now closed.', out: 'Du schließt {obj.akkDef}.' },
   {
@@ -675,7 +678,7 @@ export const ZORK1_DE_TEMPLATES: readonly Template[] = [
   // ── V-THROW ──────────────────────────────────────────────────────────────
   {
     en: "A terrific throw! The {obj} hits you squarely in the head. Normally, this wouldn't do much damage, but by incredible mischance, you fall over backwards trying to duck, and break your neck, justice being swift and merciful in the Great Underground Empire.",
-    out: 'Ein gewaltiger Wurf! {obj.def} trifft dich mitten am Kopf. Normalerweise würde das nicht viel Schaden anrichten, doch durch ein unglaubliches Missgeschick kippst du beim Ausweichen rückwärts und brichst dir das Genick — die Gerechtigkeit ist rasch und gnädig im Großen Unterirdischen Reich.',
+    out: 'Ein gewaltiger Wurf! {obj.def} trifft dich mitten am Kopf. Normalerweise würde das nicht viel Schaden anrichten, doch durch ein unglaubliches Missgeschick kippst du beim Ausweichen rückwärts und brichst dir das Genick — die Gerechtigkeit ist rasch und gnädig im Großen Unterirdischen Imperium.',
     cap: true,
   },
   {

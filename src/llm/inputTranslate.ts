@@ -436,9 +436,12 @@ export function isDisambiguationPrompt(recentOutput: string): boolean {
 // command — so a compound must STOP here rather than auto-feed its following
 // clause into the orphan (which the player never saw when they typed ahead).
 // German: "Was willst du mit dem Schädel tun?" (UAT F16/F19 — currently an LLM
-// fallback until the put-orphan template lands in the corpus, but the wording
-// is stable enough to pass the player's answer raw rather than mistranslate it).
-const ORPHAN_PROMPT = /\bwhat do you want to\b|\bwas (?:willst|möchtest) du\b/i
+// fallback until the put-orphan template lands in the corpus). Because the
+// wording is LLM-generated and not pinned, accept the "womit" paraphrase
+// ("Womit willst du den Sarg füllen?") too, anchored on the leading
+// interrogative so a non-orphan "Wie willst du …" refusal still misses (review I2).
+const ORPHAN_PROMPT =
+  /\bwhat do you want to\b|\b(?:was|womit) (?:willst|möchtest) du\b/i
 
 /** True when the recent game output is a parser orphan prompt (partial command
  * awaiting its missing noun). */

@@ -291,8 +291,14 @@ describe('isOrphanPrompt', () => {
       expect(isOrphanPrompt(p)).toBe(true)
   })
 
-  it('detects the LOCALIZED German "Was willst du …" orphan prompt (UAT F16)', () => {
-    expect(isOrphanPrompt('Was willst du mit dem Schädel tun?')).toBe(true)
+  it('detects the LOCALIZED German "Was willst du …" orphan prompt (UAT F16/F30)', () => {
+    for (const p of [
+      'Was willst du mit dem Schädel tun?',
+      'Was willst du mit dem Torso tun?', // the actual F30 rendering
+      'Womit willst du den Sarg füllen?', // paraphrase — must also catch (review I2)
+      'Womit möchtest du das füllen?',
+    ])
+      expect(isOrphanPrompt(p)).toBe(true)
   })
 
   it('does NOT fire on ordinary output (incl. German "Wie willst du …")', () => {

@@ -99,3 +99,44 @@ body::before {
     var(--vignette) 100%
   );
 }
+
+/* Visually hidden but exposed to assistive tech — for labels/headings that a
+   screen reader needs but the visual design doesn't show. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Honour the OS "reduce motion" setting. The app ships entrance (rise), caret
+   (blink), shimmer (xl-shimmer) and title (flicker) animations plus several
+   transitions. .scroll p and .title start at opacity:0 and are only revealed by
+   their animation, so disabling it must restore opacity or the text vanishes. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .scroll p,
+  .title {
+    opacity: 1 !important;
+    animation: none !important;
+  }
+  .blink {
+    animation: none !important;
+  }
+  .xl-pending {
+    animation: none !important;
+    opacity: 0.6;
+  }
+}

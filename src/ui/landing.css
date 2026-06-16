@@ -244,6 +244,10 @@
   filter: brightness(1.1);
   box-shadow: 0 0 30px rgba(232, 163, 61, 0.4);
 }
+.enter:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 3px;
+}
 
 /* ---------- Resume hint ---------- */
 .resume {

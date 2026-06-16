@@ -32,6 +32,11 @@
   border-color: var(--brass);
   color: var(--brass);
 }
+.themebtn:focus-visible {
+  border-color: var(--brass);
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
 
 /* ---------- StatusBar ---------- */
 .statusbar {
@@ -186,6 +191,13 @@
 .cmd::placeholder {
   color: var(--text-dim);
   opacity: 0.6;
+}
+/* The primary control: it clears its default outline for the inline look, so it
+   must supply its own visible focus ring (2.4.7). */
+.cmd:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: 3px;
 }
 
 /* Player's literal English before NL translation — muted vs. the VM's echo. */
@@ -342,8 +354,16 @@
   font: inherit;
   background: none;
   border: none;
-  padding: 0;
+  /* Standalone dialog buttons — give them a real hit area (>=24px) for touch /
+     head-pointer / eye-gaze users (2.5.8); they don't get the inline-text
+     exception the status-bar switches do. */
+  padding: 6px 10px;
+  min-height: 24px;
 }
 .modal .sw:hover {
   color: var(--brass);
+}
+.modal .sw:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
 }

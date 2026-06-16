@@ -106,32 +106,46 @@ export function ranOfActions(
   return `${prefix[lang]} — ${body[lang]}`
 }
 
-/** The model download failed (genuine, non-abort) — the NL layer reverts to
- * off, so typed input goes straight to the game. The notice names the recovery
- * path (re-pick a language to retry) instead of the opaque "grammar-only"
- * jargon, and is shown in the language the player picked when they triggered
- * the download. */
+/** The model download failed (genuine, non-abort) — the NL layer stays in
+ * basic mode. The notice tells the player they can keep using common commands
+ * and offers the recovery path (re-pick the upgrade to retry). */
 export function modelDownloadFailed(lang: ActiveLanguage): string {
   return byLang(
     {
-      en: 'Model download failed. Pick a language again to retry, or keep playing by typing commands directly.',
-      fr: 'Échec du téléchargement du modèle. Resélectionnez une langue pour réessayer, ou continuez en tapant directement vos commandes.',
-      de: 'Modell-Download fehlgeschlagen. Wählen Sie erneut eine Sprache, um es noch einmal zu versuchen, oder spielen Sie weiter, indem Sie Befehle direkt eingeben.',
-      es: 'Error al descargar el modelo. Vuelva a elegir un idioma para reintentar, o siga jugando escribiendo comandos directamente.',
+      en: 'AI model download failed — staying in basic mode. Common commands still work; pick the upgrade again to retry.',
+      fr: 'Échec du téléchargement du modèle d’IA — passage en mode simplifié. Les commandes courantes fonctionnent toujours ; resélectionnez la mise à niveau pour réessayer.',
+      de: 'KI-Modell-Download fehlgeschlagen — Wechsel in den einfachen Modus. Gängige Befehle funktionieren weiterhin; wählen Sie die Aufwertung erneut, um es noch einmal zu versuchen.',
+      es: 'Error al descargar el modelo de IA — se mantiene el modo básico. Los comandos comunes siguen funcionando; vuelva a elegir la mejora para reintentar.',
     },
     lang,
   )
 }
 
 /** The model download stalled (no progress) and was aborted by the watchdog —
- * same revert-to-off and same recovery path as a failure. */
+ * the NL layer stays in basic mode. Same recovery path as a failure. */
 export function modelDownloadStalled(lang: ActiveLanguage): string {
   return byLang(
     {
-      en: 'Model download stalled. Pick a language again to retry, or keep playing by typing commands directly.',
-      fr: 'Téléchargement du modèle bloqué. Resélectionnez une langue pour réessayer, ou continuez en tapant directement vos commandes.',
-      de: 'Modell-Download hängt fest. Wählen Sie erneut eine Sprache, um es noch einmal zu versuchen, oder spielen Sie weiter, indem Sie Befehle direkt eingeben.',
-      es: 'Descarga del modelo estancada. Vuelva a elegir un idioma para reintentar, o siga jugando escribiendo comandos directamente.',
+      en: 'AI model download stalled — staying in basic mode. Common commands still work; pick the upgrade again to retry.',
+      fr: 'Téléchargement du modèle d’IA bloqué — passage en mode simplifié. Les commandes courantes fonctionnent toujours ; resélectionnez la mise à niveau pour réessayer.',
+      de: 'KI-Modell-Download hängt fest — Wechsel in den einfachen Modus. Gängige Befehle funktionieren weiterhin; wählen Sie die Aufwertung erneut, um es noch einmal zu versuchen.',
+      es: 'Descarga del modelo de IA estancada — se mantiene el modo básico. Los comandos comunes siguen funcionando; vuelva a elegir la mejora para reintentar.',
+    },
+    lang,
+  )
+}
+
+/** First abstain in grammar-only this stint — connects the miss to the declined
+ * upgrade at the moment of confusion. Fires once per grammar-only stint, then the
+ * plain couldntTranslate notice takes over. (EN grammar-only raw-sends, so in
+ * practice this serves non-English players.) */
+export function grammarOnlyFirstMiss(lang: ActiveLanguage): string {
+  return byLang(
+    {
+      en: 'Didn’t catch that — basic mode understands common commands; add the AI upgrade for full sentences.',
+      fr: 'Je n’ai pas compris — le mode simplifié comprend les commandes courantes ; ajoutez la mise à niveau IA pour les phrases complètes.',
+      de: 'Das habe ich nicht verstanden — der einfache Modus versteht gängige Befehle; fügen Sie die KI-Aufwertung für vollständige Sätze hinzu.',
+      es: 'No lo entendí — el modo básico entiende comandos comunes; añade la mejora de IA para frases completas.',
     },
     lang,
   )

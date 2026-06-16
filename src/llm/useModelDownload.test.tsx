@@ -138,7 +138,7 @@ describe('requestDownload', () => {
         expect(hook.result.current.internal).toEqual({ phase: 'on', language: 'en', model: 'grammar' }),
       )
       expect(setNotice).toHaveBeenCalledWith(
-        'Model download failed. Pick a language again to retry, or keep playing by typing commands directly.',
+        'AI model download failed — staying in basic mode. Common commands still work; pick the upgrade again to retry.',
       )
       // F7: the underlying error must reach the logger (ring buffer + console),
       // not be discarded.
@@ -166,7 +166,7 @@ describe('requestDownload', () => {
         expect(hook.result.current.internal).toEqual({ phase: 'on', language: 'fr', model: 'grammar' }),
       )
       expect(setNotice).toHaveBeenCalledWith(
-        'Échec du téléchargement du modèle. Resélectionnez une langue pour réessayer, ou continuez en tapant directement vos commandes.',
+        'Échec du téléchargement du modèle d’IA — passage en mode simplifié. Les commandes courantes fonctionnent toujours ; resélectionnez la mise à niveau pour réessayer.',
       )
     } finally {
       errSpy.mockRestore()
@@ -197,7 +197,7 @@ describe('requestDownload', () => {
       })
       expect(hook.result.current.internal).toEqual({ phase: 'on', language: 'en', model: 'grammar' })
       expect(setNotice).toHaveBeenCalledWith(
-        'Model download stalled. Pick a language again to retry, or keep playing by typing commands directly.',
+        'AI model download stalled — staying in basic mode. Common commands still work; pick the upgrade again to retry.',
       )
       expect(sig.aborted).toBe(true) // the orphaned load was actually aborted
       expect(errSpy).toHaveBeenCalledWith(
@@ -251,7 +251,7 @@ describe('requestDownload', () => {
       })
       expect(hook.result.current.internal).toEqual({ phase: 'on', language: 'en', model: 'grammar' })
       expect(setNotice).toHaveBeenCalledWith(
-        'Model download stalled. Pick a language again to retry, or keep playing by typing commands directly.',
+        'AI model download stalled — staying in basic mode. Common commands still work; pick the upgrade again to retry.',
       )
       expect(signals[1].aborted).toBe(true) // #2's watchdog aborted it
     } finally {

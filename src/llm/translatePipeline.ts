@@ -43,6 +43,13 @@ import { parseLexicon } from './lexicon/parse'
 import type { CoreLexicon, NounLexicon } from './lexicon/types'
 import { parseDirection } from './directions'
 import { MAX_CLAUSES, QUEUE_CAP, LOAD_WATCHDOG_MS } from './config'
+import {
+  queueFullDropped,
+  nothingSent,
+  couldntTranslate,
+  ranOfActions,
+  queueClearedNeedsAnswer,
+} from './notices'
 import { createLogger } from '../logger'
 import type { Internal } from './useModelDownload'
 
@@ -380,6 +387,14 @@ export function createTranslate(
 
   return async (english: string) => {
     const tracker = trackerRef.current
+    // The live picker language for notices set OUTSIDE runLine (queue guard /
+    // drain), where runLine's per-line `activeLang` isn't in scope (F1). Falls
+    // back to 'en' when the layer isn't 'on' — defensive; the call sites below
+    // only fire while it is.
+    const liveLang = (): ActiveLanguage =>
+      liveRef.current.internal.phase === 'on'
+        ? liveRef.current.internal.language
+        : 'en'
     // NL off / disabled / unavailable → behave exactly like the first pass.
     // Checked BEFORE the queue guard ([M]): 'off' must restore raw play
     // instantly even while a previous drain is still in flight — queueing
@@ -398,7 +413,7 @@ export function createTranslate(
     // through them either (review S4).
     if (translatingRef.current) {
       if (queueRef.current.length >= QUEUE_CAP) {
-        setNotice(`Queue full — dropped: "${english}"`)
+        setNotice(queueFullDropped(liveLang(), english))
         return
       }
       queueRef.current.push({ id: queueIdRef.current++, text: english })
@@ -703,28 +718,27 @@ export function createTranslate(
             )
           } else {
             // Nothing was sent: the non-EN abstain policy still holds.
-            setNotice(
-              timedOut
-                ? 'Translation timed out — nothing sent.'
-                : 'Translation failed — nothing sent.',
-            )
+            setNotice(nothingSent(activeLang, timedOut))
           }
         } else if (activeLang === 'en') {
           sendTracked(line)
         } else {
-          setNotice(
-            'Couldn’t translate — try simpler wording, or quote a command: "open mailbox"',
-          )
+          setNotice(couldntTranslate(activeLang))
         }
       } else if (done < total) {
         // Truncated sequence → make it visible (decision 7); an engine
         // error labels the notice so it can't pass for a quiet stop ([B]).
         setNotice(
-          stopError === null
-            ? `Ran ${done} of ${total} actions.`
-            : stopError instanceof WatchdogTimeout
-              ? `Translation timed out — ran ${done} of ${total} actions.`
-              : `Translation failed — ran ${done} of ${total} actions.`,
+          ranOfActions(
+            activeLang,
+            done,
+            total,
+            stopError === null
+              ? 'ok'
+              : stopError instanceof WatchdogTimeout
+                ? 'timeout'
+                : 'failed',
+          ),
         )
       }
       // A mid-sequence interactive prompt must flush the queue too (F-A):
@@ -797,11 +811,7 @@ export function createTranslate(
             )
             sendTracked(line)
           } else {
-            setNotice(
-              timedOut
-                ? 'Translation timed out — nothing sent.'
-                : 'Translation failed — nothing sent.',
-            )
+            setNotice(nothingSent(lang, timedOut))
           }
         }
         // A compound that stopped mid-sequence leaves this set; reset it per
@@ -822,7 +832,7 @@ export function createTranslate(
         if (outcome === 'flush' && (fromQueue || queueRef.current.length > 0)) {
           queueRef.current = []
           syncQueue()
-          setNotice('Queue cleared — the game needs an answer first.')
+          setNotice(queueClearedNeedsAnswer(liveLang()))
           break
         }
         line = queueRef.current.shift()?.text

@@ -37,23 +37,26 @@ function referencedFormKeys(corpus: TranslationCorpus): Set<string> {
   return keys
 }
 
-describe.each(LANGS)('$code form-key completeness (spec §4, §2.1)', ({ corpus }) => {
-  it('every object supplies every template-referenced form key', () => {
-    const required = referencedFormKeys(corpus)
-    const failures: string[] = []
-    for (const [name, forms] of Object.entries(corpus.objects))
-      for (const key of required)
-        if (!(key in forms)) failures.push(`"${name}" missing .${key}`)
-    expect(failures).toEqual([])
-  })
+describe.each(LANGS)(
+  '$code form-key completeness (spec §4, §2.1)',
+  ({ corpus }) => {
+    it('every object supplies every template-referenced form key', () => {
+      const required = referencedFormKeys(corpus)
+      const failures: string[] = []
+      for (const [name, forms] of Object.entries(corpus.objects))
+        for (const key of required)
+          if (!(key in forms)) failures.push(`"${name}" missing .${key}`)
+      expect(failures).toEqual([])
+    })
 
-  it('the required-key set is non-empty (guards a vacuous pass)', () => {
-    expect(referencedFormKeys(corpus).size).toBeGreaterThan(0)
-  })
+    it('the required-key set is non-empty (guards a vacuous pass)', () => {
+      expect(referencedFormKeys(corpus).size).toBeGreaterThan(0)
+    })
 
-  it('includes `indef` from the match.ts BUILTIN listings (coupling pin)', () => {
-    // If match.ts's BUILTIN ever references a key beyond `indef`, BUILTIN_OUTS
-    // must be updated to match — this pins that `indef` requirement is carried.
-    expect(referencedFormKeys(corpus).has('indef')).toBe(true)
-  })
-})
+    it('includes `indef` from the match.ts BUILTIN listings (coupling pin)', () => {
+      // If match.ts's BUILTIN ever references a key beyond `indef`, BUILTIN_OUTS
+      // must be updated to match — this pins that `indef` requirement is carried.
+      expect(referencedFormKeys(corpus).has('indef')).toBe(true)
+    })
+  },
+)

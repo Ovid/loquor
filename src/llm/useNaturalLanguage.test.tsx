@@ -1639,7 +1639,8 @@ describe('input queue (NL v2 §11, F-A)', () => {
     // Line 2 drained through the deterministic lexicon stage and ran.
     expect(sendLine.mock.calls.map(c => c[0])).toEqual(['open trapdoor'])
     // Line 1's abstain notice survives (line 2 set none); no "queue cleared".
-    expect(hook.result.current.notice).toMatch(/couldn.t translate/i)
+    // Localized (F1) — fr: "Traduction impossible …".
+    expect(hook.result.current.notice).toMatch(/traduction impossible/i)
   })
 
   it('a mid-drain language switch applies to queued lines ([N])', async () => {
@@ -1911,7 +1912,8 @@ describe('NL v2 pipeline stages (spec §4)', () => {
     })
     expect(sendLine).not.toHaveBeenCalled()
     expect(echoLocal).not.toHaveBeenCalled()
-    expect(hook.result.current.notice).toMatch(/couldn.t translate/i)
+    // Localized (F1) — fr abstain: "Traduction impossible …".
+    expect(hook.result.current.notice).toMatch(/traduction impossible/i)
   })
 
   it('stage 8: EN abstain falls back to the raw line — the Z-parser explains the failure', async () => {
@@ -1942,8 +1944,10 @@ describe('NL v2 pipeline stages (spec §4)', () => {
         )
       })
       expect(sendLine).not.toHaveBeenCalled() // non-EN abstain policy: nothing sent
-      expect(hook.result.current.notice).toMatch(/translation failed/i)
-      expect(hook.result.current.notice).not.toMatch(/couldn.t translate/i)
+      // Localized (F1) — fr translator FAILURE ("Échec de la traduction …"),
+      // distinct from the abstain notice ("Traduction impossible …").
+      expect(hook.result.current.notice).toMatch(/échec de la traduction/i)
+      expect(hook.result.current.notice).not.toMatch(/traduction impossible/i)
       expect(
         errorSpy.mock.calls.filter(c => String(c[0]).includes('[nl]')),
       ).not.toEqual([])
@@ -1966,7 +1970,8 @@ describe('NL v2 pipeline stages (spec §4)', () => {
         await hook.result.current.translate('frobnicate la trappe')
       })
       expect(sendLine).not.toHaveBeenCalled() // non-EN: nothing sent
-      expect(hook.result.current.notice).toMatch(/nothing sent/i)
+      // Localized (F1) — fr "… rien envoyé.".
+      expect(hook.result.current.notice).toMatch(/rien envoyé/i)
       expect(
         errorSpy.mock.calls.filter(c => String(c[0]).includes('[nl]')),
       ).not.toEqual([])
@@ -1990,7 +1995,8 @@ describe('NL v2 pipeline stages (spec §4)', () => {
       await p
     })
     expect(sendLine).not.toHaveBeenCalled()
-    expect(hook.result.current.notice).toMatch(/timed out/i)
+    // Localized (F1) — fr timeout: "Délai de traduction dépassé …".
+    expect(hook.result.current.notice).toMatch(/délai de traduction dépassé/i)
     vi.useRealTimers()
   })
 

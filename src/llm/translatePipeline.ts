@@ -29,6 +29,7 @@ import {
   isMetaCommand,
   metaAlias,
   isConfirmationPrompt,
+  confirmationReply,
   isDisambiguationPrompt,
   isOrphanPrompt,
   splitClauses,
@@ -500,7 +501,13 @@ export function createTranslate(
       ) {
         lastCommandRef.current = null
         if (fromQueue) return 'flush'
-        sendTracked(line)
+        // On a yes/no confirmation, map the player's localized reflex reply
+        // ("j"/"ja"/"oui"/"sí") to the interpreter's literal "y"/"n" key — the
+        // localized prompt invited it but the interpreter only accepts Y (review I3).
+        const reply = isConfirmationPrompt(recentOutput)
+          ? confirmationReply(line, activeLang)
+          : line
+        sendTracked(reply)
         return 'ok'
       }
       // STAGE 2 (locked decision 8): a fully-quoted line ("…", «…», „…“, “…”)

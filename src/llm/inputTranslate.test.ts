@@ -4,6 +4,7 @@ import {
   isMetaCommand,
   metaAlias,
   isConfirmationPrompt,
+  confirmationReply,
   isDisambiguationPrompt,
   isOrphanPrompt,
   splitClauses,
@@ -218,6 +219,39 @@ describe('isConfirmationPrompt', () => {
       '',
     ])
       expect(isConfirmationPrompt(p)).toBe(false)
+  })
+})
+
+describe('confirmationReply (map localized yes/no to the interpreter key — review I3)', () => {
+  it('maps each language’s reflex affirmative to "y"', () => {
+    expect(confirmationReply('j', 'de')).toBe('y')
+    expect(confirmationReply('ja', 'de')).toBe('y')
+    expect(confirmationReply('oui', 'fr')).toBe('y')
+    expect(confirmationReply('o', 'fr')).toBe('y')
+    expect(confirmationReply('sí', 'es')).toBe('y')
+    expect(confirmationReply('si', 'es')).toBe('y')
+    expect(confirmationReply('s', 'es')).toBe('y')
+  })
+
+  it('maps each language’s reflex negative to "n"', () => {
+    expect(confirmationReply('nein', 'de')).toBe('n')
+    expect(confirmationReply('non', 'fr')).toBe('n')
+    expect(confirmationReply('no', 'es')).toBe('n')
+    expect(confirmationReply('n', 'de')).toBe('n')
+  })
+
+  it('is case/punctuation insensitive', () => {
+    expect(confirmationReply('Ja!', 'de')).toBe('y')
+    expect(confirmationReply(' OUI. ', 'fr')).toBe('y')
+  })
+
+  it('leaves the literal "y"/"n" and anything else untouched (no regression)', () => {
+    expect(confirmationReply('y', 'de')).toBe('y')
+    expect(confirmationReply('Y', 'de')).toBe('Y')
+    expect(confirmationReply('restart', 'de')).toBe('restart')
+    // English: "y"/"n" already work; don't remap an English word.
+    expect(confirmationReply('no', 'en')).toBe('no')
+    expect(confirmationReply('yes', 'en')).toBe('yes')
   })
 })
 

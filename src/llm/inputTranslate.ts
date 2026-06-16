@@ -1,5 +1,5 @@
 // src/llm/translate.ts
-import type { TranslateResult } from './types'
+import type { TranslateResult, ActiveLanguage } from './types'
 import type { Vocab } from './grammar/types'
 import { META_COMMANDS } from './meta'
 import type { CoreLexicon, NounLexicon } from './lexicon/types'
@@ -384,6 +384,35 @@ const CONFIRM_PROMPT =
 /** True when the recent game output is an interpreter yes/no confirmation prompt. */
 export function isConfirmationPrompt(recentOutput: string): boolean {
   return CONFIRM_PROMPT.test(recentOutput)
+}
+
+// The interpreter's yes/no prompt only accepts the literal "Y" key, but the
+// LOCALIZED prompt invites the player's own reflex affirmative ("(Y bedeutet
+// ja)"). A German "j"/"ja" (FR "o"/"oui", ES "s"/"sí") is otherwise passed raw
+// and silently rejected — the confirmation can never fire (review I3). Map the
+// per-language affirmative→"y" / negative→"n"; leave anything else (incl. the
+// literal "Y" and all English replies) untouched. Folded so accents/case/punct
+// don't matter. English is intentionally absent — "y"/"n"/"yes" already work
+// and we must not remap an English word.
+const CONFIRM_AFFIRMATIVE: Partial<Record<ActiveLanguage, readonly string[]>> = {
+  de: ['j', 'ja'],
+  fr: ['o', 'oui'],
+  es: ['s', 'si'], // 'sí' folds to 'si'
+}
+const CONFIRM_NEGATIVE: Partial<Record<ActiveLanguage, readonly string[]>> = {
+  de: ['n', 'nein'],
+  fr: ['n', 'non'],
+  es: ['n', 'no'],
+}
+
+/** Map a localized yes/no reply to the interpreter's "y"/"n" key for the active
+ * language; returns the line unchanged when it isn't a recognized affirmative/
+ * negative (or for English). Pure + total. */
+export function confirmationReply(line: string, lang: ActiveLanguage): string {
+  const t = fold(line)
+  if (CONFIRM_AFFIRMATIVE[lang]?.includes(t)) return 'y'
+  if (CONFIRM_NEGATIVE[lang]?.includes(t)) return 'n'
+  return line
 }
 
 // The parser's disambiguation question ("Which door do you mean, the wooden door

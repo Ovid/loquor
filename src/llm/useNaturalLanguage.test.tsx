@@ -1067,17 +1067,10 @@ describe('useNaturalLanguage', () => {
     expect(hook.result.current.notice).toBeNull()
   })
 
-  // SKIP-AND-CONTINUE for UAT F13: a HARD in-game failure (failurePat) on an
-  // earlier clause no longer truncates the compound — the remaining clauses
-  // still run, matching original Zork's independent multi-command handling.
-  // (This test previously asserted the old stop-on-hard-refusal behavior.)
-  it('compound: a HARD refusal (failurePat) does NOT stop the sequence (F13)', async () => {
+  it('compound: still stops after a HARD refusal (failurePat) on the first clause', async () => {
     const engine = new FakeLlmEngine({
       cached: true,
-      completions: {
-        'open mailbox': '{"verb":"open","object":"mailbox"}',
-        'take leaflet': '{"verb":"take","object":"leaflet"}',
-      },
+      completions: { 'open mailbox': '{"verb":"open","object":"mailbox"}' },
       default: '{"verb":"__UNKNOWN__"}',
     })
     const refusal = viewState(
@@ -1085,15 +1078,10 @@ describe('useNaturalLanguage', () => {
       ['open mailbox', 'The mailbox cannot be opened.'],
       'open mailbox',
     )
-    const taken = viewState(
-      'West of House',
-      ['take leaflet', 'Taken.'],
-      'take leaflet',
-    )
     const { hook, sendLine } = setup({
       engine,
       vocab: { ...TEST_VOCAB, failurePat: FAILURE_PAT },
-      awaitTurn: turnScript([refusal, taken]),
+      awaitTurn: turnScript([refusal]),
     })
     await reachOn(hook)
     act(() =>
@@ -1104,11 +1092,8 @@ describe('useNaturalLanguage', () => {
     await act(async () => {
       await hook.result.current.translate('open mailbox and take leaflet')
     })
-    expect(sendLine.mock.calls.map(c => c[0])).toEqual([
-      'open mailbox',
-      'take leaflet',
-    ])
-    expect(hook.result.current.notice).toBeNull()
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['open mailbox'])
+    expect(hook.result.current.notice).toBe('Ran 1 of 2 actions.')
   })
 
   it('compound: a successful move into a room whose description contains absence phrasing ("no door") does NOT stop the sequence', async () => {

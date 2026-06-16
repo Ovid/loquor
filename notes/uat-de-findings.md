@@ -509,19 +509,16 @@ commands and are now fixed (this rule is now in CLAUDE.md):
   `disembark`, verbs1-only) via the particle + a `steig aus` idiom.
 - **F27** — bare `hebe den Korb` → `raise` (symmetric with `senke`→lower).
 
-### FIXED — round 3 (Ovid's call)
-- **F13** — compound no longer aborts after a failed clause. Ovid chose
-  skip-and-continue: a clause that no-ops/hard-refuses (unknown noun, absence,
-  refusal) is skipped and the rest still run, matching original Zork's
-  independent multi-command handling, so a valid later clause is never silently
-  lost. Mid-sequence interactive PROMPTS still stop (the next clause would answer
-  the parser). **Known trade-off surfaced:** stop-on-failure also acted as an
-  added safety net for dependent chains (e.g. a failed `lösche die Fackel aus`
-  followed by entering the Gas Room → death); skip-continue removes that net, but
-  it matches original Zork (which has the same risk) and the prompt-stop +
-  tracker gating are unchanged. A narrower carve-out (stop only when the next
-  clause is movement) is possible if we want the safety net back — `clauseFailed`
-  is retained for exactly that.
+### RESOLVED — F13 is WORKING AS INTENDED (Ovid's final call)
+- **F13** — a compound STOPS after a clause fails ("Ran N of M actions"). This is
+  correct and intentional. Ovid's reasoning: if an earlier clause fails, running
+  the rest acts in a context the player never intended ("I didn't go north, and
+  now I'm moving in a direction I didn't mean to") — worse than losing the tail.
+  So a HARD in-game failure (unknown noun, absence, refusal) stops the sequence;
+  the truncation is transparent and recoverable (retype the rest). SOFT no-ops
+  ("It is already open.") do NOT stop (the intent is already satisfied — F-G).
+  Interactive PROMPTS also stop. (A brief skip-and-continue experiment was tried
+  and reverted per this call.)
 
 ### STILL OPEN — flagged, NOT silently deferred
 - **F8, F11, F19, F29 [output corpus, low player-harm]** — F8 wrong number

@@ -397,11 +397,12 @@ export function isConfirmationPrompt(recentOutput: string): boolean {
 // literal "Y" and all English replies) untouched. Folded so accents/case/punct
 // don't matter. English is intentionally absent — "y"/"n"/"yes" already work
 // and we must not remap an English word.
-const CONFIRM_AFFIRMATIVE: Partial<Record<ActiveLanguage, readonly string[]>> = {
-  de: ['j', 'ja'],
-  fr: ['o', 'oui'],
-  es: ['s', 'si'], // 'sí' folds to 'si'
-}
+const CONFIRM_AFFIRMATIVE: Partial<Record<ActiveLanguage, readonly string[]>> =
+  {
+    de: ['j', 'ja'],
+    fr: ['o', 'oui'],
+    es: ['s', 'si'], // 'sí' folds to 'si'
+  }
 const CONFIRM_NEGATIVE: Partial<Record<ActiveLanguage, readonly string[]>> = {
   de: ['n', 'nein'],
   fr: ['n', 'non'],

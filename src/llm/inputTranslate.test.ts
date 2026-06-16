@@ -470,18 +470,13 @@ describe('distributePrepTail (shared container across same-verb conjuncts, UAT F
     // (else "take sword" is silently emitted as "take sword from case").
     expect(
       run('nimm das schwert und nimm den schlussel aus der vitrine'),
-    ).toEqual([
-      'nimm das schwert',
-      'nimm den schlussel aus der vitrine',
-    ])
+    ).toEqual(['nimm das schwert', 'nimm den schlussel aus der vitrine'])
   })
 
   it('does NOT append a destination to a clause that already has a container pronoun — review S1', () => {
     // "lege es hinein und lege das blatt in die vitrine" — the first clause's
     // "hinein" already supplies its destination; it must stay intact.
-    expect(
-      run('lege es hinein und lege das blatt in die vitrine'),
-    ).toEqual([
+    expect(run('lege es hinein und lege das blatt in die vitrine')).toEqual([
       'lege es hinein',
       'lege das blatt in die vitrine',
     ])

@@ -125,17 +125,28 @@ describe('requestDownload', () => {
     })
   })
 
-  it('failure reverts to off and reports it through the shared notice channel', async () => {
-    const { hook, setNotice } = setup({
-      engine: new FakeLlmEngine({ failLoad: true }),
-    })
-    act(() => hook.result.current.requestDownload())
-    await waitFor(() =>
-      expect(hook.result.current.internal).toEqual({ phase: 'off' }),
-    )
-    expect(setNotice).toHaveBeenCalledWith(
-      'Model download failed — staying grammar-only.',
-    )
+  it('failure reverts to off, reports it through the notice channel, and logs the cause (F7)', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { hook, setNotice } = setup({
+        engine: new FakeLlmEngine({ failLoad: true }),
+      })
+      act(() => hook.result.current.requestDownload())
+      await waitFor(() =>
+        expect(hook.result.current.internal).toEqual({ phase: 'off' }),
+      )
+      expect(setNotice).toHaveBeenCalledWith(
+        'Model download failed — staying grammar-only.',
+      )
+      // F7: the underlying error must reach the logger (ring buffer + console),
+      // not be discarded.
+      expect(errSpy).toHaveBeenCalledWith(
+        '[nl] model download failed:',
+        expect.objectContaining({ message: 'fake load failure' }),
+      )
+    } finally {
+      errSpy.mockRestore()
+    }
   })
 })
 

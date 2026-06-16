@@ -147,10 +147,21 @@ describe('useNaturalLanguage', () => {
   })
 
   it('load failure reverts to off and sets a notice', async () => {
-    const { hook } = setup({ engine: new FakeLlmEngine({ failLoad: true }) })
-    act(() => hook.result.current.requestDownload())
-    await waitFor(() => expect(hook.result.current.state.phase).toBe('off'))
-    expect(hook.result.current.notice).toBeTruthy()
+    // The genuine (non-abort) load failure is now log.error'd by design (F7);
+    // own the log so it doesn't leak to stderr.
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { hook } = setup({ engine: new FakeLlmEngine({ failLoad: true }) })
+      act(() => hook.result.current.requestDownload())
+      await waitFor(() => expect(hook.result.current.state.phase).toBe('off'))
+      expect(hook.result.current.notice).toBeTruthy()
+      expect(errSpy).toHaveBeenCalledWith(
+        '[nl] model download failed:',
+        expect.anything(),
+      )
+    } finally {
+      errSpy.mockRestore()
+    }
   })
 
   it('progress callbacks surface as state.loaded/total/etaSeconds while downloading (F-2 safety net)', async () => {
@@ -1933,6 +1944,29 @@ describe('NL v2 pipeline stages (spec §4)', () => {
       expect(sendLine).not.toHaveBeenCalled() // non-EN abstain policy: nothing sent
       expect(hook.result.current.notice).toMatch(/translation failed/i)
       expect(hook.result.current.notice).not.toMatch(/couldn.t translate/i)
+      expect(
+        errorSpy.mock.calls.filter(c => String(c[0]).includes('[nl]')),
+      ).not.toEqual([])
+    } finally {
+      errorSpy.mockRestore()
+    }
+  })
+
+  it('stage 8: a SINGLE non-EN command that errors sends nothing — the drain catch honors the abstain policy (F2)', async () => {
+    // total===1, so runClause's failure rethrows out of runLine into the outer
+    // drain catch (NOT the in-runLine stage-8 path). That catch used to
+    // raw-send the untranslated French to the Z-parser regardless of language;
+    // it must instead obey the non-EN "nothing sent" policy.
+    const { hook, sendLine } = await setupFr({
+      engine: new FakeLlmEngine({ cached: true, failGenerate: true }),
+    })
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      await act(async () => {
+        await hook.result.current.translate('frobnicate la trappe')
+      })
+      expect(sendLine).not.toHaveBeenCalled() // non-EN: nothing sent
+      expect(hook.result.current.notice).toMatch(/nothing sent/i)
       expect(
         errorSpy.mock.calls.filter(c => String(c[0]).includes('[nl]')),
       ).not.toEqual([])

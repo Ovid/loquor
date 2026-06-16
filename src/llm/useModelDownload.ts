@@ -11,6 +11,9 @@ import type { ActiveLanguage, LlmEngine, NlLanguage } from './types'
 import { readNlPref, writeNlPref } from './nlpref'
 import { pct as toPct, estimateRemainingSeconds } from './progress'
 import type { ProgressSample } from './progress'
+import { createLogger } from '../logger'
+
+const log = createLogger('nl')
 
 /** The NL layer's internal phase machine. Owned here (F-2); the parent reads it
  * to derive the public `state` and the active picker language. */
@@ -136,6 +139,10 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
         if (stale() || (err as Error).name === 'AbortError') {
           setInternal({ phase: 'off' })
         } else {
+          // F7: this is the app's single network-egress risk — a genuine
+          // (non-abort) load failure must reach the ring buffer / console, not
+          // just the player notice, or the cause is undiagnosable.
+          log.error('model download failed:', err)
           setNotice('Model download failed — staying grammar-only.')
           setInternal({ phase: 'off' })
         }

@@ -775,17 +775,34 @@ export function createTranslate(
           // kept per line so an engine error on one line cannot silently
           // abandon the rest of the queue. A genuine generate failure (vs. a
           // benign watchdog timeout) is logged so the root cause stays
-          // diagnosable; either way the line falls back to a raw send with a
-          // visible notice, and the drain continues.
+          // diagnosable, and the drain continues.
           lastCommandRef.current = null
           if (!(err instanceof WatchdogTimeout))
             log.error('translation failed:', err)
-          setNotice(
-            err instanceof WatchdogTimeout
-              ? 'Translation timed out — sent as typed.'
-              : 'Translation failed — sent as typed.',
-          )
-          sendTracked(line)
+          // F2/F-R: honor stage-8's abstain policy here too. EN raw-sends (the
+          // Z-parser's own error is useful); a non-EN line must NOT raw-send
+          // untranslated FR/DE/ES — that only earns a useless "I don't know the
+          // word…" AND burns a turn — so send NOTHING and show a notice. (The
+          // in-runLine stage-8 path already does this; this outer catch
+          // catches the total===1 rethrow that bypassed it.)
+          const live = liveRef.current
+          const lang: ActiveLanguage =
+            live.internal.phase === 'on' ? live.internal.language : 'en'
+          const timedOut = err instanceof WatchdogTimeout
+          if (lang === 'en') {
+            setNotice(
+              timedOut
+                ? 'Translation timed out — sent as typed.'
+                : 'Translation failed — sent as typed.',
+            )
+            sendTracked(line)
+          } else {
+            setNotice(
+              timedOut
+                ? 'Translation timed out — nothing sent.'
+                : 'Translation failed — nothing sent.',
+            )
+          }
         }
         // A compound that stopped mid-sequence leaves this set; reset it per
         // line so Terminal's observe effect resumes for later queued lines.

@@ -207,6 +207,90 @@ describe('requestDownload', () => {
       errSpy.mockRestore()
     }
   })
+
+  it('a re-picked download keeps its OWN stall watchdog when the superseded load rejects ([I1])', async () => {
+    // Re-pick race: download #1 arms the (shared) stall timer; the player
+    // re-picks → download #2 supersedes it and re-arms the timer for ITSELF.
+    // Aborting #1 makes its load reject AbortError a microtask later — that
+    // .catch must NOT clear #2's live watchdog (the bug F6 would silently lose).
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.useFakeTimers()
+    try {
+      const signals: AbortSignal[] = []
+      let calls = 0
+      const engine: LlmEngine = {
+        unload: async () => {},
+        isLoaded: () => false,
+        isCached: async () => false,
+        generate: async () => '',
+        // Each load emits one progress sample then waits; it rejects only when
+        // its own signal aborts (supersede for #1, watchdog for #2).
+        load: (onProgress, signal) =>
+          new Promise<void>((_resolve, reject) => {
+            signals[calls++] = signal
+            onProgress({ loaded: 10, total: 100, text: '' })
+            signal.addEventListener('abort', () =>
+              reject(new DOMException('aborted', 'AbortError')),
+            )
+          }),
+      }
+      const { hook, setNotice } = setup({ engine })
+      act(() => hook.result.current.requestDownload()) // download #1
+      act(() => hook.result.current.requestDownload()) // re-pick → #2 supersedes
+      // Flush #1's AbortError .catch (the microtask that, pre-fix, cleared #2's timer).
+      await act(async () => {
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+      expect(signals[0].aborted).toBe(true) // #1 superseded
+      expect(signals[1].aborted).toBe(false) // #2 still live...
+      // ...and its watchdog must still be armed: genuine silence trips it.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(DOWNLOAD_STALL_MS + 100)
+      })
+      expect(hook.result.current.internal).toEqual({ phase: 'off' })
+      expect(setNotice).toHaveBeenCalledWith(
+        'Model download stalled — staying grammar-only.',
+      )
+      expect(signals[1].aborted).toBe(true) // #2's watchdog aborted it
+    } finally {
+      vi.useRealTimers()
+      errSpy.mockRestore()
+    }
+  })
+
+  it('unmount aborts the in-flight load and clears the stall timer — no post-unmount state ([I2])', async () => {
+    vi.useFakeTimers()
+    try {
+      let sig!: AbortSignal
+      const engine: LlmEngine = {
+        unload: async () => {},
+        isLoaded: () => false,
+        isCached: async () => false,
+        generate: async () => '',
+        // Ignores its signal and never settles — only the unmount cleanup can
+        // stop the timer and abort the fetch.
+        load: (onProgress, signal) =>
+          new Promise<void>(() => {
+            sig = signal
+            onProgress({ loaded: 10, total: 100, text: '' })
+          }),
+      }
+      const { hook, setNotice } = setup({ engine })
+      act(() => hook.result.current.requestDownload())
+      expect(sig.aborted).toBe(false)
+      act(() => hook.unmount())
+      expect(sig.aborted).toBe(true) // in-flight load aborted on unmount
+      // The stall timer must NOT fire after unmount (no setState on a dead tree).
+      setNotice.mockClear()
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(DOWNLOAD_STALL_MS + 100)
+      })
+      expect(setNotice).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })
 
 describe('setLanguage', () => {

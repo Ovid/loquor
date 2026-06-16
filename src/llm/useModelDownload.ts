@@ -101,6 +101,17 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
     }
   }, [engine])
 
+  // Unmount cleanup ([I2]): a download in flight when the host unmounts (story
+  // swap / navigate away) must not leave its stall timer to fire setState on a
+  // dead tree, nor leak the multi-GB engine.load fetch. Empty deps → unmount only.
+  useEffect(
+    () => () => {
+      if (stallTimerRef.current !== null) clearTimeout(stallTimerRef.current)
+      abortRef.current?.abort()
+    },
+    [],
+  )
+
   const requestDownload = useCallback(() => {
     setNotice(null)
     setModalOpen(false)
@@ -154,8 +165,11 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
         })
       }, ac.signal)
       .then(() => {
-        clearStall()
+        // clearStall AFTER the stale() guard ([I1]): the stall timer lives in a
+        // ref shared across the hook's lifetime, so a superseded load settling a
+        // microtask after the re-pick must NOT clear the live download's watchdog.
         if (stale()) return
+        clearStall()
         // The model is now loaded (hence cached) — mark installed directly so the
         // probe effect needn't re-run on the phase change to discover it (S6).
         setInstalled(true)
@@ -164,17 +178,20 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
         writeNlPref({ language: pendingLangRef.current })
       })
       .catch(err => {
-        clearStall()
         if (stale() || (err as Error).name === 'AbortError') {
+          // clearStall only on a NON-stale settle ([I1]): a load rejecting
+          // because it was aborted/superseded must not clear the shared stall
+          // timer now owned by the live download.
           setInternal({ phase: 'off' })
-        } else {
-          // F7: this is the app's single network-egress risk — a genuine
-          // (non-abort) load failure must reach the ring buffer / console, not
-          // just the player notice, or the cause is undiagnosable.
-          log.error('model download failed:', err)
-          setNotice(modelDownloadFailed(pendingLangRef.current))
-          setInternal({ phase: 'off' })
+          return
         }
+        clearStall()
+        // F7: this is the app's single network-egress risk — a genuine
+        // (non-abort) load failure must reach the ring buffer / console, not
+        // just the player notice, or the cause is undiagnosable.
+        log.error('model download failed:', err)
+        setNotice(modelDownloadFailed(pendingLangRef.current))
+        setInternal({ phase: 'off' })
       })
   }, [engine, setNotice])
 

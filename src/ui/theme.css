@@ -9,8 +9,8 @@
   --text-dim: #b8ac90;
   --brass: #e8a33d;
   --brass-soft: #caa46a;
-  --ember: #c5482f;
-  --rule: #3a2c1c;
+  --ember: #d65238; /* a11y: 4.79:1 on bg for the load-error message (was 4.06) */
+  --rule: #806848; /* a11y: 3.7:1 control-border contrast (was #3a2c1c, 1.46:1) */
   --vignette: rgba(0, 0, 0, 0.55);
   --plate-grad: linear-gradient(
     180deg,
@@ -36,10 +36,10 @@
   --glow2: rgba(180, 140, 80, 0.06);
   --text: #3a2c1c;
   --text-dim: #6b5740;
-  --brass: #9a6312;
-  --brass-soft: #7c5a2a;
-  --ember: #a5371f;
-  --rule: rgba(90, 65, 35, 0.4);
+  --brass: #6e4608; /* a11y: >=4.86:1 everywhere in light (was #9a6312, 2.97:1 on the status bar) */
+  --brass-soft: #654720; /* a11y: >=5:1 for controls in light (was #7c5a2a, 3.69:1) */
+  --ember: #a5371f; /* 4.87:1 on the light plate — used by .loaderr */
+  --rule: #8a6a3f; /* a11y: 3.66:1 control-border contrast (was rgba(90,65,35,.4), 1.92:1) */
   --vignette: rgba(90, 60, 25, 0.26);
   --plate-grad: linear-gradient(
     180deg,

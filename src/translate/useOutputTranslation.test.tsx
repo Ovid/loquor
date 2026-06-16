@@ -8,6 +8,8 @@ import { cacheGet, cacheSet } from './fallbackCache'
 import * as idb from '../storage/idb'
 import { readMisses } from './missLog'
 import type { ViewState, BufferLine } from '../glkote-react/types'
+import { viewToContext } from '../llm/prompt'
+import { isConfirmationPrompt } from '../llm/inputTranslate'
 import type { TranslationCorpus } from './types'
 import type {
   ChatMessages,
@@ -144,6 +146,53 @@ describe('sync table hits (spec §3/§5)', () => {
       location: "À l'ouest de la maison",
       right: 'Score : 0  Coups : 1',
     })
+  })
+})
+
+// PROOF (brainstorming 2026-06-16): the input layer's prompt detectors read the
+// ENGLISH source, never the localized display. The output overlay is a pure
+// DISPLAY transform — it produces translated DisplayLines but does NOT mutate the
+// ViewState that the NL input layer reads via viewToContext(viewRef.current).
+// So a German player sees "(Y bedeutet ja)" while recentOutput stays the English
+// "(Y is affirmative)". This is why the per-language detection clauses are dead
+// code: detection always runs on English.
+describe('PROOF: display is localized but the input-side ViewState stays English', () => {
+  it('overlay localizes the confirmation line for DISPLAY while viewToContext sees English', () => {
+    const deConfirm: TranslationCorpus = {
+      strings: {
+        'Do you wish to restart? (Y is affirmative):':
+          'Möchtest du neu beginnen? (J bedeutet ja):',
+      },
+      objects: {},
+      templates: [],
+    }
+    const english = 'Do you wish to restart? (Y is affirmative):'
+    const v = view([line('output', english)])
+
+    const gate = new EngineGate()
+    const engine = new FakeLlmEngine({ default: 'fallback' })
+    const { result } = renderHook(() =>
+      useOutputTranslation({
+        view: v,
+        language: 'de',
+        signature: 'test-sig',
+        engine,
+        gate,
+        corpusOverride: deConfirm,
+      }),
+    )
+
+    // DISPLAY: the player sees German.
+    expect(result.current.lines[0].text).toBe(
+      'Möchtest du neu beginnen? (J bedeutet ja):',
+    )
+    // INPUT PATH: the overlay did NOT mutate the source ViewState — viewToContext
+    // (what getContext()/recentOutput reads) still yields the English prompt.
+    const ctx = viewToContext(v)
+    expect(ctx.recentOutput).toBe(english)
+    expect(ctx.recentOutput).not.toContain('bedeutet ja')
+    // And the ENGLISH clause alone fires the detector — no German clause needed.
+    expect(isConfirmationPrompt(ctx.recentOutput)).toBe(true)
   })
 })
 

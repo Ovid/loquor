@@ -487,11 +487,20 @@ pinned by a regression test (`src/llm/lexicon/parse.de-uat.test.ts` for input,
 - **F15, F4** — `quantifiersAll: ['alles','alle']` (was absent → `nimm alles`
   fell to the LLM → "large bag"); doubled connector `und dann` now absorbed as
   one clause separator (also fixes `and then` / `et puis`).
-- **F2 (+ partial F1)** — the prompt detectors run on the LOCALIZED display
-  text but matched only English, so the German `(Y bedeutet ja)` restart/quit
-  prompt was missed and `y` → `look`. Added German patterns to
-  isConfirmationPrompt / isDisambiguationPrompt / isOrphanPrompt, so the
-  player's answer now passes raw. (F1's English re-prompt is cosmetic, untouched.)
+- **F2 (+ partial F1)** — at the restart/quit prompt `y` → `look`: the prompt
+  was not detected, so the reply was translated. Added detection to
+  isConfirmationPrompt / isDisambiguationPrompt / isOrphanPrompt so the player's
+  answer passes raw. (F1's English re-prompt is cosmetic, untouched.)
+  - **CORRECTION (2026-06-16):** this entry originally claimed "the detectors run
+    on the LOCALIZED display text … added German patterns." That diagnosis was
+    WRONG. The detectors read `recentOutput`, which is the **English** VM source
+    (the output-translation overlay is display-only and never writes back into the
+    ViewState the input layer reads — proof:
+    `useOutputTranslation.test.tsx`). So F2 was actually fixed by the **English**
+    `(Y is affirmative)` clause; the German/FR/ES detection patterns were dead
+    code and have been removed. The yes/no key IS localized for DISPLAY (J/O/S) and
+    the player's typed `j`/`ja` is mapped to `y` by `confirmationReply` — that part
+    operates on input, not on `recentOutput`, and is correct.
 
 ### FIXED — round 2 (player-experience pushback)
 Ovid pushed back: "product decision" is not a reason to leave a behavior that

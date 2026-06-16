@@ -202,20 +202,16 @@ describe('isConfirmationPrompt', () => {
       expect(isConfirmationPrompt(p)).toBe(true)
   })
 
-  it('detects the LOCALIZED confirmation prompts in every language (UAT F2; key localized to J/O/S)', () => {
+  // ENGLISH-ONLY by design: recentOutput is the English source, never the
+  // localized display (proof: useOutputTranslation.test.tsx). A localized prompt
+  // must NOT match — guards against re-adding dead per-language clauses.
+  it('does NOT match LOCALIZED display prompts (detection runs on English source)', () => {
     for (const p of [
-      // German — key localized to "J"
       'Möchtest du neu beginnen? (J bedeutet ja):',
-      'Möchtest du das Spiel verlassen? (J für ja):',
-      'Möchtest du das Spiel von vorne beginnen…?\n(Tippe RESTART, RESTORE oder QUIT):',
-      // French — key localized to "O"
       'Voulez-vous recommencer ? (O pour oui) :',
-      'Voulez-vous recommencer ? (Tapez RESTART, RESTORE ou QUIT) :',
-      // Spanish — key localized to "S"
       '¿Quieres reiniciar? (S para sí):',
-      '¿Quieres reiniciar? (Escribe RESTART, RESTORE o QUIT):',
     ])
-      expect(isConfirmationPrompt(p)).toBe(true)
+      expect(isConfirmationPrompt(p)).toBe(false)
   })
 
   it('does NOT fire on ordinary room / response text', () => {
@@ -271,31 +267,14 @@ describe('isDisambiguationPrompt', () => {
       expect(isDisambiguationPrompt(p)).toBe(true)
   })
 
-  it('detects the LOCALIZED German "Welche… meinst du" disambiguation (UAT F2)', () => {
-    expect(
-      isDisambiguationPrompt(
-        'Welches Buch meinst du, das schwarze Buch oder das blaue Buch?',
-      ),
-    ).toBe(true)
-  })
-
-  it('detects the LOCALIZED French and Spanish disambiguation (cross-language)', () => {
-    for (const p of [
-      // FR template: "De quel livre parlez-vous, … ou … ?"
-      'De quel livre parlez-vous, le livre noir ou le guide touristique ?',
-      'De quelle corde parlez-vous, la corde ou la corde élimée ?',
-      // ES template: "¿A qué libro te refieres, … o …?"
-      '¿A qué libro te refieres, el libro negro o la guía turística?',
-    ])
-      expect(isDisambiguationPrompt(p)).toBe(true)
-  })
-
-  it('does NOT fire on prose that merely contains "which"', () => {
+  it('does NOT fire on prose that merely contains "which", nor on LOCALIZED display', () => {
     for (const p of [
       'The leaflet, which you can read, welcomes you to Zork.',
       'You are standing in an open field west of a white house.',
-      // FR refusal "Comment voulez-vous boire ça ?" must NOT read as a disambiguation
-      'Comment voulez-vous boire ça ?',
+      // ENGLISH-ONLY: localized disambiguation renderings never reach the detector.
+      'Welches Buch meinst du, das schwarze Buch oder das blaue Buch?',
+      'De quel livre parlez-vous, le livre noir ou le guide touristique ?',
+      '¿A qué libro te refieres, el libro negro o la guía turística?',
       '',
     ])
       expect(isDisambiguationPrompt(p)).toBe(false)
@@ -311,33 +290,13 @@ describe('isOrphanPrompt', () => {
       expect(isOrphanPrompt(p)).toBe(true)
   })
 
-  it('detects the LOCALIZED German "Was willst du …" orphan prompt (UAT F16/F30)', () => {
-    for (const p of [
-      'Was willst du mit dem Schädel tun?',
-      'Was willst du mit dem Torso tun?', // the actual F30 rendering
-      'Womit willst du den Sarg füllen?', // paraphrase — must also catch (review I2)
-      'Womit möchtest du das füllen?',
-    ])
-      expect(isOrphanPrompt(p)).toBe(true)
-  })
-
-  it('detects the LOCALIZED Spanish "¿Qué quieres …" orphan prompt (UAT-es-3)', () => {
-    for (const p of [
-      '¿Qué quieres poner la cera?', // the actual es rendering (uat.md)
-      '¿En qué quieres poner el ataúd?',
-      '¿Dónde quieres poner la calavera?',
-    ])
-      expect(isOrphanPrompt(p)).toBe(true)
-  })
-
-  it('does NOT fire on ordinary output (German "Wie…"; Spanish "Si quieres…")', () => {
+  it('does NOT fire on ordinary output, nor on LOCALIZED display', () => {
     for (const p of [
       'You put the coffin in the trophy case.',
       'It is pitch black. You are likely to be eaten by a grue.',
-      'Wie genau willst du das läuten?', // "Wie", not "Was" — a refusal, not an orphan
-      // Spanish non-orphans that merely contain "quieres" — no leading ¿qué/¿dónde
-      'Si quieres quemar el libro negro, dilo.',
-      'La higiene dental es muy recomendable, pero no sé bien con qué quieres cepillártelos.',
+      // ENGLISH-ONLY: localized orphan renderings never reach the detector.
+      'Was willst du mit dem Schädel tun?',
+      '¿Qué quieres poner la cera?',
       '',
     ])
       expect(isOrphanPrompt(p)).toBe(false)

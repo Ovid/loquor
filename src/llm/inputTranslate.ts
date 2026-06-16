@@ -373,17 +373,16 @@ export function isVocabPassthrough(
 // player's reply ("Y") is an answer to the game, NOT English to translate: the
 // model would turn "Y" into a bogus command (observed: "Y" → "look"), so the
 // restart could never confirm. Detect the prompt from its text and pass raw.
-// The recent output is the LOCALIZED display text (the output-translation
-// overlay has already run), so the detectors must match the player's language,
-// not just English — else a localized "(J bedeutet ja)" prompt is missed and
-// "y" is translated to "look", so restart/quit can never confirm (UAT F2).
-// Match the yes/no prompt by the affirmative word inside the parens
-// (ja/oui/sí), KEY-AGNOSTIC so it survives localizing the key to J/O/S (see
-// confirmationReply below), and the endgame restart prompt by the localized
-// imperative verb (Type/Tippe/Tapez/Escribe RESTART). Covers DE/FR/ES, not just
-// German — the same fix is needed in every translated language.
+//
+// ENGLISH-ONLY by design. The VM plays the ENGLISH story; the output-translation
+// overlay is a display transform that does NOT write back into the ViewState the
+// input layer reads (proof: useOutputTranslation.test.tsx "display is localized
+// but the input-side ViewState stays English"). So `recentOutput` here is always
+// the English source — a localized "(J bedeutet ja)" never reaches this detector;
+// the English "(Y is affirmative)" does. The player's localized TYPED reply
+// ("j"/"ja") is handled separately by confirmationReply below.
 const CONFIRM_PROMPT =
-  /\(Y is affirmative\)|\bare you sure\b|\bdo you (?:really )?wish to\b|\([^)]*(?:\b(?:ja|oui)\b|sí)[^)]*\)|\b(?:Type|Tippe|Tapez|Escribe) RESTART\b/i
+  /\(Y is affirmative\)|\bare you sure\b|\bdo you (?:really )?wish to\b/i
 
 /** True when the recent game output is an interpreter yes/no confirmation prompt. */
 export function isConfirmationPrompt(recentOutput: string): boolean {
@@ -424,14 +423,10 @@ export function confirmationReply(line: string, lang: ActiveLanguage): string {
 // a noun-phrase the game pairs with the pending verb, NOT a fresh command. Sent
 // through the model it would be mistranslated; pass it raw so Zork resolves it.
 // Requires both "which" and "do you mean" so ordinary prose ("…which you read…")
-// can't trip it.
-// Localized per language (CLAUDE.md — fix every translated language, not just
-// one): DE "Welches Buch meinst du, … oder …?"; FR "De quel livre parlez-vous,
-// … ou …?" (anchored on quel…parlez-vous — the refusals say "Comment
-// voulez-vous", a different verb, so they don't trip it); ES "¿A qué libro te
-// refieres, … o …?" (anchored on the distinctive "te refieres").
-const DISAMBIGUATION_PROMPT =
-  /\bwhich\b[\s\S]*\bdo you mean\b|\bwelche[mnrs]?\b[\s\S]*\bmeinst du\b|\bquel(?:le|les|s)?\b[\s\S]*\bparlez-vous\b|\bte refieres\b/i
+// can't trip it. ENGLISH-ONLY: recentOutput is the English source (see
+// CONFIRM_PROMPT) — the localized display ("Welches Buch meinst du…") never
+// reaches here.
+const DISAMBIGUATION_PROMPT = /\bwhich\b[\s\S]*\bdo you mean\b/i
 
 /** True when the recent game output is a parser disambiguation question. */
 export function isDisambiguationPrompt(recentOutput: string): boolean {
@@ -443,20 +438,10 @@ export function isDisambiguationPrompt(recentOutput: string): boolean {
 // disambiguation question, the NEXT line answers the parser, not a fresh
 // command — so a compound must STOP here rather than auto-feed its following
 // clause into the orphan (which the player never saw when they typed ahead).
-// German: "Was willst du mit dem Schädel tun?" (UAT F16/F19 — currently an LLM
-// fallback until the put-orphan template lands in the corpus). Because the
-// wording is LLM-generated and not pinned, accept the "womit" paraphrase
-// ("Womit willst du den Sarg füllen?") too, anchored on the leading
-// interrogative so a non-orphan "Wie willst du …" refusal still misses (review I2).
-// Spanish: observed LLM rendering "¿Qué quieres poner la cera?" (uat.md UAT-es-3) —
-// anchored on the LEADING ¿qué/¿dónde/¿en qué/¿con qué so the non-orphan
-// "Si quieres …" conditionals (no leading ¿interrogative) don't trip it.
-// French: NOT YET anchored — there is no observed/pinned French orphan rendering,
-// and the natural guesses ("voulez-vous") collide with real refusals ("Comment
-// voulez-vous boire ça ?"); a wrong match would pass the next command raw. Add a
-// French clause once a French UAT pass pins the wording.
-const ORPHAN_PROMPT =
-  /\bwhat do you want to\b|\b(?:was|womit) (?:willst|möchtest) du\b|¿(?:qué|dónde|en qué|con qué)[^?]*\bquieres\b/i
+// ENGLISH-ONLY: recentOutput is the English source (see CONFIRM_PROMPT), so the
+// English "What do you want to …?" always matches regardless of display language —
+// the localized rendering ("Was willst du …", "¿Qué quieres …") never reaches here.
+const ORPHAN_PROMPT = /\bwhat do you want to\b/i
 
 /** True when the recent game output is a parser orphan prompt (partial command
  * awaiting its missing noun). */

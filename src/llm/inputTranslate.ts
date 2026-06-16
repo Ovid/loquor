@@ -1,5 +1,5 @@
 // src/llm/translate.ts
-import type { TranslateResult } from './types'
+import type { TranslateResult, ActiveLanguage } from './types'
 import type { Vocab } from './grammar/types'
 import { META_COMMANDS } from './meta'
 import type { CoreLexicon, NounLexicon } from './lexicon/types'
@@ -19,7 +19,7 @@ export const ABSTAIN = '__UNKNOWN__'
  * `et`/`puis`/`ensuite` (fr), `und` (de), `y` (es). Matched whitespace-wrapped
  * so substrings like "sand"/"under"/"xyzzy"/"strengthen" never trip them; the
  * de/es words match what directions.ts/meta.ts cover (review C3). */
-const CLAUSE_CONJ = 'and|then|et|puis|ensuite|und|y'
+const CLAUSE_CONJ = 'and|then|et|puis|ensuite|und|dann|danach|y'
 
 /** Clause separators: a whitespace-wrapped conjunction, OR sentence punctuation
  * `.`/`;`/`,`. A comma now separates too (UAT: an object list "A, B et C" is the
@@ -28,8 +28,11 @@ const CLAUSE_CONJ = 'and|then|et|puis|ensuite|und|y'
  * take). After any punctuation an immediately-following conjunction is absorbed,
  * so an Oxford comma ("A, B, et C") leaves no dangling "et …" clause. No
  * capturing groups, so String.split never injects the separators. */
+// A RUN of conjunctions counts as one separator, so a doubled connector like
+// "und dann" / "and then" / "et puis" leaves no dangling "dann …" clause that
+// would miss the deterministic parse (UAT F4).
 const CLAUSE_SEP = new RegExp(
-  `\\s+(?:${CLAUSE_CONJ})\\s+|\\s*[.;,]\\s*(?:(?:${CLAUSE_CONJ})\\s+)?`,
+  `\\s+(?:(?:${CLAUSE_CONJ})\\s+)+|\\s*[.;,]\\s*(?:(?:${CLAUSE_CONJ})\\s+)*`,
   'i',
 )
 
@@ -186,6 +189,76 @@ export function fillElidedVerbs(
   })
 }
 
+/** The trailing "<prep> <indirect>" phrase of a clause in the player's own
+ * words (original casing), or null. A prep is one the active core knows or a
+ * game prep; it must sit AFTER the leading verb plus ≥1 object token and be
+ * followed by ≥1 token, so "lege den Kelch in die Vitrine" yields "in die
+ * Vitrine" while "lege den Kelch" (and a verbless "geh nach norden") yield
+ * null. Pure + total. */
+function prepTail(
+  clause: string,
+  core: CoreLexicon,
+  vocab: Vocab,
+): string | null {
+  const verb = leadingVerbPhrase(clause, core, vocab)
+  const tokens = clause
+    .replace(/[!.?,;:]+$/, '')
+    .trim()
+    .split(/\s+/)
+  const start = verb ? verb.split(/\s+/).length : 0
+  for (let i = start + 1; i < tokens.length - 1; i++) {
+    const f = fold(tokens[i])
+    if (core.preps[f] !== undefined || vocab.preps.includes(f))
+      return tokens.slice(i).join(' ')
+  }
+  return null
+}
+
+/**
+ * Distribute a shared trailing prep-phrase across same-verb conjuncts (UAT F16):
+ * "lege A und B in die Vitrine" splits into ["lege A", "lege B in die Vitrine"],
+ * leaving the first conjunct destination-less ("put A" → the parser orphans
+ * "What do you want to put A in?" → "Ran 1 of 2 actions", and casing treasures
+ * — the endgame loop — breaks on the natural phrasing). When the LAST clause
+ * ends in "<obj> <prep> <indirect>", append that tail to the run of immediately
+ * preceding clauses that share its leading verb and carry no prep of their own.
+ *
+ * The same-verb guard is what keeps a genuine two-command line intact: in "nimm
+ * A und lege B in die Vitrine" the boundary verb differs (nimm ≠ lege), so the
+ * walk stops there and "nimm A" never inherits the container. Runs AFTER
+ * fillElidedVerbs so every conjunct already carries its (possibly inherited)
+ * verb. Pure + total; preserves length (English mode / no core → unchanged).
+ */
+export function distributePrepTail(
+  clauses: readonly string[],
+  core: CoreLexicon | null,
+  vocab: Vocab,
+): string[] {
+  if (!core || clauses.length < 2) return [...clauses]
+  const last = clauses[clauses.length - 1]
+  const tail = prepTail(last, core, vocab)
+  const lastVerb = leadingVerbPhrase(last, core, vocab)
+  if (tail === null || lastVerb === null) return [...clauses]
+  // Only a DESTINATION tail is shared across conjuncts. A source prep
+  // (aus/von → "from") belongs to its own clause: "nimm A und nimm B aus der
+  // Vitrine" must NOT rewrite "nimm A" into "take A from case" (review I1).
+  if (core.preps[fold(tail.split(/\s+/)[0])] === 'from') return [...clauses]
+  const containerPronouns = new Set(core.pronounsContainer.map(p => p.word))
+  const lastVerbFolded = fold(lastVerb)
+  const out = [...clauses]
+  for (let i = clauses.length - 2; i >= 0; i--) {
+    const verb = leadingVerbPhrase(out[i], core, vocab)
+    if (verb === null || fold(verb) !== lastVerbFolded) break
+    if (prepTail(out[i], core, vocab) !== null) break // already has its own tail
+    // A clause ending in a container anaphor ("lege es hinein") already names
+    // its destination — don't append a second one (review S1).
+    const toks = out[i].split(/\s+/)
+    if (containerPronouns.has(fold(toks[toks.length - 1]))) break
+    out[i] = `${out[i]} ${tail}`
+  }
+  return out
+}
+
 // Z-machine meta-verbs that are not in-world actions: they have no canonical
 // game-command translation and must bypass the model entirely (sent raw to the
 // interpreter). The list is the shared source in ./meta so the vocab generator
@@ -300,6 +373,14 @@ export function isVocabPassthrough(
 // player's reply ("Y") is an answer to the game, NOT English to translate: the
 // model would turn "Y" into a bogus command (observed: "Y" → "look"), so the
 // restart could never confirm. Detect the prompt from its text and pass raw.
+//
+// ENGLISH-ONLY by design. The VM plays the ENGLISH story; the output-translation
+// overlay is a display transform that does NOT write back into the ViewState the
+// input layer reads (proof: useOutputTranslation.test.tsx "display is localized
+// but the input-side ViewState stays English"). So `recentOutput` here is always
+// the English source — a localized "(J bedeutet ja)" never reaches this detector;
+// the English "(Y is affirmative)" does. The player's localized TYPED reply
+// ("j"/"ja") is handled separately by confirmationReply below.
 const CONFIRM_PROMPT =
   /\(Y is affirmative\)|\bare you sure\b|\bdo you (?:really )?wish to\b/i
 
@@ -308,12 +389,43 @@ export function isConfirmationPrompt(recentOutput: string): boolean {
   return CONFIRM_PROMPT.test(recentOutput)
 }
 
+// The interpreter's yes/no prompt only accepts the literal "Y" key, but the
+// LOCALIZED prompt invites the player's own reflex affirmative ("(Y bedeutet
+// ja)"). A German "j"/"ja" (FR "o"/"oui", ES "s"/"sí") is otherwise passed raw
+// and silently rejected — the confirmation can never fire (review I3). Map the
+// per-language affirmative→"y" / negative→"n"; leave anything else (incl. the
+// literal "Y" and all English replies) untouched. Folded so accents/case/punct
+// don't matter. English is intentionally absent — "y"/"n"/"yes" already work
+// and we must not remap an English word.
+const CONFIRM_AFFIRMATIVE: Partial<Record<ActiveLanguage, readonly string[]>> = {
+  de: ['j', 'ja'],
+  fr: ['o', 'oui'],
+  es: ['s', 'si'], // 'sí' folds to 'si'
+}
+const CONFIRM_NEGATIVE: Partial<Record<ActiveLanguage, readonly string[]>> = {
+  de: ['n', 'nein'],
+  fr: ['n', 'non'],
+  es: ['n', 'no'],
+}
+
+/** Map a localized yes/no reply to the interpreter's "y"/"n" key for the active
+ * language; returns the line unchanged when it isn't a recognized affirmative/
+ * negative (or for English). Pure + total. */
+export function confirmationReply(line: string, lang: ActiveLanguage): string {
+  const t = fold(line)
+  if (CONFIRM_AFFIRMATIVE[lang]?.includes(t)) return 'y'
+  if (CONFIRM_NEGATIVE[lang]?.includes(t)) return 'n'
+  return line
+}
+
 // The parser's disambiguation question ("Which door do you mean, the wooden door
 // or the trap door?") is also a LINE read: the player's reply ("wooden door") is
 // a noun-phrase the game pairs with the pending verb, NOT a fresh command. Sent
 // through the model it would be mistranslated; pass it raw so Zork resolves it.
 // Requires both "which" and "do you mean" so ordinary prose ("…which you read…")
-// can't trip it.
+// can't trip it. ENGLISH-ONLY: recentOutput is the English source (see
+// CONFIRM_PROMPT) — the localized display ("Welches Buch meinst du…") never
+// reaches here.
 const DISAMBIGUATION_PROMPT = /\bwhich\b[\s\S]*\bdo you mean\b/i
 
 /** True when the recent game output is a parser disambiguation question. */
@@ -326,6 +438,9 @@ export function isDisambiguationPrompt(recentOutput: string): boolean {
 // disambiguation question, the NEXT line answers the parser, not a fresh
 // command — so a compound must STOP here rather than auto-feed its following
 // clause into the orphan (which the player never saw when they typed ahead).
+// ENGLISH-ONLY: recentOutput is the English source (see CONFIRM_PROMPT), so the
+// English "What do you want to …?" always matches regardless of display language —
+// the localized rendering ("Was willst du …", "¿Qué quieres …") never reaches here.
 const ORPHAN_PROMPT = /\bwhat do you want to\b/i
 
 /** True when the recent game output is a parser orphan prompt (partial command

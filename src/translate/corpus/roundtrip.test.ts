@@ -13,6 +13,9 @@ import { ZORK1_FR_OBJECTS, ZORK1_FR_CANONICAL } from './zork1.fr.objects'
 import { ES_ZORK1 } from '../../llm/lexicon/es.zork1'
 import { ES_CORE } from '../../llm/lexicon/es.core'
 import { ZORK1_ES_OBJECTS, ZORK1_ES_CANONICAL } from './zork1.es.objects'
+import { DE_ZORK1 } from '../../llm/lexicon/de.zork1'
+import { DE_CORE } from '../../llm/lexicon/de.core'
+import { ZORK1_DE_OBJECTS, ZORK1_DE_CANONICAL } from './zork1.de.objects'
 
 interface Row {
   code: string
@@ -44,6 +47,18 @@ const LANGS: Row[] = [
     objects: ZORK1_ES_OBJECTS,
     canonical: ZORK1_ES_CANONICAL,
     headExtra: ['a', 'del', 'al', 'de', 'd'],
+  },
+  {
+    code: 'de',
+    nouns: DE_ZORK1,
+    core: DE_CORE,
+    objects: ZORK1_DE_OBJECTS,
+    canonical: ZORK1_DE_CANONICAL,
+    // Fused preposition+article contractions baked into per-object keys
+    // (imDat: 'im Briefkasten'); headExtra strips the leading fused token so the
+    // baked form folds to the bare noun before the lexicon-membership check.
+    // Case articles der/die/das/den/dem/des already strip via core.articles.
+    headExtra: ['zum', 'zur', 'im', 'am', 'ins', 'vom', 'beim', 'ans', 'aufs'],
   },
 ]
 

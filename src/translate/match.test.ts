@@ -120,7 +120,9 @@ describe('matchLine: cap is code-point safe (review S3)', () => {
   const astral = compileCorpus({
     strings: {},
     objects: { widget: { def: '𐐨deseret' } },
-    templates: [{ en: 'The {obj} contains:', out: '{obj.def} y más', cap: true }],
+    templates: [
+      { en: 'The {obj} contains:', out: '{obj.def} y más', cap: true },
+    ],
   })
   it('capitalizes an astral-plane initial letter without splitting the surrogate', () => {
     expect(matchLine(astral, 'The widget contains:')).toBe('𐐀deseret y más')
@@ -214,7 +216,7 @@ describe('real Zork I French corpus smoke (Task 15)', () => {
   it('the restart Y-prompt hits through its glued input prompt (UAT-4)', () => {
     expect(
       matchLine(real, 'Do you wish to restart? (Y is affirmative): >'),
-    ).toBe('Voulez-vous recommencer ? (Y pour oui) : >')
+    ).toBe('Voulez-vous recommencer ? (O pour oui) : >')
   })
   it('implicit-take parenthetical is pinned (UAT-4: "read leaflet" while not holding it)', () => {
     expect(matchLine(real, '(Taken)')).toBe('(Pris)')

@@ -143,6 +143,45 @@ npx vitest run -t "substring of test name"    # by name
   promise depends on it.
 - The theme toggle is an in-layout element (landing-plate corner + status-bar
   item), never a `position:fixed` overlay.
+- **A fix in one language is usually a fix in all of them.** The NL layer and
+  output translation are multilingual (EN/FR/DE/ES). When you change something
+  language-specific — a lexicon/corpus entry, a prompt-detection regex, an
+  affirmative/key mapping, a clause transform — **stop and check whether the
+  same issue exists in the other languages**, and apply it there too (or say
+  why it doesn't apply). Fixing German while Spanish is broken for the identical
+  reason doesn't help the player. Watch especially for code that was written
+  German-first (or English-first) and hardcodes one language's words/forms.
+
+## Player experience overrides "product decisions" — talk to me first
+
+**"It's a product decision" is NOT a reason to defer, skip, or accept a behavior
+that arguably hurts the player.** Player experience comes first. The fact that
+something is a locked decision, a documented design choice, or a "known
+limitation" does not settle the question — those are exactly the cases that need
+a conversation, not a silent pass.
+
+If you encounter — or are about to introduce or leave in place — any behavior
+that **arguably hurts the player experience** (a natural command that fails, a
+confusing/garbled message, a puzzle that can't be solved without secret
+knowledge, a needless friction, a worse-than-original-Zork interaction), and the
+reason it exists is a product/design decision, you **MUST stop and have a
+conversation with me** before treating it as settled. That conversation must
+cover, explicitly:
+
+1. **Why it hurts the player experience** — concretely, what the player actually
+   sees/feels, on what kind of playthrough, and how often.
+2. **What the product decision is** — the exact behavior that was chosen.
+3. **The reasoning behind that decision, if known** — quote or summarize the
+   spec/plan/commit/locked-decision rationale (and say so if the reason is
+   unknown).
+4. **An explicit offer to override** — give me the chance to overrule the
+   decision in favor of the player, and wait for my call before finalizing.
+
+Only after that conversation (or if the player-harm is negligible AND you say so
+and why) may you proceed. When the fix is clear, low-risk, and unambiguously
+pro-player, just fix it — but still tell me what you changed and why. Do **not**
+hide a player-harming choice behind "deferred — product decision" in a summary
+and move on.
 
 ## Known network egress (NL layer)
 

@@ -4,10 +4,12 @@ import {
   isMetaCommand,
   metaAlias,
   isConfirmationPrompt,
+  confirmationReply,
   isDisambiguationPrompt,
   isOrphanPrompt,
   splitClauses,
   fillElidedVerbs,
+  distributePrepTail,
   clauseFailed,
   refusalApplies,
   unquote,
@@ -16,6 +18,7 @@ import {
 import { META_COMMANDS } from './meta'
 import { FR_CORE } from './lexicon/fr.core'
 import { ES_CORE } from './lexicon/es.core'
+import { DE_CORE } from './lexicon/de.core'
 import type { Vocab } from './grammar/types'
 import type { NounLexicon } from './lexicon/types'
 import {
@@ -199,13 +202,59 @@ describe('isConfirmationPrompt', () => {
       expect(isConfirmationPrompt(p)).toBe(true)
   })
 
+  // ENGLISH-ONLY by design: recentOutput is the English source, never the
+  // localized display (proof: useOutputTranslation.test.tsx). A localized prompt
+  // must NOT match — guards against re-adding dead per-language clauses.
+  it('does NOT match LOCALIZED display prompts (detection runs on English source)', () => {
+    for (const p of [
+      'Möchtest du neu beginnen? (J bedeutet ja):',
+      'Voulez-vous recommencer ? (O pour oui) :',
+      '¿Quieres reiniciar? (S para sí):',
+    ])
+      expect(isConfirmationPrompt(p)).toBe(false)
+  })
+
   it('does NOT fire on ordinary room / response text', () => {
     for (const p of [
       'You are standing in an open field west of a white house.',
       'Opening the small mailbox reveals a leaflet.',
+      'Du stehst auf einem offenen Feld westlich eines weißen Hauses.',
       '',
     ])
       expect(isConfirmationPrompt(p)).toBe(false)
+  })
+})
+
+describe('confirmationReply (map localized yes/no to the interpreter key — review I3)', () => {
+  it('maps each language’s reflex affirmative to "y"', () => {
+    expect(confirmationReply('j', 'de')).toBe('y')
+    expect(confirmationReply('ja', 'de')).toBe('y')
+    expect(confirmationReply('oui', 'fr')).toBe('y')
+    expect(confirmationReply('o', 'fr')).toBe('y')
+    expect(confirmationReply('sí', 'es')).toBe('y')
+    expect(confirmationReply('si', 'es')).toBe('y')
+    expect(confirmationReply('s', 'es')).toBe('y')
+  })
+
+  it('maps each language’s reflex negative to "n"', () => {
+    expect(confirmationReply('nein', 'de')).toBe('n')
+    expect(confirmationReply('non', 'fr')).toBe('n')
+    expect(confirmationReply('no', 'es')).toBe('n')
+    expect(confirmationReply('n', 'de')).toBe('n')
+  })
+
+  it('is case/punctuation insensitive', () => {
+    expect(confirmationReply('Ja!', 'de')).toBe('y')
+    expect(confirmationReply(' OUI. ', 'fr')).toBe('y')
+  })
+
+  it('leaves the literal "y"/"n" and anything else untouched (no regression)', () => {
+    expect(confirmationReply('y', 'de')).toBe('y')
+    expect(confirmationReply('Y', 'de')).toBe('Y')
+    expect(confirmationReply('restart', 'de')).toBe('restart')
+    // English: "y"/"n" already work; don't remap an English word.
+    expect(confirmationReply('no', 'en')).toBe('no')
+    expect(confirmationReply('yes', 'en')).toBe('yes')
   })
 })
 
@@ -218,10 +267,14 @@ describe('isDisambiguationPrompt', () => {
       expect(isDisambiguationPrompt(p)).toBe(true)
   })
 
-  it('does NOT fire on prose that merely contains "which"', () => {
+  it('does NOT fire on prose that merely contains "which", nor on LOCALIZED display', () => {
     for (const p of [
       'The leaflet, which you can read, welcomes you to Zork.',
       'You are standing in an open field west of a white house.',
+      // ENGLISH-ONLY: localized disambiguation renderings never reach the detector.
+      'Welches Buch meinst du, das schwarze Buch oder das blaue Buch?',
+      'De quel livre parlez-vous, le livre noir ou le guide touristique ?',
+      '¿A qué libro te refieres, el libro negro o la guía turística?',
       '',
     ])
       expect(isDisambiguationPrompt(p)).toBe(false)
@@ -237,10 +290,13 @@ describe('isOrphanPrompt', () => {
       expect(isOrphanPrompt(p)).toBe(true)
   })
 
-  it('does NOT fire on ordinary output', () => {
+  it('does NOT fire on ordinary output, nor on LOCALIZED display', () => {
     for (const p of [
       'You put the coffin in the trophy case.',
       'It is pitch black. You are likely to be eaten by a grue.',
+      // ENGLISH-ONLY: localized orphan renderings never reach the detector.
+      'Was willst du mit dem Schädel tun?',
+      '¿Qué quieres poner la cera?',
       '',
     ])
       expect(isOrphanPrompt(p)).toBe(false)
@@ -284,6 +340,18 @@ describe('splitClauses', () => {
     expect(splitClauses('ve al norte y toma la lámpara')).toEqual([
       've al norte',
       'toma la lámpara',
+    ])
+  })
+
+  it('absorbs a doubled connector "und dann" / "and then" (UAT F4)', () => {
+    // A run of conjunctions is one separator, so no dangling "dann …" clause.
+    expect(splitClauses('geh nach norden und dann nach osten')).toEqual([
+      'geh nach norden',
+      'nach osten',
+    ])
+    expect(splitClauses('open mailbox and then read it')).toEqual([
+      'open mailbox',
+      'read it',
     ])
   })
 
@@ -339,6 +407,84 @@ describe('splitClauses', () => {
   it('trims clauses and drops empties', () => {
     expect(splitClauses('  open mailbox  and  ')).toEqual(['open mailbox'])
     expect(splitClauses('open mailbox..')).toEqual(['open mailbox'])
+  })
+})
+
+describe('distributePrepTail (shared container across same-verb conjuncts, UAT F16)', () => {
+  const run = (line: string) =>
+    distributePrepTail(
+      fillElidedVerbs(splitClauses(line), DE_CORE, vocab),
+      DE_CORE,
+      vocab,
+    )
+
+  it('appends the trailing "in die Vitrine" to the earlier put-conjunct', () => {
+    // "lege den schlüssel und das blatt in die vitrine" (key + leaflet → case)
+    expect(run('lege den schlussel und das blatt in die vitrine')).toEqual([
+      'lege den schlussel in die vitrine',
+      'lege das blatt in die vitrine',
+    ])
+  })
+
+  it('distributes to ALL preceding same-verb conjuncts (3-object list)', () => {
+    expect(
+      run('lege den schlussel, das blatt und das gitter in die vitrine'),
+    ).toEqual([
+      'lege den schlussel in die vitrine',
+      'lege das blatt in die vitrine',
+      'lege das gitter in die vitrine',
+    ])
+  })
+
+  it('does NOT contaminate a genuine two-command line (different verbs)', () => {
+    // "nimm den schlüssel und lege das blatt in die vitrine" — take, then put.
+    // The take clause must NOT inherit the container.
+    expect(run('nimm den schlussel und lege das blatt in die vitrine')).toEqual(
+      ['nimm den schlussel', 'lege das blatt in die vitrine'],
+    )
+  })
+
+  it('is a no-op when the last clause has no prep tail', () => {
+    expect(run('nimm den schlussel und das blatt')).toEqual([
+      'nimm den schlussel',
+      'nimm das blatt',
+    ])
+  })
+
+  it('is a no-op when the last clause is verbless/a direction', () => {
+    expect(run('lege das blatt in die vitrine und geh nach norden')).toEqual([
+      'lege das blatt in die vitrine',
+      'geh nach norden',
+    ])
+  })
+
+  it('leaves a single command untouched (degenerate case)', () => {
+    expect(run('lege das blatt in die vitrine')).toEqual([
+      'lege das blatt in die vitrine',
+    ])
+  })
+
+  it('does NOT distribute a SOURCE prep tail (aus/von → "from") — review I1', () => {
+    // "nimm das schwert und nimm den schlüssel aus der vitrine" — the second
+    // clause takes FROM the case; that source must NOT be appended to the first
+    // (else "take sword" is silently emitted as "take sword from case").
+    expect(
+      run('nimm das schwert und nimm den schlussel aus der vitrine'),
+    ).toEqual([
+      'nimm das schwert',
+      'nimm den schlussel aus der vitrine',
+    ])
+  })
+
+  it('does NOT append a destination to a clause that already has a container pronoun — review S1', () => {
+    // "lege es hinein und lege das blatt in die vitrine" — the first clause's
+    // "hinein" already supplies its destination; it must stay intact.
+    expect(
+      run('lege es hinein und lege das blatt in die vitrine'),
+    ).toEqual([
+      'lege es hinein',
+      'lege das blatt in die vitrine',
+    ])
   })
 })
 

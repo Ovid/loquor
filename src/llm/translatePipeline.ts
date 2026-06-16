@@ -29,10 +29,12 @@ import {
   isMetaCommand,
   metaAlias,
   isConfirmationPrompt,
+  confirmationReply,
   isDisambiguationPrompt,
   isOrphanPrompt,
   splitClauses,
   fillElidedVerbs,
+  distributePrepTail,
   clauseFailed,
   unquote,
   isVocabPassthrough,
@@ -499,7 +501,13 @@ export function createTranslate(
       ) {
         lastCommandRef.current = null
         if (fromQueue) return 'flush'
-        sendTracked(line)
+        // On a yes/no confirmation, map the player's localized reflex reply
+        // ("j"/"ja"/"oui"/"sí") to the interpreter's literal "y"/"n" key — the
+        // localized prompt invited it but the interpreter only accepts Y (review I3).
+        const reply = isConfirmationPrompt(recentOutput)
+          ? confirmationReply(line, activeLang)
+          : line
+        sendTracked(reply)
         return 'ok'
       }
       // STAGE 2 (locked decision 8): a fully-quoted line ("…", «…», „…“, “…”)
@@ -520,11 +528,15 @@ export function createTranslate(
       // verb ("prends le couteau et la corde" → "…et prends la corde") so it
       // resolves deterministically instead of an LLM-invented verb; length is
       // preserved, so the single-command degenerate case is untouched.
-      const clauses = fillElidedVerbs(
-        splitClauses(line),
+      const clauses = distributePrepTail(
+        fillElidedVerbs(
+          splitClauses(line),
+          lex?.core ?? null,
+          vocab,
+          lex?.nouns ?? null,
+        ),
         lex?.core ?? null,
         vocab,
-        lex?.nouns ?? null,
       )
       const total = clauses.length
       if (total > 1) inSequenceRef.current = true

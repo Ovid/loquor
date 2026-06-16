@@ -12,12 +12,21 @@ describe('withContractions (review F4)', () => {
     withContractions({ obj: forms(def) } as ObjectsTable).obj
 
   it('contracts masculine "el X" → al/del', () => {
-    expect(run('el altar')).toMatchObject({ alDef: 'al altar', delDef: 'del altar' })
+    expect(run('el altar')).toMatchObject({
+      alDef: 'al altar',
+      delDef: 'del altar',
+    })
   })
 
   it('still contracts despite a capitalized "El " or leading whitespace', () => {
-    expect(run('El altar')).toMatchObject({ alDef: 'al altar', delDef: 'del altar' })
-    expect(run('  el altar')).toMatchObject({ alDef: 'al altar', delDef: 'del altar' })
+    expect(run('El altar')).toMatchObject({
+      alDef: 'al altar',
+      delDef: 'del altar',
+    })
+    expect(run('  el altar')).toMatchObject({
+      alDef: 'al altar',
+      delDef: 'del altar',
+    })
   })
 
   it('feminine/plural just prepend a/de (no contraction)', () => {

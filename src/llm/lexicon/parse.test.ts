@@ -337,6 +337,14 @@ describe('parseLexicon — German separable verbs (pushback issue 3)', () => {
       parseLexicon('binde das seil an', DE_CORE, DE_NOUNS, vocab, empty),
     ).toEqual({ kind: 'command', text: 'tie rope' })
   })
+  it('lass … fallen → drop, noun between verb and clause-final fallen (I3/I4/I5)', () => {
+    // The "fallen lassen" cluster is mechanically a clause-final particle.
+    // UAT: "lass X fallen" had fallen to the LLM (bare 'lass' + unresolved
+    // 'X fallen'), which mis-guessed the noun (drop bottle / drop painting).
+    expect(
+      parseLexicon('lass das schwert fallen', DE_CORE, DE_NOUNS, vocab, empty),
+    ).toEqual({ kind: 'command', text: 'drop sword' })
+  })
   it('self pronoun → me (untersuche mich)', () => {
     expect(
       parseLexicon('untersuche mich', DE_CORE, DE_NOUNS, vocab, empty),

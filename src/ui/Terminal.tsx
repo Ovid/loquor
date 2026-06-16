@@ -65,7 +65,9 @@ export function Terminal({
     const k = loudEchoToken(canonical)
     const v = loudEchoToken(source)
     if (k === '' || v === '') return
-    setEchoMap(prev => (prev.get(k) === v ? prev : new Map(prev).set(k, v)))
+    setEchoMap(prev =>
+      prev.get(k) === v ? prev : new Map(prev).set(k, v),
+    )
   }, [])
 
   // Keep a ref to the latest view so the NL hook's getContext() can read it at

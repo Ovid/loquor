@@ -394,7 +394,7 @@ export function isConfirmationPrompt(recentOutput: string): boolean {
 // can't trip it.
 // German: "Welches Buch meinst du, … oder …?" (UAT F2 cascade).
 const DISAMBIGUATION_PROMPT =
-  /\bwhich\b[\s\S]*\bdo you mean\b|\bwelche[nrs]?\b[\s\S]*\bmeinst du\b/i
+  /\bwhich\b[\s\S]*\bdo you mean\b|\bwelche[mnrs]?\b[\s\S]*\bmeinst du\b/i
 
 /** True when the recent game output is a parser disambiguation question. */
 export function isDisambiguationPrompt(recentOutput: string): boolean {

@@ -34,7 +34,6 @@ import {
   splitClauses,
   fillElidedVerbs,
   distributePrepTail,
-  clauseFailed,
   unquote,
   isVocabPassthrough,
 } from './inputTranslate'
@@ -539,12 +538,6 @@ export function createTranslate(
       // TRANSLATION produced (decision 5). Passthrough stages keep today's
       // no-echo contract — the transcript already shows the typed words.
       let echoed = false
-      // Track the room across clauses: a turn that CHANGES ROOMS is a successful
-      // move, not a no-op, so the absence/failure detector must be suppressed for
-      // it. Otherwise ordinary room flavor text ("There is no door here.") trips
-      // ABSENCE_PAT (\bno\s+\w+\b) and truncates the sequence right after a move
-      // succeeds (systematic-debugging; exposed once movement started working).
-      let prevLocation = (settled ?? getContext()).location
       // TEMP compound diagnostics — why a sequence stopped (set at each break,
       // logged once below). Remove together with the per-clause [nl debug]
       // once translation quality is tuned.
@@ -633,28 +626,21 @@ export function createTranslate(
         }
 
         const vc = viewToContext(turn.view)
-        // A non-empty location that differs from the prior clause's = a successful
-        // move; its new room description is success output, not a failure to scan.
-        const roomChanged = vc.location !== '' && vc.location !== prevLocation
-        prevLocation = vc.location
         // The hook owns observe during a sequence (decision 9).
         tracker.observe({
           location: vc.location,
           outputText: vc.recentOutput,
           lastCommand: lastCommandRef.current,
         })
-        if (
-          !roomChanged &&
-          !isMeta && // meta output (score report, "Ok.") is not in-world failure text
-          clauseFailed(
-            vc.recentOutput,
-            vocab,
-            lastCommandRef.current ?? undefined,
-          )
-        ) {
-          stopReason = 'in-game-failure'
-          break // no-op / absence (scoped to the acted object — F2/R3)
-        }
+        // SKIP-AND-CONTINUE on an in-game failure (UAT F13): a clause that
+        // no-ops or fails (an unknown noun, "You can't see any X here", a hard
+        // refusal) no longer truncates the compound — the remaining clauses
+        // still run, matching original Zork's independent multi-command
+        // handling, and the game's own per-clause message is the feedback. The
+        // scene tracker still gates antecedent promotion on failure inside
+        // observe(), so a failed object can't become "it". A mid-sequence
+        // interactive PROMPT is different — the next clause would answer the
+        // parser, not the player — so that still STOPS.
         if (
           isConfirmationPrompt(vc.recentOutput) ||
           isDisambiguationPrompt(vc.recentOutput) ||

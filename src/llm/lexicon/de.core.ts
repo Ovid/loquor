@@ -157,6 +157,11 @@ export const DE_CORE: CoreLexicon = {
     drehe: 'turn',
     dreh: 'turn',
     senke: 'lower',
+    // bare 'hebe'/'heb' → raise, symmetric with senke→lower (UAT F27: the shaft
+    // basket). 'hebe … auf'=take and 'hebe … hoch'=raise are particle verbs
+    // matched first, so only the bare lift form lands here.
+    hebe: 'raise',
+    heb: 'raise',
     fulle: 'fill', // fülle folded
     full: 'fill',
     giesse: 'pour', // gieße folded
@@ -196,6 +201,11 @@ export const DE_CORE: CoreLexicon = {
     { phrase: 'gehe an bord', to: 'board' },
     { phrase: 'fahr los', to: 'launch' }, // losfahren — launch the boat (F25)
     { phrase: 'fahre los', to: 'launch' },
+    // 'steig aus dem Boot' — 'aus' is the source preposition here, not a
+    // clause-final separable particle, so the particle verb above can't fire;
+    // the idiom consumes the verb and the vehicle resolves as the object (F26).
+    { phrase: 'steig aus', to: 'exit' },
+    { phrase: 'steige aus', to: 'exit' },
     { phrase: 'setz dich', to: 'sit' },
     { phrase: 'setze dich', to: 'sit' },
   ],
@@ -234,8 +244,12 @@ export const DE_CORE: CoreLexicon = {
     { verb: 'greif', particle: 'an', to: 'attack' },
     { verb: 'steige', particle: 'ein', to: 'board' }, // einsteigen
     { verb: 'steig', particle: 'ein', to: 'board' },
-    { verb: 'steige', particle: 'aus', to: 'disembark' }, // aussteigen
-    { verb: 'steig', particle: 'aus', to: 'disembark' },
+    // aussteigen → 'exit' (not 'disembark'): 'exit' is BOTH verb-only and
+    // verbs1, so it works bare ('steig aus') AND with the vehicle as object
+    // ('steig aus dem Boot' via the idiom below). 'disembark' is verbs1-only,
+    // so bare 'steig aus' missed the arity gate (UAT F26).
+    { verb: 'steige', particle: 'aus', to: 'exit' },
+    { verb: 'steig', particle: 'aus', to: 'exit' },
     { verb: 'stehe', particle: 'auf', to: 'stand' }, // aufstehen (fr 'leve toi')
     { verb: 'steh', particle: 'auf', to: 'stand' },
     { verb: 'ziehe', particle: 'auf', to: 'wind up' }, // aufziehen (F-CC)

@@ -108,4 +108,37 @@ describe('German UAT — verbs (notes/uat-de-findings.md)', () => {
       text: 'drop all',
     })
   })
+
+  it('F26: "steig aus dem Boot" → exit (bare and with the vehicle object)', () => {
+    expect(de('steig aus dem boot', inScope('magic boat'))).toEqual({
+      kind: 'command',
+      text: 'exit raft',
+    })
+    expect(de('steig aus')).toEqual({ kind: 'command', text: 'exit' })
+  })
+
+  it('F27: bare "hebe den Korb" → raise basket (senke→lower already worked)', () => {
+    expect(de('hebe den korb')).toEqual({
+      kind: 'command',
+      text: 'raise cage',
+    })
+    // particle forms still win: 'hebe … hoch'=raise, 'hebe … auf'=take.
+    expect(de('hebe den korb hoch')).toEqual({
+      kind: 'command',
+      text: 'raise cage',
+    })
+    expect(de('hebe die lampe auf')).toEqual({
+      kind: 'command',
+      text: 'take light',
+    })
+  })
+})
+
+describe('German UAT — contested noun remap (notes/uat-de-findings.md)', () => {
+  it('F3: "lies den Zettel" reads the leaflet, not the (absent) manual', () => {
+    expect(de('lies den zettel')).toEqual({
+      kind: 'command',
+      text: 'read advertisement',
+    })
+  })
 })

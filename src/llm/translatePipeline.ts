@@ -55,6 +55,16 @@ import type { Internal } from './useModelDownload'
 
 const log = createLogger('nl')
 
+/** EN-only "translator broke, so the raw line went to the Z-parser" notice.
+ * Intentionally NOT in notices.ts (which is multilingual): it fires only in
+ * English mode — a non-EN player abstains instead (`nothingSent`) — so there is
+ * nothing to localize. Kept here so the two raw-send sites can't drift (S2). */
+function sentAsTyped(timedOut: boolean): string {
+  return timedOut
+    ? 'Translation timed out — sent as typed.'
+    : 'Translation failed — sent as typed.'
+}
+
 /** A line waiting in the F-A queue. `id` is monotonic and never reused — the
  * Terminal keys queued rows on it, and the queue drains from the FRONT
  * (shift), so an index key would re-point a DOM node at a different line. */
@@ -711,11 +721,7 @@ export function createTranslate(
           const timedOut = stopError instanceof WatchdogTimeout
           if (activeLang === 'en') {
             sendTracked(line)
-            setNotice(
-              timedOut
-                ? 'Translation timed out — sent as typed.'
-                : 'Translation failed — sent as typed.',
-            )
+            setNotice(sentAsTyped(timedOut))
           } else {
             // Nothing was sent: the non-EN abstain policy still holds.
             setNotice(nothingSent(activeLang, timedOut))
@@ -799,16 +805,10 @@ export function createTranslate(
           // word…" AND burns a turn — so send NOTHING and show a notice. (The
           // in-runLine stage-8 path already does this; this outer catch
           // catches the total===1 rethrow that bypassed it.)
-          const live = liveRef.current
-          const lang: ActiveLanguage =
-            live.internal.phase === 'on' ? live.internal.language : 'en'
+          const lang = liveLang()
           const timedOut = err instanceof WatchdogTimeout
           if (lang === 'en') {
-            setNotice(
-              timedOut
-                ? 'Translation timed out — sent as typed.'
-                : 'Translation failed — sent as typed.',
-            )
+            setNotice(sentAsTyped(timedOut))
             sendTracked(line)
           } else {
             setNotice(nothingSent(lang, timedOut))

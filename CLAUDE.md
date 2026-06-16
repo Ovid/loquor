@@ -143,6 +143,14 @@ npx vitest run -t "substring of test name"    # by name
   promise depends on it.
 - The theme toggle is an in-layout element (landing-plate corner + status-bar
   item), never a `position:fixed` overlay.
+- **A fix in one language is usually a fix in all of them.** The NL layer and
+  output translation are multilingual (EN/FR/DE/ES). When you change something
+  language-specific — a lexicon/corpus entry, a prompt-detection regex, an
+  affirmative/key mapping, a clause transform — **stop and check whether the
+  same issue exists in the other languages**, and apply it there too (or say
+  why it doesn't apply). Fixing German while Spanish is broken for the identical
+  reason doesn't help the player. Watch especially for code that was written
+  German-first (or English-first) and hardcodes one language's words/forms.
 
 ## Player experience overrides "product decisions" — talk to me first
 

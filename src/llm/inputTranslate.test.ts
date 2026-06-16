@@ -279,10 +279,23 @@ describe('isDisambiguationPrompt', () => {
     ).toBe(true)
   })
 
+  it('detects the LOCALIZED French and Spanish disambiguation (cross-language)', () => {
+    for (const p of [
+      // FR template: "De quel livre parlez-vous, … ou … ?"
+      'De quel livre parlez-vous, le livre noir ou le guide touristique ?',
+      'De quelle corde parlez-vous, la corde ou la corde élimée ?',
+      // ES template: "¿A qué libro te refieres, … o …?"
+      '¿A qué libro te refieres, el libro negro o la guía turística?',
+    ])
+      expect(isDisambiguationPrompt(p)).toBe(true)
+  })
+
   it('does NOT fire on prose that merely contains "which"', () => {
     for (const p of [
       'The leaflet, which you can read, welcomes you to Zork.',
       'You are standing in an open field west of a white house.',
+      // FR refusal "Comment voulez-vous boire ça ?" must NOT read as a disambiguation
+      'Comment voulez-vous boire ça ?',
       '',
     ])
       expect(isDisambiguationPrompt(p)).toBe(false)
@@ -308,11 +321,23 @@ describe('isOrphanPrompt', () => {
       expect(isOrphanPrompt(p)).toBe(true)
   })
 
-  it('does NOT fire on ordinary output (incl. German "Wie willst du …")', () => {
+  it('detects the LOCALIZED Spanish "¿Qué quieres …" orphan prompt (UAT-es-3)', () => {
+    for (const p of [
+      '¿Qué quieres poner la cera?', // the actual es rendering (uat.md)
+      '¿En qué quieres poner el ataúd?',
+      '¿Dónde quieres poner la calavera?',
+    ])
+      expect(isOrphanPrompt(p)).toBe(true)
+  })
+
+  it('does NOT fire on ordinary output (German "Wie…"; Spanish "Si quieres…")', () => {
     for (const p of [
       'You put the coffin in the trophy case.',
       'It is pitch black. You are likely to be eaten by a grue.',
       'Wie genau willst du das läuten?', // "Wie", not "Was" — a refusal, not an orphan
+      // Spanish non-orphans that merely contain "quieres" — no leading ¿qué/¿dónde
+      'Si quieres quemar el libro negro, dilo.',
+      'La higiene dental es muy recomendable, pero no sé bien con qué quieres cepillártelos.',
       '',
     ])
       expect(isOrphanPrompt(p)).toBe(false)

@@ -425,9 +425,13 @@ export function confirmationReply(line: string, lang: ActiveLanguage): string {
 // through the model it would be mistranslated; pass it raw so Zork resolves it.
 // Requires both "which" and "do you mean" so ordinary prose ("…which you read…")
 // can't trip it.
-// German: "Welches Buch meinst du, … oder …?" (UAT F2 cascade).
+// Localized per language (CLAUDE.md — fix every translated language, not just
+// one): DE "Welches Buch meinst du, … oder …?"; FR "De quel livre parlez-vous,
+// … ou …?" (anchored on quel…parlez-vous — the refusals say "Comment
+// voulez-vous", a different verb, so they don't trip it); ES "¿A qué libro te
+// refieres, … o …?" (anchored on the distinctive "te refieres").
 const DISAMBIGUATION_PROMPT =
-  /\bwhich\b[\s\S]*\bdo you mean\b|\bwelche[mnrs]?\b[\s\S]*\bmeinst du\b/i
+  /\bwhich\b[\s\S]*\bdo you mean\b|\bwelche[mnrs]?\b[\s\S]*\bmeinst du\b|\bquel(?:le|les|s)?\b[\s\S]*\bparlez-vous\b|\bte refieres\b/i
 
 /** True when the recent game output is a parser disambiguation question. */
 export function isDisambiguationPrompt(recentOutput: string): boolean {
@@ -444,8 +448,15 @@ export function isDisambiguationPrompt(recentOutput: string): boolean {
 // wording is LLM-generated and not pinned, accept the "womit" paraphrase
 // ("Womit willst du den Sarg füllen?") too, anchored on the leading
 // interrogative so a non-orphan "Wie willst du …" refusal still misses (review I2).
+// Spanish: observed LLM rendering "¿Qué quieres poner la cera?" (uat.md UAT-es-3) —
+// anchored on the LEADING ¿qué/¿dónde/¿en qué/¿con qué so the non-orphan
+// "Si quieres …" conditionals (no leading ¿interrogative) don't trip it.
+// French: NOT YET anchored — there is no observed/pinned French orphan rendering,
+// and the natural guesses ("voulez-vous") collide with real refusals ("Comment
+// voulez-vous boire ça ?"); a wrong match would pass the next command raw. Add a
+// French clause once a French UAT pass pins the wording.
 const ORPHAN_PROMPT =
-  /\bwhat do you want to\b|\b(?:was|womit) (?:willst|möchtest) du\b/i
+  /\bwhat do you want to\b|\b(?:was|womit) (?:willst|möchtest) du\b|¿(?:qué|dónde|en qué|con qué)[^?]*\bquieres\b/i
 
 /** True when the recent game output is a parser orphan prompt (partial command
  * awaiting its missing noun). */

@@ -78,6 +78,9 @@ export type NlState =
   | { phase: 'off'; installed: boolean; canUpgrade: boolean }
   | {
       phase: 'downloading'
+      /** The language being upgraded — carried so UI (the modal) stays in the
+       * player's chosen language across the on→downloading transition. */
+      language: ActiveLanguage
       loaded: number
       total: number
       /** Estimated seconds remaining, or null until a rate is known. */

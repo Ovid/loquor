@@ -181,6 +181,7 @@ export function useNaturalLanguage(
     if (internal.phase === 'downloading')
       return {
         phase: 'downloading',
+        language: internal.language,
         loaded: internal.loaded,
         total: internal.total,
         etaSeconds: internal.etaSeconds,

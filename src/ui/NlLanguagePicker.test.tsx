@@ -118,7 +118,13 @@ describe('NlLanguagePicker', () => {
     // gone; the downloading progress chip remains.
     render(
       <NlLanguagePicker
-        state={{ phase: 'downloading', loaded: 1, total: 2, etaSeconds: null }}
+        state={{
+          phase: 'downloading',
+          language: 'fr',
+          loaded: 1,
+          total: 2,
+          etaSeconds: null,
+        }}
         onSelect={() => {}}
         onUpgrade={() => {}}
       />,
@@ -167,7 +173,12 @@ describe('NlLanguagePicker', () => {
     const onUpgrade = vi.fn()
     render(
       <NlLanguagePicker
-        state={{ phase: 'on', language: 'fr', model: 'grammar', canUpgrade: true }}
+        state={{
+          phase: 'on',
+          language: 'fr',
+          model: 'grammar',
+          canUpgrade: true,
+        }}
         onSelect={() => {}}
         onUpgrade={onUpgrade}
       />,
@@ -181,13 +192,20 @@ describe('NlLanguagePicker', () => {
     const onUpgrade = vi.fn()
     render(
       <NlLanguagePicker
-        state={{ phase: 'on', language: 'de', model: 'grammar', canUpgrade: false }}
+        state={{
+          phase: 'on',
+          language: 'de',
+          model: 'grammar',
+          canUpgrade: false,
+        }}
         onSelect={() => {}}
         onUpgrade={onUpgrade}
       />,
     )
     expect(screen.queryByRole('button', { name: /improve/i })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: /try the model anyway/i }))
+    fireEvent.click(
+      screen.getByRole('button', { name: /try the model anyway/i }),
+    )
     expect(onUpgrade).toHaveBeenCalled()
   })
 
@@ -200,6 +218,8 @@ describe('NlLanguagePicker', () => {
       />,
     )
     expect(screen.queryByText(/· basic/)).toBeNull()
-    expect(screen.queryByRole('button', { name: /improve|try the model/i })).toBeNull()
+    expect(
+      screen.queryByRole('button', { name: /improve|try the model/i }),
+    ).toBeNull()
   })
 })

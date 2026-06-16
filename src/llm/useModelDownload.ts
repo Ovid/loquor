@@ -23,6 +23,7 @@ export type Internal =
   | { phase: 'off' }
   | {
       phase: 'downloading'
+      language: ActiveLanguage
       loaded: number
       total: number
       etaSeconds: number | null
@@ -131,7 +132,13 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
     const ac = new AbortController()
     abortRef.current = ac
     dlSamplesRef.current = []
-    setInternal({ phase: 'downloading', loaded: 0, total: 0, etaSeconds: null })
+    setInternal({
+      phase: 'downloading',
+      language: pendingLangRef.current,
+      loaded: 0,
+      total: 0,
+      etaSeconds: null,
+    })
     // True once this load is no longer the active one — aborted (cancel) or
     // superseded by a newer requestDownload. A load that resolves on/around the
     // abort tick must NOT flip the state back to 'on' or persist a language against
@@ -171,6 +178,7 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
         ].slice(-60)
         setInternal({
           phase: 'downloading',
+          language: pendingLangRef.current,
           loaded: p.loaded,
           total: p.total,
           etaSeconds: estimateRemainingSeconds(dlSamplesRef.current),

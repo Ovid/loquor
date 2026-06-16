@@ -219,6 +219,11 @@ export function Terminal({
         etaSeconds={
           nl.state.phase === 'downloading' ? nl.state.etaSeconds : null
         }
+        lang={
+          nl.state.phase === 'on' || nl.state.phase === 'downloading'
+            ? nl.state.language
+            : 'en'
+        }
         onAccept={nl.requestDownload}
         onDecline={nl.declineDownload}
         onCancel={nl.cancelDownload}

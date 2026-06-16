@@ -134,7 +134,13 @@ export function useNaturalLanguage(
     requestDownload,
     declineDownload,
     cancelDownload,
-  } = useModelDownload({ engine, available, hasVocab, setNotice })
+    requestUpgrade,
+    demoteToGrammar,
+  } = useModelDownload({ engine, hasVocab, setNotice })
+  // requestUpgrade / demoteToGrammar are wired to the UI in Task 5;
+  // suppress unused-variable lint until then.
+  void requestUpgrade
+  void demoteToGrammar
 
   // Own a scene tracker; rebuild + reset when the game (vocab) changes.
   const trackerRef = useRef<TextSceneTracker | null>(null)

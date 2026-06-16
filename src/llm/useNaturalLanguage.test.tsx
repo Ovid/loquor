@@ -146,14 +146,14 @@ describe('useNaturalLanguage', () => {
     await reachOn(hook)
   })
 
-  it('load failure reverts to off and sets a notice', async () => {
+  it('load failure stays grammar-only and sets a notice', async () => {
     // The genuine (non-abort) load failure is now log.error'd by design (F7);
     // own the log so it doesn't leak to stderr.
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
       const { hook } = setup({ engine: new FakeLlmEngine({ failLoad: true }) })
       act(() => hook.result.current.requestDownload())
-      await waitFor(() => expect(hook.result.current.state.phase).toBe('off'))
+      await waitFor(() => expect(hook.result.current.state.phase).toBe('on'))
       expect(hook.result.current.notice).toBeTruthy()
       expect(errSpy).toHaveBeenCalledWith(
         '[nl] model download failed:',
@@ -347,15 +347,16 @@ describe('useNaturalLanguage', () => {
     expect(readNlPref().declined).toBe(true)
   })
 
-  it('decline clears a stale enabled:true so it cannot auto-restore to on', async () => {
+  it('decline keeps grammar-only active and only sets declined:true', async () => {
     localStorage.setItem('loquor.nl', JSON.stringify({ enabled: true }))
     const { hook } = setup() // not cached → stays off
     await waitFor(() =>
       expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
     )
-    act(() => hook.result.current.setLanguage('en')) // not installed → opens modal
+    act(() => hook.result.current.setLanguage('en')) // not installed → on/grammar + opens modal
     act(() => hook.result.current.declineDownload())
-    expect(readNlPref().language).toBe('off')
+    // grammar-only stays active; declined only suppresses the auto-modal
+    expect(hook.result.current.state.phase).toBe('on')
     expect(readNlPref().declined).toBe(true)
   })
 
@@ -373,7 +374,7 @@ describe('useNaturalLanguage', () => {
     expect(hook.result.current.modalOpen).toBe(false) // cached → no re-prompt
   })
 
-  it('setLanguage with no cached model opens the modal; accepting activates THAT language', async () => {
+  it('setLanguage with no cached model sets grammar-only + opens modal; accepting upgrades to full', async () => {
     const { hook } = setup() // not cached
     await waitFor(() =>
       expect(hook.result.current.state).toEqual({
@@ -383,7 +384,7 @@ describe('useNaturalLanguage', () => {
     )
     act(() => hook.result.current.setLanguage('de'))
     expect(hook.result.current.modalOpen).toBe(true)
-    expect(hook.result.current.state.phase).toBe('off') // nothing active yet
+    expect(hook.result.current.state.phase).toBe('on') // grammar-only active immediately
     act(() => hook.result.current.requestDownload())
     await waitFor(() =>
       expect(hook.result.current.state).toEqual({
@@ -429,7 +430,7 @@ describe('useNaturalLanguage', () => {
     expect(readNlPref().language).toBe('off')
   })
 
-  it('cancelDownload aborts an in-flight load, reverts to off, persists nothing', async () => {
+  it('cancelDownload aborts an in-flight load, returns to grammar-only, persists the picked language', async () => {
     let resolveLoad!: () => void
     const blockingEngine: import('./types').LlmEngine = {
       isCached: async () => false,
@@ -451,13 +452,13 @@ describe('useNaturalLanguage', () => {
     act(() => hook.result.current.requestDownload())
     expect(hook.result.current.state.phase).toBe('downloading')
     act(() => hook.result.current.cancelDownload())
-    await waitFor(() => expect(hook.result.current.state.phase).toBe('off'))
+    await waitFor(() => expect(hook.result.current.state.phase).toBe('on'))
     expect(hook.result.current.notice).toBeNull()
-    expect(readNlPref().language).toBe('off')
+    expect(readNlPref().language).toBe('en') // pendingLangRef default
     resolveLoad()
   })
 
-  it('a load that RESOLVES after cancel does not flip on / persist enabled', async () => {
+  it('a load that RESOLVES after cancel stays grammar-only (stale guard)', async () => {
     let resolveLoad!: () => void
     const racingEngine: import('./types').LlmEngine = {
       isCached: async () => false,
@@ -476,25 +477,27 @@ describe('useNaturalLanguage', () => {
     await act(async () => {
       resolveLoad()
     })
-    expect(hook.result.current.state.phase).toBe('off')
-    expect(readNlPref().language).toBe('off')
+    // cancel set on/grammar; the stale .then must not flip to on/full
+    expect(hook.result.current.state.phase).toBe('on')
+    expect(readNlPref().language).toBe('en') // pendingLangRef default
   })
 
-  it('cancel racing a COMPLETED download still persists language off ([P])', async () => {
-    // The sub-ms window: the load resolves (pref written, phase on) just as
-    // the player clicks Cancel. The cancel must persist 'off' too, or NL
-    // self-enables next session against an explicit cancel.
+  it('cancel after a completed download returns to grammar-only and persists the language ([P])', async () => {
+    // The sub-ms window: the load resolves (pref written, phase on/full) just as
+    // the player clicks Cancel. Cancel must flip back to grammar-only and keep
+    // the language (grammar-only is still usable; the player just doesn't want
+    // the model active).
     const { hook } = setup()
     await waitFor(() =>
       expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
     )
-    act(() => hook.result.current.setLanguage('fr')) // not installed → modal
+    act(() => hook.result.current.setLanguage('fr')) // not installed → on/grammar + modal
     act(() => hook.result.current.requestDownload())
     await waitFor(() => expect(hook.result.current.state.phase).toBe('on'))
     expect(readNlPref().language).toBe('fr')
     act(() => hook.result.current.cancelDownload())
-    expect(hook.result.current.state.phase).toBe('off')
-    expect(readNlPref().language).toBe('off')
+    expect(hook.result.current.state.phase).toBe('on') // grammar-only stays
+    expect(readNlPref().language).toBe('fr') // language persisted
   })
 
   it('a second requestDownload aborts the previous in-flight load ([L2])', async () => {

@@ -15,7 +15,7 @@ export const DE_ZORK1: NounLexicon = {
   'ancient map': ['karte', 'landkarte', 'alte karte'],
   basket: ['korb', 'lastenkorb'], // the shaft dumbwaiter basket
   bat: ['fledermaus'],
-  'beautiful brass bauble': ['schmuckstuck', 'kleinod'],
+  'beautiful brass bauble': ['schmuckstuck', 'kleinod', 'messingkugel', 'kugel'], // 'messingkugel'/'kugel': the game's floor noun (UAT F20)
   'beautiful jeweled scarab': ['skarabaus', 'kafer'],
   "bird's nest": ['nest', 'vogelnest'], // DE Nest = EN nest (same object)
   'black book': ['buch', 'schwarzes buch', 'schwarze buch'], // declined display forms (output-xl §4)
@@ -54,7 +54,7 @@ export const DE_ZORK1: NounLexicon = {
   'control panel': ['schalttafel', 'kontrollpult', 'pult'],
   crack: ['riss', 'spalt'],
   'crystal skull': ['schadel', 'kristallschadel'],
-  'crystal trident': ['dreizack'],
+  'crystal trident': ['dreizack', 'kristalldreizack'], // 'kristalldreizack' compound (UAT F24)
   cyclops: ['zyklop'],
   dam: ['damm', 'staudamm'],
   door: ['tur', 'haustur', 'eingangstur'], // the boarded front door
@@ -73,7 +73,7 @@ export const DE_ZORK1: NounLexicon = {
   ground: ['boden', 'erde'],
   'group of tool chests': ['werkzeugkisten', 'kisten', 'werkzeugkiste'], // singular display form too (UAT O5)
   'hand-held air pump': ['pumpe', 'luftpumpe'],
-  'huge diamond': ['diamant'],
+  'huge diamond': ['diamant', 'diamanten'], // 'diamanten': accusative n-declension (UAT F28)
   'jade figurine': ['figur', 'jadefigur', 'statuette'],
   'jewel-encrusted egg': ['ei', 'juwelenei'],
   'kitchen table': ['tisch', 'kuchentisch'],
@@ -82,7 +82,7 @@ export const DE_ZORK1: NounLexicon = {
   'large emerald': ['smaragd'],
   leaflet: ['prospekt', 'flugblatt', 'broschure', 'faltblatt'], // 'faltblatt' (UAT I1)
   leak: ['leck', 'rohr'], // synonym 'pipe'
-  'leather bag of coins': ['munzen', 'munzbeutel', 'geldbeutel'],
+  'leather bag of coins': ['munzen', 'munzbeutel', 'geldbeutel', 'lederbeutel'], // 'lederbeutel': the game's floor noun (UAT F12)
   // NOT 'sandwich': DE Sandwich = the EN 'lunch' synonym 'sandwich' —
   // avoidable collision, so the plain German words instead.
   lunch: ['essen', 'mittagessen', 'proviant'],
@@ -103,7 +103,7 @@ export const DE_ZORK1: NounLexicon = {
   'pile of leaves': ['blatter', 'laub', 'laubhaufen'],
   'pile of plastic': ['plastik', 'plastikhaufen'],
   'platinum bar': ['barren', 'platinbarren'],
-  'pot of gold': ['goldtopf', 'topf voll gold', 'gold'],
+  'pot of gold': ['goldtopf', 'topf voll gold', 'gold', 'topf'], // bare 'topf' (UAT F22: was missing → LLM mis-mapped destination to 'valve')
   prayer: ['gebet', 'inschrift'], // the altar inscription
   'punctured boat': [
     'kaputtes boot',

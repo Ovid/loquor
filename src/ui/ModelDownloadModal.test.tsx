@@ -165,8 +165,51 @@ describe('ModelDownloadModal', () => {
       />,
     )
     expect(
-      screen.getByRole('dialog', { name: /natural-language input/i }),
+      screen.getByRole('dialog', { name: /improve|upgrade/i }),
     ).toBeInTheDocument()
+  })
+
+  it('reframes as an upgrade and keeps grammar-only on "Not now"', () => {
+    const onDecline = vi.fn()
+    render(
+      <ModelDownloadModal
+        open
+        progress={null}
+        onAccept={() => {}}
+        onDecline={onDecline}
+        onCancel={() => {}}
+      />,
+    )
+    expect(screen.getByRole('heading')).toHaveTextContent(/improve|upgrade/i)
+    fireEvent.click(screen.getByRole('button', { name: /not now/i }))
+    expect(onDecline).toHaveBeenCalled()
+  })
+
+  it('shows the honest warning when warn is set (none device)', () => {
+    render(
+      <ModelDownloadModal
+        open
+        warn
+        progress={null}
+        onAccept={() => {}}
+        onDecline={() => {}}
+        onCancel={() => {}}
+      />,
+    )
+    expect(screen.getByText(/may not support|may fail/i)).toBeInTheDocument()
+  })
+
+  it('omits the warning by default', () => {
+    render(
+      <ModelDownloadModal
+        open
+        progress={null}
+        onAccept={() => {}}
+        onDecline={() => {}}
+        onCancel={() => {}}
+      />,
+    )
+    expect(screen.queryByText(/may not support|may fail/i)).toBeNull()
   })
 
   it('renders nothing when closed', () => {

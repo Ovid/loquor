@@ -9,6 +9,7 @@ export function ModelDownloadModal({
   open,
   progress,
   etaSeconds = null,
+  warn = false,
   onAccept,
   onDecline,
   onCancel,
@@ -18,6 +19,8 @@ export function ModelDownloadModal({
   /** Estimated seconds remaining for the download (computed by the NL hook), or
    * null when not yet estimable. */
   etaSeconds?: number | null
+  /** Honest warning for a none-capability device's "try the model anyway". */
+  warn?: boolean
   onAccept: () => void
   onDecline: () => void
   onCancel: () => void
@@ -74,14 +77,22 @@ export function ModelDownloadModal({
       onKeyDown={onKeyDown}
     >
       <div className="modal">
-        <h2 id="nl-modal-title">Natural-language input</h2>
+        <h2 id="nl-modal-title">Improve natural-language input</h2>
         <p>
-          The first time, this fetches a language model (a sizable, one-time
-          download) from third-party hosts: the model weights from Hugging Face
-          and a small support library from GitHub. After that it runs entirely
-          on your device — offline and private — and is cached, so it is not
-          downloaded again.
+          Basic mode already understands common commands. This optional upgrade
+          fetches a language model (a sizable, one-time download) from
+          third-party hosts — the model weights from Hugging Face and a small
+          support library from GitHub — so it can understand more complex
+          sentences. After that it runs entirely on your device — offline and
+          private — and is cached, so it is not downloaded again.
         </p>
+        {warn && !downloading && (
+          <p className="modal-warn" role="note">
+            Your device may not support this model, and the download is large
+            and may fail. If it does, you stay in basic mode — common commands
+            still work.
+          </p>
+        )}
         {downloading ? (
           <>
             <progress
@@ -100,7 +111,7 @@ export function ModelDownloadModal({
         ) : (
           <div className="modal-actions">
             <button className="sw" type="button" onClick={onAccept}>
-              Download &amp; enable
+              Download &amp; upgrade
             </button>
             <button className="sw" type="button" onClick={onDecline}>
               Not now

@@ -98,4 +98,14 @@ describe('German UAT — verbs (notes/uat-de-findings.md)', () => {
     })
     expect(de('fahr los')).toEqual({ kind: 'command', text: 'launch' })
   })
+
+  it('F15: bare "alles"/"alle" quantifier → take/drop all', () => {
+    expect(de('nimm alles')).toEqual({ kind: 'command', text: 'take all' })
+    expect(de('nimm alle')).toEqual({ kind: 'command', text: 'take all' })
+    // 'lass alles fallen' — the drop particle wraps the quantifier remainder.
+    expect(de('lass alles fallen')).toEqual({
+      kind: 'command',
+      text: 'drop all',
+    })
+  })
 })

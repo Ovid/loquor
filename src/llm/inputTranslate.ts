@@ -19,7 +19,7 @@ export const ABSTAIN = '__UNKNOWN__'
  * `et`/`puis`/`ensuite` (fr), `und` (de), `y` (es). Matched whitespace-wrapped
  * so substrings like "sand"/"under"/"xyzzy"/"strengthen" never trip them; the
  * de/es words match what directions.ts/meta.ts cover (review C3). */
-const CLAUSE_CONJ = 'and|then|et|puis|ensuite|und|y'
+const CLAUSE_CONJ = 'and|then|et|puis|ensuite|und|dann|danach|y'
 
 /** Clause separators: a whitespace-wrapped conjunction, OR sentence punctuation
  * `.`/`;`/`,`. A comma now separates too (UAT: an object list "A, B et C" is the
@@ -28,8 +28,11 @@ const CLAUSE_CONJ = 'and|then|et|puis|ensuite|und|y'
  * take). After any punctuation an immediately-following conjunction is absorbed,
  * so an Oxford comma ("A, B, et C") leaves no dangling "et …" clause. No
  * capturing groups, so String.split never injects the separators. */
+// A RUN of conjunctions counts as one separator, so a doubled connector like
+// "und dann" / "and then" / "et puis" leaves no dangling "dann …" clause that
+// would miss the deterministic parse (UAT F4).
 const CLAUSE_SEP = new RegExp(
-  `\\s+(?:${CLAUSE_CONJ})\\s+|\\s*[.;,]\\s*(?:(?:${CLAUSE_CONJ})\\s+)?`,
+  `\\s+(?:(?:${CLAUSE_CONJ})\\s+)+|\\s*[.;,]\\s*(?:(?:${CLAUSE_CONJ})\\s+)*`,
   'i',
 )
 

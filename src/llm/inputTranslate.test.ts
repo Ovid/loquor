@@ -287,6 +287,18 @@ describe('splitClauses', () => {
     ])
   })
 
+  it('absorbs a doubled connector "und dann" / "and then" (UAT F4)', () => {
+    // A run of conjunctions is one separator, so no dangling "dann …" clause.
+    expect(splitClauses('geh nach norden und dann nach osten')).toEqual([
+      'geh nach norden',
+      'nach osten',
+    ])
+    expect(splitClauses('open mailbox and then read it')).toEqual([
+      'open mailbox',
+      'read it',
+    ])
+  })
+
   it('does not false-split words containing "und"/"y"', () => {
     expect(splitClauses('look under the rug')).toEqual(['look under the rug'])
     expect(splitClauses('say xyzzy')).toEqual(['say xyzzy'])

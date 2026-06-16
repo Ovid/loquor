@@ -346,6 +346,10 @@ export const DE_CORE: CoreLexicon = {
     { word: 'drauf', prep: 'on' },
   ],
   pronounsSelf: ['mich', 'mir'],
+  // 'alles'/'alle' → the Z-parser's ALL object (UAT F15): 'nimm alles' →
+  // 'take all'. Without this the bare quantifier fell to the LLM, which
+  // mis-mapped it to 'large bag'.
+  quantifiersAll: ['alles', 'alle'],
   metaAliases: {
     inventar: 'inventory', // migrated from META_ALIASES
     diagnose: 'diagnose',

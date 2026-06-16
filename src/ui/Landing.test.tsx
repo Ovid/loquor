@@ -57,4 +57,22 @@ describe('Landing', () => {
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(onDismiss).toHaveBeenCalledTimes(1)
   })
+  it('traps Tab within the plate so focus cannot reach the game behind it', () => {
+    render(
+      <Landing
+        onEnter={() => {}}
+        savedSlugs={new Set()}
+        themeToggle={null}
+        onDismiss={() => {}}
+      />,
+    )
+    const focusables = screen.getAllByRole('button')
+    const last = focusables[focusables.length - 1]
+    last.focus()
+    expect(document.activeElement).toBe(last)
+    // Tab from the last control wraps back to the first (the dismiss button),
+    // rather than escaping into the dimmed game.
+    fireEvent.keyDown(document, { key: 'Tab' })
+    expect(document.activeElement).toBe(focusables[0])
+  })
 })

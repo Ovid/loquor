@@ -13,7 +13,7 @@ export function StatusBar({
   nlToggle?: ReactNode
 }) {
   return (
-    <div className="statusbar">
+    <header className="statusbar">
       <span className="loc">{status?.location ?? ''}</span>
       <span className="meta">
         <span>{status?.right ?? ''}</span>
@@ -24,6 +24,6 @@ export function StatusBar({
         {nlToggle}
         {themeToggle}
       </span>
-    </div>
+    </header>
   )
 }

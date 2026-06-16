@@ -30,6 +30,7 @@ describe('Terminal', () => {
     render(
       <Terminal
         storyBytes={bytes}
+        storyTitle="Zork I"
         onChangeStory={() => {}}
         themeToggle={null}
       />,
@@ -57,6 +58,7 @@ describe('Terminal', () => {
     render(
       <Terminal
         storyBytes={new Uint8Array([1, 2, 3, 4])}
+        storyTitle="Zork I"
         onChangeStory={() => {}}
         themeToggle={null}
       />,
@@ -77,6 +79,7 @@ describe('Terminal', () => {
       render(
         <Terminal
           storyBytes={bytes}
+          storyTitle="Zork I"
           onChangeStory={() => {}}
           themeToggle={null}
         />,
@@ -108,6 +111,7 @@ describe('Terminal', () => {
       render(
         <Terminal
           storyBytes={bytes}
+          storyTitle="Zork I"
           onChangeStory={() => {}}
           themeToggle={null}
         />,
@@ -129,6 +133,7 @@ describe('Terminal', () => {
     render(
       <Terminal
         storyBytes={bytes}
+        storyTitle="Zork I"
         onChangeStory={() => {}}
         themeToggle={null}
       />,
@@ -148,6 +153,7 @@ describe('Terminal', () => {
     const { unmount } = render(
       <Terminal
         storyBytes={bytes}
+        storyTitle="Zork I"
         onChangeStory={() => {}}
         themeToggle={null}
       />,
@@ -171,6 +177,7 @@ describe('Terminal', () => {
       const { unmount } = render(
         <Terminal
           storyBytes={bytes}
+          storyTitle="Zork I"
           onChangeStory={() => {}}
           themeToggle={null}
         />,

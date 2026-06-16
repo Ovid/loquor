@@ -11,6 +11,7 @@ describe('Terminal game end', () => {
     render(
       <Terminal
         storyBytes={bytes}
+        storyTitle="Zork I"
         onChangeStory={() => {}}
         themeToggle={null}
       />,

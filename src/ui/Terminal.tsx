@@ -27,10 +27,13 @@ const log = createLogger('ui')
 
 export function Terminal({
   storyBytes,
+  storyTitle,
   onChangeStory,
   themeToggle,
 }: {
   storyBytes: Uint8Array
+  /** The current game's title — the game screen's heading for screen readers. */
+  storyTitle: string
   onChangeStory: () => void
   themeToggle: ReactNode
 }) {
@@ -65,9 +68,7 @@ export function Terminal({
     const k = loudEchoToken(canonical)
     const v = loudEchoToken(source)
     if (k === '' || v === '') return
-    setEchoMap(prev =>
-      prev.get(k) === v ? prev : new Map(prev).set(k, v),
-    )
+    setEchoMap(prev => (prev.get(k) === v ? prev : new Map(prev).set(k, v)))
   }, [])
 
   // Keep a ref to the latest view so the NL hook's getContext() can read it at
@@ -140,6 +141,7 @@ export function Terminal({
 
   return (
     <div className="screen term">
+      <h1 className="sr-only">{storyTitle}</h1>
       <StatusBar
         status={xl.status}
         onChangeStory={onChangeStory}
@@ -152,41 +154,46 @@ export function Terminal({
           />
         }
       />
-      <Scrollback lines={xl.lines} onActivate={() => inputRef.current?.focus()}>
-        {/* Lines typed ahead while a translation runs (F-A): dimmed, chipped,
+      <main className="term-main">
+        <Scrollback
+          lines={xl.lines}
+          onActivate={() => inputRef.current?.focus()}
+        >
+          {/* Lines typed ahead while a translation runs (F-A): dimmed, chipped,
             drained FIFO by the hook. Keyed on the hook's monotonic id — the
             queue shifts from the FRONT, so index keys would re-point a node
             at a different line. */}
-        {nl.queued.map(q => (
-          <p key={q.id} className="nl-source">
-            <span className="you">you</span> {q.text}
-            <span className="chip">queued</span>
-          </p>
-        ))}
-        {nl.pending && <p className="nl-thinking">…thinking</p>}
-        {nl.notice && <p className="nl-notice">{nl.notice}</p>}
-        <CommandInput
-          inputRef={inputRef}
-          onSubmit={text => {
-            // The Loud Room echo is re-voiced per clause via recordEcho as the
-            // pipeline sends each canonical command (loudEcho / F6).
-            if (nl.state.phase === 'on') void nl.translate(text)
-            else if (engineRef.current) engineRef.current.sendLine(text)
-            // Practically unreachable (engine is set synchronously and input is
-            // disabled until a line request), but warn rather than silently
-            // swallow the turn if it ever happens (review S11).
-            else log.warn('submit ignored: engine not ready')
-          }}
-          // Never pending-disabled ([M]): while NL is on, typed-ahead lines
-          // queue (F-A); when NL is off/left mid-drain, typing raw-sends —
-          // pending could only become true under phase 'on', so disabling on
-          // `pending && phase !== 'on'` locked the player out exactly when a
-          // wedged or slow drain coincided with switching NL off.
-          awaitingKey={view.inputRequest === 'char'}
-          awaitingLine={view.inputRequest === 'line'}
-          onKey={key => engineRef.current?.sendChar(key)}
-        />
-      </Scrollback>
+          {nl.queued.map(q => (
+            <p key={q.id} className="nl-source">
+              <span className="you">you</span> {q.text}
+              <span className="chip">queued</span>
+            </p>
+          ))}
+          {nl.pending && <p className="nl-thinking">…thinking</p>}
+          {nl.notice && <p className="nl-notice">{nl.notice}</p>}
+          <CommandInput
+            inputRef={inputRef}
+            onSubmit={text => {
+              // The Loud Room echo is re-voiced per clause via recordEcho as the
+              // pipeline sends each canonical command (loudEcho / F6).
+              if (nl.state.phase === 'on') void nl.translate(text)
+              else if (engineRef.current) engineRef.current.sendLine(text)
+              // Practically unreachable (engine is set synchronously and input is
+              // disabled until a line request), but warn rather than silently
+              // swallow the turn if it ever happens (review S11).
+              else log.warn('submit ignored: engine not ready')
+            }}
+            // Never pending-disabled ([M]): while NL is on, typed-ahead lines
+            // queue (F-A); when NL is off/left mid-drain, typing raw-sends —
+            // pending could only become true under phase 'on', so disabling on
+            // `pending && phase !== 'on'` locked the player out exactly when a
+            // wedged or slow drain coincided with switching NL off.
+            awaitingKey={view.inputRequest === 'char'}
+            awaitingLine={view.inputRequest === 'line'}
+            onKey={key => engineRef.current?.sendChar(key)}
+          />
+        </Scrollback>
+      </main>
       <ModelDownloadModal
         open={nl.modalOpen || nl.state.phase === 'downloading'}
         progress={dlProgress}

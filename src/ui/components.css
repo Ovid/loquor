@@ -12,6 +12,15 @@
   flex-direction: column;
   align-items: stretch;
 }
+/* <main> landmark wrapping the transcript. display:contents would drop the role
+   in some engines, so it's a real flex box: take the remaining column height and
+   let the .scroll child own the overflow (min-height:0 frees it to shrink). */
+.term-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
 
 /* ---------- Theme toggle button ---------- */
 /* shared small theme control — used inside the plate and the status bar, never floating */

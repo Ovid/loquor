@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import type { NlState, NlLanguage } from '../llm/types'
 import { pct as toPct } from '../llm/progress'
 
-const OPTIONS: { value: NlLanguage; label: string }[] = [
-  { value: 'off', label: 'Off' },
-  { value: 'en', label: 'English' },
-  { value: 'fr', label: 'Français' },
-  { value: 'de', label: 'Deutsch' },
-  { value: 'es', label: 'Español' },
+// `lang` marks each label's natural language (3.1.2) so a screen reader voices
+// "Français"/"Deutsch"/"Español" with the right pronunciation inside the en doc.
+const OPTIONS: { value: NlLanguage; label: string; lang: string }[] = [
+  { value: 'off', label: 'Off', lang: 'en' },
+  { value: 'en', label: 'English', lang: 'en' },
+  { value: 'fr', label: 'Français', lang: 'fr' },
+  { value: 'de', label: 'Deutsch', lang: 'de' },
+  { value: 'es', label: 'Español', lang: 'es' },
 ]
 
 /**
@@ -138,18 +140,24 @@ export function NlLanguagePicker({
           onClick={() => (open ? setOpen(false) : openMenu())}
           onKeyDown={onKeyDown}
         >
-          {current.label}
+          <span lang={current.lang}>{current.label}</span>
           <span className="nl-caret" aria-hidden="true">
             ▾
           </span>
         </button>
         {open && (
-          <ul className="nl-menu" role="listbox" id="nl-lang-listbox">
+          <ul
+            className="nl-menu"
+            role="listbox"
+            id="nl-lang-listbox"
+            aria-label="Language"
+          >
             {OPTIONS.map((o, i) => (
               <li
                 key={o.value}
                 id={`nl-lang-opt-${o.value}`}
                 role="option"
+                lang={o.lang}
                 aria-selected={o.value === value}
                 className={i === active ? 'active' : undefined}
                 onMouseEnter={() => setActive(i)}

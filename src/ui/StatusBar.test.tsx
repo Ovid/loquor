@@ -14,4 +14,11 @@ describe('StatusBar', () => {
     expect(screen.getByText('West of House')).toBeInTheDocument()
     expect(screen.getByText(/Score: 0/)).toBeInTheDocument()
   })
+
+  it('is a banner landmark', () => {
+    render(
+      <StatusBar status={null} onChangeStory={() => {}} themeToggle={null} />,
+    )
+    expect(screen.getByRole('banner')).toBeInTheDocument()
+  })
 })

@@ -21,15 +21,37 @@ export function Landing({
 }) {
   const [selected, setSelected] = useState<Game['slug']>('zork1')
   const dismissRef = useRef<HTMLButtonElement>(null)
+  const plateRef = useRef<HTMLDivElement>(null)
 
-  // Overlay-only behaviour: Escape returns to the game, and focus lands on the
-  // dismiss control so a keyboard user can leave immediately. Guarded on
-  // onDismiss so the initial landing keeps its plain, non-modal behaviour.
+  // Overlay-only behaviour: Escape returns to the game, focus lands on the
+  // dismiss control so a keyboard user can leave immediately, and Tab is trapped
+  // inside the plate so focus can't wander into the dimmed game behind it
+  // (aria-modal alone doesn't contain DOM focus). Guarded on onDismiss so the
+  // initial landing keeps its plain, non-modal behaviour.
   useEffect(() => {
     if (!onDismiss) return
     dismissRef.current?.focus()
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onDismiss()
+      if (e.key === 'Escape') {
+        onDismiss()
+        return
+      }
+      if (e.key !== 'Tab' || !plateRef.current) return
+      const items = [
+        ...plateRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])',
+        ),
+      ]
+      if (items.length === 0) return
+      const first = items[0]
+      const last = items[items.length - 1]
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
@@ -39,6 +61,7 @@ export function Landing({
     <div className={`screen${onDismiss ? ' overlay' : ''}`}>
       <div
         className="plate"
+        ref={plateRef}
         role={onDismiss ? 'dialog' : undefined}
         aria-modal={onDismiss ? true : undefined}
         aria-label={onDismiss ? 'Change story' : undefined}

@@ -24,6 +24,32 @@ describe('NlLanguagePicker', () => {
     expect(labels).toEqual(['Off', 'English', 'Français', 'Deutsch', 'Español'])
   })
 
+  it('names the listbox and tags non-English options with their language', () => {
+    render(
+      <NlLanguagePicker
+        state={{ phase: 'off', installed: true }}
+        onSelect={() => {}}
+        onOverride={() => {}}
+      />,
+    )
+    fireEvent.click(screen.getByRole('combobox'))
+    // listbox has an accessible name (4.1.2)
+    expect(screen.getByRole('listbox')).toHaveAccessibleName('Language')
+    // localized labels carry lang so a screen reader pronounces them right (3.1.2)
+    expect(screen.getByRole('option', { name: 'Français' })).toHaveAttribute(
+      'lang',
+      'fr',
+    )
+    expect(screen.getByRole('option', { name: 'Deutsch' })).toHaveAttribute(
+      'lang',
+      'de',
+    )
+    expect(screen.getByRole('option', { name: 'Español' })).toHaveAttribute(
+      'lang',
+      'es',
+    )
+  })
+
   it('reflects the active language and emits a selection (mouse)', () => {
     const onSelect = vi.fn()
     render(

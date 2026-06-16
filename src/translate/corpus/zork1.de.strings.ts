@@ -9,8 +9,10 @@
 // - One line per key: sentence count and trailing punctuation preserved (the
 //   line is the matching unit — never merge or split lines).
 // - German quotation marks „ … “ for quoted speech; parser command words
-//   (RESTART, RESTORE, QUIT, OOPS, "Launch", "Land", Y) read verbatim by the
-//   Z-machine and are NEVER localized.
+//   (RESTART, RESTORE, QUIT, OOPS, "Launch", "Land") read verbatim by the
+//   Z-machine and are NEVER localized. EXCEPTION: the yes/no confirmation key is
+//   localized to "J" ("(J bedeutet ja)") — the input layer maps the player's
+//   "j"/"ja" back to the Z-machine's "Y" (confirmationReply, review I3).
 // - Proper nouns stay (Zork, Frobozz, Aragain, Frigid, Ramses II); the grue
 //   monster is "der Grue" (masculine). Imperial units kept (Fuß, Zoll) for
 //   1980s flavor. Infocom's wit is preserved, never flattened.
@@ -1135,7 +1137,7 @@ export const ZORK1_DE_STRINGS: Readonly<Record<string, string>> = {
     'Das war einfach ein bisschen zu weit unten.',
   'I beg your pardon?': 'Wie bitte?',
   'Do you wish to restart? (Y is affirmative):':
-    'Möchtest du neu beginnen? (Y bedeutet ja):',
+    'Möchtest du neu beginnen? (J bedeutet ja):',
   'Well, you really did it that time. Is suicide painless?':
     'Nun, diesmal hast du es wirklich geschafft. Ist Selbstmord schmerzlos?',
   "It appears that that last blow was too much for you. I'm afraid you are dead.":
@@ -1229,7 +1231,7 @@ export const ZORK1_DE_STRINGS: Readonly<Record<string, string>> = {
   'Superbrief descriptions.': 'Superkurze Beschreibungen.',
   'You are empty-handed.': 'Du hast leere Hände.',
   'Do you wish to leave the game? (Y is affirmative):':
-    'Möchtest du das Spiel verlassen? (Y für ja):',
+    'Möchtest du das Spiel verlassen? (J für ja):',
   'Restarting.': 'Neustart.',
   'Verifying disk...': 'Überprüfe Diskette...',
   'Illegal call to #RND.': 'Unzulässiger Aufruf von #RND.',

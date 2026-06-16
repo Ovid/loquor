@@ -375,11 +375,15 @@ export function isVocabPassthrough(
 // restart could never confirm. Detect the prompt from its text and pass raw.
 // The recent output is the LOCALIZED display text (the output-translation
 // overlay has already run), so the detectors must match the player's language,
-// not just English — else a German "(Y bedeutet ja)" prompt is missed and "y"
-// is translated to "look", so restart/quit can never confirm (UAT F2). German:
-// "(Y bedeutet ja)"/"(Y für ja)" and the endgame "(Tippe RESTART …)".
+// not just English — else a localized "(J bedeutet ja)" prompt is missed and
+// "y" is translated to "look", so restart/quit can never confirm (UAT F2).
+// Match the yes/no prompt by the affirmative word inside the parens
+// (ja/oui/sí), KEY-AGNOSTIC so it survives localizing the key to J/O/S (see
+// confirmationReply below), and the endgame restart prompt by the localized
+// imperative verb (Type/Tippe/Tapez/Escribe RESTART). Covers DE/FR/ES, not just
+// German — the same fix is needed in every translated language.
 const CONFIRM_PROMPT =
-  /\(Y is affirmative\)|\bare you sure\b|\bdo you (?:really )?wish to\b|\(Y [^)]*\bja\b[^)]*\)|\bTippe RESTART\b/i
+  /\(Y is affirmative\)|\bare you sure\b|\bdo you (?:really )?wish to\b|\([^)]*(?:\b(?:ja|oui)\b|sí)[^)]*\)|\b(?:Type|Tippe|Tapez|Escribe) RESTART\b/i
 
 /** True when the recent game output is an interpreter yes/no confirmation prompt. */
 export function isConfirmationPrompt(recentOutput: string): boolean {

@@ -202,11 +202,18 @@ describe('isConfirmationPrompt', () => {
       expect(isConfirmationPrompt(p)).toBe(true)
   })
 
-  it('detects the LOCALIZED German confirmation prompts (UAT F2)', () => {
+  it('detects the LOCALIZED confirmation prompts in every language (UAT F2; key localized to J/O/S)', () => {
     for (const p of [
-      'Möchtest du neu beginnen? (Y bedeutet ja):',
-      'Möchtest du das Spiel verlassen? (Y für ja):',
+      // German — key localized to "J"
+      'Möchtest du neu beginnen? (J bedeutet ja):',
+      'Möchtest du das Spiel verlassen? (J für ja):',
       'Möchtest du das Spiel von vorne beginnen…?\n(Tippe RESTART, RESTORE oder QUIT):',
+      // French — key localized to "O"
+      'Voulez-vous recommencer ? (O pour oui) :',
+      'Voulez-vous recommencer ? (Tapez RESTART, RESTORE ou QUIT) :',
+      // Spanish — key localized to "S"
+      '¿Quieres reiniciar? (S para sí):',
+      '¿Quieres reiniciar? (Escribe RESTART, RESTORE o QUIT):',
     ])
       expect(isConfirmationPrompt(p)).toBe(true)
   })

@@ -1252,7 +1252,7 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
   'That was just a bit too far down.': "C'était juste un peu trop bas.",
   'I beg your pardon?': 'Je vous demande pardon ?',
   'Do you wish to restart? (Y is affirmative):':
-    'Voulez-vous recommencer ? (Y pour oui) :',
+    'Voulez-vous recommencer ? (O pour oui) :',
   'Well, you really did it that time. Is suicide painless?':
     'Eh bien, cette fois vous avez réussi votre coup. Le suicide est-il indolore ?',
   "It appears that that last blow was too much for you. I'm afraid you are dead.":
@@ -1343,7 +1343,7 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
   'Superbrief descriptions.': 'Descriptions ultra-brèves.',
   'You are empty-handed.': 'Vous avez les mains vides.',
   'Do you wish to leave the game? (Y is affirmative):':
-    'Voulez-vous quitter la partie ? (Y pour oui) :',
+    'Voulez-vous quitter la partie ? (O pour oui) :',
   'Restarting.': 'Nouvelle partie.',
   'Verifying disk...': 'Vérification du disque...',
   'Illegal call to #RND.': 'Appel illégal à #RND.',

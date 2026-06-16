@@ -216,7 +216,7 @@ describe('real Zork I French corpus smoke (Task 15)', () => {
   it('the restart Y-prompt hits through its glued input prompt (UAT-4)', () => {
     expect(
       matchLine(real, 'Do you wish to restart? (Y is affirmative): >'),
-    ).toBe('Voulez-vous recommencer ? (Y pour oui) : >')
+    ).toBe('Voulez-vous recommencer ? (O pour oui) : >')
   })
   it('implicit-take parenthetical is pinned (UAT-4: "read leaflet" while not holding it)', () => {
     expect(matchLine(real, '(Taken)')).toBe('(Pris)')

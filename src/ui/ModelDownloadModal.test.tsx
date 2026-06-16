@@ -1,8 +1,81 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { ModelDownloadModal } from './ModelDownloadModal'
 
 describe('ModelDownloadModal', () => {
+  it('moves focus into the dialog on open and restores it on close', () => {
+    const trigger = document.createElement('button')
+    document.body.appendChild(trigger)
+    trigger.focus()
+    const { rerender } = render(
+      <ModelDownloadModal
+        open
+        progress={null}
+        onAccept={vi.fn()}
+        onDecline={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    )
+    // Focus lands on the first action button, not the obscured trigger.
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: /download/i }),
+    )
+    rerender(
+      <ModelDownloadModal
+        open={false}
+        progress={null}
+        onAccept={vi.fn()}
+        onDecline={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    )
+    expect(document.activeElement).toBe(trigger) // restored on close
+    trigger.remove()
+  })
+
+  it('Escape dismisses via onDecline when not downloading, onCancel while downloading', () => {
+    const onDecline = vi.fn()
+    const { rerender } = render(
+      <ModelDownloadModal
+        open
+        progress={null}
+        onAccept={vi.fn()}
+        onDecline={onDecline}
+        onCancel={vi.fn()}
+      />,
+    )
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+    expect(onDecline).toHaveBeenCalled()
+
+    const onCancel = vi.fn()
+    rerender(
+      <ModelDownloadModal
+        open
+        progress={{ loaded: 1, total: 2, text: 'shards' }}
+        onAccept={vi.fn()}
+        onDecline={vi.fn()}
+        onCancel={onCancel}
+      />,
+    )
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+    expect(onCancel).toHaveBeenCalled()
+  })
+
+  it('names the progress bar for assistive tech while downloading', () => {
+    render(
+      <ModelDownloadModal
+        open
+        progress={{ loaded: 1, total: 2, text: 'shards' }}
+        onAccept={vi.fn()}
+        onDecline={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    )
+    expect(
+      screen.getByRole('progressbar', { name: 'Model download progress' }),
+    ).toBeInTheDocument()
+  })
+
   it('accept and decline fire when not downloading', () => {
     const onAccept = vi.fn()
     const onDecline = vi.fn()

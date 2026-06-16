@@ -37,11 +37,10 @@ export function Terminal({
   onChangeStory: () => void
   themeToggle: ReactNode
 }) {
-  const [override, setOverride] = useState(false)
   // Game-loop coordination lives in extracted hooks (F-17): the ZMachine
   // boot/dispose lifecycle and device-capability detection.
   const { view, signature, engineRef } = useGameEngine(storyBytes)
-  const capability = useCapability(override)
+  const capability = useCapability(false)
   const viewRef = useRef<ViewState>(view)
   const inputRef = useRef<HTMLInputElement>(null)
   // One stable LLM engine instance for this Terminal (created once, lazily). The
@@ -157,7 +156,7 @@ export function Terminal({
           <NlLanguagePicker
             state={nl.state}
             onSelect={nl.setLanguage}
-            onOverride={() => setOverride(true)}
+            onUpgrade={nl.requestUpgrade}
           />
         }
       />
@@ -212,6 +211,10 @@ export function Terminal({
       </main>
       <ModelDownloadModal
         open={nl.modalOpen || nl.state.phase === 'downloading'}
+        warn={
+          (nl.state.phase === 'on' || nl.state.phase === 'off') &&
+          !nl.state.canUpgrade
+        }
         progress={dlProgress}
         etaSeconds={
           nl.state.phase === 'downloading' ? nl.state.etaSeconds : null

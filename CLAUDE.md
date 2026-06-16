@@ -152,6 +152,41 @@ npx vitest run -t "substring of test name"    # by name
   reason doesn't help the player. Watch especially for code that was written
   German-first (or English-first) and hardcodes one language's words/forms.
 
+## Accessibility is mandatory — not a "nice to have"
+
+**Accessibility (a11y) is a hard requirement, on the same footing as
+correctness.** Loquor is a text adventure: for many players the *only* way in is
+a screen reader, keyboard-only navigation, or high-contrast/zoomed display. A UI
+element that a screen-reader or keyboard user cannot operate is a **bug**, not a
+polish item — treat it exactly as you would a crash.
+
+Every change that touches user-facing UI (any `src/ui/**` component, the
+Terminal, pickers, modals, notices, status bar, the game transcript) MUST:
+
+1. **Be operable by keyboard alone** — every interactive control reachable and
+   activatable via Tab/Enter/Space/Esc, with a visible focus indicator and a
+   sensible tab order. No mouse-only affordances.
+2. **Expose a correct accessible name and role** — use semantic elements
+   (`<button>`, `<nav>`, real headings) over `div`/`span` with click handlers.
+   Icon-only or symbol controls (e.g. the `✦ improve` button, the theme toggle)
+   need an `aria-label`. Decorative glyphs (the `· basic` marker) are not
+   announced as controls.
+3. **Announce dynamic changes** — game output, translated text, and NL notices
+   (the "basic mode" / first-abstain messages) must reach assistive tech, via an
+   appropriate `aria-live` region rather than a silent DOM mutation.
+4. **Not rely on colour or contrast alone** — state conveyed by colour (theme,
+   `nl-source` lines, the basic marker) needs a non-colour cue too, and text must
+   meet WCAG 2.2 AA contrast in **both** themes.
+5. **Respect user settings** — honour `prefers-reduced-motion`; never trap focus
+   except in a modal (which must trap focus *and* restore it on close, and close
+   on Esc).
+
+When you add or change a control, **add a test that asserts its accessible
+name/role** (`getByRole('button', { name: ... })` already used in the picker
+suite is the pattern) — an a11y regression should fail the suite, not ship. If a
+change arguably degrades accessibility and the reason is a product/design
+decision, that falls squarely under the "talk to me first" rule below.
+
 ## Player experience overrides "product decisions" — talk to me first
 
 **"It's a product decision" is NOT a reason to defer, skip, or accept a behavior

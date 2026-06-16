@@ -94,7 +94,11 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
           const lang = pref.language // narrowed to ActiveLanguage; survives the closure
           setInternal(prev =>
             prev.phase === 'off'
-              ? { phase: 'on', language: lang, model: cached ? 'full' : 'grammar' }
+              ? {
+                  phase: 'on',
+                  language: lang,
+                  model: cached ? 'full' : 'grammar',
+                }
               : prev,
           )
         }
@@ -148,7 +152,11 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
         if (stale()) return
         log.error('model download stalled — no progress, aborting')
         setNotice(modelDownloadStalled(pendingLangRef.current))
-        setInternal({ phase: 'on', language: pendingLangRef.current, model: 'grammar' })
+        setInternal({
+          phase: 'on',
+          language: pendingLangRef.current,
+          model: 'grammar',
+        })
         ac.abort()
       }, DOWNLOAD_STALL_MS)
     }
@@ -178,7 +186,11 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
         // probe effect needn't re-run on the phase change to discover it (S6).
         setInstalled(true)
         // Activate the language the player picked when they triggered the modal.
-        setInternal({ phase: 'on', language: pendingLangRef.current, model: 'full' })
+        setInternal({
+          phase: 'on',
+          language: pendingLangRef.current,
+          model: 'full',
+        })
         writeNlPref({ language: pendingLangRef.current })
       })
       .catch(err => {
@@ -193,7 +205,11 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
         // just the player notice, or the cause is undiagnosable.
         log.error('model download failed:', err)
         setNotice(modelDownloadFailed(pendingLangRef.current))
-        setInternal({ phase: 'on', language: pendingLangRef.current, model: 'grammar' })
+        setInternal({
+          phase: 'on',
+          language: pendingLangRef.current,
+          model: 'grammar',
+        })
       })
   }, [engine, setNotice])
 
@@ -203,7 +219,11 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
       stallTimerRef.current = null
     }
     abortRef.current?.abort()
-    setInternal({ phase: 'on', language: pendingLangRef.current, model: 'grammar' })
+    setInternal({
+      phase: 'on',
+      language: pendingLangRef.current,
+      model: 'grammar',
+    })
     writeNlPref({ language: pendingLangRef.current })
   }, [])
 

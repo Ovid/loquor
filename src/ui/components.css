@@ -351,6 +351,11 @@
   line-height: 1.5;
   margin: 0 0 1rem;
 }
+.modal-warn {
+  border-left: 3px solid var(--brass-soft);
+  padding-left: 0.65rem;
+  color: var(--text);
+}
 .modal progress {
   width: 100%;
   accent-color: var(--brass);

@@ -126,6 +126,13 @@ export function Terminal({
     echoMap,
   })
 
+  // The active non-English NL language, for tagging the player's queued input
+  // and the localized notice so a screen reader pronounces them right (3.1.2).
+  const nlLang =
+    nl.state.phase === 'on' && nl.state.language !== 'en'
+      ? nl.state.language
+      : undefined
+
   // Live download progress for the modal — derived from NL state during render
   // (no separate state or effect needed).
   const dlProgress: LoadProgress | null =
@@ -164,13 +171,22 @@ export function Terminal({
             queue shifts from the FRONT, so index keys would re-point a node
             at a different line. */}
           {nl.queued.map(q => (
-            <p key={q.id} className="nl-source">
-              <span className="you">you</span> {q.text}
-              <span className="chip">queued</span>
+            <p key={q.id} className="nl-source" lang={nlLang}>
+              <span className="you" lang="en">
+                you
+              </span>{' '}
+              {q.text}
+              <span className="chip" lang="en">
+                queued
+              </span>
             </p>
           ))}
           {nl.pending && <p className="nl-thinking">…thinking</p>}
-          {nl.notice && <p className="nl-notice">{nl.notice}</p>}
+          {nl.notice && (
+            <p className="nl-notice" lang={nlLang}>
+              {nl.notice}
+            </p>
+          )}
           <CommandInput
             inputRef={inputRef}
             onSubmit={text => {

@@ -48,6 +48,7 @@ export function Scrollback({
       {visible.map(l => (
         <p
           key={l.id}
+          lang={l.lang}
           className={
             (l.kind === 'room'
               ? 'room'
@@ -64,7 +65,10 @@ export function Scrollback({
             </>
           ) : l.kind === 'nl-source' ? (
             <>
-              <span className="you">you</span> {l.text}
+              <span className="you" lang="en">
+                you
+              </span>{' '}
+              {l.text}
             </>
           ) : (
             l.text

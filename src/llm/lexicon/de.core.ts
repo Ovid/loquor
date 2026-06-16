@@ -239,6 +239,12 @@ export const DE_CORE: CoreLexicon = {
     { verb: 'hebe', particle: 'hoch', to: 'raise' }, // hochheben
     { verb: 'heb', particle: 'hoch', to: 'raise' },
     { verb: 'lass', particle: 'runter', to: 'lower' }, // runterlassen
+    // 'fallen lassen' (to drop): a verb cluster, not a separable prefix, but
+    // mechanically identical here — leading verb + clause-final 'fallen', object
+    // between. UAT I3/I4/I5: without this the bare 'lass' matched and the LLM
+    // mis-guessed the noun (drop bottle/painting). 'leg X ab' already worked.
+    { verb: 'lass', particle: 'fallen', to: 'drop' },
+    { verb: 'lasse', particle: 'fallen', to: 'drop' },
     { verb: 'fasse', particle: 'an', to: 'touch' }, // anfassen
     { verb: 'fass', particle: 'an', to: 'touch' },
     { verb: 'ziehe', particle: 'an', to: 'wear' }, // anziehen

@@ -104,6 +104,7 @@ describe('de core lexicon', () => {
       'um',
       'hoch',
       'runter',
+      'fallen', // 'fallen lassen' verb cluster (UAT I3/I4/I5), clause-final
     ])
     for (const p of DE_CORE.particleVerbs)
       expect(allowed.has(p.particle)).toBe(true)

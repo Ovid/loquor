@@ -80,7 +80,7 @@ export const DE_ZORK1: NounLexicon = {
   'kitchen window': ['fenster', 'kuchenfenster'],
   'large bag': ['grosser sack', 'sack', 'grosse sack', 'grossen sack'], // the thief's bag; declined display forms (output-xl §4)
   'large emerald': ['smaragd'],
-  leaflet: ['prospekt', 'flugblatt', 'broschure'],
+  leaflet: ['prospekt', 'flugblatt', 'broschure', 'faltblatt'], // 'faltblatt' (UAT I1)
   leak: ['leck', 'rohr'], // synonym 'pipe'
   'leather bag of coins': ['munzen', 'munzbeutel', 'geldbeutel'],
   // NOT 'sandwich': DE Sandwich = the EN 'lunch' synonym 'sandwich' —
@@ -168,6 +168,6 @@ export const DE_ZORK1: NounLexicon = {
   'wooden railing': ['gelander', 'brustung'],
   wrench: ['schlussel', 'schraubenschlussel'],
   'yellow button': ['gelber knopf', 'knopf', 'gelbe knopf', 'gelben knopf'], // declined display forms (output-xl §4)
-  "zork owner's manual": ['handbuch', 'anleitung', 'bedienungsanleitung'],
+  "zork owner's manual": ['handbuch', 'anleitung', 'bedienungsanleitung', 'zettel'], // 'zettel' (UAT I2): was mis-mapping to advertisement via LLM
   zorkmid: ['zorkmid'], // untranslatable currency proper noun
 }

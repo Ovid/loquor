@@ -137,7 +137,7 @@ describe('requestDownload', () => {
         expect(hook.result.current.internal).toEqual({ phase: 'off' }),
       )
       expect(setNotice).toHaveBeenCalledWith(
-        'Model download failed — staying grammar-only.',
+        'Model download failed. Pick a language again to retry, or keep playing by typing commands directly.',
       )
       // F7: the underlying error must reach the logger (ring buffer + console),
       // not be discarded.
@@ -165,7 +165,7 @@ describe('requestDownload', () => {
         expect(hook.result.current.internal).toEqual({ phase: 'off' }),
       )
       expect(setNotice).toHaveBeenCalledWith(
-        'Échec du téléchargement du modèle — mode grammaire uniquement.',
+        'Échec du téléchargement du modèle. Resélectionnez une langue pour réessayer, ou continuez en tapant directement vos commandes.',
       )
     } finally {
       errSpy.mockRestore()
@@ -196,7 +196,7 @@ describe('requestDownload', () => {
       })
       expect(hook.result.current.internal).toEqual({ phase: 'off' })
       expect(setNotice).toHaveBeenCalledWith(
-        'Model download stalled — staying grammar-only.',
+        'Model download stalled. Pick a language again to retry, or keep playing by typing commands directly.',
       )
       expect(sig.aborted).toBe(true) // the orphaned load was actually aborted
       expect(errSpy).toHaveBeenCalledWith(
@@ -250,7 +250,7 @@ describe('requestDownload', () => {
       })
       expect(hook.result.current.internal).toEqual({ phase: 'off' })
       expect(setNotice).toHaveBeenCalledWith(
-        'Model download stalled — staying grammar-only.',
+        'Model download stalled. Pick a language again to retry, or keep playing by typing commands directly.',
       )
       expect(signals[1].aborted).toBe(true) // #2's watchdog aborted it
     } finally {

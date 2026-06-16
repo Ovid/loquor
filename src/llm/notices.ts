@@ -106,30 +106,32 @@ export function ranOfActions(
   return `${prefix[lang]} — ${body[lang]}`
 }
 
-/** The model download failed (genuine, non-abort) — the layer falls back to
- * the deterministic grammar-only pipeline. Shown in the language the player
- * picked when they triggered the download. */
+/** The model download failed (genuine, non-abort) — the NL layer reverts to
+ * off, so typed input goes straight to the game. The notice names the recovery
+ * path (re-pick a language to retry) instead of the opaque "grammar-only"
+ * jargon, and is shown in the language the player picked when they triggered
+ * the download. */
 export function modelDownloadFailed(lang: ActiveLanguage): string {
   return byLang(
     {
-      en: 'Model download failed — staying grammar-only.',
-      fr: 'Échec du téléchargement du modèle — mode grammaire uniquement.',
-      de: 'Modell-Download fehlgeschlagen — nur Grammatikmodus.',
-      es: 'Error al descargar el modelo — solo modo gramática.',
+      en: 'Model download failed. Pick a language again to retry, or keep playing by typing commands directly.',
+      fr: 'Échec du téléchargement du modèle. Resélectionnez une langue pour réessayer, ou continuez en tapant directement vos commandes.',
+      de: 'Modell-Download fehlgeschlagen. Wählen Sie erneut eine Sprache, um es noch einmal zu versuchen, oder spielen Sie weiter, indem Sie Befehle direkt eingeben.',
+      es: 'Error al descargar el modelo. Vuelva a elegir un idioma para reintentar, o siga jugando escribiendo comandos directamente.',
     },
     lang,
   )
 }
 
 /** The model download stalled (no progress) and was aborted by the watchdog —
- * same grammar-only fallback as a failure. */
+ * same revert-to-off and same recovery path as a failure. */
 export function modelDownloadStalled(lang: ActiveLanguage): string {
   return byLang(
     {
-      en: 'Model download stalled — staying grammar-only.',
-      fr: 'Téléchargement du modèle bloqué — mode grammaire uniquement.',
-      de: 'Modell-Download hängt — nur Grammatikmodus.',
-      es: 'Descarga del modelo estancada — solo modo gramática.',
+      en: 'Model download stalled. Pick a language again to retry, or keep playing by typing commands directly.',
+      fr: 'Téléchargement du modèle bloqué. Resélectionnez une langue pour réessayer, ou continuez en tapant directement vos commandes.',
+      de: 'Modell-Download hängt fest. Wählen Sie erneut eine Sprache, um es noch einmal zu versuchen, oder spielen Sie weiter, indem Sie Befehle direkt eingeben.',
+      es: 'Descarga del modelo estancada. Vuelva a elegir un idioma para reintentar, o siga jugando escribiendo comandos directamente.',
     },
     lang,
   )

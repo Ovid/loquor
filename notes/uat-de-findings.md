@@ -493,32 +493,45 @@ pinned by a regression test (`src/llm/lexicon/parse.de-uat.test.ts` for input,
   isConfirmationPrompt / isDisambiguationPrompt / isOrphanPrompt, so the
   player's answer now passes raw. (F1's English re-prompt is cosmetic, untouched.)
 
-### DEFERRED (with reasons — not done this run)
-- **F16 / F30 [MAJOR, top remaining]** — conjoined PUT + trailing prep phrase
-  (`lege A und B in die Vitrine`) drops the destination. Root cause: `splitClauses`
-  splits on `und` into `["lege A", "B in die Vitrine"]`; only the LAST conjunct
-  keeps the prep tail, so earlier conjuncts emit object-only `put A` → orphan
-  prompt → "Ran 1 of N". Real fix = distribute the trailing prep-phrase to the
-  earlier verbless-object conjuncts in `fillElidedVerbs`; involved + risky, and a
-  reliable workaround exists (case ONE object at a time). Needs its own focused pass.
-- **F13** — compound aborts after a failed first clause ("Ran 1 of 2"). This is
-  locked-decision-3 stop-on-error behavior; skip-and-continue is a *product
-  decision*, not a bug. Flag for Ovid.
-- **F3 [contested]** — `zettel` → owner's manual was set deliberately in commit
-  d850222 (I2); this UAT wants it on the leaflet instead. Genuine ambiguity —
-  needs Ovid's call; left as-is.
-- **F8, F11, F19, F29 [output corpus]** — F8 plural agreement ("Hier ist Kerzen"
-  → "sind"; the `{obj.indef}` floor template carries no number). F11 quiet Loud
-  Room desc, F19 put-orphan template, F29 Frobozz boat label = missing German
-  corpus entries (content authoring, gated by the walkthrough-coverage test).
-  F19 also unblocks fully-reliable German orphan detection.
-- **F26, F27 [minor input, have workarounds]** — `steig aus dem Boot` (separable
-  verb whose particle isn't clause-final → existing `steig+aus` can't fire);
-  `hebe den Korb` (bare `hebe` is ambiguous lift=take vs raise). Both need
-  careful disambiguation; passthrough workarounds documented above.
-- **Cosmetic** — F6 (Buch→page, harmless), F17 (genitive "deines Messers"),
-  F18/F23 (treasures with multiple display names), F31 (lit-lamp descriptor),
-  F10/F14/F21/F9 (confirmed-GOOD, no action).
+### FIXED — round 2 (player-experience pushback)
+Ovid pushed back: "product decision" is not a reason to leave a behavior that
+hurts the player. Four parked items were player-facing failures on natural
+commands and are now fixed (this rule is now in CLAUDE.md):
+- **F16 / F30 [MAJOR]** — conjoined PUT + shared container (`lege A und B in die
+  Vitrine`) dropped the destination on the first conjunct → orphan → "Ran 1 of
+  N", and the orphan broke the next command. New `distributePrepTail` (after
+  `fillElidedVerbs`) appends the last clause's trailing `<prep> <indirect>` to the
+  run of preceding same-verb conjuncts; same-verb guard keeps real two-command
+  lines intact. Fixes fr/es too (the old F-S test pinned the bug; updated).
+- **F3** — `lies den Zettel` (the FIRST natural action at the mailbox) failed;
+  `zettel` moved from the (absent) owner's manual to the leaflet.
+- **F26** — `steig aus dem Boot` now → `exit` (verb-only AND verbs1; was
+  `disembark`, verbs1-only) via the particle + a `steig aus` idiom.
+- **F27** — bare `hebe den Korb` → `raise` (symmetric with `senke`→lower).
+
+### STILL OPEN — flagged, NOT silently deferred
+- **F13** — compound aborts after a failed first clause ("Ran 1 of 2"). Kept as-is
+  on PURPOSE, and here's the player-experience reasoning (per the CLAUDE.md rule):
+  it is locked-decision-3 stop-on-error. It **protects dependent chains** (`öffne
+  die Tür und geh nach Norden` shouldn't walk into a wall after the open failed),
+  the truncation is **transparent** ("Ran 1 of N actions") and **recoverable**
+  (retype the rest), and it never guesses. The downside is only for INDEPENDENT
+  object-lists where an early item is unknown — less forgiving than original Zork.
+  Net: arguably a *good* UX trade. **Ovid — override if you'd rather it
+  skip-and-continue; the safe version is "continue on in-game FAILURE, still STOP
+  on a PROMPT" (the two stop conditions are already separate in the pipeline).**
+- **F8, F11, F19, F29 [output corpus, low player-harm]** — F8 wrong number
+  agreement ("Hier ist Kerzen" → "sind"; the `{obj.indef}` floor template carries
+  no number). F11 quiet Loud Room desc, F19 put-orphan template, F29 Frobozz boat
+  label ("BOOT" mis-rendered "Bahn") = missing German corpus entries → LLM
+  fallbacks. Player impact: off-golden-path flavor text only — visibly imperfect
+  German, never blocking. Real quality dings worth a content pass; gated by the
+  walkthrough-coverage test. (F19 also unblocks fully-reliable German orphan
+  detection.) Flagging, not hiding: these are low-harm but not zero.
+- **Cosmetic (negligible player-harm)** — F6 (Buch→page, harmless), F17 (genitive
+  "deines Messers"), F18/F23 (treasures with multiple display names), F31
+  (lit-lamp descriptor), F1 (English restart re-prompt). F10/F14/F21/F9 =
+  confirmed-GOOD, no action.
 
 ### Progress log (Session 3, FINAL)
 - **Turn 486, Score 350/350, deathless. Rank: Meisterabenteurer (Master Adventurer). GAME WON.**

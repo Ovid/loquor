@@ -29,8 +29,12 @@ export function useFocusTrap(
     initialFocusRef?: React.RefObject<HTMLElement | null>
   },
 ): void {
+  // Keep the latest onEscape in a ref (updated in an effect, not during render)
+  // so a changing handler doesn't re-run the trap effect and steal focus.
   const onEscapeRef = useRef(onEscape)
-  onEscapeRef.current = onEscape
+  useEffect(() => {
+    onEscapeRef.current = onEscape
+  })
 
   useEffect(() => {
     if (!active) return

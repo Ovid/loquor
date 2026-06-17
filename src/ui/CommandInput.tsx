@@ -40,9 +40,13 @@ export function CommandInput({
   // Redundant-entry recovery (3.3.7, M8): a failed/abstained command is cleared
   // on submit; put it back so the player can edit rather than retype it — unless
   // they've already begun the next line (NL keeps the field live for type-ahead).
+  // `restore` is a parent-driven imperative signal keyed by `restore.key`;
+  // syncing it into field state is the intended effect use, and depending on the
+  // key (not the text) lets two identical consecutive failures both restore.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (restore?.text) setValue(v => (v === '' ? restore.text : v))
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- bump on key only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restore?.key])
 
   // Keep focus on the prompt whenever the VM awaits a line AND the field is

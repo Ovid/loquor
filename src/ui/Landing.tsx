@@ -38,11 +38,11 @@ export function Landing({
           : 0
     if (delta === 0) return
     e.preventDefault()
-    const next = GAMES[(i + delta + GAMES.length) % GAMES.length]
-    setSelected(next.slug)
-    volumesRef.current
-      ?.querySelectorAll<HTMLElement>('[role="radio"]')
-      [(i + delta + GAMES.length) % GAMES.length]?.focus()
+    const nextIndex = (i + delta + GAMES.length) % GAMES.length
+    setSelected(GAMES[nextIndex].slug)
+    const radios =
+      volumesRef.current?.querySelectorAll<HTMLElement>('[role="radio"]')
+    radios?.[nextIndex]?.focus()
   }
 
   // Overlay-only behaviour (the in-game "Change story" picker): Escape returns to

@@ -113,3 +113,31 @@ you open it
 > open advertisement
 
 You can't see any advertisement here!
+
+---
+
+Another parsing issue
+
+RK I: The Great Underground Empire
+
+Infocom interactive fiction - a fantasy story
+
+Copyright (c) 1981, 1982, 1983, 1984, 1985, 1986 Infocom, Inc. All rights reserved.
+
+ZORK is a registered trademark of Infocom, Inc.
+
+Release 119 / Serial number 880429
+
+West of House
+
+You are standing in an open field west of a white house, with a boarded front door.
+
+There is a small mailbox here.
+
+> open it, take the paper, and read it
+
+Opening the small mailbox reveals a leaflet.
+
+There seems to be a noun missing in that sentence!
+
+>

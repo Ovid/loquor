@@ -69,6 +69,11 @@ export function Terminal({
   const [echoMap, setEchoMap] = useState<ReadonlyMap<string, string>>(
     () => new Map(),
   )
+  // A line a failed translation discarded, handed to CommandInput to restore so
+  // the player can edit it instead of retyping (M8). `key` bumps per failure.
+  const [restore, setRestore] = useState<{ text: string; key: number } | null>(
+    null,
+  )
   const recordEcho = useCallback((canonical: string, source: string) => {
     const k = loudEchoToken(canonical)
     const v = loudEchoToken(source)
@@ -219,10 +224,17 @@ export function Terminal({
                 : 'type a command…'
             }
             lang={nlLang}
+            restore={restore ?? undefined}
             onSubmit={text => {
               // The Loud Room echo is re-voiced per clause via recordEcho as the
               // pipeline sends each canonical command (loudEcho / F6).
-              if (nl.state.phase === 'on') void nl.translate(text)
+              if (nl.state.phase === 'on')
+                void nl.translate(text).then(retained => {
+                  // Non-EN abstain/timeout/failure sent nothing — restore the
+                  // discarded line so it isn't lost (M8).
+                  if (retained != null)
+                    setRestore(r => ({ text: retained, key: (r?.key ?? 0) + 1 }))
+                })
               else if (engineRef.current) engineRef.current.sendLine(text)
               // Practically unreachable (engine is set synchronously and input is
               // disabled until a line request), but warn rather than silently

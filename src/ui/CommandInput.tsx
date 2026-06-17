@@ -10,6 +10,7 @@ export function CommandInput({
   label = 'Game command',
   placeholder = 'type a command…',
   lang,
+  restore,
 }: {
   onSubmit: (text: string) => void
   disabled?: boolean
@@ -27,10 +28,22 @@ export function CommandInput({
   /** Language the field expects, so a screen reader pronounces the localized
    *  placeholder/value right; omitted (undefined) for English. */
   lang?: string
+  /** A discarded line to put back after a failed translation (M8) — restored
+   *  only if the player hasn't started typing the next command. `key` bumps per
+   *  request so two identical failures both restore. */
+  restore?: { text: string; key: number }
 }) {
   const internalRef = useRef<HTMLInputElement>(null)
   const ref = inputRef ?? internalRef
   const [value, setValue] = useState('')
+
+  // Redundant-entry recovery (3.3.7, M8): a failed/abstained command is cleared
+  // on submit; put it back so the player can edit rather than retype it — unless
+  // they've already begun the next line (NL keeps the field live for type-ahead).
+  useEffect(() => {
+    if (restore?.text) setValue(v => (v === '' ? restore.text : v))
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- bump on key only
+  }, [restore?.key])
 
   // Keep focus on the prompt whenever the VM awaits a line AND the field is
   // enabled, so the player can keep typing without clicking back in. `disabled`

@@ -58,7 +58,10 @@ export interface UseNaturalLanguage {
   requestUpgrade: () => void
   declineDownload: () => void
   cancelDownload: () => void
-  translate: (english: string) => Promise<void>
+  /** Resolves to the typed line when it was a non-English submission that sent
+   * NOTHING (abstain/timeout/failure), so the caller can restore it to the
+   * field instead of discarding it (M8); null when the line was consumed. */
+  translate: (english: string) => Promise<string | null>
   /** Lines typed while a translation was in flight, waiting FIFO (F-A).
    * Rendered dimmed with a 'queued' chip; drained one at a time. */
   queued: QueuedLine[]

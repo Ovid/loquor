@@ -404,7 +404,7 @@ export interface TranslateDeps {
  */
 export function createTranslate(
   deps: TranslateDeps,
-): (english: string) => Promise<void> {
+): (english: string) => Promise<string | null> {
   const {
     internal,
     vocab,
@@ -433,6 +433,10 @@ export function createTranslate(
 
   return async (english: string) => {
     const tracker = trackerRef.current
+    // Set to the typed line when it sends nothing and should be restored to the
+    // field (M8) — a non-English abstain/timeout/failure. Stays null when the
+    // line is consumed (sent, queued, raw, or English raw-send).
+    let retainTyped: string | null = null
     // The live picker language for notices set OUTSIDE runLine (queue guard /
     // drain), where runLine's per-line `activeLang` isn't in scope (F1). Falls
     // back to 'en' when the layer isn't 'on' — defensive; the call sites below
@@ -449,7 +453,7 @@ export function createTranslate(
     if (internal.phase !== 'on' || vocab === null || tracker === null) {
       lastCommandRef.current = null
       sendLine(english)
-      return
+      return null
     }
     // A translation is already in flight — QUEUE this line instead of dropping
     // it (F-A, NL v2 §11): the input stays enabled while NL is on, so typing
@@ -460,11 +464,11 @@ export function createTranslate(
     if (translatingRef.current) {
       if (queueRef.current.length >= QUEUE_CAP) {
         setNotice(queueFullDropped(liveLang(), english))
-        return
+        return null
       }
       queueRef.current.push({ id: queueIdRef.current++, text: english })
       syncQueue()
-      return
+      return null
     }
     // [O] Snapshot the story epoch: the drain abandons everything (in-flight
     // results included) once the game underneath it changes.
@@ -816,6 +820,10 @@ export function createTranslate(
         } else {
           setNotice(couldntTranslate(activeLang))
         }
+        // Every non-English branch above sends NOTHING (only the EN arms
+        // raw-send); when that nothing-sent line is the player's typed input,
+        // hand it back so the field can restore it instead of discarding it (M8).
+        if (!fromQueue && activeLang !== 'en') retainTyped = line
       } else if (done < total) {
         // Truncated sequence → make it visible (decision 7); an engine
         // error labels the notice so it can't pass for a quiet stop ([B]).
@@ -892,6 +900,7 @@ export function createTranslate(
             const lang = liveLang()
             setNotice(modelDownloadFailed(lang))
             if (lang === 'en') sendTracked(line)
+            else if (!fromQueue) retainTyped = line // non-EN nothing-sent (M8)
             inSequenceRef.current = false
             line = queueRef.current.shift()?.text
             fromQueue = true
@@ -904,6 +913,8 @@ export function createTranslate(
           // F2/F-R: honor stage-8's abstain policy here too (this outer catch
           // catches the total===1 rethrow that bypassed the in-runLine path).
           abstainOnError(liveLang(), line, err instanceof WatchdogTimeout)
+          // Non-EN abstainOnError sends nothing → restore the typed line (M8).
+          if (!fromQueue && liveLang() !== 'en') retainTyped = line
         }
         // A compound that stopped mid-sequence leaves this set; reset it per
         // line so Terminal's observe effect resumes for later queued lines.
@@ -967,6 +978,7 @@ export function createTranslate(
       setPending(false)
       inSequenceRef.current = false
     }
+    return retainTyped
   }
 }
 

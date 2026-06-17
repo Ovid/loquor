@@ -309,7 +309,7 @@ describe('useNaturalLanguage', () => {
     })
     const { hook } = setup({ engine })
     await reachOn(hook)
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('go')
     })
@@ -345,7 +345,7 @@ describe('useNaturalLanguage', () => {
     const { hook, sendLine } = setup({ engine, watchdogMs: 1000 })
     await reachOn(hook) // real timers: load resolves immediately
     vi.useFakeTimers()
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('take lantern')
     })
@@ -593,7 +593,7 @@ describe('useNaturalLanguage', () => {
     const { hook, sendLine } = setup({ engine: stalledEngine })
     await waitFor(() => expect(hook.result.current.state.phase).toBe('on'))
     vi.useFakeTimers()
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('sing a ditty')
     })
@@ -623,7 +623,7 @@ describe('useNaturalLanguage', () => {
     })
     const { hook, sendLine } = setup({ engine })
     await reachOn(hook)
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('open the mailbox') // drain in flight
     })
@@ -944,7 +944,7 @@ describe('useNaturalLanguage', () => {
       ),
     )
     vi.useFakeTimers()
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('look and check inventory')
     })
@@ -1253,7 +1253,7 @@ describe('useNaturalLanguage', () => {
       ),
     )
     vi.useFakeTimers()
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('open mailbox and take leaflet')
     })
@@ -1387,7 +1387,7 @@ describe('useNaturalLanguage', () => {
       ),
     )
     expect(hook.result.current.isSequencing()).toBe(false)
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('open mailbox and take it')
     })
@@ -1472,7 +1472,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
         viewState('West of House', ['There is a small mailbox here.']),
       ),
     )
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('open the mailbox')
     })
@@ -1502,7 +1502,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
     })
     const { hook } = setup({ engine })
     await reachOn(hook)
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('open the mailbox')
     })
@@ -1539,7 +1539,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
     })
     const { hook } = setup({ engine })
     await reachOn(hook)
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('open the mailbox') // in flight
     })
@@ -1589,7 +1589,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
         viewState('West of House', ['There is a small mailbox here.']),
       ),
     )
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('open the mailbox')
     })
@@ -1640,7 +1640,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
     const getContext = () => ({ location: 'West of House', recentOutput: '' })
     const { hook } = setup({ engine, sendLine, awaitTurn, getContext })
     await reachOn(hook)
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('quit')
       void hook.result.current.translate('north')
@@ -1685,7 +1685,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
         viewState('West of House', ['There is a small mailbox here.']),
       ),
     )
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('open the mailbox')
     })
@@ -1721,7 +1721,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
       }),
     )
     act(() => hook.result.current.setLanguage('fr'))
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('blorple le ciel') // LLM → abstain
     })
@@ -1765,7 +1765,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
       }),
     )
     act(() => hook.result.current.setLanguage('fr'))
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('blorple le ciel') // fr, slow LLM
     })
@@ -1788,7 +1788,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
     })
     const { hook, sendLine } = setup({ engine })
     await reachOn(hook)
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('open the mailbox')
     })
@@ -1836,7 +1836,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
     })
     act(() => hook.result.current.requestDownload())
     await waitFor(() => expect(hook.result.current.state.phase).toBe('on'))
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('open the mailbox')
     })
@@ -2084,7 +2084,7 @@ describe('NL v2 pipeline stages (spec §4)', () => {
     const engine = new FakeLlmEngine({ cached: true, generateDelayMs: 10000 })
     const { hook, sendLine } = await setupFr({ engine, watchdogMs: 1000 })
     vi.useFakeTimers()
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate(
         'frobnicate la trappe et ouvre la trappe',
@@ -2162,7 +2162,7 @@ describe('EngineGate integration (output-translation spec §6)', () => {
 
     // Submit a line that reaches the LLM stage — it must queue behind the
     // held output task and still complete once the output task releases.
-    let translateDone!: Promise<void>
+    let translateDone!: Promise<string | null>
     act(() => {
       translateDone = hook.result.current.translate('open the mailbox')
     })

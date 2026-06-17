@@ -59,6 +59,30 @@ describe('CommandInput', () => {
     expect(onSubmit).not.toHaveBeenCalled()
   })
 
+  it('restores a discarded line on request, but not over new typing (M8)', () => {
+    const { rerender } = render(<CommandInput onSubmit={() => {}} />)
+    const input = field()
+    // A failed translation asks to restore the cleared line.
+    rerender(
+      <CommandInput
+        onSubmit={() => {}}
+        restore={{ text: 'ouvre la boîte', key: 1 }}
+      />,
+    )
+    expect(input.value).toBe('ouvre la boîte')
+
+    // If the player has already started the next command, a later restore must
+    // not clobber it.
+    fireEvent.change(input, { target: { value: 'regarde' } })
+    rerender(
+      <CommandInput
+        onSubmit={() => {}}
+        restore={{ text: 'prends la lampe', key: 2 }}
+      />,
+    )
+    expect(input.value).toBe('regarde')
+  })
+
   it('routes a single keystroke to onKey while awaiting a char prompt', () => {
     const onKey = vi.fn()
     render(<CommandInput onSubmit={() => {}} awaitingKey onKey={onKey} />)

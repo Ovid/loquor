@@ -308,7 +308,7 @@ function makeTranslate(opts: {
   educatedRef: { current: boolean }
   sendLine?: (text: string) => void
   watchdogMs?: number
-}): (english: string) => Promise<void> {
+}): (english: string) => Promise<string | null> {
   const watchdogMs = opts.watchdogMs ?? 1000
   const generateRaw = createGenerateRaw({
     engine: opts.engine,
@@ -423,5 +423,32 @@ describe('createTranslate grammar-only + demotion', () => {
     expect(engine.generateCalls).toBe(0)
     expect(sendLine).toHaveBeenCalledWith('frobnicate the gadget')
     expect(setNotice).not.toHaveBeenCalledWith(grammarOnlyFirstMiss('en'))
+  })
+
+  it('returns the typed line to restore on a non-EN nothing-sent abstain (M8)', async () => {
+    const engine = new FakeLlmEngine({ default: 'X' })
+    const t = makeTranslate({
+      engine,
+      internalOn: on('fr', 'grammar'),
+      setNotice: vi.fn(),
+      demote: vi.fn(),
+      educatedRef: { current: false },
+    })
+    // Non-EN abstain sends nothing → hand the line back for restore.
+    expect(await t('frobnique le gadget')).toBe('frobnique le gadget')
+  })
+
+  it('returns null when EN raw-sends the line (nothing to restore) (M8)', async () => {
+    const engine = new FakeLlmEngine({ default: 'X' })
+    const t = makeTranslate({
+      engine,
+      internalOn: on('en', 'grammar'),
+      setNotice: vi.fn(),
+      sendLine: vi.fn(),
+      demote: vi.fn(),
+      educatedRef: { current: false },
+    })
+    // EN abstain raw-sends to the Z-parser → the field should clear, not restore.
+    expect(await t('frobnicate the gadget')).toBeNull()
   })
 })

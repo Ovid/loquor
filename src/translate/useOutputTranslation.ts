@@ -22,7 +22,7 @@ import type { LlmEngine, NlLanguage } from '../llm/types'
 import type { LexLang } from '../llm/lexicon/types'
 import { EngineGate } from '../shared/engineGate'
 import type { TranslationCorpus } from './types'
-import { corpusFor } from './corpus/index'
+import { corpusFor, CORPUS_ONLY_LANGS } from './corpus/index'
 import {
   compileCorpus,
   matchLine,
@@ -37,13 +37,17 @@ import { installMissDump, logMiss } from './missLog'
 import { shimmerLabel } from './xlPrompt'
 import { createFallbackResolver, type OverlayState } from './fallbackResolve'
 
+/** The active OUTPUT language: the input-lexicon languages (LexLang) plus 'ka'
+ * (Georgian — display corpus but no input lexicon; corpus-only output). */
+export type OutLang = LexLang | 'ka'
+
 export interface DisplayLine extends BufferLine {
   /** True while the LLM fallback is in flight (renders the shimmer). */
   pending?: boolean
   /** The natural language this line's text is actually in (3.1.2), e.g. 'fr'.
    * Set on translated output/room lines and on the player's nl-source input;
    * absent means English (the document's default), so it carries no attribute. */
-  lang?: LexLang
+  lang?: OutLang
 }
 
 /** The overlay's render output. NOTE: producing it is effectful — see the
@@ -114,10 +118,27 @@ export function useOutputTranslation(args: {
   const watchdogMs = args.watchdogMs ?? XLATE_WATCHDOG_MS
   const echoMap = args.echoMap ?? null
 
-  const lang: LexLang | null =
-    language === 'fr' || language === 'de' || language === 'es'
+  // `lang` is the active OUTPUT language. It admits 'ka' in addition to the
+  // input-lexicon languages (LexLang = fr|de|es): Georgian has a display corpus
+  // but no input lexicon (Task 0 kept LexLang input-only on purpose), and its
+  // output is corpus-only (CORPUS_ONLY_LANGS) — a miss degrades to English and
+  // is logged, the LLM fallback is never engaged. Everything `lang` flows into
+  // here (corpusFor, translateStatus, cacheDelete, logMiss, the DisplayLine
+  // lang stamp) already accepts the wider type; only the LLM-fallback machinery
+  // (createFallbackResolver, shimmerLabel) needs the narrower LexLang, and for
+  // 'ka' that machinery is never reached — see `lexLang` below and the
+  // corpus-only miss branch.
+  const lang: OutLang | null =
+    language === 'fr' ||
+    language === 'de' ||
+    language === 'es' ||
+    language === 'ka'
       ? language
       : null
+  // The subset of `lang` that has an LLM fallback (i.e. not corpus-only): used
+  // only where a LexLang is structurally required. Null for 'ka' / inactive.
+  const lexLang: LexLang | null =
+    lang !== null && !CORPUS_ONLY_LANGS.has(lang) ? (lang as LexLang) : null
   const corpus: CompiledCorpus | null = useMemo(() => {
     if (lang === null) return null
     const c = corpusOverride ?? corpusFor(signature, lang)
@@ -223,21 +244,26 @@ export function useOutputTranslation(args: {
     // createFallbackResolver (F-3). It closes over the same refs/config this
     // effect holds — settle()/failEnglish() mutate the live basis/retry state —
     // so the scan below reads as orchestration: snapshot misses, drive resolve.
-    const { resolve, settle, markPending } = createFallbackResolver({
-      corpus,
-      lang,
-      signature,
-      engine,
-      gate,
-      watchdogMs,
-      ctx,
-      epoch,
-      epochRef,
-      basisRef,
-      retryRef,
-      acsRef,
-      setOverlay,
-    })
+    // Corpus-only languages (ka) have no LLM fallback, so the resolver is null
+    // for them — their misses are handled by the corpus-only branch below
+    // (degrade to English + log), which never touches resolve/markPending.
+    const resolver = lexLang
+      ? createFallbackResolver({
+          corpus,
+          lang: lexLang,
+          signature,
+          engine,
+          gate,
+          watchdogMs,
+          ctx,
+          epoch,
+          epochRef,
+          basisRef,
+          retryRef,
+          acsRef,
+          setOverlay,
+        })
+      : null
 
     // Skipping the bare '>' prompt here matters beyond noise: Scrollback hides
     // it only while its text is literally '>' — a hallucinated "translation"
@@ -259,6 +285,33 @@ export function useOutputTranslation(args: {
         const d = echoFreeze.get(l)
         if (d !== undefined && d !== null) continue
       }
+      // Corpus-only languages (spec §3): a miss degrades to English and is
+      // logged once per text — the LLM fallback is NEVER engaged (the small
+      // models cannot produce correct Georgian). Mark the basis so the `=== en`
+      // guard skips it on later renders; render falls through to English
+      // because no overlay entry is ever created for this id. Placed ahead of
+      // the backlog/live branches so ka never reaches the (null) resolver and
+      // every ka miss logs uniformly as kind 'line'.
+      if (CORPUS_ONLY_LANGS.has(lang)) {
+        if (basisRef.current.get(l.id) !== en) {
+          basisRef.current.set(l.id, en)
+          const { core } = splitPromptResidue(en)
+          logMiss({
+            en: core,
+            game: signature,
+            language: lang,
+            kind: 'line',
+            ctx,
+          })
+        }
+        continue
+      }
+      // Past the corpus-only continue, the language has an LLM fallback, so the
+      // resolver exists (built above whenever lexLang is non-null). The guard
+      // narrows the type for the resolver-driven branches below; it never fires
+      // at runtime (ka is the only resolver-less language and it continued).
+      if (!resolver) continue
+      const { resolve, settle, markPending } = resolver
       if (backlogRef.current.has(l.id)) {
         // Gate on TEXT, not id: an append merge onto a backlog tail line
         // changes its text — that's a different EN line, so it logs again and
@@ -317,7 +370,7 @@ export function useOutputTranslation(args: {
     // echoMap is intentionally NOT a dep (review S2): this effect no longer reads
     // it — the Loud Room skip keys off echoFreeze (frozen in the memo), and
     // re-scanning every view line on each keystroke would be pure wasted work.
-  }, [view, corpus, lang, signature, engine, gate, watchdogMs])
+  }, [view, corpus, lang, lexLang, signature, engine, gate, watchdogMs])
 
   const lines: DisplayLine[] = useMemo(() => {
     // en/off: pure passthrough — keep the array identity (callers/tests rely on
@@ -355,14 +408,18 @@ export function useOutputTranslation(args: {
           return { ...l, text: indent + `${d} ${d} ...`, lang }
         if (d === false) return l
       }
-      const o = resolved?.get(l.id)
+      // lexLang is non-null whenever an overlay entry can exist (only languages
+      // with an LLM fallback ever create one); corpus-only langs (ka) never
+      // populate `resolved`, so this whole block is dead for them. The guard
+      // both narrows lexLang to LexLang for shimmerLabel and documents that.
+      const o = lexLang ? resolved?.get(l.id) : undefined
       // Basis check: an entry resolved from different (pre-merge) text is
       // stale for THIS text — ignore it (English) until the new text settles.
-      if (o !== undefined && o.en === en) {
+      if (o !== undefined && o.en === en && lexLang) {
         if (o.res === 'pending')
           return {
             ...l,
-            text: indent + shimmerLabel(lang),
+            text: indent + shimmerLabel(lexLang),
             pending: true,
             lang,
           }
@@ -370,7 +427,15 @@ export function useOutputTranslation(args: {
       }
       return l // backlog miss, failure, or superseded entry → English
     })
-  }, [view.lines, view.status?.location, corpus, overlay, lang, echoMap])
+  }, [
+    view.lines,
+    view.status?.location,
+    corpus,
+    overlay,
+    lang,
+    lexLang,
+    echoMap,
+  ])
 
   const status: StatusLine | null = useMemo(() => {
     if (!corpus || lang === null || view.status === null) return view.status

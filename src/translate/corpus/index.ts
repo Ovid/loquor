@@ -8,6 +8,11 @@ import { ZORK1_FR } from './zork1.fr'
 import { ZORK1_ES } from './zork1.es'
 import { ZORK1_DE } from './zork1.de'
 
+/** Languages whose output is corpus-only: a miss degrades to English and is
+ *  logged, never sent to the LLM fallback. Georgian — the small WebLLM models
+ *  cannot produce correct Georgian, so a fallback would emit garbage (spec §3). */
+export const CORPUS_ONLY_LANGS: ReadonlySet<NlLanguage> = new Set(['ka'])
+
 const CORPORA: Readonly<
   Record<string, Partial<Record<string, TranslationCorpus>>>
 > = {

@@ -7,6 +7,7 @@ import { FakeLlmEngine } from '../llm/engine.fake'
 import { cacheGet, cacheSet } from './fallbackCache'
 import * as idb from '../storage/idb'
 import { readMisses } from './missLog'
+import { CORPUS_ONLY_LANGS } from './corpus/index'
 import type { ViewState, BufferLine } from '../glkote-react/types'
 import { viewToContext } from '../llm/prompt'
 import { isConfirmationPrompt } from '../llm/inputTranslate'
@@ -1127,5 +1128,54 @@ describe('Loud Room input echo (UAT F6)', () => {
       em: new Map([['look', 'prends']]),
     })
     expect(result.current.lines[0].text).toBe('regarde regarde ...')
+  })
+})
+
+// Georgian (ka) is corpus-only (spec §3): a corpus miss degrades to English and
+// is logged, but the WebLLM fallback is NEVER engaged — the small models cannot
+// produce correct Georgian, so a fallback would emit garbage. This is gated to
+// 'ka'; fr/de/es fallback behavior must stay byte-for-byte unchanged.
+describe('corpus-only languages (Georgian, spec §3)', () => {
+  it('ka: an uncovered line stays English and logs a miss, never the LLM', async () => {
+    const engine = new FakeLlmEngine({ default: 'should-not-appear' })
+    await engine.load(() => {}, new AbortController().signal)
+    const gen = vi.spyOn(engine, 'generate')
+    // Activation with an empty transcript so the line below is a LIVE miss, not
+    // backlog (backlog never generates regardless — this proves the live path).
+    const { result, rerender } = setup({
+      engine,
+      language: 'ka',
+      initial: view([]),
+    })
+    rerender({ v: view([line('output', 'Snarf.')]), lang: 'ka' })
+    // settle any (wrongly-) started async work before asserting.
+    await act(async () => {})
+    expect(result.current.lines.at(-1)!.text).toBe('Snarf.') // stays English
+    expect(result.current.lines.at(-1)!.pending).toBeFalsy() // never goes pending
+    expect(gen).not.toHaveBeenCalled() // LLM never engaged
+    expect(
+      readMisses().some(m => m.language === 'ka' && m.en === 'Snarf.'),
+    ).toBe(true)
+  })
+
+  it('fr: an uncovered line still attempts the LLM fallback (regression guard)', async () => {
+    const engine = new FakeLlmEngine({ default: 'Repli.' })
+    await engine.load(() => {}, new AbortController().signal)
+    const gen = vi.spyOn(engine, 'generate').mockResolvedValue('…')
+    const { result, rerender } = setup({
+      engine,
+      language: 'fr',
+      initial: view([]),
+    })
+    rerender({ v: view([line('output', 'Snarf.')]), lang: 'fr' })
+    expect(result.current.lines.at(-1)!.pending).toBe(true) // shimmer / fallback runs
+    await waitFor(() => expect(gen).toHaveBeenCalled())
+  })
+
+  it('ka is corpus-only; fr/de/es are not', () => {
+    expect(CORPUS_ONLY_LANGS.has('ka')).toBe(true)
+    expect(
+      ['fr', 'de', 'es'].some(l => CORPUS_ONLY_LANGS.has(l as never)),
+    ).toBe(false)
   })
 })

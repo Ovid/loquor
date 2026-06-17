@@ -38,7 +38,6 @@ export function NlLanguagePicker({
 
   return (
     <span className="nl-toggle">
-      Language:{' '}
       <LanguageCombobox
         options={OPTIONS}
         value={value}

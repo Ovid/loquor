@@ -238,4 +238,19 @@ describe('NlLanguagePicker', () => {
       screen.queryByRole('button', { name: /improve|try the model/i }),
     ).toBeNull()
   })
+
+  it('drops the visible "Language:" text but keeps the combobox accessible name', () => {
+    render(
+      <NlLanguagePicker
+        state={{ phase: 'on', language: 'fr', model: 'grammar', canUpgrade: true }}
+        onSelect={() => {}}
+        onUpgrade={() => {}}
+      />,
+    )
+    // The accessible name comes from aria-label on the combobox, not visible text:
+    expect(
+      screen.getByRole('combobox', { name: 'Language' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/^Language:/)).not.toBeInTheDocument()
+  })
 })

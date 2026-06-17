@@ -21,9 +21,7 @@ import type { Scene } from '../llm/scene/types'
 // Foreign play languages, derived from the source of truth (not a hardcoded
 // list) so a new play language is forced through this gate too — mirroring the
 // LANDING_EXAMPLES key type (review I1).
-const FOREIGN = NL_LANGUAGES.filter(
-  l => l !== 'off' && l !== 'en',
-) as LexLang[]
+const FOREIGN = NL_LANGUAGES.filter(l => l !== 'off' && l !== 'en') as LexLang[]
 
 const GAMES: [string, Vocab][] = [
   [ZORK1_SIG, ZORK1_VOCAB],

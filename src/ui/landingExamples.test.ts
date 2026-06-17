@@ -13,9 +13,17 @@ import { ZORK1_SIG, ZORK2_SIG, ZORK3_SIG } from '../llm/grammar/index'
 import { ZORK1_VOCAB } from '../llm/grammar/zork1.vocab'
 import { ZORK2_VOCAB } from '../llm/grammar/zork2.vocab'
 import { ZORK3_VOCAB } from '../llm/grammar/zork3.vocab'
+import { NL_LANGUAGES } from '../llm/types'
 import type { Vocab } from '../llm/grammar/types'
 import type { LexLang } from '../llm/lexicon/types'
 import type { Scene } from '../llm/scene/types'
+
+// Foreign play languages, derived from the source of truth (not a hardcoded
+// list) so a new play language is forced through this gate too — mirroring the
+// LANDING_EXAMPLES key type (review I1).
+const FOREIGN = NL_LANGUAGES.filter(
+  l => l !== 'off' && l !== 'en',
+) as LexLang[]
 
 const GAMES: [string, Vocab][] = [
   [ZORK1_SIG, ZORK1_VOCAB],
@@ -57,7 +65,7 @@ describe('landing examples parse in basic mode for every game', () => {
         }
       }
     })
-    for (const lang of ['fr', 'de', 'es'] as LexLang[]) {
+    for (const lang of FOREIGN) {
       it(`${lang} examples parse deterministically (${sig.slice(0, 6)})`, () => {
         for (const example of LANDING_EXAMPLES[lang]) {
           for (const clause of splitClauses(example)) {

@@ -364,6 +364,54 @@ describe('Terminal', () => {
     })
   })
 
+  describe('Georgian beta notice (spec §5)', () => {
+    it('announces a bilingual beta notice on first Georgian activation', async () => {
+      nlOverride = {
+        state: {
+          phase: 'on',
+          language: 'ka',
+          model: 'grammar',
+          canUpgrade: true,
+        },
+      }
+      try {
+        render(
+          <Terminal
+            storyBytes={bytes}
+            storyTitle="Zork I"
+            onChangeStory={() => {}}
+            themeToggle={null}
+          />,
+        )
+        const status = await screen.findByRole('status', {}, { timeout: 8000 })
+        expect(status).toHaveTextContent(/ქართული თარგმანი ჯერ სატესტოა/)
+        expect(status).toHaveTextContent(/Georgian is a beta translation/)
+      } finally {
+        nlOverride = null
+      }
+    })
+
+    it('does not show the beta notice for French', async () => {
+      nlOverride = {
+        state: { phase: 'on', language: 'fr', model: 'full', canUpgrade: true },
+      }
+      try {
+        render(
+          <Terminal
+            storyBytes={bytes}
+            storyTitle="Zork I"
+            onChangeStory={() => {}}
+            themeToggle={null}
+          />,
+        )
+        const status = await screen.findByRole('status', {}, { timeout: 8000 })
+        expect(status).not.toHaveTextContent(/beta translation/)
+      } finally {
+        nlOverride = null
+      }
+    })
+  })
+
   describe('preferences', () => {
     it('opens the Preferences modal from the ⚙ button and toggles debug', async () => {
       render(

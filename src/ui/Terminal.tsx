@@ -163,6 +163,14 @@ export function Terminal({
   const activeLang = nl.state.phase === 'on' ? nl.state.language : 'en'
   const nlLang = activeLang !== 'en' ? activeLang : undefined
 
+  // First-class a11y (spec §5): a Georgian player is told, in their own language
+  // and English, that the translation is beta and may show English. Rendered in
+  // the existing role=status live region (no new live region).
+  const betaNotice =
+    outLang === 'ka'
+      ? 'ქართული თარგმანი ჯერ სატესტოა — ზოგი ტექსტი შეიძლება ინგლისურად გამოჩნდეს. / Georgian is a beta translation; some text may still appear in English.'
+      : null
+
   // Live download progress for the modal — derived from NL state during render
   // (no separate state or effect needed).
   const dlProgress: LoadProgress | null =
@@ -251,6 +259,11 @@ export function Terminal({
               silent abstain (common in FR/DE/ES) is heard. Always mounted so the
               live region is registered before a notice appears. */}
           <div role="status" aria-live="polite" className="nl-status">
+            {betaNotice && (
+              <p className="nl-notice" lang="ka">
+                {betaNotice}
+              </p>
+            )}
             {nl.pending && (
               <p className="nl-thinking" lang={nlLang}>
                 {thinking(activeLang)}

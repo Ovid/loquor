@@ -2,16 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { NlState, NlLanguage } from '../llm/types'
 import { pct as toPct } from '../llm/progress'
 import { basicChip, downloadingChip } from '../llm/notices'
-
-// `lang` marks each label's natural language (3.1.2) so a screen reader voices
-// "Français"/"Deutsch"/"Español" with the right pronunciation inside the en doc.
-const OPTIONS: { value: NlLanguage; label: string; lang: string }[] = [
-  { value: 'off', label: 'Off', lang: 'en' },
-  { value: 'en', label: 'English', lang: 'en' },
-  { value: 'fr', label: 'Français', lang: 'fr' },
-  { value: 'de', label: 'Deutsch', lang: 'de' },
-  { value: 'es', label: 'Español', lang: 'es' },
-]
+import { LANGUAGE_OPTIONS as OPTIONS } from './languageOptions'
 
 /**
  * Status-bar language picker for the NL layer (replaces the old on/off toggle).

@@ -2,7 +2,7 @@
 // Player-first gate: a language can never ship half-English. Every ActiveLanguage
 // must define every LandingCopy field (non-empty), and a subtitle for every game.
 import { describe, it, expect } from 'vitest'
-import { LANDING_STRINGS } from './landingStrings'
+import { LANDING_STRINGS, type LandingCopy } from './landingStrings'
 import { NL_LANGUAGES } from '../llm/types'
 import { GAMES } from '../games/catalog'
 
@@ -24,6 +24,24 @@ const SCALAR_KEYS = [
 ] as const
 
 const FOOTER_KEYS = ['trademark', 'licenseLinkText', 'githubLinkText'] as const
+
+// Compile-time guard: SCALAR_KEYS / FOOTER_KEYS must each name every field of the
+// corresponding LandingCopy shape. Add a field to LandingCopy without listing it
+// here and these assignments stop compiling (caught by `tsc -b`) — the runtime
+// completeness checks above only cover the keys these arrays list.
+type Exhaustive<Listed extends readonly string[], All extends string> =
+  [Exclude<All, Listed[number]>] extends [never] ? true : Exclude<All, Listed[number]>
+const _scalarsCovered: Exhaustive<
+  typeof SCALAR_KEYS,
+  keyof Omit<LandingCopy, 'footer' | 'subtitles'>
+> = true
+const _footerCovered: Exhaustive<
+  typeof FOOTER_KEYS,
+  keyof LandingCopy['footer']
+> = true
+// reference the guards so they aren't flagged as unused
+void _scalarsCovered
+void _footerCovered
 
 describe('LANDING_STRINGS', () => {
   for (const lang of ACTIVE) {

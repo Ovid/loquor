@@ -74,7 +74,7 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
     descent: '— choisissez votre descente —',
     enter: 'Allumez la lampe →',
     resume:
-      '↩ une descente sauvegardée vous attend — vous reprendrez là où vous vous êtes arrêté',
+      '↩ une descente sauvegardée vous attend — vous reprendrez là où vous en étiez',
     returnToGame: 'Retour au jeu',
     changeStory: 'Changer d’histoire',
     footer: {

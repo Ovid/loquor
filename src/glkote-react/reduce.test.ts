@@ -367,6 +367,42 @@ describe('reduce', () => {
   })
 })
 
+describe('nl-canonical tagging', () => {
+  // A buffer "input echo" paragraph: append:true onto the tail, run style 'input'.
+  const echoUpdate = (cmd: string) => ({
+    type: 'update' as const,
+    content: [{ text: [{ append: true, content: ['input', cmd] }] }],
+  })
+  const outputUpdate = (txt: string) => ({
+    type: 'update' as const,
+    content: [{ text: [{ content: ['normal', txt] }] }],
+  })
+  const withNlSource = {
+    ...emptyView,
+    lines: [{ id: 1, kind: 'nl-source' as const, text: 'arriba' }],
+    nextId: 2,
+  }
+
+  it('tags a translated echo nl-canonical when canonicalEcho is set', () => {
+    const v = reduce(withNlSource, echoUpdate('up'), true)
+    const last = v.lines[v.lines.length - 1]
+    expect(last).toMatchObject({ kind: 'nl-canonical', text: 'up' })
+  })
+
+  it('leaves the echo as input when canonicalEcho is false', () => {
+    const v = reduce(withNlSource, echoUpdate('up'), false)
+    const last = v.lines[v.lines.length - 1]
+    expect(last).toMatchObject({ kind: 'input', text: 'up' })
+  })
+
+  it('carries nl-canonical inertly across a later update', () => {
+    const v1 = reduce(withNlSource, echoUpdate('up'), true)
+    const v2 = reduce(v1, outputUpdate('You climb up.'), false)
+    const canon = v2.lines.find(l => l.text === 'up')
+    expect(canon?.kind).toBe('nl-canonical')
+  })
+})
+
 // The string-inventory coverage gate (inventory.test.ts) calls classify()
 // directly as its room-title predicate (review I3). These pin the exact shape —
 // especially the two UAT-4 exclusions — so a change here can't silently drift

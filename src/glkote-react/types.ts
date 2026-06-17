@@ -1,7 +1,7 @@
 /** One rendered line in the main (buffer) window. */
 export interface BufferLine {
   id: number
-  kind: 'output' | 'input' | 'room' | 'nl-source'
+  kind: 'output' | 'input' | 'room' | 'nl-source' | 'nl-canonical'
   text: string
 }
 

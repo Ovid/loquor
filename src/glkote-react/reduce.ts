@@ -26,12 +26,14 @@ function firstStyle(content: unknown[]): string | undefined {
 
 /**
  * An accumulating buffer line: its display text, whether it is an echoed player
- * command (run style `"input"`), and the BufferLine it carried in the previous
- * state (so ids stay stable across `append`-driven mutations).
+ * command (run style `"input"`), whether it is a canonical (translated) echo,
+ * and the BufferLine it carried in the previous state (so ids stay stable
+ * across `append`-driven mutations).
  */
 interface Para {
   text: string
   input: boolean
+  canonical?: boolean
   prev?: BufferLine
 }
 
@@ -46,6 +48,7 @@ interface Para {
 function bufferParagraphs(
   c: Record<string, unknown>,
   previous: Para[],
+  canonicalEcho: boolean,
 ): Para[] {
   const paragraphs = (c.text ?? []) as Array<Record<string, unknown>>
   const emitted = previous.slice()
@@ -69,16 +72,22 @@ function bufferParagraphs(
 
     if (isInput && para.append && last && last.text.trim() === '>') {
       // Echoed command: drop the prompt char, keep the command, mark as input.
-      emitted[emitted.length - 1] = { text, input: true, prev: last.prev }
+      emitted[emitted.length - 1] = {
+        text,
+        input: true,
+        canonical: canonicalEcho,
+        prev: last.prev,
+      }
     } else if (para.append && last && !lastIsNlSource) {
-      // Merge onto the previous line (preserving its identity/input flag).
+      // Merge onto the previous line (preserving its identity/input/canonical flag).
       emitted[emitted.length - 1] = {
         text: last.text + text,
         input: last.input || isInput,
+        canonical: last.canonical,
         prev: last.prev,
       }
     } else {
-      emitted.push({ text, input: isInput })
+      emitted.push({ text, input: isInput, canonical: isInput && canonicalEcho })
     }
   }
 
@@ -160,7 +169,11 @@ function isEndOfGame(update: GlkOteUpdate): boolean {
  *     - entry has `lines[]` → grid (status) window
  *     - entry has `text[]`  → buffer (main transcript) window
  */
-export function reduce(prev: ViewState, update: GlkOteUpdate): ViewState {
+export function reduce(
+  prev: ViewState,
+  update: GlkOteUpdate,
+  canonicalEcho = false,
+): ViewState {
   let { status, inputRequest, ended, nextId } = prev
   const { lines } = prev
 
@@ -169,6 +182,7 @@ export function reduce(prev: ViewState, update: GlkOteUpdate): ViewState {
   let paras: Para[] = lines.map(l => ({
     text: l.text,
     input: l.kind === 'input',
+    canonical: l.kind === 'nl-canonical',
     prev: l,
   }))
 
@@ -184,7 +198,7 @@ export function reduce(prev: ViewState, update: GlkOteUpdate): ViewState {
       // glk_window_clear sets clear:true (glkapi.js:600-608) — drop the prior
       // transcript (and its prev refs) so RESTART/screen-clears start fresh.
       if (entry.clear) paras = []
-      paras = bufferParagraphs(entry, paras)
+      paras = bufferParagraphs(entry, paras, canonicalEcho)
     } else {
       // F-10: the VM↔React "update" contract is parsed by structural
       // shape-sniffing (lines[] ⇒ grid, text[] ⇒ buffer) with no version field.
@@ -202,14 +216,18 @@ export function reduce(prev: ViewState, update: GlkOteUpdate): ViewState {
   // Convert to BufferLine objects, reusing the previous object when a line is
   // unchanged (stable identity) and assigning a fresh id only to genuinely new
   // lines. An `input` line is an echoed command regardless of its text shape.
-  // UI-only kinds (e.g. 'nl-source') are carried inertly — the VM never touches
-  // them, so we preserve their original kind rather than reclassifying.
+  // UI-only kinds (e.g. 'nl-source', 'nl-canonical') are carried inertly — the
+  // VM never touches them, so we preserve their original kind rather than
+  // reclassifying. `canonical` takes precedence over `input` so that a
+  // translated echo is styled distinctly from a raw player echo.
   const newLines: BufferLine[] = paras.map(p => {
-    const kind = p.input
-      ? 'input'
-      : p.prev?.kind === 'nl-source'
-        ? 'nl-source'
-        : classify(p.text)
+    const kind = p.canonical
+      ? 'nl-canonical'
+      : p.input
+        ? 'input'
+        : p.prev?.kind === 'nl-source'
+          ? 'nl-source'
+          : classify(p.text)
     if (p.prev && p.prev.text === p.text && p.prev.kind === kind) return p.prev
     return { id: p.prev ? p.prev.id : nextId++, kind, text: p.text }
   })

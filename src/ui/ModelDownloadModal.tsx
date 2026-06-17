@@ -1,9 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import type { ActiveLanguage, LoadProgress } from '../llm/types'
 import { pct as toPct, formatEta } from '../llm/progress'
-
-const FOCUSABLE =
-  'button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])'
+import { useFocusTrap } from './useFocusTrap'
 
 interface ModalCopy {
   heading: string
@@ -83,47 +81,20 @@ export function ModelDownloadModal({
 }) {
   const dialogRef = useRef<HTMLDivElement>(null)
 
-  // Modal focus management (2.4.3): on open, move focus into the dialog and
-  // remember what had it; on close/unmount, restore focus to the trigger. Keyed
-  // on `open` and placed before the early return so the hook runs every render.
-  useEffect(() => {
-    if (!open) return
-    const previouslyFocused = document.activeElement as HTMLElement | null
-    dialogRef.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus()
-    return () => previouslyFocused?.focus?.()
-  }, [open])
+  // Modal focus management (2.4.3 / 2.1.2): trap Tab within the dialog, restore
+  // focus on close, and route Escape (Cancel while downloading, else Not now).
+  // Shared with the landing overlay via useFocusTrap so the two can't drift (I2).
+  const downloading = progress !== null
+  useFocusTrap(dialogRef, {
+    active: open,
+    onEscape: () => (downloading ? onCancel : onDecline)(),
+  })
 
   if (!open) return null
-  const downloading = progress !== null
   const pct = progress ? toPct(progress.loaded, progress.total) : 0
   const eta = formatEta(etaSeconds)
 
   const copy = COPY[lang]
-
-  // Escape dismisses (Cancel while downloading, else Not now); Tab cycles within
-  // the dialog so focus can't escape into the obscured game (aria-modal alone
-  // doesn't trap DOM focus).
-  function onKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Escape') {
-      e.preventDefault()
-      ;(downloading ? onCancel : onDecline)()
-      return
-    }
-    if (e.key !== 'Tab' || !dialogRef.current) return
-    const items = [
-      ...dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE),
-    ]
-    if (items.length === 0) return
-    const first = items[0]
-    const last = items[items.length - 1]
-    if (e.shiftKey && document.activeElement === first) {
-      e.preventDefault()
-      last.focus()
-    } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault()
-      first.focus()
-    }
-  }
 
   return (
     <div
@@ -132,7 +103,6 @@ export function ModelDownloadModal({
       aria-modal="true"
       aria-labelledby="nl-modal-title"
       ref={dialogRef}
-      onKeyDown={onKeyDown}
     >
       <div className="modal">
         <h2 id="nl-modal-title">{copy.heading}</h2>

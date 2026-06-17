@@ -252,7 +252,12 @@ describe('NlLanguagePicker', () => {
     // grammar-only and canUpgrade is true.
     render(
       <NlLanguagePicker
-        state={{ phase: 'on', language: 'ka', model: 'grammar', canUpgrade: true }}
+        state={{
+          phase: 'on',
+          language: 'ka',
+          model: 'grammar',
+          canUpgrade: true,
+        }}
         onSelect={() => {}}
         onUpgrade={() => {}}
         hideUpgrade
@@ -266,14 +271,17 @@ describe('NlLanguagePicker', () => {
   it('still shows the upgrade affordance for a grammar-only input language', () => {
     render(
       <NlLanguagePicker
-        state={{ phase: 'on', language: 'fr', model: 'grammar', canUpgrade: true }}
+        state={{
+          phase: 'on',
+          language: 'fr',
+          model: 'grammar',
+          canUpgrade: true,
+        }}
         onSelect={() => {}}
         onUpgrade={() => {}}
       />,
     )
-    expect(
-      screen.getByRole('button', { name: /improve/i }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /improve/i })).toBeInTheDocument()
   })
 
   it('drops the visible "Language:" text but keeps the combobox accessible name', () => {

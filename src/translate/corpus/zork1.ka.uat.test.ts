@@ -14,7 +14,11 @@ describe('Zork I × Georgian — runtime-composed Living Room variants (UAT)', (
   const postCyclopsClosedTrap =
     'You are in the living room. There is a doorway to the east. To the west is a cyclops-shaped opening in an old wooden door, above which is some strange gothic lettering, a trophy case, and a closed trap door at your feet.'
 
-  for (const [name, en] of Object.entries({ preCyclops, postCyclops, postCyclopsClosedTrap })) {
+  for (const [name, en] of Object.entries({
+    preCyclops,
+    postCyclops,
+    postCyclopsClosedTrap,
+  })) {
     it(`translates the ${name} variant to Georgian`, () => {
       const out = matchLine(c, en)
       expect(out).not.toBeNull()

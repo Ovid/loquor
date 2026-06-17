@@ -203,9 +203,10 @@ export function Landing({
                   removes the badge by itself. It's literal text inside the radio
                   so it joins the accessible name (a11y), and it's text — not
                   colour-only. */}
-              {exampleLang !== 'en' && corpusFor(g.sig, exampleLang) === null && (
-                <span className="vol-untranslated">{s.englishOnly}</span>
-              )}
+              {exampleLang !== 'en' &&
+                corpusFor(g.sig, exampleLang) === null && (
+                  <span className="vol-untranslated">{s.englishOnly}</span>
+                )}
             </button>
           ))}
         </div>

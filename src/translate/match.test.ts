@@ -130,8 +130,12 @@ describe('matchLine: cap leaves unicameral Georgian (Mkhedruli) unchanged', () =
     expect(out).toBe('მახვილი')
     // Belt-and-braces: assert no Mtavruli (U+1C90–U+1CBF) char leaked in.
     expect(out).not.toBeNull()
-    expect([...out!].some((ch) => /\p{Script=Georgian}/u.test(ch))).toBe(true)
-    expect([...out!].some((ch) => ch.codePointAt(0)! >= 0x1c90 && ch.codePointAt(0)! <= 0x1cbf)).toBe(false)
+    expect([...out!].some(ch => /\p{Script=Georgian}/u.test(ch))).toBe(true)
+    expect(
+      [...out!].some(
+        ch => ch.codePointAt(0)! >= 0x1c90 && ch.codePointAt(0)! <= 0x1cbf,
+      ),
+    ).toBe(false)
   })
 })
 

@@ -411,12 +411,14 @@ describe('Landing', () => {
       screen.getByRole('radio', { name: /Empire Souterrain/i }).textContent,
     ).not.toMatch(/anglais/i)
     // Zork II is NOT translated → badge, and it's part of the accessible name.
-    expect(
-      screen.getByRole('radio', { name: /Frobozz/i }).textContent,
-    ).toMatch(/en anglais/i)
+    expect(screen.getByRole('radio', { name: /Frobozz/i }).textContent).toMatch(
+      /en anglais/i,
+    )
     // The badge is part of the radio's accessible name (joins numeral+subtitle).
     expect(
-      screen.getByRole('radio', { name: /Frobozz.*en anglais|en anglais.*Frobozz/i }),
+      screen.getByRole('radio', {
+        name: /Frobozz.*en anglais|en anglais.*Frobozz/i,
+      }),
     ).toBeInTheDocument()
   })
 

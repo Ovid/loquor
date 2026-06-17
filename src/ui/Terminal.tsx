@@ -194,9 +194,7 @@ export function Terminal({
   // a screen-reader virtual cursor stays inside the dialog (aria-modal alone is
   // unevenly honored). The modal is a sibling below, so it stays operable (M9).
   const modalOpen =
-    upgradeModalOpen ||
-    nl.state.phase === 'downloading' ||
-    prefsOpen
+    upgradeModalOpen || nl.state.phase === 'downloading' || prefsOpen
   const bgInert = backgroundInert || modalOpen
 
   return (

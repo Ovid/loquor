@@ -1,8 +1,11 @@
 // src/llm/lexicon/types.ts
-import type { NlLanguage } from '../types'
 
-/** Languages with lexicons (spec locked decision 1). */
-export type LexLang = Exclude<NlLanguage, 'off' | 'en'>
+/** Languages with an INPUT lexicon (spec locked decision 1). Deliberately an
+ * explicit union, NOT Exclude<NlLanguage, 'off'|'en'> — a picker language can
+ * have a display corpus without an input lexicon (Phase 1 Georgian: 'ka' is in
+ * NL_LANGUAGES but has no lexicon, so it must NOT be a LexLang). Phase 2 adds
+ * 'ka' here when the Georgian input lexicon exists. */
+export type LexLang = 'fr' | 'de' | 'es'
 
 /** German separable verb: leading verb + clause-final particle (spec §5.1). */
 export interface ParticleVerb {

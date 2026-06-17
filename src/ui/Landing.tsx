@@ -220,7 +220,16 @@ export function Landing({
           Zork is a trademark of Activision Publishing, Inc. (a Microsoft
           company); the name and brand are not licensed here. The Zork I–III
           game code was released by Microsoft under the MIT License in 2025 —
-          this project plays those open-source games.
+          this project plays those open-source games.{' '}
+          <a
+            className="repo-link"
+            href="https://github.com/Ovid/loquor"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View this project’s source on GitHub
+          </a>
+          .
         </footer>
       </div>
     </Root>

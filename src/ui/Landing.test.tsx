@@ -3,6 +3,7 @@ import { render, screen, fireEvent, within } from '@testing-library/react'
 import { Landing } from './Landing'
 import { LANDING_EXAMPLES } from './landingExamples'
 import { LS_KEYS } from '../storageKeys'
+import { FOCUSABLE } from './useFocusTrap'
 
 describe('Landing', () => {
   afterEach(() => localStorage.clear())
@@ -194,6 +195,9 @@ describe('Landing', () => {
     // so query by text, which is stable across both Landing variants.
     expect(screen.getByText(/trademark of Activision/i)).toBeInTheDocument()
     expect(screen.getByText(/MIT License/i)).toBeInTheDocument()
+    const repo = screen.getByRole('link', { name: /source on GitHub/i })
+    expect(repo).toHaveAttribute('href', 'https://github.com/Ovid/loquor')
+    expect(repo).toHaveAttribute('rel', expect.stringContaining('noopener'))
   })
 
   it('traps Tab within the plate so focus cannot reach the game behind it', () => {
@@ -205,7 +209,11 @@ describe('Landing', () => {
         onDismiss={() => {}}
       />,
     )
-    const focusables = screen.getAllByRole('button')
+    // Gather focusables exactly as the trap does (buttons AND the repo link),
+    // so the list's "last" matches the trap's real last element.
+    const focusables = Array.from(
+      document.querySelectorAll<HTMLElement>(FOCUSABLE),
+    )
     const last = focusables[focusables.length - 1]
     last.focus()
     expect(document.activeElement).toBe(last)

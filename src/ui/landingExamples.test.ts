@@ -1,10 +1,11 @@
 // src/ui/landingExamples.test.ts
 // Player-first gate: every landing example must parse to a COMMAND (not a miss)
 // in BASIC mode for all three games. EN clauses are raw-sent, so the faithful
-// check is "made of real game words"; FR/DE/ES run the real deterministic path.
+// check runs the REAL raw-send predicate (isVocabPassthrough — the exact gate
+// the English basic-mode path uses); FR/DE/ES run the real deterministic path.
 import { describe, it, expect } from 'vitest'
 import { LANDING_EXAMPLES } from './landingExamples'
-import { splitClauses } from '../llm/inputTranslate'
+import { splitClauses, isVocabPassthrough } from '../llm/inputTranslate'
 import { parseDirection } from '../llm/directions'
 import { parseLexicon } from '../llm/lexicon/parse'
 import { coreLexicon, nounLexicon } from '../llm/lexicon/index'
@@ -23,38 +24,10 @@ const GAMES: [string, Vocab][] = [
 ]
 const EMPTY_SCENE: Scene = { inScope: [], antecedent: null }
 
-// Every word an English basic-mode clause may legitimately be made of: verbs,
-// directions, prepositions, noun surface forms, plus articles/conjunctions.
-function englishWords(vocab: Vocab): Set<string> {
-  const out = new Set<string>()
-  const add = (s: string) => s.split(/\s+/).forEach(w => w && out.add(w))
-  for (const v of [
-    ...vocab.verbsOnly,
-    ...vocab.verbs1,
-    ...vocab.verbs2,
-    ...vocab.verbSynonyms,
-    ...vocab.movement,
-    ...vocab.preps,
-  ])
-    add(v)
-  for (const n of vocab.nouns) {
-    add(n.emit)
-    add(n.canonical)
-    n.synonyms?.forEach(add)
-    n.adjectives?.forEach(add)
-  }
-  for (const w of ['the', 'a', 'an', 'and', 'then']) out.add(w)
-  return out
-}
-
 function clauseParsesEn(clause: string, vocab: Vocab): boolean {
   if (parseDirection(clause, vocab.movement)) return true
-  const words = englishWords(vocab)
-  const tokens = clause
-    .toLowerCase()
-    .replace(/[.,;!?]/g, '')
-    .split(/\s+/)
-  return tokens.every(t => t === '' || words.has(t))
+  // The real English basic-mode gate: no active foreign lexicon, so null.
+  return isVocabPassthrough(clause, vocab, null)
 }
 
 function clauseParsesForeign(

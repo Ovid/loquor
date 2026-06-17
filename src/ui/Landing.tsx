@@ -5,6 +5,7 @@ import { readNlPref, writeNlPref, nlDisabledByChoice } from '../llm/nlpref'
 import { LANGUAGE_OPTIONS } from './languageOptions'
 import { LanguageCombobox } from './LanguageCombobox'
 import { LANDING_EXAMPLES } from './landingExamples'
+import { LANDING_STRINGS } from './landingStrings'
 import type { NlLanguage } from '../llm/types'
 
 // The title screen offers only the play languages, not "Off" (disabling the NL
@@ -72,6 +73,7 @@ export function Landing({
   // language is never 'off' on the landing, but the guard keeps the type narrow.
   const exampleLang = language === 'off' || language === 'en' ? 'en' : language
   const examples = LANDING_EXAMPLES[exampleLang]
+  const s = LANDING_STRINGS[exampleLang]
   const dismissRef = useRef<HTMLButtonElement>(null)
   const plateRef = useRef<HTMLDivElement>(null)
   const volumesRef = useRef<HTMLDivElement>(null)
@@ -110,14 +112,14 @@ export function Landing({
         ref={plateRef}
         role={onDismiss ? 'dialog' : undefined}
         aria-modal={onDismiss ? true : undefined}
-        aria-label={onDismiss ? 'Change story' : undefined}
+        aria-label={onDismiss ? s.changeStory : undefined}
       >
         {onDismiss && (
           <button
             ref={dismissRef}
             className="dismiss"
             type="button"
-            aria-label="Return to game"
+            aria-label={s.returnToGame}
             onClick={onDismiss}
           >
             ✕
@@ -127,7 +129,7 @@ export function Landing({
         <h1 className="title">Loquor</h1>
         <p className="tagline">to speak, and be understood, in the dark</p>
         <div className="howto">
-          <b>How to play.</b> Type what you want to do in plain language.
+          <b>{s.howToTitle}</b> {s.howToBody}
           <br />
           <span
             className="cmds"
@@ -138,12 +140,10 @@ export function Landing({
             {examples.join(' · ')}
           </span>
           <br />
-          <span style={{ opacity: 0.75 }}>
-            Your progress is kept; close the tab and return whenever you like.
-          </span>
+          <span style={{ opacity: 0.75 }}>{s.progressNote}</span>
         </div>
         <div className="langpick">
-          <span className="langpick-label">Language:</span>{' '}
+          <span className="langpick-label">{s.languageLabel}</span>{' '}
           <LanguageCombobox
             options={LANDING_LANGUAGES}
             value={language}
@@ -155,14 +155,9 @@ export function Landing({
             label="Language"
           />
         </div>
-        <p className="lang-caveat">
-          Basic commands work now in all four languages. To understand more of
-          what you type, you can add an optional, experimental model — a
-          one-time download whose richer understanding may be uneven across
-          languages.
-        </p>
+        <p className="lang-caveat">{s.caveat}</p>
         <span className="label" id="descent-label">
-          — choose your descent —
+          {s.descent}
         </span>
         {/* Mutually-exclusive story choice → a radiogroup, not independent
             aria-pressed toggles, so a screen reader conveys "1 of 3" and arrow
@@ -185,7 +180,7 @@ export function Landing({
               onClick={() => setSelected(g.slug)}
             >
               <span className="num">{g.numeral}</span>
-              <span className="nm">{g.subtitle}</span>
+              <span className="nm">{s.subtitles[g.slug]}</span>
             </button>
           ))}
         </div>
@@ -196,12 +191,10 @@ export function Landing({
             onEnter(selected)
           }}
         >
-          Light the lamp →
+          {s.enter}
         </button>
         {savedSlugs.has(selected) && (
-          <div className="resume">
-            ↩ a saved descent awaits — you will resume where you left off
-          </div>
+          <div className="resume">{s.resume}</div>
         )}
         {loadError && (
           <div className="loaderr" role="alert">
@@ -209,22 +202,20 @@ export function Landing({
           </div>
         )}
         <footer className="folio-footnote">
-          Zork is a trademark of Activision Publishing, Inc., a Microsoft
-          company.{' '}
+          {s.footer.trademark}{' '}
           <a
             href="https://opensource.microsoft.com/blog/2025/11/20/preserving-code-that-shaped-generations-zork-i-ii-and-iii-go-open-source/"
             target="_blank"
             rel="noopener noreferrer"
           >
-            The Zork I–III game code was released by Microsoft under the MIT
-            License in 2025.
+            {s.footer.licenseLinkText}
           </a>{' '}
           <a
             href="https://github.com/Ovid/loquor"
             target="_blank"
             rel="noopener noreferrer"
           >
-            View on GitHub
+            {s.footer.githubLinkText}
           </a>
           .
         </footer>

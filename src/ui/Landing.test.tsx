@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { Landing } from './Landing'
 import { LANDING_EXAMPLES } from './landingExamples'
+import { LANDING_STRINGS } from './landingStrings'
 import { LS_KEYS } from '../storageKeys'
 import { FOCUSABLE } from './useFocusTrap'
 
@@ -134,7 +135,12 @@ describe('Landing', () => {
     )
     fireEvent.click(screen.getByRole('combobox', { name: /language/i }))
     fireEvent.click(screen.getByRole('option', { name: 'Deutsch' }))
-    fireEvent.click(screen.getByText(/Light the lamp/))
+    // After picking Deutsch the enter button shows the German label.
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: new RegExp(LANDING_STRINGS.de.enter.replace('→', '')),
+      }),
+    )
     expect(onEnter).toHaveBeenCalledWith('zork1')
     expect(JSON.parse(localStorage.getItem(LS_KEYS.nlPref)!).language).toBe(
       'de',
@@ -179,7 +185,12 @@ describe('Landing', () => {
     )
     fireEvent.click(screen.getByRole('combobox', { name: /language/i }))
     fireEvent.click(screen.getByRole('option', { name: 'Deutsch' }))
-    fireEvent.click(screen.getByText(/Light the lamp/))
+    // After picking Deutsch the enter button shows the German label.
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: new RegExp(LANDING_STRINGS.de.enter.replace('→', '')),
+      }),
+    )
     expect(JSON.parse(localStorage.getItem(LS_KEYS.nlPref)!).language).toBe(
       'de',
     )
@@ -286,5 +297,39 @@ describe('Landing', () => {
     // rather than escaping into the dimmed game.
     fireEvent.keyDown(document, { key: 'Tab' })
     expect(document.activeElement).toBe(focusables[0])
+  })
+
+  it('renders localized copy and volume subtitle for the stored language (de)', () => {
+    localStorage.setItem(
+      LS_KEYS.nlPref,
+      JSON.stringify({ language: 'de', declined: false }),
+    )
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    const de = LANDING_STRINGS.de
+    expect(screen.getByText(de.howToBody)).toBeInTheDocument()
+    // The primary action is found by its localized accessible name.
+    expect(
+      screen.getByRole('button', { name: new RegExp(de.enter.replace('→', '')) }),
+    ).toBeInTheDocument()
+    // The volume subtitle is localized, not the English catalog value.
+    expect(screen.getByText(de.subtitles.zork1)).toBeInTheDocument()
+    expect(
+      screen.queryByText('The Great Underground Empire'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('localizes the radiogroup label for the stored language (es)', () => {
+    localStorage.setItem(
+      LS_KEYS.nlPref,
+      JSON.stringify({ language: 'es', declined: false }),
+    )
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    expect(
+      screen.getByRole('radiogroup', { name: /elige tu descenso/i }),
+    ).toBeInTheDocument()
   })
 })

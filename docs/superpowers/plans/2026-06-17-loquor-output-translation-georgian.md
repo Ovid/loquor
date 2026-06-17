@@ -49,6 +49,49 @@
 
 ---
 
+## Task 0: Decouple `LexLang` from `NlLanguage` (unblock the Task 1 typecheck)
+
+**Why this comes first.** `LexLang` is defined as `Exclude<NlLanguage, 'off' | 'en'>` (`src/llm/lexicon/types.ts:5`). The moment Task 1 adds `'ka'` to `NL_LANGUAGES`, `LexLang` becomes `'fr' | 'de' | 'es' | 'ka'` and three **exhaustive** maps in the *input* lexicon layer demand a `ka` entry that must not exist (Georgian has no input lexicon in Phase 1): `CORES: Record<LexLang, …>` (`src/llm/lexicon/index.ts:18`), `NOUNS` (`:24`), and `KNOWN_COLLISIONS` (`:80`). So Task 1's `tsc -b` would fail. `LexLang` should mean "languages that have an input lexicon" — exactly the Phase 1/Phase 2 boundary — so pin it to an explicit union, independent of the picker's `NL_LANGUAGES`. Phase 2 (Georgian input) adds `'ka'` here when the lexicon actually exists. Runtime is already safe (`useNaturalLanguage.ts:212` guards `ka` to a null lexicon); this is a pure type fix.
+
+**Files:**
+- Modify: `src/llm/lexicon/types.ts:5`
+
+- [ ] **Step 1: Redefine `LexLang` as an explicit union**
+
+In `src/llm/lexicon/types.ts:5`, replace the derived type:
+
+```ts
+/** Languages with an INPUT lexicon (spec locked decision 1). Deliberately an
+ * explicit union, NOT Exclude<NlLanguage, 'off'|'en'> — a picker language can
+ * have a display corpus without an input lexicon (Phase 1 Georgian: 'ka' is in
+ * NL_LANGUAGES but has no lexicon, so it must NOT be a LexLang). Phase 2 adds
+ * 'ka' here when the Georgian input lexicon exists. */
+export type LexLang = 'fr' | 'de' | 'es'
+```
+
+(The `import type { NlLanguage }` line becomes unused — remove it if nothing else in the file references it.)
+
+- [ ] **Step 2: Verify the typecheck is still clean (before `ka` is added)**
+
+Run: `npx tsc -b && npx vitest run src/llm/`
+Expected: PASS — `LexLang` is byte-equivalent to its old value today (`'fr'|'de'|'es'`), so nothing changes yet; this step only proves the decoupling is inert before Task 1 introduces `ka`.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add src/llm/lexicon/types.ts
+git commit -m "refactor(nl): pin LexLang to an explicit fr|de|es union (decouple from NlLanguage)
+
+LexLang means 'has an input lexicon', which is not the same as 'is a picker
+language'. Phase 1 Georgian will be a picker language with a display corpus but
+no input lexicon, so deriving LexLang from NL_LANGUAGES would force a bogus ka
+entry into the exhaustive lexicon maps. Equivalent today; Phase 2 adds ka here.
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
 ## Task 1: Register `ka` + author the Georgian landing copy (typecheck-coupled)
 
 **These land in ONE commit.** `LANDING_STRINGS` and `LANDING_EXAMPLES` are exhaustive `Record<ActiveLanguage, …>` and `landingStrings.test.ts` gates every active language for completeness — so the instant `'ka'` joins `NL_LANGUAGES`, `make typecheck` **and** that gate fail until Georgian landing copy exists. Adding the copy first is impossible (TS rejects a `ka` key before `ka` is an `ActiveLanguage`), so both edits must be one atomic change.
@@ -98,7 +141,7 @@ In `src/llm/types.ts:5`:
 export const NL_LANGUAGES = ['off', 'en', 'fr', 'de', 'es', 'ka'] as const
 ```
 
-(`ActiveLanguage`, `NlLanguage`, and `LexLang = Exclude<NlLanguage, 'off' | 'en'>` all derive `ka` automatically.) Run `npx tsc -b` now and observe `LANDING_STRINGS`/`LANDING_EXAMPLES` errors — those drive Steps 5–6.
+(`ActiveLanguage` and `NlLanguage` derive `ka` automatically. `LexLang` does **not** — Task 0 pinned it to an explicit `'fr' | 'de' | 'es'` union precisely so adding `ka` here does not force a bogus `ka` entry into the input lexicon maps; if Task 0 was skipped, `tsc -b` will fail in `src/llm/lexicon/index.ts`, not just on the landing copy.) Run `npx tsc -b` now and observe `LANDING_STRINGS`/`LANDING_EXAMPLES` errors — those drive Steps 5–6.
 
 - [ ] **Step 4: Add the picker option**
 
@@ -824,10 +867,27 @@ Run (repeat until green): `npx vitest run src/translate/corpus/inventory.test.ts
 Each miss is a full-line string in `public/games/zork1.z3` the walkthrough never visits (death messages, off-path responses). Add its Georgian to `ZORK1_KA_STRINGS`. If a reported line is a genuine non-line fragment already vetted in `zork1.extraction-ignore.ts`, it is shared across languages and needs no ka-specific action.
 Expected when done: `ka corpus` — every full-line entry matches; ignore list stays honest.
 
-- [ ] **Step 6: Run all three gates + the full translate suite green, then commit**
+- [ ] **Step 6: Add the no-English-passthrough assertion (the one correctness gap a machine *can* catch)**
+
+The coverage/inventory/completeness gates verify a Georgian value *exists and matches* — they do **not** verify it is correct Georgian (that is the §8 native-review loop's job, tracked as a blocking follow-up before the `(beta)` marker is removed — see Task 10 Step 4). The single correctness failure a test *can* detect is a value accidentally left identical to its English key (which `matchLine` would happily return, reading as "covered" while showing English). Add a gate for exactly that.
+
+Add to `src/translate/corpus/index.test.ts` (or `zork1.ka.uat.test.ts`):
+
+```ts
+import { ZORK1_KA_STRINGS } from './zork1.ka.strings'
+
+it('ka: no string value is left byte-identical to its English key (English passthrough)', () => {
+  const leaked = Object.entries(ZORK1_KA_STRINGS).filter(([en, ka]) => en === ka)
+  expect(leaked.map(([en]) => en)).toEqual([])
+})
+```
+
+(If a handful of entries are *legitimately* identical — a bare numeral, a proper noun with no Georgian form — allowlist them explicitly with a comment rather than weakening the check.)
+
+- [ ] **Step 7: Run all three gates + the passthrough gate + the full translate suite green, then commit**
 
 Run: `npx vitest run src/translate/`
-Expected: ALL green (coverage/inventory/completeness for fr/de/es/ka; no-fallback regression; status).
+Expected: ALL green (coverage/inventory/completeness for fr/de/es/ka; no-English-passthrough; no-fallback regression; status).
 
 ```bash
 git add src/translate/corpus/zork1.ka.strings.ts src/translate/corpus/zork1.ka.objects.ts src/translate/corpus/zork1.ka.templates.ts src/translate/corpus/zork1.ka.ts src/translate/corpus/index.ts src/translate/corpus/index.test.ts
@@ -1036,7 +1096,10 @@ Mkhedruli is BMP (U+10A0–10FF). Confirm the suite runs green in CI, not just l
   - **Zork II in Georgian:** starts and plays, displaying English text (translation is Zork I only) — confirming the badge told the truth.
   - Switch to **Français** → French behaves exactly as before (input routes through translation; model offer present). This is the fr/de/es no-regression check by hand.
 
-- [ ] **Step 4: Finish the branch** — use `superpowers:finishing-a-development-branch` to decide merge/PR. Note in the PR body that Georgian values are drafts pending the Tbilisi native-review loop (spec §8), and that the **(beta)** marker stays until the playtesters confirm naturalness.
+- [ ] **Step 4: Finish the branch** — use `superpowers:finishing-a-development-branch` to decide merge/PR. The PR body MUST record the explicit player-experience decision behind this Phase (CLAUDE.md "talk to me first" rule, resolved with Ovid):
+  - The entire Georgian corpus is **LLM-authored and machine-unvalidated** — the coverage/inventory/completeness gates prove *coverage*, not *linguistic correctness*. The only correctness check is the Task 7 Step 6 no-English-passthrough gate.
+  - This is accepted **only** because the feature ships behind the visible **(beta)** marker.
+  - **Native review (spec §8 Tbilisi loop) is a BLOCKING follow-up**, not optional polish: the `(beta)` marker MUST NOT be removed — and Georgian MUST NOT be described as supported (release notes, marketing, README) — until a Georgian speaker has reviewed the corpus and confirmed naturalness. Track this as an explicit follow-up issue, not a buried TODO.
 
 ---
 
@@ -1050,6 +1113,8 @@ Mkhedruli is BMP (U+10A0–10FF). Confirm the suite runs green in CI, not just l
 - §7 status bar (room free, score labels one-liner, no flood): Task 4. ✓
 - §8 native-review loop seed (UAT suite + `logMiss`): Task 8 + Task 3 (logMiss). ✓
 - §9 fr/de/es untouched: gated by `CORPUS_ONLY_LANGS`/`OUTPUT_ONLY_LANGS`; regression tests in Tasks 3 + 5. ✓
+- **Typecheck blocker (Task 0, beyond the spec):** `LexLang` was `Exclude<NlLanguage,'off'|'en'>`, so registering `ka` would force a bogus `ka` entry into the exhaustive input-lexicon maps (`CORES`/`NOUNS`/`KNOWN_COLLISIONS`) and break `tsc -b`. Task 0 pins `LexLang` to an explicit `fr|de|es` union first; Phase 2 adds `ka`. ✓
+- **Correctness gap (gates ≠ quality):** the three gates prove coverage, not Georgian correctness. Task 7 Step 6 adds the one machine-detectable correctness check (no value byte-identical to its English key); true linguistic validation is the §8 native-review loop, recorded in Task 10 Step 4 as a **blocking** gate on removing the `(beta)` marker. ✓
 - **Input blocker (Option A, beyond the spec's §2):** Tasks 2 + 5 decouple output language from English input and suppress the useless model offer; forward-compatible with Phase 2. ✓
 - **Landing localization (forced by exhaustive `Record<ActiveLanguage>` + gate):** Task 1 authors Georgian landing copy in the same commit as the type registration, with Phase 1 read-Georgian/type-English semantics (no model offer; English examples). ✓
 - **Untranslated-volume marker (Zork II/III):** Task 9 adds a conditional, localized "English only" badge driven by the real corpus registry (honest, self-correcting, part of the radio's accessible name). ✓

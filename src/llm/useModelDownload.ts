@@ -72,6 +72,18 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
   // download modal flow activates THIS language once the load resolves.
   const pendingLangRef = useRef<ActiveLanguage>('en')
 
+  // Tear down any in-flight download — kill the no-progress watchdog and abort
+  // the fetch. The aborted load settles into its stale() guard and becomes a
+  // no-op, so a superseding action (a new language pick, or 'off') can't have the
+  // old load flip the phase back to on/full or persist a language behind it ([C1]).
+  const abortInFlight = useCallback(() => {
+    if (stallTimerRef.current !== null) {
+      clearTimeout(stallTimerRef.current)
+      stallTimerRef.current = null
+    }
+    abortRef.current?.abort()
+  }, [])
+
   // Probe the ON-DISK cache (survives reloads) for the installed/not-installed
   // distinction — distinct from isLoaded() (in-memory, this session only) — and,
   // in the same async callback, restore the player's prior language choice.
@@ -93,15 +105,23 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
         const pref = readNlPref()
         if (pref.language !== 'off') {
           const lang = pref.language // narrowed to ActiveLanguage; survives the closure
-          setInternal(prev =>
-            prev.phase === 'off'
-              ? {
-                  phase: 'on',
-                  language: lang,
-                  model: cached ? 'full' : 'grammar',
-                }
-              : prev,
-          )
+          setInternal(prev => {
+            if (prev.phase === 'off')
+              return {
+                phase: 'on',
+                language: lang,
+                model: cached ? 'full' : 'grammar',
+              }
+            // Race ([I1]): the player picked a language before this probe
+            // resolved, landing in on/grammar (installed was still false) with a
+            // spurious upgrade modal. If the model is in fact cached on disk,
+            // promote that pick to full — and dismiss the modal — rather than
+            // leaving a cached player stuck in basic mode behind a download offer.
+            if (cached && prev.phase === 'on' && prev.model === 'grammar')
+              return { ...prev, model: 'full' }
+            return prev
+          })
+          if (cached) setModalOpen(false)
         }
       })
       .catch(() => {})
@@ -222,18 +242,14 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
   }, [engine, setNotice])
 
   const cancelDownload = useCallback(() => {
-    if (stallTimerRef.current !== null) {
-      clearTimeout(stallTimerRef.current)
-      stallTimerRef.current = null
-    }
-    abortRef.current?.abort()
+    abortInFlight()
     setInternal({
       phase: 'on',
       language: pendingLangRef.current,
       model: 'grammar',
     })
     writeNlPref({ language: pendingLangRef.current })
-  }, [])
+  }, [abortInFlight])
 
   const declineDownload = useCallback(() => {
     setModalOpen(false)
@@ -246,6 +262,10 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
   const setLanguage = useCallback(
     (lang: NlLanguage) => {
       if (!hasVocab) return // hasVocab is the sole NL prerequisite
+      // A new pick supersedes any download in progress ([C1]). Without this, an
+      // in-flight load resolving after the pick would re-enable NL (and persist
+      // a language) against the player's explicit choice — most visibly 'off'.
+      abortInFlight()
       if (lang === 'off') {
         setInternal({ phase: 'off' }) // off is instant; model stays cached
         writeNlPref({ language: 'off' })
@@ -262,7 +282,7 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
       pendingLangRef.current = lang
       if (!readNlPref().declined) setModalOpen(true)
     },
-    [hasVocab, installed, engine],
+    [hasVocab, installed, engine, abortInFlight],
   )
 
   const requestUpgrade = useCallback(() => {

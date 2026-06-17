@@ -57,6 +57,43 @@ describe('boot probe (isCached)', () => {
     expect(hook.result.current.internal).toEqual({ phase: 'off' })
   })
 
+  it('a pick during the async probe upgrades to full and dismisses the spurious modal when the model is cached ([I1])', async () => {
+    let resolveCached!: (v: boolean) => void
+    const engine: LlmEngine = {
+      load: async () => {},
+      unload: async () => {},
+      isLoaded: () => false,
+      isCached: () =>
+        new Promise<boolean>(r => {
+          resolveCached = r
+        }),
+      generate: async () => '',
+    }
+    const { hook } = setup({ engine })
+    // Player picks before isCached resolves → installed still false → on/grammar
+    // with the upgrade modal (the regression: a cached player stuck in basic).
+    act(() => hook.result.current.setLanguage('fr'))
+    expect(hook.result.current.internal).toEqual({
+      phase: 'on',
+      language: 'fr',
+      model: 'grammar',
+    })
+    expect(hook.result.current.modalOpen).toBe(true)
+    // Probe resolves: the model IS cached → promote the pick to full and dismiss
+    // the spurious download offer.
+    await act(async () => {
+      resolveCached(true)
+      await Promise.resolve()
+    })
+    expect(hook.result.current.internal).toEqual({
+      phase: 'on',
+      language: 'fr',
+      model: 'full',
+    })
+    expect(hook.result.current.modalOpen).toBe(false)
+    expect(hook.result.current.installed).toBe(true)
+  })
+
   it('an isCached rejection is swallowed — installed:false, no throw', async () => {
     const engine: LlmEngine = {
       load: async () => {},
@@ -355,6 +392,40 @@ describe('setLanguage', () => {
       model: 'full',
     })
     act(() => hook.result.current.setLanguage('off'))
+    expect(hook.result.current.internal).toEqual({ phase: 'off' })
+    expect(readNlPref().language).toBe('off')
+  })
+
+  it("'off' mid-download aborts the load and stays off — a late resolve can't re-enable NL ([C1])", async () => {
+    let resolveLoad!: () => void
+    let sig!: AbortSignal
+    const engine: LlmEngine = {
+      unload: async () => {},
+      isLoaded: () => false,
+      isCached: async () => false,
+      generate: async () => '',
+      load: (_p, signal) =>
+        new Promise<void>(resolve => {
+          sig = signal
+          resolveLoad = resolve
+        }),
+    }
+    const { hook } = setup({ engine })
+    await waitFor(() => expect(hook.result.current.installed).toBe(false))
+    act(() => hook.result.current.setLanguage('fr')) // on/grammar + pending fr
+    act(() => hook.result.current.requestDownload()) // downloading
+    await waitFor(() =>
+      expect(hook.result.current.internal.phase).toBe('downloading'),
+    )
+    act(() => hook.result.current.setLanguage('off'))
+    expect(hook.result.current.internal).toEqual({ phase: 'off' })
+    expect(sig.aborted).toBe(true) // the in-flight load was actually aborted
+    // The superseded load resolving afterwards must NOT flip back to on/full or
+    // re-persist a language the player turned off (the stale() guard holds).
+    await act(async () => {
+      resolveLoad()
+      await Promise.resolve()
+    })
     expect(hook.result.current.internal).toEqual({ phase: 'off' })
     expect(readNlPref().language).toBe('off')
   })

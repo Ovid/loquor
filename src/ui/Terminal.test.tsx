@@ -95,6 +95,10 @@ describe('Terminal', () => {
         { timeout: 8000 },
       )
       expect(screen.getByText(/take the lamp/)).toBeInTheDocument()
+      // S1: with debug off (the default) the queued marker is the '>' caret —
+      // the SAME marker Scrollback commits to — not the bare 'you' label, so the
+      // line doesn't relabel as it drains from queued → committed.
+      expect(screen.queryByText('you')).not.toBeInTheDocument()
       // F-A: while NL is on, a mid-translation line queues — the input field
       // must stay ENABLED even though a translation is pending. With NL on the
       // placeholder signals plain-language input (S3), not the classic copy.

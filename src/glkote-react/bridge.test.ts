@@ -381,4 +381,45 @@ describe('autosave round-trips NL line kinds (resume leak fix)', () => {
       view2.lines.some((l: any) => l.kind === 'input' && l.text === 'up'),
     ).toBe(false)
   })
+
+  // S2/S3: the autorestore blob is unversioned. A malformed `lines` array (a
+  // future-schema drift) must NOT be trusted — fall back to the reduced view —
+  // and a restored snapshot must push nextId past every restored id so the next
+  // reduced line can't collide a React key.
+  it('rejects a malformed autorestore lines array, keeping the reduced view', () => {
+    let view: any
+    const bridge = new GlkOteBridge(v => (view = v))
+    bridge.init({ accept: vi.fn() })
+    bridge.update({
+      type: 'update',
+      gen: 1,
+      content: [{ text: [{ content: ['normal', 'West of House'] }] }],
+      input: [{ type: 'line', id: 1, gen: 1 }],
+      // one bad element (missing/!string text) disqualifies the whole array
+      autorestore: { lines: [{ id: 0, kind: 'output', text: 42 }], nextId: 99 },
+    } as any)
+    expect(view.lines.some((l: any) => l.text === 'West of House')).toBe(true)
+    expect(view.lines.every((l: any) => typeof l.text === 'string')).toBe(true)
+  })
+
+  it('clamps nextId past every restored line id (no key collision after resume)', () => {
+    let view: any
+    const bridge = new GlkOteBridge(v => (view = v))
+    bridge.init({ accept: vi.fn() })
+    bridge.update({
+      type: 'update',
+      gen: 1,
+      content: [{ text: [{ content: ['normal', 'West of House'] }] }],
+      input: [{ type: 'line', id: 1, gen: 1 }],
+      // valid lines but a stale (too-small) nextId
+      autorestore: {
+        lines: [
+          { id: 10, kind: 'output', text: 'old line' },
+          { id: 11, kind: 'input', text: 'look' },
+        ],
+        nextId: 1,
+      },
+    } as any)
+    expect(view.nextId).toBeGreaterThan(11)
+  })
 })

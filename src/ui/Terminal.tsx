@@ -211,9 +211,15 @@ export function Terminal({
             at a different line. */}
           {nl.queued.map(q => (
             <p key={q.id} className="nl-source" lang={nlLang}>
-              <span className="you" lang="en">
-                you
-              </span>{' '}
+              {/* Match the marker Scrollback commits to, gated on debug, so a
+                  line doesn't relabel (you-pill ↔ '>') as it drains (S1). */}
+              {debug ? (
+                <span className="you-pill" lang="en">
+                  you
+                </span>
+              ) : (
+                <span className="car">&gt;</span>
+              )}{' '}
               {q.text}
               <span className="chip" lang={nlLang}>
                 {queuedChip(activeLang)}

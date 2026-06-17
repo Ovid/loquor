@@ -223,16 +223,6 @@
   opacity: 0.78;
   font-style: italic;
 }
-/* Worded 'you' label for the player's pre-translation line (NL v2 §12). */
-.you {
-  display: inline-block;
-  min-width: 2.4em;
-  margin-right: 6px;
-  font-size: 0.78em;
-  letter-spacing: 0.08em;
-  font-style: normal;
-  color: var(--text-dim);
-}
 /* Inverted ‹you› badge for the player's pre-translation line in debug view.
    bg = theme foreground (--text), text = theme background (--bg-base): a true
    fg/bg inversion, so the contrast ratio is preserved in both light and dark

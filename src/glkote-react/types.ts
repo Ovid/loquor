@@ -52,8 +52,9 @@ export interface GlkOteDisplay {
   /**
    * Capture display-layer state for ifvms's native autosave (glkapi's
    * save_allstate() stores our return value as `snapshot.glk.glkote`). Must be
-   * JSON-serializable. We rebuild the React view from the post-restore update(),
-   * so only the metrics need to round-trip.
+   * JSON-serializable. Round-trips the metrics PLUS the rendered `lines`/`nextId`,
+   * so the UI-only nl-source/nl-canonical kinds survive a reload (the VM's buffer
+   * replay alone loses them — see bridge.save_allstate()).
    */
   save_allstate(): unknown
   /**

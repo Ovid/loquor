@@ -2,6 +2,7 @@ import { reduce } from './reduce'
 import { emptyView } from './types'
 import { createLogger } from '../logger'
 import type {
+  BufferLine,
   GlkOteDisplay,
   GlkOteInitIface,
   GlkOteUpdate,
@@ -10,6 +11,25 @@ import type {
 } from './types'
 
 const glkLog = createLogger('glk')
+
+const LINE_KINDS: ReadonlySet<BufferLine['kind']> = new Set([
+  'output',
+  'input',
+  'room',
+  'nl-source',
+  'nl-canonical',
+])
+
+/** A restored autosave line is well-formed (guards an unversioned snapshot). */
+function isBufferLine(l: unknown): l is BufferLine {
+  return (
+    typeof l === 'object' &&
+    l !== null &&
+    typeof (l as BufferLine).id === 'number' &&
+    typeof (l as BufferLine).text === 'string' &&
+    LINE_KINDS.has((l as BufferLine).kind)
+  )
+}
 
 const METRICS = {
   width: 80,
@@ -125,11 +145,22 @@ export class GlkOteBridge implements GlkOteDisplay {
     // autosave boundary (save_allstate runs right after this same turn's update —
     // glkapi.js:781 then 786-795), with every kind intact.
     const restore = arg.autorestore
-    if (restore && Array.isArray(restore.lines)) {
+    // The snapshot is an UNVERSIONED IndexedDB blob keyed by story signature: a
+    // future BufferLine schema change could hand back malformed lines from an
+    // older app version. Validate every element before trusting it; on any miss
+    // fall back to the reducer-built view (loses nl kinds, but never crashes the
+    // resume — review S2). Clamp nextId past every restored id so a stale/short
+    // snapshot can't reissue a live id and collide React keys (review S3).
+    if (restore && Array.isArray(restore.lines) && restore.lines.every(isBufferLine)) {
+      const lines = restore.lines
       this.view = {
         ...this.view,
-        lines: restore.lines,
-        nextId: restore.nextId ?? this.view.nextId,
+        lines,
+        nextId: Math.max(
+          this.view.nextId,
+          restore.nextId ?? 0,
+          ...lines.map(l => l.id + 1),
+        ),
       }
     }
     this.onState(this.view)

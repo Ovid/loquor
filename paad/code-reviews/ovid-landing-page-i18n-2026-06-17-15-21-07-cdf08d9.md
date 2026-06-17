@@ -23,6 +23,7 @@ None found.
 ## Important Issues
 
 ### [I1] `LANDING_EXAMPLES` not anchored to the language source of truth — latent render crash
+
 - **File:** `src/ui/landingExamples.ts:10` (vs `src/ui/landingStrings.ts:34`)
 - **Bug:** `LANDING_EXAMPLES` is typed `Record<'en' | 'fr' | 'de' | 'es', string[]>`
   (a hardcoded literal union), while `LANDING_STRINGS` is

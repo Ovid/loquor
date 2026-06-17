@@ -186,7 +186,7 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
     subtitles: {
       zork1: 'დიდი მიწისქვეშა იმპერია',
       zork2: 'ფრობოზის ჯადოქარი',
-      zork3: 'ციხესიმაგრის მბრძანებელი',
+      zork3: 'დილეგის მბრძანებელი',
     },
   },
 }

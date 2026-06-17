@@ -2,6 +2,7 @@ import { reduce } from './reduce'
 import { emptyView } from './types'
 import { createLogger } from '../logger'
 import type {
+  BufferLine,
   GlkOteDisplay,
   GlkOteInitIface,
   GlkOteUpdate,
@@ -10,6 +11,35 @@ import type {
 } from './types'
 
 const glkLog = createLogger('glk')
+
+const LINE_KINDS: ReadonlySet<BufferLine['kind']> = new Set([
+  'output',
+  'input',
+  'room',
+  'nl-source',
+  'nl-canonical',
+])
+
+/** A restored autosave line is well-formed (guards an unversioned snapshot). */
+function isBufferLine(l: unknown): l is BufferLine {
+  return (
+    typeof l === 'object' &&
+    l !== null &&
+    typeof (l as BufferLine).id === 'number' &&
+    typeof (l as BufferLine).text === 'string' &&
+    LINE_KINDS.has((l as BufferLine).kind)
+  )
+}
+
+// ponytail: cap the autosaved transcript tail. save_allstate() fires at EVERY
+// turn boundary, so carrying the full (ever-growing) view.lines re-serialized
+// O(transcript) into IndexedDB each turn — slower autosaves + unbounded storage
+// on long playthroughs (review I1). The tail is all a resume needs (it only has
+// to keep the recent nl-source/nl-canonical kinds the VM buffer replay can't
+// reproduce); deep scrollback is lost only on a page reload. In-memory scrollback
+// is untouched (a true transcript cap would be a player-facing change). Raise it
+// if reload-scrollback depth matters more than save cost.
+const SNAPSHOT_MAX_LINES = 500
 
 const METRICS = {
   width: 80,
@@ -50,6 +80,14 @@ export class GlkOteBridge implements GlkOteDisplay {
    * for a future display-injected [MORE] marker if the UI ever needs it.
    */
   private charIsMore = false
+  /**
+   * Whether the most recent send was an NL-translated canonical command (set by
+   * sendLineCanonical, cleared by sendLine). Read in update() and handed to the
+   * reducer so EVERY echo of a translated turn — including compound clauses that
+   * land after intervening output — is tagged nl-canonical, not just the first.
+   * A labelling concern only: the command sent to the VM is identical.
+   */
+  private canonicalEcho = false
   /** Pending awaitTurn() resolvers, drained at the next turn boundary. */
   private turnResolvers: Array<(r: TurnResult) => void> = []
   /** Latches once onEnd has fired so a trailing update can't re-fire it. */
@@ -107,7 +145,50 @@ export class GlkOteBridge implements GlkOteDisplay {
     // it from a still-pending char prompt.
     if (arg.input !== undefined)
       this.charIsMore = (req as any)?.type === 'char' && isMorePrompt(arg)
-    this.view = reduce(this.view, arg)
+    this.view = reduce(this.view, arg, this.canonicalEcho)
+    // First post-restore frame: glkapi hands back the display state our
+    // save_allstate() persisted, on arg.autorestore (glkapi.js:778). The VM's
+    // replayed buffer can't reproduce nl-source lines (UI-only) or the
+    // nl-canonical tag (a send-seam property), so the reducer above reclassifies
+    // a translated echo as plain `input` — leaking `> up` in debug-off after a
+    // resume. Restore the saved lines verbatim: they ARE the transcript at the
+    // autosave boundary (save_allstate runs right after this same turn's update —
+    // glkapi.js:781 then 786-795), with every kind intact.
+    const restore = arg.autorestore
+    // The snapshot is an UNVERSIONED IndexedDB blob keyed by story signature: a
+    // future BufferLine schema change could hand back malformed lines from an
+    // older app version. Validate before trusting it; on any miss fall back to
+    // the reducer-built view (loses nl kinds, but never crashes the resume —
+    // review S2). The guards, beyond per-element well-formedness:
+    //   - length > 0: `[].every()` is true, so an empty array would pass and
+    //     blank the transcript instead of falling back (review I3).
+    //   - unique ids: duplicate ids → duplicate React keys (review S2).
+    //   - finite restored nextId: a string/NaN from a corrupt blob would poison
+    //     Math.max → NaN ids forever (review S1).
+    // Clamp nextId past every restored id so a stale/short snapshot can't
+    // reissue a live id and collide React keys (review S3).
+    const restoredNextId =
+      typeof restore?.nextId === 'number' && Number.isFinite(restore.nextId)
+        ? restore.nextId
+        : 0
+    if (
+      restore &&
+      Array.isArray(restore.lines) &&
+      restore.lines.length > 0 &&
+      restore.lines.every(isBufferLine) &&
+      new Set(restore.lines.map(l => l.id)).size === restore.lines.length
+    ) {
+      const lines = restore.lines
+      this.view = {
+        ...this.view,
+        lines,
+        nextId: Math.max(
+          this.view.nextId,
+          restoredNextId,
+          ...lines.map(l => l.id + 1),
+        ),
+      }
+    }
     this.onState(this.view)
     // Turn boundary handling. The line path still fires onTurn AFTER onState so
     // observers see the settled view; the native autosave fires here too.
@@ -138,14 +219,23 @@ export class GlkOteBridge implements GlkOteDisplay {
 
   /**
    * Native-autosave display state. glkapi's save_allstate() embeds this as
-   * snapshot.glk.glkote; on restore glkapi stashes it and passes it back to our
-   * update() (second arg) for the first post-restore frame. We rebuild the React
-   * ViewState from that update()'s content, so only the metrics need to survive
-   * the round-trip. Must be JSON-serializable. See engine.ts boot() for the full
-   * autosave mechanism description.
+   * snapshot.glk.glkote; on restore glkapi hands it back on the first
+   * post-restore update()'s `arg.autorestore` (glkapi.js:778). We carry the
+   * rendered ViewState lines here so the nl-source / nl-canonical kinds survive a
+   * reload — the VM's replayed buffer alone loses them, which would leak `> up` in
+   * debug-off after a resume. Must be JSON-serializable. See engine.ts boot() for
+   * the full autosave mechanism description.
    */
   save_allstate(): unknown {
-    return { metrics: METRICS }
+    // Carry the rendered transcript (with nl-source / nl-canonical kinds) through
+    // the autosave so a resumed game keeps hiding canonical echoes in debug-off.
+    // The VM's own buffer replay loses those kinds; this is the only channel that
+    // survives a reload, and it stays in sync with the VM snapshot (same boundary).
+    return {
+      metrics: METRICS,
+      lines: this.view.lines.slice(-SNAPSHOT_MAX_LINES),
+      nextId: this.view.nextId,
+    }
   }
   restore_allstate(_state: unknown): void {
     // Never called by the vendored glkapi.js: it replays autorestore state via
@@ -160,6 +250,22 @@ export class GlkOteBridge implements GlkOteDisplay {
   }
 
   sendLine(text: string) {
+    this.canonicalEcho = false
+    this.accept?.({
+      type: 'line',
+      gen: this.gen,
+      window: this.mainWindow,
+      value: text,
+    })
+  }
+
+  /**
+   * Like sendLine, but marks the send as an NL-translated canonical command so
+   * its VM echo renders as nl-canonical (hidden in debug-off). Used by the NL
+   * pipeline for every translated clause of a turn.
+   */
+  sendLineCanonical(text: string) {
+    this.canonicalEcho = true
     this.accept?.({
       type: 'line',
       gen: this.gen,

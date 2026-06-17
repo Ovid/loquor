@@ -6,6 +6,8 @@ import { Scrollback } from './Scrollback'
 import { CommandInput } from './CommandInput'
 import { NlLanguagePicker } from './NlLanguagePicker'
 import { ModelDownloadModal } from './ModelDownloadModal'
+import { PreferencesModal, prefsOpenLabel } from './PreferencesModal'
+import { useDebug } from './useDebug'
 import {
   useGameEngine,
   useCapability,
@@ -116,6 +118,7 @@ export function Terminal({
     getContext,
     echoLocal: t => engineRef.current?.echoLocal(t),
     sendLine: t => engineRef.current?.sendLine(t),
+    sendCanonical: t => engineRef.current?.sendLineCanonical(t),
     recordEcho,
     awaitTurn: () =>
       engineRef.current?.awaitTurn() ??
@@ -124,6 +127,9 @@ export function Terminal({
     signature, // Task 21 consumes it (per-game noun lexicons); '' until boot resolves
     gate,
   })
+
+  const [debug, toggleDebug] = useDebug()
+  const [prefsOpen, setPrefsOpen] = useState(false)
 
   // Turn-boundary scene observation (extracted, F-17): feed each completed turn
   // to the NL scene tracker, deferring to the hook during a compound sequence.
@@ -163,7 +169,8 @@ export function Terminal({
   // The download/upgrade modal is open — everything behind it must be inert so
   // a screen-reader virtual cursor stays inside the dialog (aria-modal alone is
   // unevenly honored). The modal is a sibling below, so it stays operable (M9).
-  const modalOpen = nl.modalOpen || nl.state.phase === 'downloading'
+  const modalOpen =
+    nl.modalOpen || nl.state.phase === 'downloading' || prefsOpen
   const bgInert = backgroundInert || modalOpen
 
   return (
@@ -181,10 +188,21 @@ export function Terminal({
             onUpgrade={nl.requestUpgrade}
           />
         }
+        prefsToggle={
+          <button
+            className="sw"
+            type="button"
+            aria-label={prefsOpenLabel(activeLang)}
+            onClick={() => setPrefsOpen(true)}
+          >
+            <span aria-hidden="true">⚙</span>
+          </button>
+        }
       />
       <main className="term-main" inert={bgInert}>
         <Scrollback
           lines={xl.lines}
+          debug={debug}
           onActivate={() => inputRef.current?.focus()}
         >
           {/* Lines typed ahead while a translation runs (F-A): dimmed, chipped,
@@ -193,9 +211,15 @@ export function Terminal({
             at a different line. */}
           {nl.queued.map(q => (
             <p key={q.id} className="nl-source" lang={nlLang}>
-              <span className="you" lang="en">
-                you
-              </span>{' '}
+              {/* Match the marker Scrollback commits to, gated on debug, so a
+                  line doesn't relabel (you-pill ↔ '>') as it drains (S1). */}
+              {debug ? (
+                <span className="you-pill" lang="en">
+                  you
+                </span>
+              ) : (
+                <span className="car">&gt;</span>
+              )}{' '}
               {q.text}
               <span className="chip" lang={nlLang}>
                 {queuedChip(activeLang)}
@@ -284,6 +308,13 @@ export function Terminal({
         onAccept={nl.requestDownload}
         onDecline={nl.declineDownload}
         onCancel={nl.cancelDownload}
+      />
+      <PreferencesModal
+        open={prefsOpen}
+        debug={debug}
+        lang={activeLang}
+        onToggleDebug={toggleDebug}
+        onClose={() => setPrefsOpen(false)}
       />
     </div>
   )

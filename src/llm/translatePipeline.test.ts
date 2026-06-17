@@ -307,7 +307,10 @@ function makeTranslate(opts: {
   demote: () => void
   educatedRef: { current: boolean }
   sendLine?: (text: string) => void
+  sendCanonical?: (text: string) => void
+  echoLocal?: (text: string) => void
   watchdogMs?: number
+  lex?: Lex
 }): (english: string) => Promise<string | null> {
   const watchdogMs = opts.watchdogMs ?? 1000
   const generateRaw = createGenerateRaw({
@@ -315,9 +318,12 @@ function makeTranslate(opts: {
     watchdogMs,
     engineGate: new EngineGate(),
   })
-  // lex is null here: the grammar-only / load-failure cases route a stage-7-bound
-  // clause (no lexicon resolution), exactly like runClause(..., null, ...) above.
-  const liveRef = { current: { internal: opts.internalOn, lex: null } }
+  // lex defaults to null (the grammar-only / load-failure cases route a
+  // stage-7-bound clause with no lexicon resolution); pass one to exercise the
+  // deterministic alias/lexicon stages.
+  const liveRef = {
+    current: { internal: opts.internalOn, lex: opts.lex ?? null },
+  }
   const deps: TranslateDeps = {
     internal: opts.internalOn,
     vocab: TEST_VOCAB,
@@ -325,8 +331,9 @@ function makeTranslate(opts: {
     generateRaw,
     watchdogMs,
     getContext: () => ({ location: '', recentOutput: '' }),
-    echoLocal: () => {},
+    echoLocal: opts.echoLocal ?? (() => {}),
     sendLine: opts.sendLine ?? (() => {}),
+    sendCanonical: opts.sendCanonical ?? (() => {}),
     awaitTurn: async () => ({ view: emptyView, reason: 'line' as const }),
     trackerRef: { current: new TextSceneTracker(TEST_VOCAB) },
     translatingRef: { current: false },
@@ -350,6 +357,92 @@ describe('createTranslate grammar-only + demotion', () => {
     language: ActiveLanguage,
     model: 'full' | 'grammar',
   ): Internal & { phase: 'on' } => ({ phase: 'on', language, model })
+
+  it('compound: every translated clause is sent canonical, with ONE nl-source echo', async () => {
+    // Both clauses are non-vocab/non-direction → stage 7 (llm). The fake returns
+    // a valid full-vocab command for each, so each clause translates and sends.
+    const engine = new FakeLlmEngine({
+      default: '{"verb":"open","object":"mailbox"}',
+    })
+    const sendCanonical = vi.fn()
+    const sendLine = vi.fn()
+    let echoCount = 0
+    const t = makeTranslate({
+      engine,
+      internalOn: on('fr', 'full'),
+      setNotice: vi.fn(),
+      demote: vi.fn(),
+      educatedRef: { current: false },
+      sendLine,
+      sendCanonical,
+      echoLocal: () => {
+        echoCount++
+      },
+    })
+    await t('frobnique le gadget et frobnique encore')
+    expect(echoCount).toBe(1) // one UI-only nl-source line for the whole compound
+    expect(sendCanonical).toHaveBeenCalledTimes(2) // BOTH echoes tagged canonical
+    expect(sendLine).not.toHaveBeenCalled() // translated sends never go raw
+  })
+
+  it('alias clause is sent canonical (hidden in debug-off) with an nl-source echo — I2', async () => {
+    // ES "inventario" → canonical "inventory" via the core lexicon's metaAliases
+    // (stage 3, before the model). The player's word differs from the engine's
+    // '>'-echo, so its source echoes once (nl-source) and the canonical
+    // "inventory" goes via sendCanonical → nl-canonical → hidden in debug-off.
+    // alias ∈ TRANSLATED_STAGES; this pins the visibility the spec controls.
+    const engine = new FakeLlmEngine({ default: 'X' }) // never reached
+    const sendCanonical = vi.fn()
+    const sendLine = vi.fn()
+    let echoCount = 0
+    const t = makeTranslate({
+      engine,
+      internalOn: on('es', 'full'),
+      setNotice: vi.fn(),
+      demote: vi.fn(),
+      educatedRef: { current: false },
+      sendLine,
+      sendCanonical,
+      lex: { core: coreLexicon('es'), nouns: null, words: new Set() },
+      echoLocal: () => {
+        echoCount++
+      },
+    })
+    await t('inventario')
+    expect(echoCount).toBe(1) // the player's Spanish word echoes once
+    expect(sendCanonical).toHaveBeenCalledTimes(1)
+    expect(sendCanonical).toHaveBeenCalledWith('inventory')
+    expect(sendLine).not.toHaveBeenCalled() // not a visible raw send
+  })
+
+  it('compound: a vocab passthrough AFTER a translated clause stays visible (not canonical) — I1', async () => {
+    // `va au nord` → direction stage (translated → canonical/hidden in debug-off).
+    // `open trapdoor` → vocab passthrough: the player's OWN words, so it must go
+    // via sendLine (visible), NOT inherit the turn-level `echoed` latch as its
+    // canonical flag. Regression for the order-dependent leak (review I1).
+    const engine = new FakeLlmEngine({ default: 'X' }) // never reached
+    const sendCanonical = vi.fn()
+    const sendLine = vi.fn()
+    let echoCount = 0
+    const t = makeTranslate({
+      engine,
+      internalOn: on('fr', 'full'),
+      setNotice: vi.fn(),
+      demote: vi.fn(),
+      educatedRef: { current: false },
+      sendLine,
+      sendCanonical,
+      echoLocal: () => {
+        echoCount++
+      },
+    })
+    await t('va au nord et open trapdoor')
+    expect(echoCount).toBe(1) // one nl-source line for the translated clause
+    expect(sendCanonical).toHaveBeenCalledTimes(1) // only the direction clause
+    expect(sendCanonical).toHaveBeenCalledWith('north')
+    expect(sendLine).toHaveBeenCalledTimes(1) // passthrough stays visible
+    expect(sendLine).toHaveBeenCalledWith('open trapdoor')
+  })
 
   it('grammar-only: a stage-7-bound non-EN line abstains with the educational notice (once)', async () => {
     const engine = new FakeLlmEngine({ default: 'X' })

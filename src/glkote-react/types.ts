@@ -1,7 +1,7 @@
 /** One rendered line in the main (buffer) window. */
 export interface BufferLine {
   id: number
-  kind: 'output' | 'input' | 'room' | 'nl-source'
+  kind: 'output' | 'input' | 'room' | 'nl-source' | 'nl-canonical'
   text: string
 }
 
@@ -52,8 +52,9 @@ export interface GlkOteDisplay {
   /**
    * Capture display-layer state for ifvms's native autosave (glkapi's
    * save_allstate() stores our return value as `snapshot.glk.glkote`). Must be
-   * JSON-serializable. We rebuild the React view from the post-restore update(),
-   * so only the metrics need to round-trip.
+   * JSON-serializable. Round-trips the metrics PLUS the rendered `lines`/`nextId`,
+   * so the UI-only nl-source/nl-canonical kinds survive a reload (the VM's buffer
+   * replay alone loses them — see bridge.save_allstate()).
    */
   save_allstate(): unknown
   /**
@@ -80,6 +81,14 @@ export interface GlkOteUpdate {
   content?: Array<Record<string, unknown>>
   input?: Array<Record<string, unknown>>
   disable?: boolean
+  /**
+   * Present only on the FIRST post-restore update during native autorestore:
+   * glkapi hands back whatever save_allstate() returned (snapshot.glk.glkote),
+   * set as dataobj.autorestore (glkapi.js:778). We use its `lines` to restore the
+   * rendered transcript WITH its nl-source / nl-canonical kinds, which the VM's
+   * replayed buffer can't reproduce (so debug-off keeps hiding canonical echoes).
+   */
+  autorestore?: { lines?: BufferLine[]; nextId?: number; [k: string]: unknown }
   [k: string]: unknown
 }
 

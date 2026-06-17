@@ -10,8 +10,9 @@ import { LanguageCombobox } from './LanguageCombobox'
  * hook keeps phase 'off' and opens the modal; accepting activates THAT language.
  *
  * The dropdown itself is the shared LanguageCombobox (same control as the title
- * screen); this component adds the in-game framing: the "Language:" label, the
- * installed/basic chips, and the model-upgrade affordance.
+ * screen); this component adds the in-game framing: the combobox's
+ * `aria-label="Language"`, the installed/basic chips, and the model-upgrade
+ * affordance. (No visible "Language:" text — Task 10 removed it.)
  */
 export function NlLanguagePicker({
   state,
@@ -38,7 +39,6 @@ export function NlLanguagePicker({
 
   return (
     <span className="nl-toggle">
-      Language:{' '}
       <LanguageCombobox
         options={OPTIONS}
         value={value}

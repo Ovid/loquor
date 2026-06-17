@@ -223,14 +223,34 @@
   opacity: 0.78;
   font-style: italic;
 }
-/* Worded 'you' label for the player's pre-translation line (NL v2 §12). */
-.you {
+/* Inverted ‹you› badge for the player's pre-translation line in debug view.
+   bg = theme foreground (--text), text = theme background (--bg-base): a true
+   fg/bg inversion, so the contrast ratio is preserved in both light and dark
+   themes without any per-theme override. The pill shape (border-radius + padding)
+   is the non-colour cue required by WCAG 1.4.1 — state is not conveyed by
+   colour alone. No unit test: the invariant is structural (CSS variable inversion),
+   not a colour value that could be asserted numerically. */
+.you-pill {
   display: inline-block;
-  min-width: 2.4em;
+  padding: 0 6px;
   margin-right: 6px;
+  border-radius: 8px;
   font-size: 0.78em;
-  letter-spacing: 0.08em;
   font-style: normal;
+  letter-spacing: 0.04em;
+  background: var(--text);
+  color: var(--bg-base);
+}
+/* Preferences modal: the checkbox row and its help text. */
+.prefs-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 4px;
+}
+.prefs-help {
+  margin: 0 0 8px;
+  font-size: 0.85em;
   color: var(--text-dim);
 }
 /* 'queued' chip on lines waiting for the translator (NL v2 §11). */
@@ -285,7 +305,8 @@
 }
 .nl-caret {
   margin-left: 5px;
-  font-size: 0.5625rem;
+  /* No font-size override: inherit the bar's text size so the ▾ matches the
+     "Change story" caret exactly (both are ▾ in .meta). */
   color: var(--brass-soft);
   transition: color 0.2s;
 }

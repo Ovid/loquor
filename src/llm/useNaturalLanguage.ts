@@ -32,6 +32,7 @@ export interface UseNaturalLanguageArgs {
   getContext: () => ViewContext
   echoLocal: (text: string) => void
   sendLine: (text: string) => void
+  sendCanonical: (text: string) => void
   /** Record a (canonical command → player's own source words) pair for the output
    * overlay's Loud Room input-echo re-voicing (loudEcho / UAT F6). Optional. */
   recordEcho?: (canonical: string, source: string) => void
@@ -96,6 +97,7 @@ export function useNaturalLanguage(
     getContext,
     echoLocal,
     sendLine,
+    sendCanonical,
     recordEcho,
     awaitTurn,
     watchdogMs,
@@ -257,6 +259,7 @@ export function useNaturalLanguage(
         getContext,
         echoLocal,
         sendLine,
+        sendCanonical,
         recordEcho,
         awaitTurn,
         trackerRef,
@@ -282,6 +285,7 @@ export function useNaturalLanguage(
       getContext,
       echoLocal,
       sendLine,
+      sendCanonical,
       recordEcho,
       awaitTurn,
       demoteToGrammar,

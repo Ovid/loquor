@@ -276,3 +276,220 @@ describe('GlkOteBridge', () => {
     expect(both.map(r => r.reason)).toEqual(['line', 'line'])
   })
 })
+
+describe('canonical send flagging', () => {
+  // Input-echo update shape (matches reduce's buffer-paragraph contract).
+  const echoUpdate = (cmd: string) => ({
+    type: 'update' as const,
+    content: [{ text: [{ append: true, content: ['input', cmd] }] }],
+    input: [{ type: 'line', id: 1, gen: 0 }],
+  })
+
+  it('sendLineCanonical makes the next echo render nl-canonical', () => {
+    let view: any
+    const bridge = new GlkOteBridge(v => (view = v))
+    bridge.init({ accept: vi.fn() })
+    bridge.echoLocal('arriba') // the player's Spanish, UI-only
+    bridge.sendLineCanonical('up') // canonical send → arms the flag
+    bridge.update(echoUpdate('up') as any)
+    expect(view.lines.at(-1)).toMatchObject({
+      kind: 'nl-canonical',
+      text: 'up',
+    })
+  })
+
+  it('plain sendLine leaves the next echo as input', () => {
+    let view: any
+    const bridge = new GlkOteBridge(v => (view = v))
+    bridge.init({ accept: vi.fn() })
+    bridge.sendLine('up')
+    bridge.update(echoUpdate('up') as any)
+    expect(view.lines.at(-1)).toMatchObject({ kind: 'input', text: 'up' })
+  })
+})
+
+describe('autosave round-trips NL line kinds (resume leak fix)', () => {
+  // The canonical-echo property lives only at the send seam (canonicalEcho) and
+  // the nl-source line is UI-only — neither is in the VM's Glk buffer. So on a
+  // page reload + autorestore, the VM replays the echo as a plain input-styled
+  // paragraph and the reducer reclassifies it `input`, leaking the English `> up`
+  // in debug-off (the default). The fix carries the rendered ViewState lines
+  // through save_allstate()'s autosave round-trip (glkapi embeds it as
+  // snapshot.glk.glkote and hands it back on arg.autorestore — glkapi.js:778,988).
+  it('keeps a translated echo nl-canonical (and restores the nl-source line) after restore', () => {
+    // --- First session: a translated turn ("arriba" → canonical "up"). ---
+    let view: any
+    const bridge = new GlkOteBridge(v => (view = v))
+    bridge.init({ accept: vi.fn() })
+    bridge.echoLocal('arriba') // player's Spanish, UI-only nl-source line
+    bridge.sendLineCanonical('up') // canonical send arms the flag
+    bridge.update({
+      type: 'update',
+      gen: 1,
+      content: [
+        {
+          text: [
+            { append: true, content: ['input', 'up'] },
+            { content: ['normal', "You can't go that way."] },
+          ],
+        },
+      ],
+      input: [{ type: 'line', id: 7, gen: 1 }],
+    } as any)
+    // Sanity: live, the translated echo is nl-canonical (debug-off hides it).
+    expect(
+      view.lines.some((l: any) => l.kind === 'nl-canonical' && l.text === 'up'),
+    ).toBe(true)
+
+    // The native autosave captures our display state at this turn boundary.
+    const saved = bridge.save_allstate()
+
+    // --- Second session: a fresh bridge boots and glkapi autorestores. It
+    // replays the VM buffer (echo is plain input-styled) AND hands our saved
+    // glkote state back on arg.autorestore. ---
+    let view2: any
+    const bridge2 = new GlkOteBridge(v => (view2 = v))
+    bridge2.init({ accept: vi.fn() })
+    bridge2.update({
+      type: 'update',
+      gen: 1,
+      content: [
+        {
+          text: [
+            { content: ['input', 'up'] },
+            { content: ['normal', "You can't go that way."] },
+          ],
+        },
+      ],
+      input: [{ type: 'line', id: 7, gen: 1 }],
+      autorestore: saved,
+    } as any)
+
+    // The translated echo must stay hidden-able (nl-canonical), the nl-source
+    // line must come back, and the bare English `> up` input must NOT leak.
+    expect(
+      view2.lines.some(
+        (l: any) => l.kind === 'nl-canonical' && l.text === 'up',
+      ),
+    ).toBe(true)
+    expect(
+      view2.lines.some(
+        (l: any) => l.kind === 'nl-source' && l.text === 'arriba',
+      ),
+    ).toBe(true)
+    expect(
+      view2.lines.some((l: any) => l.kind === 'input' && l.text === 'up'),
+    ).toBe(false)
+  })
+
+  // S2/S3: the autorestore blob is unversioned. A malformed `lines` array (a
+  // future-schema drift) must NOT be trusted — fall back to the reduced view —
+  // and a restored snapshot must push nextId past every restored id so the next
+  // reduced line can't collide a React key.
+  it('rejects a malformed autorestore lines array, keeping the reduced view', () => {
+    let view: any
+    const bridge = new GlkOteBridge(v => (view = v))
+    bridge.init({ accept: vi.fn() })
+    bridge.update({
+      type: 'update',
+      gen: 1,
+      content: [{ text: [{ content: ['normal', 'West of House'] }] }],
+      input: [{ type: 'line', id: 1, gen: 1 }],
+      // one bad element (missing/!string text) disqualifies the whole array
+      autorestore: { lines: [{ id: 0, kind: 'output', text: 42 }], nextId: 99 },
+    } as any)
+    expect(view.lines.some((l: any) => l.text === 'West of House')).toBe(true)
+    expect(view.lines.every((l: any) => typeof l.text === 'string')).toBe(true)
+  })
+
+  it('clamps nextId past every restored line id (no key collision after resume)', () => {
+    let view: any
+    const bridge = new GlkOteBridge(v => (view = v))
+    bridge.init({ accept: vi.fn() })
+    bridge.update({
+      type: 'update',
+      gen: 1,
+      content: [{ text: [{ content: ['normal', 'West of House'] }] }],
+      input: [{ type: 'line', id: 1, gen: 1 }],
+      // valid lines but a stale (too-small) nextId
+      autorestore: {
+        lines: [
+          { id: 10, kind: 'output', text: 'old line' },
+          { id: 11, kind: 'input', text: 'look' },
+        ],
+        nextId: 1,
+      },
+    } as any)
+    expect(view.nextId).toBeGreaterThan(11)
+  })
+
+  // I3: `[].every()` is true, so an empty `lines` array would pass the validator
+  // and replace the reduced view with zero lines — blanking the transcript on a
+  // no-output-moment snapshot. It must fall back to the reduced view instead.
+  it('rejects an empty autorestore lines array, keeping the reduced view (I3)', () => {
+    let view: any
+    const bridge = new GlkOteBridge(v => (view = v))
+    bridge.init({ accept: vi.fn() })
+    bridge.update({
+      type: 'update',
+      gen: 1,
+      content: [{ text: [{ content: ['normal', 'West of House'] }] }],
+      input: [{ type: 'line', id: 1, gen: 1 }],
+      autorestore: { lines: [], nextId: 5 },
+    } as any)
+    expect(view.lines.some((l: any) => l.text === 'West of House')).toBe(true)
+  })
+
+  // S2: duplicate ids among restored lines would mint duplicate React keys.
+  it('rejects autorestore lines with duplicate ids, keeping the reduced view (S2)', () => {
+    let view: any
+    const bridge = new GlkOteBridge(v => (view = v))
+    bridge.init({ accept: vi.fn() })
+    bridge.update({
+      type: 'update',
+      gen: 1,
+      content: [{ text: [{ content: ['normal', 'West of House'] }] }],
+      input: [{ type: 'line', id: 1, gen: 1 }],
+      autorestore: {
+        lines: [
+          { id: 5, kind: 'output', text: 'a' },
+          { id: 5, kind: 'output', text: 'b' },
+        ],
+        nextId: 9,
+      },
+    } as any)
+    expect(view.lines.some((l: any) => l.text === 'West of House')).toBe(true)
+  })
+
+  // S1: a non-finite restored nextId (string/NaN from a corrupt blob) must not
+  // poison Math.max → NaN ids forever; it is ignored and nextId stays finite.
+  it('ignores a non-finite restored nextId (S1)', () => {
+    let view: any
+    const bridge = new GlkOteBridge(v => (view = v))
+    bridge.init({ accept: vi.fn() })
+    bridge.update({
+      type: 'update',
+      gen: 1,
+      content: [{ text: [{ content: ['normal', 'West of House'] }] }],
+      input: [{ type: 'line', id: 1, gen: 1 }],
+      autorestore: {
+        lines: [{ id: 3, kind: 'output', text: 'old line' }],
+        nextId: 'boom',
+      },
+    } as any)
+    expect(view.lines.some((l: any) => l.text === 'old line')).toBe(true)
+    expect(Number.isFinite(view.nextId)).toBe(true)
+  })
+
+  // I1: save_allstate() fires every turn, so it must carry only a bounded tail —
+  // not the ever-growing transcript — to keep autosave O(1)-ish in storage.
+  it('caps the autosaved transcript to a recent tail (I1)', () => {
+    const bridge = new GlkOteBridge(() => {})
+    bridge.init({ accept: vi.fn() })
+    for (let i = 0; i < 600; i++) bridge.echoLocal(`line ${i}`)
+    const saved = bridge.save_allstate() as { lines: any[] }
+    expect(saved.lines.length).toBe(500)
+    // It is the TAIL (most recent), so the last line survives.
+    expect(saved.lines.at(-1).text).toBe('line 599')
+  })
+})

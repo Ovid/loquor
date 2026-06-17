@@ -20,4 +20,6 @@ export const LS_KEYS = {
   nlPref: 'loquor.nl',
   /** Output-translation corpus-miss ring buffer. Owner: src/translate/missLog.ts */
   miss: 'loquor.xlate.misses',
+  /** Debug-view preference ('1' = on). Owner: src/ui/useDebug.ts */
+  debug: 'loquor.debug',
 } as const

@@ -47,6 +47,18 @@ session loses time to something avoidable.
 - Batch moves 4–6 per `browser_batch` with 1s waits; screenshot only at the
   end. Deterministic translations are instant; only wait 4–8s when
   `…thinking` (LLM fallback) appears.
+- **After editing app source mid-session, VERIFY IN A FRESH TAB — never trust
+  the tab you've been hammering** (UAT-prefs-debug, 2026-06-17). Editing
+  `src/**` while a tab is live triggers Vite **HMR**, which hot-swaps modules
+  into a running tree; combined with StrictMode double-mount and many reloads,
+  the tab accumulates divergent client state. Symptom seen: a resumed German
+  game where the picker rendered "German"/English chrome ("Points/Moves", `> go
+  north`) while the NL input was still German — a self-contradictory state the
+  code can't actually produce from one `nl.state`. It looked like a real
+  "language reset on resume" bug; it was pure HMR/stale-tab corruption. A
+  brand-new tab (`tabs_create_mcp` → navigate) resumed cleanly: "Deutsch ▾",
+  "Punkte/Züge", German source lines, fix intact. Rule: once you've touched
+  code, open a fresh tab before drawing any conclusion about runtime behavior.
 
 ## Zork I gameplay traps (cost real time in UAT-2/UAT-3)
 

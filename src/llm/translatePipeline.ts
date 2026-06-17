@@ -374,6 +374,9 @@ export interface TranslateDeps {
   getContext: () => ViewContext
   echoLocal: (text: string) => void
   sendLine: (text: string) => void
+  /** Like sendLine, but marks the send NL-canonical (its echo renders as
+   * nl-canonical, hidden in debug-off). Used for every translated-clause send. */
+  sendCanonical: (text: string) => void
   /** Record a (canonical command sent → player's own source words) pair so the
    * output overlay can re-voice the Loud Room input-echo in the player's language
    * (loudEcho / UAT F6). Optional — omitted by tests/contexts with no overlay. */
@@ -414,6 +417,7 @@ export function createTranslate(
     getContext,
     echoLocal,
     sendLine,
+    sendCanonical,
     recordEcho,
     awaitTurn,
     trackerRef,
@@ -518,10 +522,14 @@ export function createTranslate(
     // (raw/quoted/prompt reply) lets it default to `text`. Recorded BEFORE
     // sendLine so the canonical→player echo map is current when the VM's
     // synchronous turn produces the Loud Room echo line (loudEcho / F6).
-    const sendTracked = (text: string, source: string = text) => {
+    const sendTracked = (
+      text: string,
+      source: string = text,
+      canonical = false,
+    ) => {
       recordEcho?.(text, source)
       turnBox.pending = raceTurn()
-      sendLine(text)
+      ;(canonical ? sendCanonical : sendLine)(text)
     }
 
     // Shared abstain-on-error action (review S6): a translator failure (timeout
@@ -706,11 +714,16 @@ export function createTranslate(
           break // abstain → stop; stage 8 below decides what the player sees
         }
 
-        if (
-          !echoed &&
+        // Per-clause: did THIS clause translate (canonical differs from the
+        // player's typed words)? Drives both the once-per-turn nl-source echo
+        // and the per-clause `canonical` send-flag. A passthrough clause
+        // (vocab/meta) after a translated one must NOT inherit the turn-level
+        // `echoed` latch as its canonical flag, or its own verbatim words get
+        // hidden in debug-off (review I1).
+        const translated =
           TRANSLATED_STAGES.has(stage) &&
           !(activeLang === 'en' && isIdentityEcho(line, result.text))
-        ) {
+        if (!echoed && translated) {
           echoLocal(line)
           echoed = true
         }
@@ -720,7 +733,7 @@ export function createTranslate(
         lastCommandRef.current = isMeta ? null : result.text
 
         if (total === 1) {
-          sendTracked(result.text, clause)
+          sendTracked(result.text, clause, translated)
           done++
           break // single command: Terminal's observe handles the turn
         }
@@ -728,7 +741,7 @@ export function createTranslate(
         // sendTracked registers the turn listener BEFORE sendLine (see its
         // comment above), so the synchronous VM turn cannot be missed; the
         // clause then awaits that same boundary.
-        sendTracked(result.text, clause)
+        sendTracked(result.text, clause, translated)
         done++
 
         const turn = await turnBox.pending!

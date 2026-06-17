@@ -84,6 +84,11 @@ export class ZMachine {
    *    slot, so a finished game does not auto-resume.
    * The bridge's onTurn hook fires at the same line-input boundary purely as the
    * documented seam; it does NOT call do_autosave (that would double-save).
+   *
+   * Each save embeds the bridge's `save_allstate()` (the rendered transcript tail,
+   * capped at SNAPSHOT_MAX_LINES) as `snapshot.glk.glkote`, so the UI-only
+   * nl-source / nl-canonical kinds survive a reload; glkapi hands it back on the
+   * first post-restore `update(arg.autorestore)`. See bridge.save_allstate().
    */
   async boot(storyBytes: Uint8Array): Promise<string> {
     const Glk = getGlk()
@@ -193,6 +198,11 @@ export class ZMachine {
 
   sendLine(text: string) {
     this.bridge.sendLine(text)
+  }
+
+  /** Canonical (NL-translated) send — see GlkOteBridge.sendLineCanonical. */
+  sendLineCanonical(text: string) {
+    this.bridge.sendLineCanonical(text)
   }
 
   sendChar(key: string) {

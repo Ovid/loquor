@@ -90,7 +90,7 @@ describe('Landing', () => {
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(onDismiss).toHaveBeenCalledTimes(1)
   })
-  it('exposes a language radiogroup defaulting to the saved pref', () => {
+  it('exposes a language combobox defaulting to the saved pref', () => {
     localStorage.setItem(
       LS_KEYS.nlPref,
       JSON.stringify({ language: 'fr', declined: false }),
@@ -98,10 +98,33 @@ describe('Landing', () => {
     render(
       <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
     )
-    const group = screen.getByRole('radiogroup', { name: /language/i })
-    expect(group).toBeInTheDocument()
-    const fr = screen.getByRole('radio', { name: 'Français' })
-    expect(fr).toHaveAttribute('aria-checked', 'true')
+    expect(
+      screen.getByRole('combobox', { name: /language/i }),
+    ).toHaveTextContent('Français')
+  })
+
+  it('defaults to English and does not offer Off on the title screen', () => {
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    const btn = screen.getByRole('combobox', { name: /language/i })
+    expect(btn).toHaveTextContent('English')
+    fireEvent.click(btn)
+    expect(screen.queryByRole('option', { name: 'Off' })).toBeNull()
+    expect(screen.getAllByRole('option')).toHaveLength(4)
+  })
+
+  it('maps a saved Off preference to English on the title screen', () => {
+    localStorage.setItem(
+      LS_KEYS.nlPref,
+      JSON.stringify({ language: 'off', declined: false }),
+    )
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    expect(
+      screen.getByRole('combobox', { name: /language/i }),
+    ).toHaveTextContent('English')
   })
 
   it('persists the chosen language when entering the game', () => {
@@ -109,25 +132,13 @@ describe('Landing', () => {
     render(
       <Landing onEnter={onEnter} savedSlugs={new Set()} themeToggle={null} />,
     )
-    fireEvent.click(screen.getByRole('radio', { name: 'Deutsch' }))
+    fireEvent.click(screen.getByRole('combobox', { name: /language/i }))
+    fireEvent.click(screen.getByRole('option', { name: 'Deutsch' }))
     fireEvent.click(screen.getByText(/Light the lamp/))
     expect(onEnter).toHaveBeenCalledWith('zork1')
     expect(JSON.parse(localStorage.getItem(LS_KEYS.nlPref)!).language).toBe(
       'de',
     )
-  })
-
-  it('moves language selection AND focus with arrow keys (roving radiogroup)', () => {
-    // Default selection is Off (index 0). ArrowRight → English (index 1).
-    render(
-      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
-    )
-    const group = screen.getByRole('radiogroup', { name: /language/i })
-    fireEvent.keyDown(group, { key: 'ArrowRight' })
-    const english = screen.getByRole('radio', { name: 'English' })
-    expect(english).toHaveAttribute('aria-checked', 'true')
-    expect(english).toHaveAttribute('tabindex', '0')
-    expect(english).toHaveFocus()
   })
 
   it('keeps the language picker operable in the Change story overlay variant', () => {
@@ -139,9 +150,10 @@ describe('Landing', () => {
         onDismiss={() => {}}
       />,
     )
-    const es = screen.getByRole('radio', { name: 'Español' })
-    fireEvent.click(es)
-    expect(es).toHaveAttribute('aria-checked', 'true')
+    const btn = screen.getByRole('combobox', { name: /language/i })
+    fireEvent.click(btn)
+    fireEvent.click(screen.getByRole('option', { name: 'Español' }))
+    expect(btn).toHaveTextContent('Español')
   })
 
   it('shows plain-language how-to copy, not the old canonical-command framing', () => {
@@ -162,7 +174,8 @@ describe('Landing', () => {
     )
     const region = screen.getByRole('region', { name: /examples/i })
     expect(region).toHaveTextContent(LANDING_EXAMPLES.en.join(' · '))
-    fireEvent.click(screen.getByRole('radio', { name: 'Français' }))
+    fireEvent.click(screen.getByRole('combobox', { name: /language/i }))
+    fireEvent.click(screen.getByRole('option', { name: 'Français' }))
     expect(region).toHaveTextContent(LANDING_EXAMPLES.fr.join(' · '))
   })
 

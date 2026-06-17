@@ -296,38 +296,33 @@
   margin: 18px 0 6px;
   text-align: center;
 }
-.lang-options {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 8px;
-}
-.lang-opt {
-  padding: 4px 12px;
-  border: 1px solid var(--rule);
-  border-radius: 6px;
-  background: var(--vol-bg);
-  color: var(--text);
+/* The picker is the shared LanguageCombobox (.nl-select / .nl-menu, styled in
+   components.css). On the folio the trigger reads like the other text controls
+   (brass, no chrome — the .sw base is scoped to .meta/.modal, so restate it
+   here), and the popup centers under the trigger rather than opening from the
+   status bar's right edge. */
+.langpick .nl-select-btn {
+  color: var(--brass-soft);
   cursor: pointer;
   font: inherit;
-  transition: all 0.25s ease;
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
 }
-.lang-opt:hover {
-  border-color: var(--brass-soft);
-  background: var(--vol-hover-bg);
+.langpick .nl-select-btn:hover {
+  color: var(--brass);
 }
-.lang-opt.sel {
-  border-color: var(--brass);
-  /* Non-colour cue (a11y §4): the selected option is also bold + given an
-     extra outline ring, so the state survives a colourblind/forced-colors
-     display. aria-checked conveys it to assistive tech. */
-  font-weight: 600;
-  outline: 1px solid var(--brass-soft);
-}
-.lang-opt:focus-visible {
-  outline: 2px solid var(--brass);
+.langpick .nl-select-btn:focus-visible {
+  outline: 1px solid var(--brass);
   outline-offset: 2px;
+}
+.langpick .nl-menu {
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
 }
 .lang-caveat {
   max-width: 52ch;

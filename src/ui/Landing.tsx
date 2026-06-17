@@ -3,12 +3,19 @@ import { GAMES, type Game } from '../games/catalog'
 import { useFocusTrap } from './useFocusTrap'
 import { readNlPref, writeNlPref } from '../llm/nlpref'
 import { LANGUAGE_OPTIONS } from './languageOptions'
+import { LanguageCombobox } from './LanguageCombobox'
 import { LANDING_EXAMPLES } from './landingExamples'
 import type { NlLanguage } from '../llm/types'
 
+// The title screen offers only the play languages, not "Off" (disabling the NL
+// layer is an in-game advanced toggle, not a first-run choice): a new player is
+// told to "type in plain language", so starting with the NL layer off would
+// contradict the copy. A saved "off" preference therefore maps to English here.
+const LANDING_LANGUAGES = LANGUAGE_OPTIONS.filter(o => o.value !== 'off')
+
 /** APG radio-pattern roving: arrows move selection AND focus among the radios
- *  of a group. Shared by the volumes group and the language group so they can't
- *  drift. `values` is the ordered option list; `groupRef` wraps the radios. */
+ *  of the volumes group. `values` is the ordered option list; `groupRef` wraps
+ *  the radios. */
 function rovingRadioKeydown<T>(
   e: React.KeyboardEvent,
   values: readonly T[],
@@ -51,21 +58,20 @@ export function Landing({
   onDismiss?: () => void
 }) {
   const [selected, setSelected] = useState<Game['slug']>('zork1')
-  const [language, setLanguage] = useState<NlLanguage>(
-    () => readNlPref().language,
-  )
-  // Off and English both show the English example set (Off = English raw-send).
+  const [language, setLanguage] = useState<NlLanguage>(() => {
+    const saved = readNlPref().language
+    return saved === 'off' ? 'en' : saved
+  })
+  // language is never 'off' on the landing, but the guard keeps the type narrow.
   const exampleLang = language === 'off' || language === 'en' ? 'en' : language
   const examples = LANDING_EXAMPLES[exampleLang]
   const dismissRef = useRef<HTMLButtonElement>(null)
   const plateRef = useRef<HTMLDivElement>(null)
   const volumesRef = useRef<HTMLDivElement>(null)
-  const langGroupRef = useRef<HTMLDivElement>(null)
 
   // Radiogroup roving: arrows move selection AND focus among the volumes (APG
   // radio pattern), so the mutual exclusivity is operable by keyboard, not just
-  // mouse. The selected radio is the only tab stop (roving tabindex). Shared with
-  // the language group via rovingRadioKeydown so the two can't drift.
+  // mouse. The selected radio is the only tab stop (roving tabindex).
   const onVolumeKey = (e: React.KeyboardEvent) =>
     rovingRadioKeydown(
       e,
@@ -73,14 +79,6 @@ export function Landing({
       selected,
       setSelected,
       volumesRef,
-    )
-  const onLangKey = (e: React.KeyboardEvent) =>
-    rovingRadioKeydown(
-      e,
-      LANGUAGE_OPTIONS.map(o => o.value),
-      language,
-      setLanguage,
-      langGroupRef,
     )
 
   // Overlay-only behaviour (the in-game "Change story" picker): Escape returns to
@@ -138,31 +136,14 @@ export function Landing({
           </span>
         </div>
         <div className="langpick">
-          <span className="label" id="language-label">
-            Language
-          </span>
-          <div
-            className="lang-options"
-            ref={langGroupRef}
-            role="radiogroup"
-            aria-labelledby="language-label"
-            onKeyDown={onLangKey}
-          >
-            {LANGUAGE_OPTIONS.map(o => (
-              <button
-                key={o.value}
-                type="button"
-                role="radio"
-                lang={o.lang}
-                className={`lang-opt${language === o.value ? ' sel' : ''}`}
-                aria-checked={language === o.value}
-                tabIndex={language === o.value ? 0 : -1}
-                onClick={() => setLanguage(o.value)}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
+          <span className="label">Language</span>{' '}
+          <LanguageCombobox
+            options={LANDING_LANGUAGES}
+            value={language}
+            onChange={setLanguage}
+            idBase="landing-lang"
+            label="Language"
+          />
         </div>
         <p className="lang-caveat">
           Basic commands work now. To understand more of what you type, you can

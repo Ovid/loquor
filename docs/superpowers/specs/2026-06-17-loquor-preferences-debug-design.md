@@ -60,9 +60,18 @@ produced by a `TRANSLATED_STAGES` stage and was not an English identity echo
 different" — is the definition the implementation keys off, so the two can't
 drift. Ordering invariant: the single `nl-source` line is emitted at the **first**
 such clause, so it always precedes that turn's canonical echo(es). A turn whose
-first clause is a non-translated stage (meta/alias) but whose later clause *is*
-translated still emits the `nl-source` line at the translated clause — the
-earlier meta echo stays a plain `input` line ahead of it.
+first clause is a non-translated `meta` stage (restart/save/quit — the typed word
+IS the canonical) but whose later clause *is* translated still emits the
+`nl-source` line at the translated clause; the earlier `meta` echo stays a plain
+`input` line ahead of it.
+
+Note `alias` (a localized meta-word: es `inventario` → canonical `inventory`) is
+**not** a plain-`input` stage — it is in `TRANSLATED_STAGES`. Because the typed
+word differs from the engine's `'>'`-echo, an alias clause emits its own
+`nl-source` echo and its canonical send is tagged `nl-canonical` (hidden in
+debug-OFF, like any translated echo), so debug-OFF shows the player's own word
+and hides the English canonical. Only `meta` and `vocab` passthrough keep the
+plain-`input`, both-modes-visible echo.
 
 Per NL-translated turn (original `arriba` → canonical `up`):
 
@@ -128,9 +137,11 @@ remains decorative-ish text inside the line, not an interactive control.
 
 ## Architecture
 
-All work is in the display layer (`src/glkote-react/reduce.ts`, `src/ui/**`,
-`src/storageKeys.ts`, `src/ui/components.css`). The VM, Glk bridge input path,
-and NL pipeline are untouched.
+Most work is in the display layer (`src/glkote-react/reduce.ts`, `src/ui/**`,
+`src/storageKeys.ts`, `src/ui/components.css`). The VM is untouched. The Glk
+bridge input path and NL pipeline gain a thin **send-seam** addition only —
+`sendLineCanonical` + the `canonicalEcho` flag (see §1) — so a translated echo
+can be tagged `nl-canonical`; no translation logic changes.
 
 ### 1. A new line kind: `nl-canonical`, marked at the send seam
 
@@ -214,9 +225,10 @@ controlled checkbox bound to the `debug` value.
 - **Compound / mixed-stage turns:** all canonical echoes of a translated turn
   are tagged `nl-canonical` via the send-seam flag (Architecture §1), so
   debug-OFF hides every clause, not just the first. A turn that mixes a
-  non-translated clause (meta/alias) with a translated one emits its `nl-source`
-  line at the translated clause; the earlier meta echo stays a plain `input`
-  line.
+  non-translated `meta` clause with a translated one emits its `nl-source`
+  line at the translated clause; the earlier `meta` echo stays a plain `input`
+  line. (`alias` is itself a translated stage — see "What counts as a translated
+  turn" above — so its echo is `nl-canonical`, not plain `input`.)
 - **A pathological `nl-source` whose text is literally `>`:** already handled by
   the kind-aware bare-`>` filter in `Scrollback` (review S13); unaffected.
 
@@ -229,9 +241,13 @@ controlled checkbox bound to the `debug` value.
 - **Compound commands:** a multi-clause translated turn (one `nl-source`, two
   canonical sends) tags **both** echoes `nl-canonical`, so debug-OFF hides both
   `> north` and `> take lamp` (regression guard for the leak this spec fixes).
-- **Mixed-stage compound:** a turn whose first clause is meta/alias and whose
-  later clause is translated emits the `nl-source` line at the translated clause;
-  the earlier meta echo remains a plain `input` line.
+- **Mixed-stage compound:** a turn whose first clause is `meta` and whose later
+  clause is translated emits the `nl-source` line at the translated clause; the
+  earlier `meta` echo remains a plain `input` line.
+- **Alias clause:** a localized meta-word (es `inventario` → `inventory`) sends
+  via `sendCanonical`, so its echo is `nl-canonical` (hidden in debug-OFF) and it
+  emits an `nl-source` echo of the typed word — pinned in
+  `translatePipeline.test.ts` ("alias clause is sent canonical … — I2").
 - **Scrollback:** debug-off renders `> arriba` and omits the `> up` line;
   debug-on renders the `‹you›` pill and the `> up` line; flipping the `debug`
   prop re-renders without any new line data.

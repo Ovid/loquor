@@ -26,6 +26,22 @@ describe('LanguageCombobox', () => {
     )
   })
 
+  it('marks the picker translate="no" so Chrome cannot rewrite the foreign-language labels to English', () => {
+    const { container } = render(
+      <LanguageCombobox
+        options={OPTS}
+        value="fr"
+        onChange={() => {}}
+        idBase="t"
+        label="Language"
+      />,
+    )
+    expect(container.querySelector('.nl-select')).toHaveAttribute(
+      'translate',
+      'no',
+    )
+  })
+
   it('emits the chosen value and closes (mouse)', () => {
     const onChange = vi.fn()
     render(

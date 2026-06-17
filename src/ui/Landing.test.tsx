@@ -1,8 +1,11 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import { Landing } from './Landing'
+import { LS_KEYS } from '../storageKeys'
 
 describe('Landing', () => {
+  afterEach(() => localStorage.clear())
+
   it('lets you pick a volume and enter', () => {
     const onEnter = vi.fn()
     render(
@@ -19,7 +22,7 @@ describe('Landing', () => {
     const group = screen.getByRole('radiogroup', {
       name: /choose your descent/i,
     })
-    const radios = screen.getAllByRole('radio')
+    const radios = within(group).getAllByRole('radio')
     expect(radios).toHaveLength(3)
     // Zork I is selected by default.
     expect(radios[0]).toHaveAttribute('aria-checked', 'true')
@@ -27,7 +30,7 @@ describe('Landing', () => {
     expect(radios[1]).toHaveAttribute('tabindex', '-1')
     // ArrowRight moves the checked state to the next volume.
     fireEvent.keyDown(group, { key: 'ArrowRight' })
-    expect(screen.getAllByRole('radio')[1]).toHaveAttribute(
+    expect(within(group).getAllByRole('radio')[1]).toHaveAttribute(
       'aria-checked',
       'true',
     )
@@ -85,6 +88,52 @@ describe('Landing', () => {
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(onDismiss).toHaveBeenCalledTimes(1)
   })
+  it('exposes a language radiogroup defaulting to the saved pref', () => {
+    localStorage.setItem(
+      LS_KEYS.nlPref,
+      JSON.stringify({ language: 'fr', declined: false }),
+    )
+    render(<Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />)
+    const group = screen.getByRole('radiogroup', { name: /language/i })
+    expect(group).toBeInTheDocument()
+    const fr = screen.getByRole('radio', { name: 'Français' })
+    expect(fr).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('persists the chosen language when entering the game', () => {
+    const onEnter = vi.fn()
+    render(<Landing onEnter={onEnter} savedSlugs={new Set()} themeToggle={null} />)
+    fireEvent.click(screen.getByRole('radio', { name: 'Deutsch' }))
+    fireEvent.click(screen.getByText(/Light the lamp/))
+    expect(onEnter).toHaveBeenCalledWith('zork1')
+    expect(JSON.parse(localStorage.getItem(LS_KEYS.nlPref)!).language).toBe('de')
+  })
+
+  it('moves language selection AND focus with arrow keys (roving radiogroup)', () => {
+    // Default selection is Off (index 0). ArrowRight → English (index 1).
+    render(<Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />)
+    const group = screen.getByRole('radiogroup', { name: /language/i })
+    fireEvent.keyDown(group, { key: 'ArrowRight' })
+    const english = screen.getByRole('radio', { name: 'English' })
+    expect(english).toHaveAttribute('aria-checked', 'true')
+    expect(english).toHaveAttribute('tabindex', '0')
+    expect(english).toHaveFocus()
+  })
+
+  it('keeps the language picker operable in the Change story overlay variant', () => {
+    render(
+      <Landing
+        onEnter={() => {}}
+        savedSlugs={new Set()}
+        themeToggle={null}
+        onDismiss={() => {}}
+      />,
+    )
+    const es = screen.getByRole('radio', { name: 'Español' })
+    fireEvent.click(es)
+    expect(es).toHaveAttribute('aria-checked', 'true')
+  })
+
   it('traps Tab within the plate so focus cannot reach the game behind it', () => {
     render(
       <Landing

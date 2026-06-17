@@ -1,6 +1,33 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { GAMES, type Game } from '../games/catalog'
 import { useFocusTrap } from './useFocusTrap'
+import { readNlPref, writeNlPref } from '../llm/nlpref'
+import { LANGUAGE_OPTIONS } from './languageOptions'
+import type { NlLanguage } from '../llm/types'
+
+/** APG radio-pattern roving: arrows move selection AND focus among the radios
+ *  of a group. Shared by the volumes group and the language group so they can't
+ *  drift. `values` is the ordered option list; `groupRef` wraps the radios. */
+function rovingRadioKeydown<T>(
+  e: React.KeyboardEvent,
+  values: readonly T[],
+  current: T,
+  setValue: (v: T) => void,
+  groupRef: React.RefObject<HTMLElement | null>,
+) {
+  const delta =
+    e.key === 'ArrowRight' || e.key === 'ArrowDown'
+      ? 1
+      : e.key === 'ArrowLeft' || e.key === 'ArrowUp'
+        ? -1
+        : 0
+  if (delta === 0) return
+  e.preventDefault()
+  const i = values.indexOf(current)
+  const next = (i + delta + values.length) % values.length
+  setValue(values[next])
+  groupRef.current?.querySelectorAll<HTMLElement>('[role="radio"]')?.[next]?.focus()
+}
 
 export function Landing({
   onEnter,
@@ -21,29 +48,34 @@ export function Landing({
   onDismiss?: () => void
 }) {
   const [selected, setSelected] = useState<Game['slug']>('zork1')
+  const [language, setLanguage] = useState<NlLanguage>(
+    () => readNlPref().language,
+  )
   const dismissRef = useRef<HTMLButtonElement>(null)
   const plateRef = useRef<HTMLDivElement>(null)
   const volumesRef = useRef<HTMLDivElement>(null)
+  const langGroupRef = useRef<HTMLDivElement>(null)
 
   // Radiogroup roving: arrows move selection AND focus among the volumes (APG
   // radio pattern), so the mutual exclusivity is operable by keyboard, not just
-  // mouse. The selected radio is the only tab stop (roving tabindex).
-  const onVolumeKey = (e: React.KeyboardEvent) => {
-    const i = GAMES.findIndex(g => g.slug === selected)
-    const delta =
-      e.key === 'ArrowRight' || e.key === 'ArrowDown'
-        ? 1
-        : e.key === 'ArrowLeft' || e.key === 'ArrowUp'
-          ? -1
-          : 0
-    if (delta === 0) return
-    e.preventDefault()
-    const nextIndex = (i + delta + GAMES.length) % GAMES.length
-    setSelected(GAMES[nextIndex].slug)
-    const radios =
-      volumesRef.current?.querySelectorAll<HTMLElement>('[role="radio"]')
-    radios?.[nextIndex]?.focus()
-  }
+  // mouse. The selected radio is the only tab stop (roving tabindex). Shared with
+  // the language group via rovingRadioKeydown so the two can't drift.
+  const onVolumeKey = (e: React.KeyboardEvent) =>
+    rovingRadioKeydown(
+      e,
+      GAMES.map(g => g.slug),
+      selected,
+      setSelected,
+      volumesRef,
+    )
+  const onLangKey = (e: React.KeyboardEvent) =>
+    rovingRadioKeydown(
+      e,
+      LANGUAGE_OPTIONS.map(o => o.value),
+      language,
+      setLanguage,
+      langGroupRef,
+    )
 
   // Overlay-only behaviour (the in-game "Change story" picker): Escape returns to
   // the game, focus lands on the dismiss control so a keyboard user can leave
@@ -96,6 +128,33 @@ export function Landing({
             Your progress is kept; close the tab and return whenever you like.
           </span>
         </div>
+        <div className="langpick">
+          <span className="label" id="language-label">
+            Language
+          </span>
+          <div
+            className="lang-options"
+            ref={langGroupRef}
+            role="radiogroup"
+            aria-labelledby="language-label"
+            onKeyDown={onLangKey}
+          >
+            {LANGUAGE_OPTIONS.map(o => (
+              <button
+                key={o.value}
+                type="button"
+                role="radio"
+                lang={o.lang}
+                className={`lang-opt${language === o.value ? ' sel' : ''}`}
+                aria-checked={language === o.value}
+                tabIndex={language === o.value ? 0 : -1}
+                onClick={() => setLanguage(o.value)}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <span className="label" id="descent-label">
           — choose your descent —
         </span>
@@ -124,7 +183,13 @@ export function Landing({
             </button>
           ))}
         </div>
-        <button className="enter" onClick={() => onEnter(selected)}>
+        <button
+          className="enter"
+          onClick={() => {
+            writeNlPref({ language })
+            onEnter(selected)
+          }}
+        >
           Light the lamp →
         </button>
         {savedSlugs.has(selected) && (

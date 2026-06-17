@@ -37,4 +37,23 @@ describe('StatusBar', () => {
     )
     expect(screen.getByRole('banner')).toBeInTheDocument()
   })
+
+  it('hides decorative glyphs (· separator and ⌄ chevron) from assistive tech', () => {
+    const { container } = render(
+      <StatusBar
+        status={{ location: 'West of House', right: 'Score: 0   Moves: 1' }}
+        onChangeStory={() => {}}
+        themeToggle={null}
+      />,
+    )
+    // The middot is a purely visual divider; announcing it is noise.
+    const sep = container.querySelector('.sep')
+    expect(sep).toHaveAttribute('aria-hidden', 'true')
+
+    // The leading chevron decorates the button; the accessible name is the
+    // word, with the glyph hidden so a screen reader doesn't read it.
+    const button = screen.getByRole('button', { name: 'Change story' })
+    const hiddenGlyph = button.querySelector('[aria-hidden="true"]')
+    expect(hiddenGlyph?.textContent).toBe('⌄')
+  })
 })

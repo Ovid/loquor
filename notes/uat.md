@@ -312,3 +312,44 @@ la boya`) distribute the verb reliably; `mete X en la vitrina` (one obj + prep) 
   («Las ventanas están todas tapiadas») — circle the house via the **east** side
   (North of House ↔ Behind House is E/W, not N/S). The forest loops (Bosque↔Sendero
   del bosque).
+
+## Accessibility (a11y) UAT — technique & traps (UAT-a11y-1, 2026-06-17)
+
+- **For a11y, the accessibility tree IS the deliverable — screenshots aren't
+  enough.** Pair each screenshot with `javascript_tool` DOM/AOM inspection:
+  `getAttribute('role'/'aria-live'/'aria-label'/'aria-describedby'/'aria-hidden')`,
+  `aria-checked`/`tabindex` (roving radiogroup), `aria-selected`/`aria-activedescendant`
+  (combobox/listbox), and `document.activeElement` (focus). `read_page filter:interactive`
+  gives the computed accessible names/roles fast (the picker is `combobox`→`listbox`
+  with per-option `lang`; the input's accessible name reflects the active NL language).
+- **Focus restoration is the bug-magnet.** To debug, install a document tracer
+  before acting: `addEventListener('focusin'/'focusout', …, true)` logging
+  `desc(target)` + `closest('[inert]')`, mark `--PRESS-ENTER--`/`--PRESS-ESC--`,
+  then read the trajectory. That's how the M9 regression was found: closing a
+  modal/overlay dropped focus to `<body>` instead of the trigger.
+- **Two compounding causes bit focus-restore, and BOTH hide from jsdom:** (1) the
+  M9 `inert` on the trigger's ancestor makes the trap's synchronous
+  `previouslyFocused.focus()` a **no-op** (jsdom doesn't enforce inert
+  focus-blocking, so the unit test passed while the browser failed); (2)
+  **StrictMode** (dev, `src/main.tsx`) double-invokes the open effect, and the
+  first cleanup's swallowed restore lets the second invoke capture the
+  in-dialog control as the restore target. Fix lived in `useFocusTrap`: capture
+  the opener in a ref ignoring in-container candidates + retry focus on the next
+  `requestAnimationFrame` if it didn't land. **Always verify focus/inert fixes in
+  the real browser**, not just vitest.
+- **Coordinate scale:** with `devicePixelRatio=2` the screenshot is downscaled
+  (e.g. CSS `innerWidth=1757` → screenshot `1407`). `getBoundingClientRect()`
+  returns CSS px; multiply by `screenshotW/innerWidth` (~0.80) to get click
+  coords, or just drive clicks by element `ref` from `read_page`.
+- **A new origin/port needs Chrome-extension site permission** and may be
+  denied (a `vite preview` on :4174 was). To check production behavior, prefer
+  reasoning + a robust fix verified on the already-permitted dev origin over
+  fighting the permission prompt.
+- **Grammar-only-gated UI (the `✦ improve` button M1, the `· basic`/`simplifié`
+  chip m3, install/download chips M7) is NOT reachable once the full WebLLM
+  model is cached** (picking a language auto-upgrades). Don't wipe the user's
+  model cache to see them — verify via the unit tests (`NlLanguagePicker.test.tsx`,
+  `notices.test.ts`), which pin the exact aria-label and per-language chips.
+- **Switching language retranslates the EXISTING transcript** (output-translation
+  is a display overlay), so FR→DE→ES on one screen re-renders prior output —
+  handy for checking all three corpora without replaying turns.

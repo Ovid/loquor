@@ -26,9 +26,11 @@ export function StatusBar({
       </span>
       <span className="meta">
         <span aria-live="polite">{status?.right ?? ''}</span>
-        <span className="sep">·</span>
+        <span className="sep" aria-hidden="true">
+          ·
+        </span>
         <button className="sw" type="button" onClick={onChangeStory}>
-          ⌄ Change story
+          <span aria-hidden="true">⌄</span> Change story
         </button>
         {nlToggle}
         {themeToggle}

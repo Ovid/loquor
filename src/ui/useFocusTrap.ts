@@ -36,10 +36,25 @@ export function useFocusTrap(
     onEscapeRef.current = onEscape
   })
 
+  // The control to return focus to on close — the opener, held in a ref so it
+  // survives StrictMode's mount double-invoke. The first invoke's cleanup tries
+  // to restore focus, but if the opener's ancestor is `inert` (M9) that restore
+  // is a no-op, leaving focus inside the dialog; the second invoke must then NOT
+  // capture that in-dialog control as the restore target.
+  const restoreRef = useRef<HTMLElement | null>(null)
+
   useEffect(() => {
     if (!active) return
     const container = containerRef.current
-    const previouslyFocused = document.activeElement as HTMLElement | null
+    const candidate = document.activeElement as HTMLElement | null
+    // Only treat focus that's currently OUTSIDE the trap as the opener.
+    if (
+      candidate &&
+      candidate !== document.body &&
+      !container?.contains(candidate)
+    ) {
+      restoreRef.current = candidate
+    }
     const focusables = () => [
       ...(container?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []),
     ]
@@ -67,7 +82,19 @@ export function useFocusTrap(
     document.addEventListener('keydown', onKey)
     return () => {
       document.removeEventListener('keydown', onKey)
-      previouslyFocused?.focus?.()
+      const toRestore = restoreRef.current
+      toRestore?.focus?.()
+      // If the opener's ancestor was marked `inert` while the modal was open
+      // (M9), this synchronous focus() lands before `inert` clears and is a
+      // silent no-op — focus falls to <body>. Retry once on the next frame,
+      // after the close commit, but only if focus is still lost, so we never
+      // steal focus the app intentionally moved elsewhere (WCAG 2.4.3 / APG).
+      if (toRestore && document.activeElement !== toRestore) {
+        requestAnimationFrame(() => {
+          const here = document.activeElement
+          if (here === document.body || here === null) toRestore.focus?.()
+        })
+      }
     }
   }, [active, containerRef, initialFocusRef])
 }

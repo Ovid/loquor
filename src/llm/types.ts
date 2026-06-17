@@ -10,6 +10,14 @@ export function isNlLanguage(v: unknown): v is NlLanguage {
   return (NL_LANGUAGES as readonly unknown[]).includes(v)
 }
 
+/** Languages with a DISPLAY corpus but no INPUT support yet (Phase 1). The
+ * command field raw-sends English for these — exactly as 'off' does — so the
+ * player reads Georgian while typing English. Phase 2 (Georgian input) removes
+ * 'ka' from this set, and it graduates to the normal nl.translate input path.
+ * Distinct from translate/corpus/index.ts's CORPUS_ONLY_LANGS (output: no LLM
+ * fallback) — same membership today, different jobs in different layers. */
+export const OUTPUT_ONLY_LANGS: ReadonlySet<NlLanguage> = new Set(['ka'])
+
 /** Device capability tier. `none` = NL not offered. */
 export type Tier = 'none' | 'small' | 'full'
 

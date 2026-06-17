@@ -24,7 +24,7 @@ describe('Scrollback', () => {
   })
 
   it('keeps an nl-source line even when its text is literally ">"', () => {
-    render(
+    const { container } = render(
       <Scrollback
         lines={[
           line({ id: 1, text: '>', kind: 'output' }), // VM prompt — dropped
@@ -32,8 +32,10 @@ describe('Scrollback', () => {
         ]}
       />,
     )
-    // Only the nl-source '>' survives, rendered with its `you` label.
-    expect(document.querySelectorAll('p.nl-source')).toHaveLength(1)
+    // The VM's bare '>' is dropped; the nl-source '>' survives. In debug-OFF
+    // (default) it renders as a plain command line (class 'echo'), not the pill.
+    expect(container.querySelectorAll('p')).toHaveLength(1)
+    expect(container.querySelectorAll('p.echo')).toHaveLength(1)
   })
 
   it('exposes the transcript as a polite live log so output is announced', () => {
@@ -79,18 +81,18 @@ describe('Scrollback', () => {
     sel.mockRestore()
   })
 
-  // Spec §12: NL source lines carry a worded `you` label; the `>` prefix is
-  // reserved for real (canonical) commands; the `›` glyph is gone everywhere.
-  it('nl-source lines carry a worded you label, no > and no ›', () => {
+  // Spec §12 + debug gating (Task 7): in debug-ON the player's pre-translation
+  // text carries the worded `you` pill; the `›` glyph is gone everywhere.
+  it('debug-ON nl-source lines carry a worded you pill, no ›', () => {
     render(
       <Scrollback
+        debug
         lines={[{ id: 1, kind: 'nl-source', text: 'ouvre la boîte' }]}
       />,
     )
     expect(screen.getByText('you')).toBeInTheDocument()
     const p = screen.getByText('ouvre la boîte', { exact: false }).closest('p')!
     expect(p).toHaveClass('nl-source')
-    expect(p.textContent).not.toContain('>')
     expect(p.textContent).not.toContain('›')
   })
 
@@ -112,5 +114,36 @@ describe('Scrollback', () => {
     )
     const p = screen.getByText('…traduction').closest('p')!
     expect(p.className).toContain('xl-pending')
+  })
+
+  describe('debug view', () => {
+    const lines = [
+      { id: 1, kind: 'nl-source' as const, text: 'arriba' },
+      { id: 2, kind: 'nl-canonical' as const, text: 'up' },
+      { id: 3, kind: 'output' as const, text: 'You climb up.' },
+    ]
+
+    it('debug OFF: hides the canonical echo and renders nl-source as a command', () => {
+      render(<Scrollback lines={lines} debug={false} />)
+      // nl-source shows as a typed command line, not the pill:
+      expect(screen.getByText('arriba')).toBeInTheDocument()
+      expect(screen.queryByText('you')).not.toBeInTheDocument()
+      // canonical echo is gone entirely (not just hidden):
+      expect(screen.queryByText('up')).not.toBeInTheDocument()
+    })
+
+    it('debug ON: shows the pill and the canonical echo', () => {
+      render(<Scrollback lines={lines} debug={true} />)
+      expect(screen.getByText('you')).toBeInTheDocument() // the pill label
+      expect(screen.getByText('up')).toBeInTheDocument() // the canonical echo
+    })
+
+    it('suppresses the live region across a debug toggle', () => {
+      const { rerender } = render(<Scrollback lines={lines} debug={false} />)
+      expect(screen.getByRole('log')).toHaveAttribute('aria-live', 'polite')
+      rerender(<Scrollback lines={lines} debug={true} />)
+      // The toggle commit must not announce the bulk re-render.
+      expect(screen.getByRole('log')).toHaveAttribute('aria-live', 'off')
+    })
   })
 })

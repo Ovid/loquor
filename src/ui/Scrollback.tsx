@@ -3,10 +3,13 @@ import type { DisplayLine } from '../translate/useOutputTranslation'
 
 export function Scrollback({
   lines,
+  debug = false,
   onActivate,
   children,
 }: {
   lines: DisplayLine[]
+  /** Debug view: show nl-canonical echoes and the ‹you› pill (default off). */
+  debug?: boolean
   /** Focus the prompt when the player clicks into the transcript. */
   onActivate?: () => void
   /** The inline command prompt, rendered at the end of the transcript. */
@@ -17,14 +20,29 @@ export function Scrollback({
     ref.current?.scrollTo?.(0, ref.current.scrollHeight)
   }, [lines])
 
+  // Toggling debug re-renders the whole history at once (canonical echoes appear/
+  // disappear, nl-source flips pill↔command); that bulk mutation must NOT be
+  // announced — it's a settings action, not game output. Mute the live region for
+  // the toggle commit, then restore 'polite' on the next render driven by real
+  // output. prevDebugRef is READ during render and synced in an effect.
+  const prevDebugRef = useRef(debug)
+  const toggled = prevDebugRef.current !== debug
+  useEffect(() => {
+    prevDebugRef.current = debug
+  }, [debug])
+
   // The game prints a bare '>' to the buffer as its line-input prompt. The
   // inline CommandInput already shows that prompt, so the bare-'>' lines are
   // redundant — drop them. (Historical echoes like '>open mailbox' are never
   // bare, so they survive.) Filter on kind too, so a (pathological) nl-source
   // line whose English is literally '>' is not swallowed (review S13).
-  const visible = lines.filter(
-    l => l.kind === 'nl-source' || l.text.trim() !== '>',
-  )
+  //
+  // In debug-OFF also drop nl-canonical lines entirely — so screen readers don't
+  // announce the hidden '> up' (the canonical translation of the player's text).
+  const visible = lines.filter(l => {
+    if (l.kind === 'nl-canonical') return debug
+    return l.kind === 'nl-source' || l.text.trim() !== '>'
+  })
 
   return (
     <div
@@ -43,43 +61,50 @@ export function Scrollback({
           status message isn't mixed into the sequential log. aria-relevant=
           additions reads only new lines, not the prompt's removals; the inner
           div is always mounted, so the live region is registered before updates
-          arrive. */}
+          arrive. aria-live drops to 'off' for the single commit that toggles
+          debug, so the bulk history re-render isn't announced. */}
       <div
         role="log"
-        aria-live="polite"
+        aria-live={toggled ? 'off' : 'polite'}
         aria-relevant="additions"
         aria-label="Game transcript"
       >
-        {visible.map(l => (
-          <p
-            key={l.id}
-            lang={l.lang}
-            className={
-              (l.kind === 'room'
-                ? 'room'
-                : l.kind === 'input'
-                  ? 'echo'
-                  : l.kind === 'nl-source'
-                    ? 'nl-source'
-                    : '') + (l.pending ? ' xl-pending' : '')
-            }
-          >
-            {l.kind === 'input' ? (
-              <>
-                <span className="car">&gt;</span> {l.text}
-              </>
-            ) : l.kind === 'nl-source' ? (
-              <>
-                <span className="you" lang="en">
-                  you
-                </span>{' '}
-                {l.text}
-              </>
-            ) : (
-              l.text
-            )}
-          </p>
-        ))}
+        {visible.map(l => {
+          // nl-canonical renders exactly like a typed command echo.
+          const asCommand = l.kind === 'input' || l.kind === 'nl-canonical'
+          // nl-source: the ‹you› pill in debug, else a plain command line.
+          const asPill = l.kind === 'nl-source' && debug
+          return (
+            <p
+              key={l.id}
+              lang={l.lang}
+              className={
+                (l.kind === 'room'
+                  ? 'room'
+                  : asCommand || (l.kind === 'nl-source' && !debug)
+                    ? 'echo'
+                    : asPill
+                      ? 'nl-source'
+                      : '') + (l.pending ? ' xl-pending' : '')
+              }
+            >
+              {asPill ? (
+                <>
+                  <span className="you-pill" lang="en">
+                    you
+                  </span>{' '}
+                  {l.text}
+                </>
+              ) : asCommand || l.kind === 'nl-source' ? (
+                <>
+                  <span className="car">&gt;</span> {l.text}
+                </>
+              ) : (
+                l.text
+              )}
+            </p>
+          )
+        })}
       </div>
       {children}
     </div>

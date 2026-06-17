@@ -177,11 +177,16 @@ export function Terminal({
     // exhaustive-deps now that it's a hook return rather than a local useRef.
   }, [view.inputRequest, engineRef])
 
+  // The upgrade/download modal is suppressed for output-only languages (it does
+  // nothing for them). Single source so the modal's visibility and the
+  // background-inert/focus-trap state can never drift apart.
+  const upgradeModalOpen = nl.modalOpen && !outputOnly
+
   // The download/upgrade modal is open — everything behind it must be inert so
   // a screen-reader virtual cursor stays inside the dialog (aria-modal alone is
   // unevenly honored). The modal is a sibling below, so it stays operable (M9).
   const modalOpen =
-    (nl.modalOpen && !outputOnly) ||
+    upgradeModalOpen ||
     nl.state.phase === 'downloading' ||
     prefsOpen
   const bgInert = backgroundInert || modalOpen
@@ -301,7 +306,7 @@ export function Terminal({
         </Scrollback>
       </main>
       <ModelDownloadModal
-        open={(nl.modalOpen && !outputOnly) || nl.state.phase === 'downloading'}
+        open={upgradeModalOpen || nl.state.phase === 'downloading'}
         warn={
           (nl.state.phase === 'on' || nl.state.phase === 'off') &&
           !nl.state.canUpgrade

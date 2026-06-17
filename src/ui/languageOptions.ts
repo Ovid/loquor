@@ -17,4 +17,8 @@ export const LANGUAGE_OPTIONS: LanguageOption[] = [
   { value: 'fr', label: 'Français', lang: 'fr' },
   { value: 'de', label: 'Deutsch', lang: 'de' },
   { value: 'es', label: 'Español', lang: 'es' },
+  // Georgian (Phase 1: read-Georgian / type-English). The "(beta)" marker is
+  // part of the visible label AND the accessible name (non-colour state cue,
+  // WCAG 2.2 — spec §5); `lang: 'ka'` voices it with Georgian pronunciation.
+  { value: 'ka', label: 'ქართული (beta)', lang: 'ka' },
 ]

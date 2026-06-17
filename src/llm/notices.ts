@@ -15,8 +15,14 @@
 // they are not quote-escapes, which would need to stay English (m4).
 import type { ActiveLanguage } from './types'
 
-type ByLang = Record<ActiveLanguage, string>
-const byLang = (m: ByLang, lang: ActiveLanguage): string => m[lang]
+// Partial because not every ActiveLanguage has input-NL notices. Georgian (ka)
+// is read-Georgian / type-English in Phase 1: its input path is dead (it raw-sends
+// English), so these input-side notices never fire for ka. byLang falls back to
+// the en string for any language without its own entry — so the ~14 inline
+// {en,fr,de,es} objects below need no ka key, and Phase 2 can add ka entries
+// without touching the call sites. en/fr/de/es behaviour is identical.
+type ByLang = Partial<Record<ActiveLanguage, string>>
+const byLang = (m: ByLang, lang: ActiveLanguage): string => m[lang] ?? m.en!
 
 /** The newest typed line was dropped because the input queue is full. */
 export function queueFullDropped(lang: ActiveLanguage, line: string): string {

@@ -74,7 +74,11 @@ const PROMPT_VERB_CORE = [
 // parseCommand(·, ZORK1_VOCAB) in prompt.test.ts — so nouns are Zork I EMIT
 // forms (e.g. 'advertisement', not the canonical 'leaflet'). For other games
 // they are guidance only; the grammar gates validity.
-const FEWSHOTS: Record<ActiveLanguage, ChatMessages> = {
+// Partial because not every ActiveLanguage has an input path. Georgian (ka) is
+// read-Georgian / type-English in Phase 1: it raw-sends English and never reaches
+// the input LLM, so authoring ka few-shots would be dead AND misleading. The call
+// site falls back to the en few-shots for any language without its own entry.
+const FEWSHOTS: Partial<Record<ActiveLanguage, ChatMessages>> = {
   en: [
     { role: 'user', content: 'put the sword down' },
     { role: 'assistant', content: '{"verb":"drop","object":"sword"}' },
@@ -192,7 +196,9 @@ export function buildPrompt(
   // Few-shot pairs in the player's language, then the live input LAST (§7).
   return [
     { role: 'system', content: lines.join('\n') },
-    ...FEWSHOTS[language],
+    // ka has no input path in Phase 1, so it falls back to the en few-shots
+    // (never actually invoked — ka raw-sends English upstream).
+    ...(FEWSHOTS[language] ?? FEWSHOTS.en!),
     { role: 'user', content: english },
   ]
 }

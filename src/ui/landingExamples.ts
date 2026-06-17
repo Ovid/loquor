@@ -13,9 +13,17 @@
 // LANDING_STRINGS, so the two parallel tables can't drift (review I1).
 import type { ActiveLanguage } from '../llm/types'
 
+// English examples, named so Georgian (read-Georgian / type-English) can reuse
+// them verbatim below without re-stating the strings.
+const LANDING_EXAMPLES_EN = ['take the lamp and go north', 'go south', 'look']
+
 export const LANDING_EXAMPLES: Record<ActiveLanguage, string[]> = {
-  en: ['take the lamp and go north', 'go south', 'look'],
+  en: [...LANDING_EXAMPLES_EN],
   fr: ['prends la lampe et va au nord', 'va au sud', 'regarde'],
   de: ['nimm die lampe und geh nach norden', 'geh nach süden', 'schau'],
   es: ['coge la lámpara y ve al norte', 've al sur', 'mira'],
+  // Georgian Phase 1 is read-Georgian / type-English: the player types commands
+  // in English, so the ka examples ARE the English ones (verbatim). They must
+  // never imply Georgian input.
+  ka: [...LANDING_EXAMPLES_EN],
 }

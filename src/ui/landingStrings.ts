@@ -154,4 +154,39 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
       zork3: 'El Maestro del Calabozo',
     },
   },
+  // Georgian (ka) — Phase 1 is read-Georgian / TYPE-ENGLISH (spec §1, §3a): the
+  // game text is shown in Georgian, but the player types commands in English.
+  // The how-to says exactly that; it must NEVER imply Georgian input. The caveat
+  // carries the beta note (corpus-only — NO optional AI model is offered) instead
+  // of the model-upgrade copy the other languages use. Mkhedruli is unicameral —
+  // no capitalization (§4). Draft pending native review (§8).
+  ka: {
+    howToTitle: 'როგორ ვითამაშოთ.',
+    howToBody:
+      'თამაშის ტექსტი ქართულად ჩანს, ბრძანებებს კი ინგლისურად აკრიფეთ — მაგალითად „open the mailbox“.',
+    progressNote:
+      'თქვენი მონაცემები ინახება; დახურეთ ფანჯარა და დაბრუნდით, როცა მოგესურვებათ.',
+    languageLabel: 'ენა:',
+    caveat:
+      'ქართული თარგმანი ჯერ სატესტოა (beta) — ზოგი ტექსტი შეიძლება ჯერ კიდევ ' +
+      'ინგლისურად გამოჩნდეს. ამ ეტაპზე ბრძანებები ინგლისურად აკრიფეთ.',
+    descent: '— აირჩიეთ თქვენი ჩასვლა —',
+    enter: 'აანთეთ ლამპა →',
+    resume: 'შენახული ჩასვლა გელოდებათ — გააგრძელებთ იქიდან, სადაც გაჩერდით',
+    returnToGame: 'თამაშში დაბრუნება',
+    changeStory: 'ისტორიის შეცვლა',
+    commandExamples: 'ბრძანებების მაგალითები',
+    footer: {
+      trademark:
+        'Zork არის Activision Publishing, Inc.-ის (Microsoft-ის კომპანია) სავაჭრო ნიშანი.',
+      licenseLinkText:
+        'Zork I–III-ის კოდი Microsoft-მა 2025 წელს გამოაქვეყნა MIT ლიცენზიით.',
+      githubLinkText: 'ნახვა GitHub-ზე',
+    },
+    subtitles: {
+      zork1: 'დიდი მიწისქვეშა იმპერია',
+      zork2: 'ფრობოზის ჯადოქარი',
+      zork3: 'ციხესიმაგრის მბრძანებელი',
+    },
+  },
 }

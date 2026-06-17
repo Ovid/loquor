@@ -18,10 +18,15 @@ import type { Vocab } from '../llm/grammar/types'
 import type { LexLang } from '../llm/lexicon/types'
 import type { Scene } from '../llm/scene/types'
 
-// Foreign play languages, derived from the source of truth (not a hardcoded
-// list) so a new play language is forced through this gate too — mirroring the
-// LANDING_EXAMPLES key type (review I1).
-const FOREIGN = NL_LANGUAGES.filter(l => l !== 'off' && l !== 'en') as LexLang[]
+// Foreign INPUT play languages, derived from the source of truth (not a
+// hardcoded list) so a new play language is forced through this gate too —
+// mirroring the LANDING_EXAMPLES key type (review I1). Georgian (ka) is excluded
+// here on purpose: Phase 1 Georgian is read-Georgian / type-ENGLISH (spec §3a),
+// so its examples ARE the English ones (raw-sent), with no input lexicon. They
+// are gated through the English raw-send predicate below, like en.
+const FOREIGN = NL_LANGUAGES.filter(
+  l => l !== 'off' && l !== 'en' && l !== 'ka',
+) as LexLang[]
 
 const GAMES: [string, Vocab][] = [
   [ZORK1_SIG, ZORK1_VOCAB],
@@ -55,6 +60,18 @@ describe('landing examples parse in basic mode for every game', () => {
   for (const [sig, vocab] of GAMES) {
     it(`English examples are real game commands (${sig.slice(0, 6)})`, () => {
       for (const example of LANDING_EXAMPLES.en) {
+        for (const clause of splitClauses(example)) {
+          expect(
+            clauseParsesEn(clause, vocab),
+            `"${clause}" in "${example}"`,
+          ).toBe(true)
+        }
+      }
+    })
+    // Georgian (ka) raw-sends English (read-Georgian / type-English, §3a), so
+    // its examples must pass the same English raw-send gate as `en`.
+    it(`ka examples are real game commands — English raw-send (${sig.slice(0, 6)})`, () => {
+      for (const example of LANDING_EXAMPLES.ka) {
         for (const clause of splitClauses(example)) {
           expect(
             clauseParsesEn(clause, vocab),

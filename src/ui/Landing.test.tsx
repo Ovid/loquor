@@ -137,7 +137,8 @@ describe('Landing', () => {
     expect(btn).toHaveTextContent('English')
     fireEvent.click(btn)
     expect(screen.queryByRole('option', { name: 'Off' })).toBeNull()
-    expect(screen.getAllByRole('option')).toHaveLength(4)
+    // en, fr, de, es, ka — every play language except Off.
+    expect(screen.getAllByRole('option')).toHaveLength(5)
   })
 
   it('maps a saved Off preference to English on the title screen', () => {

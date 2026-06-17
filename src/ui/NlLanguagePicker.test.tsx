@@ -21,7 +21,14 @@ describe('NlLanguagePicker', () => {
     fireEvent.click(btn)
     expect(btn).toHaveAttribute('aria-expanded', 'true')
     const labels = screen.getAllByRole('option').map(o => o.textContent)
-    expect(labels).toEqual(['Off', 'English', 'Français', 'Deutsch', 'Español'])
+    expect(labels).toEqual([
+      'Off',
+      'English',
+      'Français',
+      'Deutsch',
+      'Español',
+      'ქართული (beta)',
+    ])
   })
 
   it('names the listbox and tags non-English options with their language', () => {

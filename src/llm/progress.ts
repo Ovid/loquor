@@ -74,6 +74,16 @@ const ETA: Record<
     min: n => `~${n} min restantes`,
     hm: (h, m) => `~${h} h ${m} min restantes`,
   },
+  // Georgian (ka): only reachable from the model-download modal, which is
+  // SUPPRESSED for output-only Georgian (Phase 1 — spec §3a), so this is never
+  // shown today. Authored anyway because formatEta indexes ETA[lang] directly;
+  // forward-compatible with Phase 2. Draft pending native review (§8). Georgian
+  // uses Arabic numerals; Mkhedruli is unicameral (§4).
+  ka: {
+    s: n => `~${n} წმ-ღა დარჩა`,
+    min: n => `~${n} წთ-ღა დარჩა`,
+    hm: (h, m) => `~${h} სთ ${m} წთ-ღა დარჩა`,
+  },
 }
 
 /** Human-friendly "~Xs / ~X min / ~Hh Mm remaining" in the player's language, or

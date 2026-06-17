@@ -93,12 +93,28 @@ words and connectors (`et`/`puis`, `und`/`dann`, `y`).
 
 **Player-first correctness gate (mandatory test).** A shown example must never
 fail the player who types it verbatim. The default mode on entry is **basic
-(grammar-only)**, so a test runs **every example string** through the
-**deterministic basic-mode path** (`splitClauses` → per-clause `parseDirection` /
-`parseLexicon` against each game's extracted vocab + the language's lexicons) and
-asserts each clause yields a **command, not a miss**, for **Zork I, II, and
-III**. Examples are game-independent, so they must pass for all three games. This
+(grammar-only)**, so a test runs **every example string** through `splitClauses`
+and validates each clause the way that clause is actually handled at runtime, for
+**Zork I, II, and III**:
+
+- **FR/DE/ES** go through the real deterministic path — `parseDirection`, then
+  `parseLexicon` against each game's extracted vocab + the language's lexicons —
+  and each clause must yield a **command, not a miss**.
+- **English has no lexicon**, so in basic mode a non-direction English clause
+  abstains and is **raw-sent to Zork's own parser** (it never reaches
+  `parseLexicon`). The faithful check is therefore that each English clause is a
+  direction *or* is composed entirely of **real game words** (vocab verbs,
+  movement, prepositions, noun surface forms, plus articles/conjunctions).
+
+Examples are game-independent, so they must pass for all three games. This
 mirrors the existing corpus-coverage / round-trip gating pattern.
+
+**Note on example richness (accepted limitation):** under the game-independent
+constraint, no multi-word noun phrase resolves across all three games (the only
+universal object is the lamp, and multi-word lamp phrasings resolve only in Zork
+I). The examples therefore dispel the "two-word ceiling" via a **natural
+compound** (object + movement) rather than a multi-word noun phrase. Single-word
+objects are accepted; revisit only if examples ever go per-game.
 
 Rationale this is safe: basic mode already handles articles (the parser drops
 leading articles `le`/`la`/`der`/`el`/`the`), multi-word objects, and compound

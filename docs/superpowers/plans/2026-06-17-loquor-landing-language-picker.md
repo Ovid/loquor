@@ -107,14 +107,16 @@ compound, and a single verb.
 // Localized example commands for the title screen, one set per language.
 // Game-INDEPENDENT: every example must parse in BASIC (grammar-only) mode for
 // Zork I, II, AND III — enforced by landingExamples.test.ts so a shown example
-// can never fail a player who types it. Each set deliberately shows more than a
-// two-word command (an article + object, and a compound) to dispel the
-// impression that only two-word commands work.
+// can never fail a player who types it. Each set leads with a NATURAL COMPOUND
+// (object + movement) to dispel the impression that only two-word commands work.
+// No multi-word noun phrase is used: under the game-independent constraint none
+// resolves across all three games (see the design doc's "example richness"
+// note). The remaining two examples are a simple direction and a single verb.
 export const LANDING_EXAMPLES: Record<'en' | 'fr' | 'de' | 'es', string[]> = {
-  en: ['take the lamp', 'go north and go south', 'look'],
-  fr: ['prends la lampe', 'va au nord et va au sud', 'regarde'],
-  de: ['nimm die lampe', 'geh nach norden und geh nach süden', 'schau'],
-  es: ['coge la lámpara', 've al norte y ve al sur', 'mira'],
+  en: ['take the lamp and go north', 'go south', 'look'],
+  fr: ['prends la lampe et va au nord', 'va au sud', 'regarde'],
+  de: ['nimm die lampe und geh nach norden', 'geh nach süden', 'schau'],
+  es: ['coge la lámpara y ve al norte', 've al sur', 'mira'],
 }
 ```
 
@@ -234,11 +236,22 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 - [ ] **Step 1: Write the failing behavior + a11y tests**
 
-Add to `src/ui/Landing.test.tsx` (inside the top `describe('Landing', …)`):
+Add the import and a shared cleanup at the top of the `describe('Landing', …)`
+block so no test leaks `nlPref` into the next (the picker defaults from it, so a
+leak makes the default-selection test order-dependent):
 
 ```tsx
 import { LS_KEYS } from '../storageKeys'
 
+afterEach(() => localStorage.clear())
+```
+
+(`afterEach` is already exported by Vitest's global API used here; if the file
+doesn't import it, add `afterEach` to the existing `vitest` import.)
+
+Then add these tests inside the same `describe`:
+
+```tsx
 it('exposes a language radiogroup defaulting to the saved pref', () => {
   localStorage.setItem(LS_KEYS.nlPref, JSON.stringify({ language: 'fr', declined: false }))
   render(<Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />)
@@ -246,7 +259,6 @@ it('exposes a language radiogroup defaulting to the saved pref', () => {
   expect(group).toBeInTheDocument()
   const fr = screen.getByRole('radio', { name: 'Français' })
   expect(fr).toHaveAttribute('aria-checked', 'true')
-  localStorage.clear()
 })
 
 it('persists the chosen language when entering the game', () => {
@@ -256,7 +268,34 @@ it('persists the chosen language when entering the game', () => {
   fireEvent.click(screen.getByText(/Light the lamp/))
   expect(onEnter).toHaveBeenCalledWith('zork1')
   expect(JSON.parse(localStorage.getItem(LS_KEYS.nlPref)!).language).toBe('de')
-  localStorage.clear()
+})
+
+it('moves language selection AND focus with arrow keys (roving radiogroup)', () => {
+  // Default selection is Off (index 0). ArrowRight → English (index 1).
+  render(<Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />)
+  const group = screen.getByRole('radiogroup', { name: /language/i })
+  fireEvent.keyDown(group, { key: 'ArrowRight' })
+  const english = screen.getByRole('radio', { name: 'English' })
+  expect(english).toHaveAttribute('aria-checked', 'true')
+  expect(english).toHaveAttribute('tabindex', '0')
+  expect(english).toHaveFocus()
+})
+
+it('keeps the language picker operable in the Change story overlay variant', () => {
+  // The overlay variant (onDismiss set) traps focus; the new radios must still
+  // be reachable/operable inside it. Real <button>s satisfy this, but the spec
+  // calls it out, so assert it.
+  render(
+    <Landing
+      onEnter={() => {}}
+      savedSlugs={new Set()}
+      themeToggle={null}
+      onDismiss={() => {}}
+    />,
+  )
+  const es = screen.getByRole('radio', { name: 'Español' })
+  fireEvent.click(es)
+  expect(es).toHaveAttribute('aria-checked', 'true')
 })
 ```
 
@@ -363,7 +402,72 @@ Expected: PASS.
 Run: `npx vitest run src/ui/Landing.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Refactor — extract the shared roving-radiogroup handler**
+
+`onLangKey` is now a near-verbatim copy of the existing `onVolumeKey` (same
+arrow/roving logic over a different array + setter + ref). Extract one helper so
+the two groups can't drift. Add a module-level function in `src/ui/Landing.tsx`
+(above the component):
+
+```tsx
+/** APG radio-pattern roving: arrows move selection AND focus among the radios
+ *  of a group. Shared by the volumes group and the language group so they can't
+ *  drift. `values` is the ordered option list; `groupRef` wraps the radios. */
+function rovingRadioKeydown<T>(
+  e: React.KeyboardEvent,
+  values: readonly T[],
+  current: T,
+  setValue: (v: T) => void,
+  groupRef: React.RefObject<HTMLElement | null>,
+) {
+  const delta =
+    e.key === 'ArrowRight' || e.key === 'ArrowDown'
+      ? 1
+      : e.key === 'ArrowLeft' || e.key === 'ArrowUp'
+        ? -1
+        : 0
+  if (delta === 0) return
+  e.preventDefault()
+  const i = values.indexOf(current)
+  const next = (i + delta + values.length) % values.length
+  setValue(values[next])
+  groupRef.current
+    ?.querySelectorAll<HTMLElement>('[role="radio"]')
+    ?.[next]?.focus()
+}
+```
+
+Replace the body of `onVolumeKey` with:
+
+```tsx
+const onVolumeKey = (e: React.KeyboardEvent) =>
+  rovingRadioKeydown(
+    e,
+    GAMES.map(g => g.slug),
+    selected,
+    setSelected,
+    volumesRef,
+  )
+```
+
+Replace the body of `onLangKey` with:
+
+```tsx
+const onLangKey = (e: React.KeyboardEvent) =>
+  rovingRadioKeydown(
+    e,
+    LANGUAGE_OPTIONS.map(o => o.value),
+    language,
+    setLanguage,
+    langGroupRef,
+  )
+```
+
+Run: `npx vitest run src/ui/Landing.test.tsx`
+Expected: PASS (both the existing volumes arrow-key test and the new language
+arrow-key test stay green — proving the extraction preserved both behaviors).
+
+- [ ] **Step 7: Commit**
 
 ```bash
 git add src/ui/Landing.tsx src/ui/Landing.test.tsx

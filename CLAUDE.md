@@ -11,7 +11,7 @@ canonical game command). The **first pass is built** (the playable engine + UI);
 the **natural-language layer is built and under active refinement** (UAT-driven
 parser/scene/vocab work on feature branches such as `ovid/more-parser-work`).
 
-## Repository state: first pass built; NL layer v2 built; output translation v1 built
+## Repository state: first pass built; NL layer v2 + grammar-only fallback built; output translation v1 built
 
 **The application IS scaffolded.** `package.json`, the Vite app, and `src/` all
 exist, with the first pass implemented and tested (engine, GlkOte bridge, storage,
@@ -19,32 +19,45 @@ UI). The natural-language layer **v2 is implemented and tested**: a
 deterministic-first multilingual pipeline (EN/FR/DE/ES) — per-language lexicons
 with an LLM fallback, vocab passthrough, quoted escape, full-vocab grammar,
 literal-translation prompt, input queue, language picker, and a UAT regression
-suite pinning every UAT-1/UAT-2 finding. **Output translation v1 is implemented
-and tested** (Zork I × French): a display-layer overlay (`src/translate/`) with a
-pre-translated corpus (strings/templates/objects) gated by a walkthrough-coverage
-test and a string-inventory test, plus an LLM fallback behind the shared engine
-gate. Sources of truth, in priority order:
+suite pinning every UAT-1/UAT-2 finding. The **grammar-only fallback is built and
+tested** (design/plan `2026-06-16-loquor-grammar-only-fallback*`): the WebLLM
+model is now an **optional upgrade, not a gate** — picking a language activates
+the deterministic pipeline **immediately** in grammar-only "basic mode", and the
+download modal is reframed as an upgrade offer (shown once, then on demand via the
+picker's "✦ improve"). A device that can't or won't run the model stays in
+grammar-only; English raw-sends, non-English abstains with a notice. (The old
+`unavailable` NL state is gone; the state now carries `canUpgrade` / `model`
+(`full | grammar`).) **Output translation v1 is implemented and tested** (Zork I,
+corpora for French/Spanish/German): a display-layer overlay (`src/translate/`)
+with a pre-translated corpus (strings/templates/objects) gated by a
+walkthrough-coverage test and a string-inventory test, plus an LLM fallback behind
+the shared engine gate. Sources of truth, in priority order:
 
-1. `docs/superpowers/specs/2026-06-10-loquor-output-translation-design.md` — the
-   **current output-translation design** (v1, Zork I × French). Its implementation
-   plan, `docs/superpowers/plans/2026-06-10-loquor-output-translation.md`, is
-   executed.
-2. `docs/superpowers/specs/2026-06-09-loquor-nl-multilingual-design.md` — the
-   **current NL layer design** (v2, deterministic-first multilingual). Its
+1. `docs/superpowers/specs/2026-06-16-loquor-grammar-only-fallback-design.md` —
+   the **current NL-activation design** (model as optional upgrade; immediate
+   grammar-only activation). Its implementation plan,
+   `docs/superpowers/plans/2026-06-16-loquor-grammar-only-fallback.md`, is
+   executed. Supersedes the v2 download-gate where they conflict.
+2. `docs/superpowers/specs/2026-06-10-loquor-output-translation-design.md` — the
+   **current output-translation design** (v1, Zork I; French/Spanish/German). Its
+   implementation plan, `docs/superpowers/plans/2026-06-10-loquor-output-translation.md`,
+   is executed.
+3. `docs/superpowers/specs/2026-06-09-loquor-nl-multilingual-design.md` — the
+   **NL layer pipeline design** (v2, deterministic-first multilingual). Its
    implementation plan, `docs/superpowers/plans/2026-06-09-loquor-nl-multilingual.md`,
    is executed. UAT findings live in `notes/uat-1.md` / `notes/uat-2.md`.
-3. `docs/superpowers/specs/2026-06-07-loquor-nl-layer-design.md` — the **NL layer
+4. `docs/superpowers/specs/2026-06-07-loquor-nl-layer-design.md` — the **NL layer
    v1 design** (revised after pushback review; superseded by v2 where they
    conflict). Its companion implementation plan is
    `docs/superpowers/plans/2026-06-07-loquor-nl-layer.md`. Follow-on designs live
    beside it (compound commands, scene resolution, vocab extraction).
-4. `docs/superpowers/plans/2026-06-06-loquor-first-pass.md` — the first-pass TDD
+5. `docs/superpowers/plans/2026-06-06-loquor-first-pass.md` — the first-pass TDD
    plan (largely executed; historical reference).
-5. `docs/superpowers/specs/2026-06-06-loquor-design.md` — the first-pass design and
+6. `docs/superpowers/specs/2026-06-06-loquor-design.md` — the first-pass design and
    locked decisions (architecture, theme tokens, persistence model).
-6. `docs/spikes/2026-06-06-glk-vite-spike.md` — resolved feasibility spike (how the
+7. `docs/spikes/2026-06-06-glk-vite-spike.md` — resolved feasibility spike (how the
    Glk layer is sourced; CommonJS/Vite interop).
-7. `docs/notes.md` — the deferred LLM/grammar roadmap (post-first-NL-pass ideas).
+8. `docs/notes.md` — the deferred LLM/grammar roadmap (post-first-NL-pass ideas).
 
 Read the relevant spec/plan before writing code. NL-layer work happens on
 feature branches; **execute plans with

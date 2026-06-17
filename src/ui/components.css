@@ -315,7 +315,8 @@
 }
 .nl-caret {
   margin-left: 5px;
-  font-size: 0.5625rem;
+  /* No font-size override: inherit the bar's text size so the ▾ matches the
+     "Change story" caret exactly (both are ▾ in .meta). */
   color: var(--brass-soft);
   transition: color 0.2s;
 }

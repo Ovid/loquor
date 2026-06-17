@@ -191,6 +191,13 @@ export function useOutputTranslation(args: {
   // corpus, and settle() rebuilds it under the new tag.)
   useEffect(() => {
     epochRef.current++
+    // Abort any in-flight generation from the previous language so it releases
+    // the shared engine gate immediately, instead of holding it until its
+    // watchdog (XLATE_WATCHDOG_MS) fires — otherwise the new language's first
+    // translation waits behind a result that's already epoch-invalidated and
+    // will be discarded anyway (review S7). Mirrors the unmount teardown.
+    for (const ac of acsRef.current) ac.abort()
+    acsRef.current.clear()
     backlogRef.current = new Set(viewRef.current.lines.map(l => l.id))
     basisRef.current = new Map()
     retryRef.current = new Map()

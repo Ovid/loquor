@@ -366,6 +366,9 @@ describe('Landing', () => {
     )
     expect(container.querySelector('.plate')).toHaveAttribute('lang', 'fr')
     expect(container.querySelector('.tagline')).toHaveAttribute('lang', 'en')
+    // The Loquor wordmark is the English brand, not French — so a French screen
+    // reader doesn't mispronounce it (S1).
+    expect(container.querySelector('.title')).toHaveAttribute('lang', 'en')
   })
 
   it('localizes the language picker accessible name (de)', () => {

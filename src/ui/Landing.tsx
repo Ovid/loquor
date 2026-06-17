@@ -127,7 +127,9 @@ export function Landing({
           </button>
         )}
         {themeToggle}
-        <h1 className="title">Loquor</h1>
+        <h1 className="title" lang="en">
+          Loquor
+        </h1>
         <p className="tagline" lang="en">
           to speak, and be understood, in the dark
         </p>
@@ -198,7 +200,14 @@ export function Landing({
         >
           {s.enter}
         </button>
-        {savedSlugs.has(selected) && <div className="resume">{s.resume}</div>}
+        {savedSlugs.has(selected) && (
+          <div className="resume">
+            {/* Decorative return glyph — aria-hidden so a screen reader doesn't
+                announce it as "leftwards arrow with hook" before the hint. */}
+            <span aria-hidden="true">↩ </span>
+            {s.resume}
+          </div>
+        )}
         {loadError && (
           <div className="loaderr" role="alert">
             {loadError}

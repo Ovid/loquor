@@ -187,6 +187,13 @@ describe('NlLanguagePicker', () => {
     )
     // "basic" is localized (M7): fr → "simplifié".
     expect(screen.getByText('simplifié')).toBeInTheDocument()
+    // The basic-mode state is tied to the combobox as its description (m3), so a
+    // screen reader announces it with the control — verify the wiring survives
+    // the LanguageCombobox extraction.
+    expect(screen.getByRole('combobox')).toHaveAttribute(
+      'aria-describedby',
+      'nl-basic-state',
+    )
     // The improve button names its action and cost, not a bare "improve" (M1).
     expect(
       screen.getByRole('button', {

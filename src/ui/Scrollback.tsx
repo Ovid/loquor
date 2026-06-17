@@ -38,7 +38,8 @@ export function Scrollback({
   const prevDebugRef = useRef(debug)
   const prevLenRef = useRef(lines.length)
   // eslint-disable-next-line react-hooks/refs -- intentional compare-and-sync; see note above
-  const toggled = prevDebugRef.current !== debug && prevLenRef.current === lines.length
+  const toggled =
+    prevDebugRef.current !== debug && prevLenRef.current === lines.length
   useEffect(() => {
     prevDebugRef.current = debug
     prevLenRef.current = lines.length

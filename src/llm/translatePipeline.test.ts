@@ -321,7 +321,9 @@ function makeTranslate(opts: {
   // lex defaults to null (the grammar-only / load-failure cases route a
   // stage-7-bound clause with no lexicon resolution); pass one to exercise the
   // deterministic alias/lexicon stages.
-  const liveRef = { current: { internal: opts.internalOn, lex: opts.lex ?? null } }
+  const liveRef = {
+    current: { internal: opts.internalOn, lex: opts.lex ?? null },
+  }
   const deps: TranslateDeps = {
     internal: opts.internalOn,
     vocab: TEST_VOCAB,

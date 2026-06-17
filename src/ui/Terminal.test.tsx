@@ -102,7 +102,7 @@ describe('Terminal', () => {
   it('surfaces an abstain notice in a role=status region, not the log (S1)', async () => {
     nlOverride = {
       state: { phase: 'on', language: 'fr', model: 'full', canUpgrade: true },
-      notice: 'Couldn’t translate — try simpler wording',
+      notice: 'Je n’ai pas compris. Essayez une formulation plus simple.',
     }
     try {
       render(
@@ -117,7 +117,7 @@ describe('Terminal', () => {
       // in the sequential transcript log.
       const status = await screen.findByRole('status', {}, { timeout: 8000 })
       expect(
-        within(status).getByText(/Couldn’t translate/),
+        within(status).getByText(/Je n’ai pas compris/),
       ).toBeInTheDocument()
     } finally {
       nlOverride = null

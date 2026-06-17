@@ -1737,8 +1737,8 @@ describe('input queue (NL v2 §11, F-A)', () => {
     // Line 2 drained through the deterministic lexicon stage and ran.
     expect(sendLine.mock.calls.map(c => c[0])).toEqual(['open trapdoor'])
     // Line 1's abstain notice survives (line 2 set none); no "queue cleared".
-    // Localized (F1) — fr: "Traduction impossible …".
-    expect(hook.result.current.notice).toMatch(/traduction impossible/i)
+    // Localized (F1) — fr plain-language recovery (m4): "Je n’ai pas compris…".
+    expect(hook.result.current.notice).toMatch(/je n’ai pas compris/i)
   })
 
   it('a mid-drain language switch applies to queued lines ([N])', async () => {
@@ -2012,8 +2012,8 @@ describe('NL v2 pipeline stages (spec §4)', () => {
     })
     expect(sendLine).not.toHaveBeenCalled()
     expect(echoLocal).not.toHaveBeenCalled()
-    // Localized (F1) — fr abstain: "Traduction impossible …".
-    expect(hook.result.current.notice).toMatch(/traduction impossible/i)
+    // Localized (F1) — fr abstain, plain-language recovery (m4): "Je n’ai pas compris…".
+    expect(hook.result.current.notice).toMatch(/je n’ai pas compris/i)
   })
 
   it('stage 8: EN abstain falls back to the raw line — the Z-parser explains the failure', async () => {

@@ -10,9 +10,9 @@
 //   • "Queue cleared — natural language is off." likewise stays inline English
 //     at its call site: it fires only when the player turned NL OFF, which in
 //     this app means English play.
-// The embedded example command (`open mailbox`) stays English in every
-// language: the quote-escape passes it verbatim to the Z-parser, which only
-// understands English.
+// Recovery notices suggest a simple phrase to TYPE (in the player's own
+// language — the NL layer translates it), so those examples are localized;
+// they are not quote-escapes, which would need to stay English (m4).
 import type { ActiveLanguage } from './types'
 
 type ByLang = Record<ActiveLanguage, string>
@@ -55,10 +55,10 @@ export function nothingSent(lang: ActiveLanguage, timedOut: boolean): string {
 export function couldntTranslate(lang: ActiveLanguage): string {
   return byLang(
     {
-      en: 'Couldn’t translate — try simpler wording, or quote a command: "open mailbox"',
-      fr: 'Traduction impossible — essayez une formulation plus simple, ou citez une commande : « open mailbox »',
-      de: 'Übersetzung nicht möglich — versuchen Sie eine einfachere Formulierung oder setzen Sie einen Befehl in Anführungszeichen: „open mailbox“',
-      es: 'No se pudo traducir — pruebe con palabras más simples, o entrecomille un comando: «open mailbox»',
+      en: 'I didn’t understand that. Try simpler wording, like “take the lamp” or “open the door”.',
+      fr: 'Je n’ai pas compris. Essayez une formulation plus simple, comme « prends la lampe » ou « ouvre la porte ».',
+      de: 'Das habe ich nicht verstanden. Versuchen Sie eine einfachere Formulierung, etwa „nimm die Lampe“ oder „öffne die Tür“.',
+      es: 'No lo entendí. Prueba con palabras más simples, como «toma la lámpara» o «abre la puerta».',
     },
     lang,
   )
@@ -142,10 +142,10 @@ export function modelDownloadStalled(lang: ActiveLanguage): string {
 export function grammarOnlyFirstMiss(lang: ActiveLanguage): string {
   return byLang(
     {
-      en: 'Didn’t catch that — basic mode understands common commands; add the AI upgrade for full sentences.',
-      fr: 'Je n’ai pas compris — le mode simplifié comprend les commandes courantes ; ajoutez la mise à niveau IA pour les phrases complètes.',
-      de: 'Das habe ich nicht verstanden — der einfache Modus versteht gängige Befehle; fügen Sie die KI-Aufwertung für vollständige Sätze hinzu.',
-      es: 'No lo entendí — el modo básico entiende comandos comunes; añade la mejora de IA para frases completas.',
+      en: 'I didn’t catch that. Simple commands like “take the lamp” work now — add the optional upgrade for full sentences.',
+      fr: 'Je n’ai pas compris. Les commandes simples comme « prends la lampe » fonctionnent déjà — ajoutez la mise à niveau facultative pour les phrases complètes.',
+      de: 'Das habe ich nicht verstanden. Einfache Befehle wie „nimm die Lampe“ funktionieren bereits — fügen Sie die optionale Aufwertung für vollständige Sätze hinzu.',
+      es: 'No lo entendí. Los comandos simples como «toma la lámpara» ya funcionan — añade la mejora opcional para frases completas.',
     },
     lang,
   )

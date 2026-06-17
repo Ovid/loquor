@@ -29,9 +29,10 @@ describe('basic-mode download notices', () => {
 describe('grammar-only educational first-abstain notice', () => {
   it('explains basic mode + the upgrade, per language', () => {
     expect(grammarOnlyFirstMiss('en')).toBe(
-      'Didn’t catch that — basic mode understands common commands; add the AI upgrade for full sentences.',
+      'I didn’t catch that. Simple commands like “take the lamp” work now — add the optional upgrade for full sentences.',
     )
     for (const l of ['fr', 'de', 'es'] as const) {
+      // Plain-language recovery with a localized example (m4), no jargon.
       expect(grammarOnlyFirstMiss(l).length).toBeGreaterThan(0)
     }
   })

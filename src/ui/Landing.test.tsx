@@ -340,17 +340,18 @@ describe('Landing', () => {
       LS_KEYS.nlPref,
       JSON.stringify({ language: 'de', declined: false }),
     )
-    const { container } = render(
+    render(
       <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
     )
-    // The element has role="region" via an explicit role attribute on a <span>.
-    // Assert the German label is present and the English hardcode is gone.
+    // The examples element has role="region"; assert its accessible name is the
+    // localized label and not the former English hardcode.
+    const de = LANDING_STRINGS.de
     expect(
-      container.querySelector('[aria-label="Befehlsbeispiele"]'),
+      screen.getByRole('region', { name: de.commandExamples }),
     ).toBeInTheDocument()
     expect(
-      container.querySelector('[aria-label="Command examples"]'),
-    ).toBeNull()
+      screen.queryByRole('region', { name: 'Command examples' }),
+    ).not.toBeInTheDocument()
   })
 
   it('marks the localized plate with a lang attribute and keeps the tagline English', () => {

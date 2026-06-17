@@ -254,4 +254,53 @@ describe('Terminal', () => {
       dispose.mockRestore()
     }
   })
+
+  describe('preferences', () => {
+    it('opens the Preferences modal from the ⚙ button and toggles debug', async () => {
+      render(
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
+      )
+      const open = await screen.findByRole(
+        'button',
+        { name: /preferences/i },
+        { timeout: 8000 },
+      )
+      fireEvent.click(open)
+      const dialog = screen.getByRole('dialog', { name: /preferences/i })
+      expect(dialog).toBeInTheDocument()
+      const box = screen.getByRole('checkbox', { name: /debug mode/i })
+      expect(box).not.toBeChecked()
+      fireEvent.click(box)
+      expect(box).toBeChecked()
+    })
+
+    it('restores focus to the ⚙ opener when the modal closes (Escape)', async () => {
+      render(
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
+      )
+      const open = await screen.findByRole(
+        'button',
+        { name: /preferences/i },
+        { timeout: 8000 },
+      )
+      // Model the real focus state: a real pointer click focuses the button
+      // before the trap captures it as the restore target.
+      open.focus()
+      fireEvent.click(open)
+      fireEvent.keyDown(document.activeElement || document.body, {
+        key: 'Escape',
+      })
+      await waitFor(() => expect(open).toHaveFocus())
+    })
+  })
 })

@@ -190,6 +190,7 @@
   border-radius: 7px;
   padding: 18px 12px 16px;
   text-align: center;
+  position: relative; /* anchor the selected ✓ cue (1.4.1) */
   background: var(--vol-bg);
   transition: all 0.25s ease;
   font: inherit;
@@ -223,6 +224,18 @@
 .vol.sel {
   border-color: var(--brass);
   box-shadow: 0 0 26px rgba(232, 163, 61, 0.18);
+}
+/* Non-color cue for the selection (1.4.1) — border tint + glow alone are lost
+   on a colorblind/forced-colors display. Decorative; the button's aria-pressed
+   conveys the state to assistive tech. */
+.vol.sel::after {
+  content: '✓';
+  position: absolute;
+  top: 6px;
+  right: 9px;
+  color: var(--brass);
+  font-size: 0.95rem;
+  line-height: 1;
 }
 
 /* ---------- Enter button ---------- */

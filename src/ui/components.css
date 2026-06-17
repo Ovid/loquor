@@ -93,7 +93,13 @@
   font: inherit;
   background: none;
   border: none;
-  padding: 0;
+  /* Standalone toolbar controls need a real hit area (>=24px) for touch /
+     head-pointer / eye-gaze users (2.5.8) — the inline-text exception is too
+     shaky here, so pad to the minimum target like the modal buttons. */
+  padding: 4px 6px;
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
 }
 .meta .sw:hover {
   color: var(--brass);
@@ -253,7 +259,10 @@
 
 /* Transient "…thinking" while a translation is in flight. */
 .nl-thinking {
-  opacity: 0.6;
+  /* No opacity dim: --text-dim alone clears 4.5:1 in both themes; at 0.6 the
+     light text was 3.45:1 (1.4.3), the same anti-pattern fixed for the
+     placeholder and nl-source. */
+  color: var(--text-dim);
   font-style: italic;
 }
 /* Watchdog/timeout/error notice — distinguishable from a normal abstain. */

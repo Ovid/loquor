@@ -34,6 +34,9 @@ const RIGHT_FORMAT: Readonly<
   fr: (score, moves) => `Score : ${score}  Coups : ${moves}`,
   de: (score, moves) => `Punkte: ${score}  Züge: ${moves}`,
   es: (score, moves) => `Puntos: ${score}  Turnos: ${moves}`,
+  // Draft labels — confirmed/refined by the Tbilisi native-review loop (spec §8).
+  // Numerals stay Arabic (Georgian uses Arabic numerals).
+  ka: (score, moves) => `ქულა: ${score}  სვლა: ${moves}`,
 }
 
 export function translateStatus(

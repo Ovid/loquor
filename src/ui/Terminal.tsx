@@ -13,6 +13,7 @@ import {
 } from './useGameEngine'
 import { vocabForSignature } from '../llm/grammar/index'
 import { viewToContext } from '../llm/prompt'
+import { thinking } from '../llm/notices'
 import { useNaturalLanguage } from '../llm/useNaturalLanguage'
 import { useOutputTranslation } from '../translate/useOutputTranslation'
 import { loudEchoToken } from '../translate/loudEcho'
@@ -125,18 +126,18 @@ export function Terminal({
     echoMap,
   })
 
-  // The active non-English NL language, for tagging the player's queued input
-  // and the localized notice so a screen reader pronounces them right (3.1.2).
-  const nlLang =
-    nl.state.phase === 'on' && nl.state.language !== 'en'
-      ? nl.state.language
-      : undefined
+  // The active NL language: `activeLang` (incl. 'en') localizes copy; `nlLang`
+  // is undefined for English so only non-English text carries a lang attribute,
+  // letting a screen reader pronounce it right (3.1.2).
+  const activeLang = nl.state.phase === 'on' ? nl.state.language : 'en'
+  const nlLang = activeLang !== 'en' ? activeLang : undefined
 
   // Live download progress for the modal — derived from NL state during render
   // (no separate state or effect needed).
   const dlProgress: LoadProgress | null =
     nl.state.phase === 'downloading'
-      ? { loaded: nl.state.loaded, total: nl.state.total, text: 'downloading' }
+      ? // text is unused by the localized modal (review I3); only loaded/total are.
+        { loaded: nl.state.loaded, total: nl.state.total, text: '' }
       : null
 
   useEffect(() => {
@@ -180,7 +181,11 @@ export function Terminal({
               </span>
             </p>
           ))}
-          {nl.pending && <p className="nl-thinking">…thinking</p>}
+          {nl.pending && (
+            <p className="nl-thinking" lang={nlLang}>
+              {thinking(activeLang)}
+            </p>
+          )}
           {nl.notice && (
             <p className="nl-notice" lang={nlLang}>
               {nl.notice}

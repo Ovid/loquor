@@ -3,6 +3,7 @@ import {
   modelDownloadFailed,
   modelDownloadStalled,
   grammarOnlyFirstMiss,
+  thinking,
 } from './notices'
 
 describe('basic-mode download notices', () => {
@@ -33,5 +34,14 @@ describe('grammar-only educational first-abstain notice', () => {
     for (const l of ['fr', 'de', 'es'] as const) {
       expect(grammarOnlyFirstMiss(l).length).toBeGreaterThan(0)
     }
+  })
+})
+
+describe('thinking indicator (review I5)', () => {
+  it('is localized per language — no English for FR/DE/ES players', () => {
+    expect(thinking('en')).toBe('…thinking')
+    expect(thinking('fr')).toBe('…réflexion')
+    expect(thinking('de')).toBe('…denke nach')
+    expect(thinking('es')).toBe('…pensando')
   })
 })

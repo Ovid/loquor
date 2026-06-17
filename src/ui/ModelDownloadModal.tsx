@@ -92,7 +92,7 @@ export function ModelDownloadModal({
 
   if (!open) return null
   const pct = progress ? toPct(progress.loaded, progress.total) : 0
-  const eta = formatEta(etaSeconds)
+  const eta = formatEta(etaSeconds, lang)
 
   const copy = COPY[lang]
 
@@ -116,8 +116,10 @@ export function ModelDownloadModal({
           <>
             <progress value={pct} max={100} aria-label={copy.progressLabel} />
             <p aria-live="polite">
-              {pct}% — {progress!.text}
-              {eta ? ` · ${eta}` : ''}
+              {/* Localized progressLabel + pct convey state; the engine's raw
+                  progress.text is English ("downloading") and is intentionally
+                  not rendered in this localized modal (review I3). */}
+              {pct}%{eta ? ` · ${eta}` : ''}
             </p>
             <button className="sw" type="button" onClick={onCancel}>
               {copy.cancel}

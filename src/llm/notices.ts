@@ -151,6 +151,20 @@ export function grammarOnlyFirstMiss(lang: ActiveLanguage): string {
   )
 }
 
+/** Transient "thinking" indicator shown while a translation is in flight.
+ * Localized so a FR/DE/ES player doesn't see English mid-translation (I5). */
+export function thinking(lang: ActiveLanguage): string {
+  return byLang(
+    {
+      en: '…thinking',
+      fr: '…réflexion',
+      de: '…denke nach',
+      es: '…pensando',
+    },
+    lang,
+  )
+}
+
 /** A queued line was discarded because the game raised an interactive prompt. */
 export function queueClearedNeedsAnswer(lang: ActiveLanguage): string {
   return byLang(

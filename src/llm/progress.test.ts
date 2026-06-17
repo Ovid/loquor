@@ -101,4 +101,13 @@ describe('formatEta', () => {
     // 7170s = 1h 59.5m: minutes round to 60 and must carry.
     expect(formatEta(7170)).toBe('~2h 0m remaining')
   })
+
+  it('localizes the ETA for FR/DE/ES (review I4 — no English in the localized modal)', () => {
+    // No "remaining" / "min" English fragment leaks for non-English players.
+    expect(formatEta(45, 'fr')).toBe('~45 s restantes')
+    expect(formatEta(90, 'de')).toBe('noch ~2 Min.')
+    expect(formatEta(3700, 'es')).toBe('~1 h 2 min restantes')
+    for (const s of ['~45 s restantes', 'noch ~2 Min.', '~1 h 2 min restantes'])
+      expect(s).not.toMatch(/remaining/)
+  })
 })

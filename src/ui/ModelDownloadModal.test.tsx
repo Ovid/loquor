@@ -312,4 +312,21 @@ describe('ModelDownloadModal', () => {
       screen.getByLabelText(/téléchargement du modèle/i),
     ).toBeInTheDocument()
   })
+
+  it('does not leak the English "downloading"/ETA into the FR modal (review I3/I4)', () => {
+    render(
+      <ModelDownloadModal
+        open
+        lang="fr"
+        progress={{ loaded: 1, total: 2, text: 'downloading' }}
+        etaSeconds={90}
+        onAccept={vi.fn()}
+        onDecline={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    )
+    expect(screen.queryByText(/downloading/i)).toBeNull()
+    expect(screen.queryByText(/remaining/i)).toBeNull()
+    expect(screen.getByText(/restantes/)).toBeInTheDocument() // localized ETA shown
+  })
 })

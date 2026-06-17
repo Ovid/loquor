@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { NlState, NlLanguage } from '../llm/types'
 import { pct as toPct } from '../llm/progress'
+import { basicChip, downloadingChip } from '../llm/notices'
 
 // `lang` marks each label's natural language (3.1.2) so a screen reader voices
 // "Français"/"Deutsch"/"Español" with the right pronunciation inside the en doc.
@@ -52,16 +53,15 @@ export function NlLanguagePicker({
   if (state.phase === 'disabled') return null
   if (state.phase === 'downloading') {
     const pct = toPct(state.loaded, state.total)
-    return <span className="nl-toggle">downloading… {pct}%</span>
+    return (
+      <span className="nl-toggle" lang={state.language}>
+        {downloadingChip(state.language)}… {pct}%
+      </span>
+    )
   }
   const value: NlLanguage = state.phase === 'on' ? state.language : 'off'
   const current = OPTIONS.find(o => o.value === value) ?? OPTIONS[0]
-  const offChip =
-    state.phase === 'off'
-      ? state.installed
-        ? ' · installed'
-        : ' · not installed'
-      : ''
+  const grammarOnly = state.phase === 'on' && state.model === 'grammar'
 
   const openMenu = () => {
     // Highlight starts on the SELECTED option, like a native select.
@@ -125,6 +125,9 @@ export function NlLanguagePicker({
           aria-activedescendant={
             open ? `nl-lang-opt-${OPTIONS[active].value}` : undefined
           }
+          // Tie the "basic mode" state to the combobox so a screen reader
+          // announces it as the control's description (m3).
+          aria-describedby={grammarOnly ? 'nl-basic-state' : undefined}
           onClick={() => (open ? setOpen(false) : openMenu())}
           onKeyDown={onKeyDown}
         >
@@ -157,11 +160,36 @@ export function NlLanguagePicker({
           </ul>
         )}
       </span>
-      {offChip}
+      {state.phase === 'off' && (
+        <span className="nl-chip">
+          {' '}
+          <span className="sep" aria-hidden="true">
+            ·
+          </span>{' '}
+          {state.installed ? 'installed' : 'not installed'}
+        </span>
+      )}
       {state.phase === 'on' && state.model === 'grammar' && (
         <>
-          <span className="nl-basic"> · basic</span>{' '}
-          <button className="sw" type="button" onClick={onUpgrade}>
+          {' '}
+          <span className="sep" aria-hidden="true">
+            ·
+          </span>{' '}
+          <span className="nl-basic" id="nl-basic-state" lang={state.language}>
+            {basicChip(state.language)}
+          </span>{' '}
+          <button
+            className="sw"
+            type="button"
+            // Bare "improve" has no object; name the action and its cost (M1).
+            // The non-upgrade variant's visible text is already self-describing.
+            aria-label={
+              state.canUpgrade
+                ? 'Improve natural-language input (download AI model)'
+                : undefined
+            }
+            onClick={onUpgrade}
+          >
             {state.canUpgrade ? (
               <>
                 <span aria-hidden="true">✦</span> improve

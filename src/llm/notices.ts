@@ -165,6 +165,33 @@ export function thinking(lang: ActiveLanguage): string {
   )
 }
 
+/** Status-bar/transcript chip words shown while an NL language is active, so a
+ * FR/DE/ES player doesn't see English chrome mid-flow (M7). These appear only
+ * under an active language (downloading/on phases); the off-phase "installed"
+ * chips stay English because off means English play. */
+export function downloadingChip(lang: ActiveLanguage): string {
+  return byLang(
+    { en: 'downloading', fr: 'téléchargement', de: 'lädt', es: 'descargando' },
+    lang,
+  )
+}
+
+/** Marker for grammar-only "basic mode" — matches the modal's "simplified mode" copy. */
+export function basicChip(lang: ActiveLanguage): string {
+  return byLang(
+    { en: 'basic', fr: 'simplifié', de: 'einfach', es: 'básico' },
+    lang,
+  )
+}
+
+/** Chip on a typed-ahead line waiting for the translator. */
+export function queuedChip(lang: ActiveLanguage): string {
+  return byLang(
+    { en: 'queued', fr: 'en attente', de: 'wartet', es: 'en cola' },
+    lang,
+  )
+}
+
 /** A queued line was discarded because the game raised an interactive prompt. */
 export function queueClearedNeedsAnswer(lang: ActiveLanguage): string {
   return byLang(

@@ -129,7 +129,8 @@ describe('NlLanguagePicker', () => {
         onUpgrade={() => {}}
       />,
     )
-    expect(screen.getByText(/downloading/)).toBeInTheDocument()
+    // The chip is localized to the language being downloaded (M7): fr → "téléchargement".
+    expect(screen.getByText(/téléchargement/)).toBeInTheDocument()
     expect(screen.getByText(/50%/)).toBeInTheDocument()
   })
 
@@ -141,10 +142,11 @@ describe('NlLanguagePicker', () => {
         onUpgrade={() => {}}
       />,
     )
-    // Anchored on the separator ([S]): a bare /installed/ also matches the
-    // "· not installed" chip, so this passed for the wrong render too.
-    expect(screen.getByText(/· installed/)).toBeInTheDocument()
-    expect(screen.queryByText(/not installed/)).toBeNull()
+    // The middot is now a decorative aria-hidden span (m3), so the chip's own
+    // text node is just the word; exact match keeps "installed" from also
+    // matching the "not installed" render.
+    expect(screen.getByText('installed')).toBeInTheDocument()
+    expect(screen.queryByText('not installed')).toBeNull()
   })
 
   it('shows the not-installed chip when off · not installed', () => {
@@ -155,7 +157,7 @@ describe('NlLanguagePicker', () => {
         onUpgrade={() => {}}
       />,
     )
-    expect(screen.getByText(/not installed/)).toBeInTheDocument()
+    expect(screen.getByText('not installed')).toBeInTheDocument()
   })
 
   it('renders nothing when disabled (no vocab)', () => {
@@ -183,7 +185,14 @@ describe('NlLanguagePicker', () => {
         onUpgrade={onUpgrade}
       />,
     )
-    expect(screen.getByText(/· basic/)).toBeInTheDocument()
+    // "basic" is localized (M7): fr → "simplifié".
+    expect(screen.getByText('simplifié')).toBeInTheDocument()
+    // The improve button names its action and cost, not a bare "improve" (M1).
+    expect(
+      screen.getByRole('button', {
+        name: 'Improve natural-language input (download AI model)',
+      }),
+    ).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /improve/i }))
     expect(onUpgrade).toHaveBeenCalled()
   })

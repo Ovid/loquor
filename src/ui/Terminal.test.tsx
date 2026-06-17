@@ -387,8 +387,15 @@ describe('Terminal', () => {
             themeToggle={null}
           />,
         )
-        const status = await screen.findByRole('status', {}, { timeout: 8000 })
-        expect(status).toHaveTextContent(/ქართული თარგმანი ჯერ სატესტოა/)
+        // The notice surfaces once the story signature resolves at boot (it is
+        // gated on the game actually having a Georgian corpus), so wait for the
+        // text, not just the live region.
+        await screen.findByText(
+          /ქართული თარგმანი ჯერ სატესტოა/,
+          {},
+          { timeout: 8000 },
+        )
+        const status = screen.getByRole('status')
         expect(status).toHaveTextContent(/Georgian is a beta translation/)
       } finally {
         nlOverride = null

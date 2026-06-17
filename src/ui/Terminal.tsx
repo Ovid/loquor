@@ -23,6 +23,7 @@ import {
 } from '../llm/notices'
 import { useNaturalLanguage } from '../llm/useNaturalLanguage'
 import { useOutputTranslation } from '../translate/useOutputTranslation'
+import { corpusFor } from '../translate/corpus/index'
 import { loudEchoToken } from '../translate/loudEcho'
 import { WebLlmEngine } from '../llm/engine.webllm'
 import { selectedModelId } from '../llm/modelSelection'
@@ -165,9 +166,14 @@ export function Terminal({
 
   // First-class a11y (spec §5): a Georgian player is told, in their own language
   // and English, that the translation is beta and may show English. Rendered in
-  // the existing role=status live region (no new live region).
+  // the existing role=status live region (no new live region). Gated on the
+  // CURRENT game actually having a Georgian corpus — otherwise (e.g. Zork II/III,
+  // which have no ka corpus and display fully in English) the "beta translation"
+  // claim would be misleading; the Landing "English only" badge is the honest
+  // cue there instead. The corpus appears once the story signature resolves at
+  // boot, so the notice surfaces alongside the first translated output.
   const betaNotice =
-    outLang === 'ka'
+    outLang === 'ka' && corpusFor(signature, 'ka') !== null
       ? 'ქართული თარგმანი ჯერ სატესტოა — ზოგი ტექსტი შეიძლება ინგლისურად გამოჩნდეს. / Georgian is a beta translation; some text may still appear in English.'
       : null
 

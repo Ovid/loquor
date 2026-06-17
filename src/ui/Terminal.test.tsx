@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import 'fake-indexeddb/auto'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { Terminal } from './Terminal'
 import { WebLlmEngine } from '../llm/engine.webllm'
@@ -93,6 +93,31 @@ describe('Terminal', () => {
       // must stay ENABLED even though a translation is pending.
       const input = screen.getByPlaceholderText('type a command…')
       expect(input).not.toBeDisabled()
+    } finally {
+      nlOverride = null
+    }
+  })
+
+  it('surfaces an abstain notice in a role=status region, not the log (S1)', async () => {
+    nlOverride = {
+      state: { phase: 'on', language: 'fr', model: 'full', canUpgrade: true },
+      notice: 'Couldn’t translate — try simpler wording',
+    }
+    try {
+      render(
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
+      )
+      // The notice must reach a screen reader as a status message, not buried
+      // in the sequential transcript log.
+      const status = await screen.findByRole('status', {}, { timeout: 8000 })
+      expect(
+        within(status).getByText(/Couldn’t translate/),
+      ).toBeInTheDocument()
     } finally {
       nlOverride = null
     }

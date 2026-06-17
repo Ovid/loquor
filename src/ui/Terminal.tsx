@@ -13,7 +13,7 @@ import {
 } from './useGameEngine'
 import { vocabForSignature } from '../llm/grammar/index'
 import { viewToContext } from '../llm/prompt'
-import { thinking } from '../llm/notices'
+import { thinking, queuedChip } from '../llm/notices'
 import { useNaturalLanguage } from '../llm/useNaturalLanguage'
 import { useOutputTranslation } from '../translate/useOutputTranslation'
 import { loudEchoToken } from '../translate/loudEcho'
@@ -176,21 +176,28 @@ export function Terminal({
                 you
               </span>{' '}
               {q.text}
-              <span className="chip" lang="en">
-                queued
+              <span className="chip" lang={nlLang}>
+                {queuedChip(activeLang)}
               </span>
             </p>
           ))}
-          {nl.pending && (
-            <p className="nl-thinking" lang={nlLang}>
-              {thinking(activeLang)}
-            </p>
-          )}
-          {nl.notice && (
-            <p className="nl-notice" lang={nlLang}>
-              {nl.notice}
-            </p>
-          )}
+          {/* Transient NL status — the thinking indicator and abstain/timeout
+              notices — in a dedicated role=status region (S1), not the role=log
+              transcript: a screen reader announces them as status updates so a
+              silent abstain (common in FR/DE/ES) is heard. Always mounted so the
+              live region is registered before a notice appears. */}
+          <div role="status" aria-live="polite" className="nl-status">
+            {nl.pending && (
+              <p className="nl-thinking" lang={nlLang}>
+                {thinking(activeLang)}
+              </p>
+            )}
+            {nl.notice && (
+              <p className="nl-notice" lang={nlLang}>
+                {nl.notice}
+              </p>
+            )}
+          </div>
           <CommandInput
             inputRef={inputRef}
             onSubmit={text => {

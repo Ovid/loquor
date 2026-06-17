@@ -320,11 +320,11 @@ describe('Terminal', () => {
             themeToggle={null}
           />,
         )
-        await waitFor(
-          () =>
-            expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
-          { timeout: 8000 },
-        )
+        // Wait for boot to line-input (input field present). NB: the room name
+        // renders in GEORGIAN here (ka output is translated by the now-authored
+        // corpus), so don't wait on the English 'West of House' — wait on the
+        // language-agnostic input affordance instead.
+        await screen.findByPlaceholderText('type a command…', {}, { timeout: 8000 })
         expect(screen.queryByRole('dialog')).toBeNull()
       } finally {
         nlOverride = null

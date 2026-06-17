@@ -195,6 +195,11 @@ export class ZMachine {
     this.bridge.sendLine(text)
   }
 
+  /** Canonical (NL-translated) send — see GlkOteBridge.sendLineCanonical. */
+  sendLineCanonical(text: string) {
+    this.bridge.sendLineCanonical(text)
+  }
+
   sendChar(key: string) {
     this.bridge.sendChar(key)
   }

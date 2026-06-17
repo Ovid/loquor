@@ -110,9 +110,13 @@ game output ─► matchLine(corpus, en)
   and `LexLang` derive `ka` automatically.
 - `src/ui/languageOptions.ts` — add the Georgian picker entry with its beta
   marker (§6).
-- (Possibly) `src/translate/statusTranslate.ts` — room-name translation for `ka`
-  (§7), if and only if it can be done without disturbing the fr/de/es format
-  parsers; otherwise deferred to Phase 1.5.
+- `src/translate/statusTranslate.ts` — add a `RIGHT_FORMAT['ka']` entry so the
+  status-bar score/turns line carries Georgian labels (§7). The room-name lookup
+  is already language-agnostic (`c.strings[normalize(status.location)]`, no
+  language branch), so room names translate with zero change here; the only edit
+  is the one-line `RIGHT_FORMAT` slot. Without it the score line renders verbatim
+  English **and** logs a status miss every turn (the turn counter changes the
+  string, defeating dedup), flooding the §8 miss log.
 
 ---
 
@@ -232,9 +236,11 @@ Three existing gates apply to Phase 1; the fourth is deferred.
 - **Inventory** (`inventory.test.ts`) — every full-line string extracted from
   `public/games/zork1.z3` must be translatable; the ignore list stays honest. ✓
 - **Completeness** (`completeness.test.ts`) — every form key any template
-  references exists on **every** object (the German-first gate generalizes;
-  extend it to iterate `ka`, or parameterize by language). Expected required-key
-  union for Georgian: small (`indef`, `bare`, maybe `nom`), by §4 discipline. ✓
+  references exists on **every** object. **Already registry-driven**
+  (`LANGS = corporaFor(ZORK1_SIG)` + `describe.each`), exactly like coverage and
+  inventory — adding the `CORPORA` line auto-enrolls `ka`; **no gate code change
+  needed**. Expected required-key union for Georgian: small (`indef`, `bare`,
+  maybe `nom`), by §4 discipline. ✓
 - **Round-trip** (`roundtrip.test.ts`) — display object forms must `fold()` back
   to the **input lexicon**. **Deferred to Phase 2.** There is no Georgian input
   lexicon in Phase 1, so `ka` is simply **not added** to the round-trip `LANGS`
@@ -249,19 +255,32 @@ no-fallback regression test (§3) and the picker a11y test (§5). `make all` cle
 
 ## 7. Status bar (room name) & boundaries
 
-`statusTranslate.ts` parses the status line (room name + score/turns) for fr/de/es
-only. A Georgian transcript with an **English room name in the status bar** is a
-visible inconsistency the player would notice every turn.
+A Georgian transcript with an **English status bar** is a visible inconsistency
+the player would notice every turn. `statusTranslate.ts` has two independent
+halves, and the work splits cleanly between them:
 
-- **Decision:** translate the **room name** in the status bar by reusing the
-  corpus `strings` lookup (the room titles are already string keys), and leave
-  the **score/turns numerals** as-is (Georgian uses Arabic numerals). This is the
-  cheap, high-value slice.
-- **Seam caveat:** if admitting `ka` to `statusTranslate.ts` cannot be done
-  without disturbing the fr/de/es `RIGHT_FORMAT` parsers, status-bar translation
-  becomes a **Phase 1.5 follow-up** rather than a blocker on the transcript work.
-  The implementation plan resolves the exact seam; the transcript corpus does not
-  depend on it.
+- **Room name — free, no change.** The location lookup is
+  `c.strings[normalize(status.location)]` with **no language branch**, so the
+  moment `ka` is in the allowlist room names translate via the corpus `strings`
+  (room titles are already string keys). There is no fr/de/es parser to disturb.
+
+- **Score/turns labels — the one real edit.** The `right` side is translated only
+  when `RIGHT_FORMAT[language]` exists. Add a `ka` entry so the **labels** are
+  Georgian while the **numerals stay Arabic** (Georgian uses Arabic numerals):
+  ```ts
+  // draft labels — confirmed/refined by the Tbilisi loop (§8)
+  ka: (score, moves) => `ქულა: ${score}  სვლა: ${moves}`,
+  ```
+  This is mandatory, not optional: without it the bar renders verbatim
+  `Score: 0  Turns: 5` every turn (English label words in an otherwise-Georgian
+  transcript — the very inconsistency this section exists to remove), **and** the
+  unmatched `right` is `logMiss`'d every turn. Because the turn counter changes
+  the string, the persistent dedup never catches it, so the miss-log ring buffer
+  fills with per-turn status noise and drowns the real line-misses that §8's
+  native-review loop reads. The two label words ("ქულა"/"სვლა") are themselves a
+  §8 native-review item — author the draft, expect correction.
+- **Test:** assert a `ka` status line renders Georgian labels with the numerals
+  intact, and that an uncovered `ka` line still degrades to English per §3.
 
 ---
 
@@ -301,8 +320,8 @@ of the design, not an afterthought.
 | Model-authored Georgian has grammatical/case errors | Native Tbilisi review loop (§8); ship behind **beta**; UAT regression suite. |
 | A miss shows English mid-Georgian transcript | Honest by design (§3); coverage+inventory gates keep misses rare; `logMiss` feeds fixes. |
 | Editing `useOutputTranslation.ts` regresses fr/de/es | New branch gated by `CORPUS_ONLY_LANGS`; regression test pins fr-still-falls-back vs ka-degrades-to-English. |
-| Completeness gate is German-specific | Generalize/parameterize it to iterate `ka`; §4 keeps the key union small. |
-| Status-bar parser can't take `ka` cleanly | Room-name translation degrades to a Phase 1.5 follow-up; does not block transcript. |
+| Completeness gate is German-specific | **Non-issue** — already registry-driven (`corporaFor`); `ka` auto-enrolls via the `CORPORA` line. §4 keeps the key union small. |
+| English status-bar labels every turn + flooded miss log | Add the one-line `RIGHT_FORMAT['ka']` slot (§7); room name already translates free. Test pins Georgian labels + English degradation. |
 | Georgian file paths / UTF-8 in CI | Mkhedruli is BMP (U+10A0–10FF); verify the suite runs green in CI before merge. |
 
 ---
@@ -315,7 +334,8 @@ of the design, not an afterthought.
 - **Open ASCII form keys, mandatory `indef`** → §4. ✓
 - **Three gates apply; round-trip deferred with reason** → §6. ✓
 - **Beta marker is non-colour, a11y-tested, announced** → §5. ✓
-- **Status-bar room name handled or cleanly deferred** → §7. ✓
+- **Status bar fully Georgian: room name free, score/turns via one-line
+  `RIGHT_FORMAT['ka']`** → §7. ✓
 - **Native-review loop is first-class** → §8. ✓
 - **fr/de/es untouched; minimal blast radius** → §9. ✓
 - **Phase 2 (input) explicitly separate** → §1. ✓

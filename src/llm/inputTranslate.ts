@@ -335,11 +335,18 @@ export function vocabWordSet(vocab: Vocab): Set<string> {
  * style varies by keyboard/autocorrect across FR/DE/ES (pushback minor note).
  */
 export function unquote(line: string): string | null {
-  const m = line
+  // Tolerate trailing sentence punctuation after the close quote — a player
+  // following the "quote a command" advice with autocorrect — and normalize
+  // curly double quotes to straight so a mixed pair (“…" or "…”, autocorrect
+  // having swapped one) still matches (review S8).
+  const s = line
     .trim()
-    .match(/^(?:"([^"]+)"|«([^»]+)»|„([^“”]+)[“”]|“([^”]+)”)$/)
+    .replace(/[.!?]+$/, '')
+    .trim()
+    .replace(/[“”]/g, '"')
+  const m = s.match(/^(?:"([^"]+)"|«([^»]+)»|„([^"]+)")$/)
   if (!m) return null
-  const inner = (m[1] ?? m[2] ?? m[3] ?? m[4]).trim()
+  const inner = (m[1] ?? m[2] ?? m[3]).trim()
   return inner.length > 0 ? inner : null
 }
 
@@ -397,15 +404,17 @@ export function isConfirmationPrompt(recentOutput: string): boolean {
 // literal "Y" and all English replies) untouched. Folded so accents/case/punct
 // don't matter. English is intentionally absent — "y"/"n"/"yes" already work
 // and we must not remap an English word.
+// Include common colloquial replies (review S9) so a natural "jawohl"/"ouais"/
+// "claro" isn't passed raw and silently rejected at a restart/quit prompt.
 const CONFIRM_AFFIRMATIVE: Partial<Record<ActiveLanguage, readonly string[]>> =
   {
-    de: ['j', 'ja'],
-    fr: ['o', 'oui'],
-    es: ['s', 'si'], // 'sí' folds to 'si'
+    de: ['j', 'ja', 'jawohl', 'jo'],
+    fr: ['o', 'oui', 'ouais'],
+    es: ['s', 'si', 'claro', 'vale'], // 'sí' folds to 'si'
   }
 const CONFIRM_NEGATIVE: Partial<Record<ActiveLanguage, readonly string[]>> = {
-  de: ['n', 'nein'],
-  fr: ['n', 'non'],
+  de: ['n', 'nein', 'nee'], // (folded forms; 'nö' would fold to 'no', so omitted)
+  fr: ['n', 'non', 'nan'],
   es: ['n', 'no'],
 }
 

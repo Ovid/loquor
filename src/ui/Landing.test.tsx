@@ -39,6 +39,23 @@ describe('Landing', () => {
     )
   })
 
+  it('gives each volume radio a localized accessible name (numeral + subtitle) (S3)', () => {
+    localStorage.setItem(
+      LS_KEYS.nlPref,
+      JSON.stringify({ language: 'de', declined: false }),
+    )
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    // The radio's accessible name is its numeral + the localized subtitle, so a
+    // screen-reader user hears "I Das große unterirdische Reich", not a bare "I".
+    expect(
+      screen.getByRole('radio', {
+        name: new RegExp(`I.*${LANDING_STRINGS.de.subtitles.zork1}`),
+      }),
+    ).toBeInTheDocument()
+  })
+
   it('renders the initial landing inside a main landmark (m1)', () => {
     render(
       <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,

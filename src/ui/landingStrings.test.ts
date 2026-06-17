@@ -50,21 +50,23 @@ void _footerCovered
 describe('LANDING_STRINGS', () => {
   for (const lang of ACTIVE) {
     const copy = LANDING_STRINGS[lang]
+    // .trim() before toBeTruthy so a whitespace-only string (' ') can't pass the
+    // "never ship half-English" gate (S4).
     it(`${lang} defines every scalar field, non-empty`, () => {
       for (const key of SCALAR_KEYS) {
-        expect(copy[key], `${lang}.${key}`).toBeTruthy()
         expect(typeof copy[key]).toBe('string')
+        expect(copy[key].trim(), `${lang}.${key}`).toBeTruthy()
       }
     })
     it(`${lang} defines every footer segment, non-empty`, () => {
       for (const key of FOOTER_KEYS) {
-        expect(copy.footer[key], `${lang}.footer.${key}`).toBeTruthy()
+        expect(copy.footer[key].trim(), `${lang}.footer.${key}`).toBeTruthy()
       }
     })
     it(`${lang} defines a subtitle for every game`, () => {
       for (const g of GAMES) {
         expect(
-          copy.subtitles[g.slug],
+          copy.subtitles[g.slug].trim(),
           `${lang}.subtitles.${g.slug}`,
         ).toBeTruthy()
       }

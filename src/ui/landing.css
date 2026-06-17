@@ -67,6 +67,14 @@
   z-index: 20;
   background: rgba(0, 0, 0, 0.62);
 }
+/* The plate's gradient is intentionally translucent on the landing (it reads as
+   a lit panel over the body glow). As an in-game overlay it sits over the live
+   transcript, so that translucency lets game text bleed through and hurts
+   readability. Back the same parchment gradient with an opaque base (theme-aware
+   via --bg-base) so the panel is solid without changing its tint. */
+.screen.overlay .plate {
+  background: var(--plate-grad), var(--bg-base);
+}
 /* Dismiss control — mirrors the theme toggle's corner placement, opposite side.
    It takes over the top-left corner, so the decorative bracket there steps aside. */
 .screen.overlay .plate::before {

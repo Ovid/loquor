@@ -65,9 +65,18 @@ correction loop.
 
 **Explicitly out of scope:**
 - **Georgian input** (Phase 2 — grammar-only command parsing).
-- **Zork II / III** (matches the fr/es/de output corpus, which is Zork I only).
+- **Zork II / III translation** (matches the fr/es/de output corpus, which is
+  Zork I only). They stay English — but that is **signaled, not silent**: a
+  localized landing badge marks untranslated volumes (§7).
 - **Round-trip gate enrollment** for `ka` (deferred to Phase 2 — see §6).
-- **Full UI chrome localization** (menus, buttons, modals stay English in v1).
+- **Full *in-game* UI chrome localization** (in-game menus, buttons, modals stay
+  English in v1). **Exception — the landing page copy IS localized:**
+  `LANDING_STRINGS`/`LANDING_EXAMPLES` are exhaustive `Record<ActiveLanguage, …>`
+  records gated for completeness, so registering `ka` *forces* Georgian landing
+  copy to exist (it is not optional). It ships with **read-Georgian/type-English**
+  semantics — the how-to says commands are typed in English, the examples reuse
+  the English command list, and the caveat carries the beta note and offers **no**
+  AI model (corpus-only, §3). See plan Task 1.
 - **Mtavruli title styling** (a delightful future touch; Unicode does not map
   Mkhedruli→Mtavruli via `text-transform`, so it is real work, not v1).
 - **LLM output fallback for Georgian** — deliberately removed (§3, §4).
@@ -76,10 +85,11 @@ correction loop.
 
 ## 2. Architecture
 
-Pure data authoring against the existing, language-agnostic overlay, plus one
-small, contained logic change. The data structure mirrors the German slice so the
-coverage and inventory gates pass **by construction** (keys byte-identical to the
-French corpus).
+Pure data authoring against the existing, language-agnostic overlay, plus two
+contained logic edits: the **output-path** no-fallback branch (§3) and the
+**input-path** output-only routing (§3a). The data structure mirrors the German
+slice so the coverage and inventory gates pass **by construction** (keys
+byte-identical to the French corpus).
 
 ```
 game output ─► matchLine(corpus, en)
@@ -107,7 +117,13 @@ game output ─► matchLine(corpus, en)
   extend the language allowlist (lines 117–120) to admit `ka`; add the
   corpus-only no-fallback branch.
 - `src/llm/types.ts` — add `'ka'` to `NL_LANGUAGES` (line 5). `ActiveLanguage`
-  and `LexLang` derive `ka` automatically.
+  derives `ka` automatically. **`LexLang` must NOT** — it is
+  `Exclude<NlLanguage, 'off' | 'en'>` today, and `CORES`/`NOUNS`/
+  `KNOWN_COLLISIONS` (`src/llm/lexicon/index.ts`) are exhaustive
+  `Record<LexLang, …>` maps, so deriving `ka` would demand a Georgian *input*
+  lexicon that Phase 1 must not have and break `tsc -b`. Pin `LexLang` to an
+  explicit `'fr' | 'de' | 'es'` union first (Phase 2 adds `ka` when the input
+  lexicon exists). See §9 and the plan's Task 0.
 - `src/ui/languageOptions.ts` — add the Georgian picker entry with its beta
   marker (§6).
 - `src/translate/statusTranslate.ts` — add a `RIGHT_FORMAT['ka']` entry so the
@@ -120,7 +136,7 @@ game output ─► matchLine(corpus, en)
 
 ---
 
-## 3. Runtime change: corpus-only, no LLM fallback (the only logic edit)
+## 3. Runtime change: corpus-only, no LLM fallback (the output-path logic edit)
 
 For fr/de/es, a corpus miss falls through to a WebLLM "literal translation"
 fallback. **Georgian must not use this path.** The small WebLLM models cannot
@@ -158,6 +174,50 @@ French line still attempts fallback.
 **Why misses stay rare:** the coverage gate (full walkthrough) and inventory gate
 (every full-line string in the story file) force near-total coverage before this
 ships. The miss path is a safety net and a UAT signal, not the common case.
+
+---
+
+## 3a. Input routing: output-only languages (the input-path logic edit)
+
+Phase 1 Georgian reads in Georgian but **types in English** (§1). The picker,
+however, is a single control wired to the NL **input** layer, and selecting a
+language normally (a) routes the command field through `nl.translate` and (b)
+can auto-open the model-download modal. For `ka` that path is wrong: there is no
+Georgian input lexicon, and the WebLLM model does nothing for a corpus-only
+output language. So the input path needs its own contained edit, separate from
+§3's output edit.
+
+**Mechanism — "Option A", contained and forward-compatible:**
+
+1. **`src/llm/types.ts`** — export a second set:
+   ```ts
+   /** Languages with a DISPLAY corpus but no INPUT support yet (Phase 1). The
+    *  command field raw-sends English for these — exactly as 'off' does. Phase 2
+    *  (Georgian input) removes 'ka' from this set. Distinct from
+    *  CORPUS_ONLY_LANGS (output: no LLM fallback) — same membership today,
+    *  different jobs in different layers. */
+   export const OUTPUT_ONLY_LANGS: ReadonlySet<NlLanguage> = new Set(['ka'])
+   ```
+2. **`src/ui/Terminal.tsx`** — selecting an `OUTPUT_ONLY_LANGS` language drives
+   the display overlay (output translates) but routes the command field to a raw
+   `sendLine` (English passthrough, exactly as `'off'`), so `nl.translate` is
+   never called for `ka`. The VM echoes the English command as a `kind:'input'`
+   line, which `useOutputTranslation` skips — so no spurious miss is logged.
+   Selecting `ka` must **not** auto-open the model-download modal.
+3. **`src/ui/NlLanguagePicker.tsx`** — hide the model-upgrade affordance
+   (`✦ improve`) for output-only languages; the model does nothing for them.
+
+**Two distinct `{'ka'}` sets — do not merge them.** `CORPUS_ONLY_LANGS`
+(`translate/corpus/index.ts`, §3) governs *output* fallback; `OUTPUT_ONLY_LANGS`
+(`llm/types.ts`) governs *input* routing. They happen to both equal `{'ka'}` in
+Phase 1 but mean different things and live in different layers; collapsing them
+would couple the output and input layers and break the Phase 2 graduation path
+(Phase 2 removes `ka` from `OUTPUT_ONLY_LANGS` only).
+
+**Behavioral guarantee:** fr/de/es input routing is unchanged — the raw-send
+branch is reachable only for `OUTPUT_ONLY_LANGS`. A regression test pins that
+`ka` raw-sends English and opens no modal while `fr` still routes through
+`nl.translate`.
 
 ---
 
@@ -249,7 +309,14 @@ Three existing gates apply to Phase 1; the fourth is deferred.
   "minimize case forms" discipline. ⏸
 
 **Phase 1 finish line:** the three applicable gates green, plus the new
-no-fallback regression test (§3) and the picker a11y test (§5). `make all` clean.
+no-fallback regression test (§3), the picker a11y test (§5), and a
+**no-English-passthrough gate** — no `ka` string value left byte-identical to its
+English key (which `matchLine` would return as "covered" while showing English).
+This is the one machine-detectable *correctness* check; structural coverage is
+not correctness, and true naturalness remains the §8 native-review loop's job
+(legitimately-identical entries — a bare numeral, an untranslatable proper noun —
+are explicitly allowlisted, not exempted by weakening the check). `make all`
+clean.
 
 ---
 
@@ -282,6 +349,18 @@ halves, and the work splits cleanly between them:
 - **Test:** assert a `ka` status line renders Georgian labels with the numerals
   intact, and that an uncovered `ka` line still degrades to English per §3.
 
+**Untranslated volumes (Zork II / III) — signaled, not silent.** Only Zork I has
+a corpus, so II/III display in English regardless of the chosen language. Rather
+than leave a Georgian player to discover that by surprise, the landing tiles
+carry a small **localized "English only" badge**, shown only when a translation
+language is selected **and** that game has no corpus for it (read from the real
+corpus registry, so English shows nothing and a future corpus removes the badge
+by itself). The badge text is part of the volume radio's accessible name (a11y
+§5). This adds a `LandingCopy.englishOnly` field (all languages) and a per-game
+`sig` joining the corpus registry. Player-experience call under CLAUDE.md's
+"player experience first" rule: honest signaling beats silent English. See plan
+Task 9.
+
 ---
 
 ## 8. The native-speaker correction loop (post-ship, ongoing)
@@ -310,6 +389,9 @@ of the design, not an afterthought.
 - fr/de/es corpora and behavior — untouched and unaffected (the no-fallback
   branch is gated by `CORPUS_ONLY_LANGS`).
 - The input lexicon (`src/llm/lexicon/**`) — untouched in Phase 1 (Phase 2 work).
+  This holds **only because** `LexLang` is first pinned to `'fr' | 'de' | 'es'`
+  (§2, plan Task 0); otherwise registering `ka` would force a bogus Georgian
+  entry into the exhaustive lexicon maps.
 
 ---
 
@@ -330,12 +412,17 @@ of the design, not an afterthought.
 
 - **Importance stated prominently** → §0. ✓
 - **Corpus-only, no LLM fallback** → §3 (mechanism + guarantee + rationale). ✓
+- **Input routing: read-Georgian/type-English via `OUTPUT_ONLY_LANGS`** → §3a
+  (output↔input decoupling, modal/upgrade suppression, Phase 2 graduation). ✓
 - **Georgian ≠ German (no capitalization; case via string-pins)** → §4. ✓
 - **Open ASCII form keys, mandatory `indef`** → §4. ✓
-- **Three gates apply; round-trip deferred with reason** → §6. ✓
+- **Three gates apply; round-trip deferred with reason; plus the
+  no-English-passthrough correctness gate** → §6. ✓
 - **Beta marker is non-colour, a11y-tested, announced** → §5. ✓
 - **Status bar fully Georgian: room name free, score/turns via one-line
   `RIGHT_FORMAT['ka']`** → §7. ✓
+- **Untranslated volumes (Zork II/III) signaled by a localized landing badge**
+  → §7. ✓
 - **Native-review loop is first-class** → §8. ✓
 - **fr/de/es untouched; minimal blast radius** → §9. ✓
 - **Phase 2 (input) explicitly separate** → §1. ✓

@@ -381,6 +381,35 @@ describe('createTranslate grammar-only + demotion', () => {
     expect(sendLine).not.toHaveBeenCalled() // translated sends never go raw
   })
 
+  it('compound: a vocab passthrough AFTER a translated clause stays visible (not canonical) — I1', async () => {
+    // `va au nord` → direction stage (translated → canonical/hidden in debug-off).
+    // `open trapdoor` → vocab passthrough: the player's OWN words, so it must go
+    // via sendLine (visible), NOT inherit the turn-level `echoed` latch as its
+    // canonical flag. Regression for the order-dependent leak (review I1).
+    const engine = new FakeLlmEngine({ default: 'X' }) // never reached
+    const sendCanonical = vi.fn()
+    const sendLine = vi.fn()
+    let echoCount = 0
+    const t = makeTranslate({
+      engine,
+      internalOn: on('fr', 'full'),
+      setNotice: vi.fn(),
+      demote: vi.fn(),
+      educatedRef: { current: false },
+      sendLine,
+      sendCanonical,
+      echoLocal: () => {
+        echoCount++
+      },
+    })
+    await t('va au nord et open trapdoor')
+    expect(echoCount).toBe(1) // one nl-source line for the translated clause
+    expect(sendCanonical).toHaveBeenCalledTimes(1) // only the direction clause
+    expect(sendCanonical).toHaveBeenCalledWith('north')
+    expect(sendLine).toHaveBeenCalledTimes(1) // passthrough stays visible
+    expect(sendLine).toHaveBeenCalledWith('open trapdoor')
+  })
+
   it('grammar-only: a stage-7-bound non-EN line abstains with the educational notice (once)', async () => {
     const engine = new FakeLlmEngine({ default: 'X' })
     const setNotice = vi.fn()

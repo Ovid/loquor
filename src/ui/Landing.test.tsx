@@ -205,10 +205,18 @@ describe('Landing', () => {
     )
     // The footnote <footer> maps to a contentinfo landmark (its nearest sectioning
     // ancestor is <main>), but the overlay variant renders a <div> root instead —
-    // so query by text, which is stable across both Landing variants.
+    // so query by text/role, which is stable across both Landing variants.
     expect(screen.getByText(/trademark of Activision/i)).toBeInTheDocument()
-    expect(screen.getByText(/MIT License/i)).toBeInTheDocument()
-    const repo = screen.getByRole('link', { name: /source on GitHub/i })
+    // The "code was released" sentence links to Microsoft's open-source announcement.
+    const blog = screen.getByRole('link', {
+      name: /released by Microsoft under the MIT License/i,
+    })
+    expect(blog).toHaveAttribute(
+      'href',
+      'https://opensource.microsoft.com/blog/2025/11/20/preserving-code-that-shaped-generations-zork-i-ii-and-iii-go-open-source/',
+    )
+    expect(blog).toHaveAttribute('rel', expect.stringContaining('noopener'))
+    const repo = screen.getByRole('link', { name: /View on GitHub/i })
     expect(repo).toHaveAttribute('href', 'https://github.com/Ovid/loquor')
     expect(repo).toHaveAttribute('rel', expect.stringContaining('noopener'))
   })

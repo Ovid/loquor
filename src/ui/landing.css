@@ -346,11 +346,11 @@
   text-align: center;
   line-height: 1.5;
 }
-.repo-link {
+.folio-footnote a {
   color: var(--brass);
   text-decoration: underline; /* non-colour cue (a11y §4): underline marks the link */
 }
-.repo-link:focus-visible {
+.folio-footnote a:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
 }

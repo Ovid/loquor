@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import type { NlState, NlLanguage } from '../llm/types'
 import { pct as toPct } from '../llm/progress'
+import { basicChip, downloadingChip } from '../llm/notices'
 
-const OPTIONS: { value: NlLanguage; label: string }[] = [
-  { value: 'off', label: 'Off' },
-  { value: 'en', label: 'English' },
-  { value: 'fr', label: 'Français' },
-  { value: 'de', label: 'Deutsch' },
-  { value: 'es', label: 'Español' },
+// `lang` marks each label's natural language (3.1.2) so a screen reader voices
+// "Français"/"Deutsch"/"Español" with the right pronunciation inside the en doc.
+const OPTIONS: { value: NlLanguage; label: string; lang: string }[] = [
+  { value: 'off', label: 'Off', lang: 'en' },
+  { value: 'en', label: 'English', lang: 'en' },
+  { value: 'fr', label: 'Français', lang: 'fr' },
+  { value: 'de', label: 'Deutsch', lang: 'de' },
+  { value: 'es', label: 'Español', lang: 'es' },
 ]
 
 /**
@@ -23,11 +26,12 @@ const OPTIONS: { value: NlLanguage; label: string }[] = [
 export function NlLanguagePicker({
   state,
   onSelect,
-  onOverride,
+  onUpgrade,
 }: {
   state: NlState
   onSelect: (lang: NlLanguage) => void
-  onOverride: () => void
+  /** Called when the player requests a model upgrade (grammar → full). */
+  onUpgrade: () => void
 }) {
   const [open, setOpen] = useState(false)
   // Index of the keyboard/hover highlight while the listbox is open.
@@ -45,33 +49,19 @@ export function NlLanguagePicker({
     return () => document.removeEventListener('mousedown', onDocDown)
   }, [open])
 
-  // No grammar for this game → silently render nothing (no picker, no override).
+  // No vocab for this game → silently render nothing (no picker).
   if (state.phase === 'disabled') return null
-  if (state.phase === 'unavailable') {
+  if (state.phase === 'downloading') {
+    const pct = toPct(state.loaded, state.total)
     return (
-      <span
-        className="nl-toggle"
-        title={`unavailable: ${state.reasons.join(', ')}`}
-      >
-        Language: unavailable{' '}
-        <button className="sw" type="button" onClick={onOverride}>
-          force-enable
-        </button>
+      <span className="nl-toggle" lang={state.language}>
+        {downloadingChip(state.language)}… {pct}%
       </span>
     )
   }
-  if (state.phase === 'downloading') {
-    const pct = toPct(state.loaded, state.total)
-    return <span className="nl-toggle">downloading… {pct}%</span>
-  }
   const value: NlLanguage = state.phase === 'on' ? state.language : 'off'
   const current = OPTIONS.find(o => o.value === value) ?? OPTIONS[0]
-  const chip =
-    state.phase === 'off'
-      ? state.installed
-        ? ' · installed'
-        : ' · not installed'
-      : ''
+  const grammarOnly = state.phase === 'on' && state.model === 'grammar'
 
   const openMenu = () => {
     // Highlight starts on the SELECTED option, like a native select.
@@ -135,21 +125,30 @@ export function NlLanguagePicker({
           aria-activedescendant={
             open ? `nl-lang-opt-${OPTIONS[active].value}` : undefined
           }
+          // Tie the "basic mode" state to the combobox so a screen reader
+          // announces it as the control's description (m3).
+          aria-describedby={grammarOnly ? 'nl-basic-state' : undefined}
           onClick={() => (open ? setOpen(false) : openMenu())}
           onKeyDown={onKeyDown}
         >
-          {current.label}
+          <span lang={current.lang}>{current.label}</span>
           <span className="nl-caret" aria-hidden="true">
             ▾
           </span>
         </button>
         {open && (
-          <ul className="nl-menu" role="listbox" id="nl-lang-listbox">
+          <ul
+            className="nl-menu"
+            role="listbox"
+            id="nl-lang-listbox"
+            aria-label="Language"
+          >
             {OPTIONS.map((o, i) => (
               <li
                 key={o.value}
                 id={`nl-lang-opt-${o.value}`}
                 role="option"
+                lang={o.lang}
                 aria-selected={o.value === value}
                 className={i === active ? 'active' : undefined}
                 onMouseEnter={() => setActive(i)}
@@ -161,7 +160,46 @@ export function NlLanguagePicker({
           </ul>
         )}
       </span>
-      {chip}
+      {state.phase === 'off' && (
+        <span className="nl-chip">
+          {' '}
+          <span className="sep" aria-hidden="true">
+            ·
+          </span>{' '}
+          {state.installed ? 'installed' : 'not installed'}
+        </span>
+      )}
+      {state.phase === 'on' && state.model === 'grammar' && (
+        <>
+          {' '}
+          <span className="sep" aria-hidden="true">
+            ·
+          </span>{' '}
+          <span className="nl-basic" id="nl-basic-state" lang={state.language}>
+            {basicChip(state.language)}
+          </span>{' '}
+          <button
+            className="sw"
+            type="button"
+            // Bare "improve" has no object; name the action and its cost (M1).
+            // The non-upgrade variant's visible text is already self-describing.
+            aria-label={
+              state.canUpgrade
+                ? 'Improve natural-language input (download AI model)'
+                : undefined
+            }
+            onClick={onUpgrade}
+          >
+            {state.canUpgrade ? (
+              <>
+                <span aria-hidden="true">✦</span> improve
+              </>
+            ) : (
+              'try the model anyway'
+            )}
+          </button>
+        </>
+      )}
     </span>
   )
 }

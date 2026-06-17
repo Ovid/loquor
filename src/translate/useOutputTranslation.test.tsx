@@ -135,6 +135,29 @@ describe('sync table hits (spec §3/§5)', () => {
       'Taken.',
     ])
   })
+  it('stamps lang on translated lines and on the player nl-source (3.1.2)', () => {
+    const v = view([
+      line('room', 'West of House'), // translated -> fr
+      line('output', 'Taken.'), // translated -> fr
+      line('output', 'Mailbox.'), // a miss -> stays English, no lang
+      line('input', 'open mailbox'), // canonical echo -> English, no lang
+      line('nl-source', 'ouvre la boîte'), // player's French input -> fr
+    ])
+    const { result } = setup({ initial: v })
+    expect(result.current.lines.map(l => l.lang)).toEqual([
+      'fr',
+      'fr',
+      undefined,
+      undefined,
+      'fr',
+    ])
+  })
+  it('nl-source carries the active language, not a hardcoded fr (de)', () => {
+    const v = view([line('nl-source', 'nimm die lampe')])
+    const { result } = setup({ language: 'de', initial: v })
+    expect(result.current.lines[0].lang).toBe('de')
+    expect(result.current.lines[0].text).toBe('nimm die lampe') // untouched
+  })
   it('re-applies leading indent (spec §4)', () => {
     const v = view([line('output', '  Taken.')])
     const { result } = setup({ initial: v })

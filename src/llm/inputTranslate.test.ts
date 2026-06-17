@@ -153,6 +153,15 @@ describe('parseCommand (vocab-gated, scope-free)', () => {
     expect(parseCommand('not json', vocab)).toEqual({ kind: 'abstain' })
     expect(parseCommand('', vocab)).toEqual({ kind: 'abstain' })
   })
+
+  it('extracts the JSON from fenced / preamble-wrapped output (review S10)', () => {
+    expect(
+      parseCommand('```json\n{"verb":"take","object":"leaflet"}\n```', vocab),
+    ).toEqual({ kind: 'command', text: 'take leaflet' })
+    expect(
+      parseCommand('Sure! {"verb":"look"} is the command.', vocab),
+    ).toEqual({ kind: 'command', text: 'look' })
+  })
 })
 
 describe('isMetaCommand', () => {
@@ -234,6 +243,15 @@ describe('confirmationReply (map localized yes/no to the interpreter key — rev
     expect(confirmationReply('sí', 'es')).toBe('y')
     expect(confirmationReply('si', 'es')).toBe('y')
     expect(confirmationReply('s', 'es')).toBe('y')
+  })
+
+  it('accepts common colloquial affirmatives/negatives (review S9)', () => {
+    expect(confirmationReply('jawohl', 'de')).toBe('y')
+    expect(confirmationReply('ouais', 'fr')).toBe('y')
+    expect(confirmationReply('claro', 'es')).toBe('y')
+    expect(confirmationReply('vale', 'es')).toBe('y')
+    expect(confirmationReply('nee', 'de')).toBe('n')
+    expect(confirmationReply('nan', 'fr')).toBe('n')
   })
 
   it('maps each language’s reflex negative to "n"', () => {
@@ -470,18 +488,13 @@ describe('distributePrepTail (shared container across same-verb conjuncts, UAT F
     // (else "take sword" is silently emitted as "take sword from case").
     expect(
       run('nimm das schwert und nimm den schlussel aus der vitrine'),
-    ).toEqual([
-      'nimm das schwert',
-      'nimm den schlussel aus der vitrine',
-    ])
+    ).toEqual(['nimm das schwert', 'nimm den schlussel aus der vitrine'])
   })
 
   it('does NOT append a destination to a clause that already has a container pronoun — review S1', () => {
     // "lege es hinein und lege das blatt in die vitrine" — the first clause's
     // "hinein" already supplies its destination; it must stay intact.
-    expect(
-      run('lege es hinein und lege das blatt in die vitrine'),
-    ).toEqual([
+    expect(run('lege es hinein und lege das blatt in die vitrine')).toEqual([
       'lege es hinein',
       'lege das blatt in die vitrine',
     ])
@@ -784,6 +797,12 @@ describe('unquote (stage 2 — quoted escape hatch)', () => {
     ['« ouvre la boîte »', 'ouvre la boîte'],
     ['„öffne die Tür“', 'öffne die Tür'],
     ['“open mailbox”', 'open mailbox'],
+    // S8: trailing sentence punctuation after the close quote (autocorrect).
+    ['"open mailbox".', 'open mailbox'],
+    ['« ouvre la boîte » !', 'ouvre la boîte'],
+    // S8: a mixed straight/curly pair (autocorrect swapped one quote).
+    ['"open mailbox”', 'open mailbox'],
+    ['“open mailbox"', 'open mailbox'],
   ])('%s → %s', (line, want) => {
     expect(unquote(line)).toBe(want)
   })

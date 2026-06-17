@@ -1,3 +1,5 @@
+import type { ActiveLanguage } from './types'
+
 /**
  * Clamp a load-progress fraction to an integer 0..100 percent. Single helper
  * shared by the download modal and the toggle so the rounding/guard logic isn't
@@ -41,15 +43,53 @@ export function estimateRemainingSeconds(
   return Math.round((remainingPct / dPct) * dT) / 1000
 }
 
-/** Human-friendly "~Xs / ~X min / ~Hh Mm remaining", or null when not estimable. */
-export function formatEta(seconds: number | null): string | null {
+// Localized ETA strings (review I4): the modal is localized EN/FR/DE/ES, so the
+// "~X min remaining" line must not stay English for FR/DE/ES players. One entry
+// per language, three time bands (seconds / minutes / hours+minutes).
+const ETA: Record<
+  ActiveLanguage,
+  {
+    s: (n: number) => string
+    min: (n: number) => string
+    hm: (h: number, m: number) => string
+  }
+> = {
+  en: {
+    s: n => `~${n}s remaining`,
+    min: n => `~${n} min remaining`,
+    hm: (h, m) => `~${h}h ${m}m remaining`,
+  },
+  fr: {
+    s: n => `~${n} s restantes`,
+    min: n => `~${n} min restantes`,
+    hm: (h, m) => `~${h} h ${m} min restantes`,
+  },
+  de: {
+    s: n => `noch ~${n} s`,
+    min: n => `noch ~${n} Min.`,
+    hm: (h, m) => `noch ~${h} Std. ${m} Min.`,
+  },
+  es: {
+    s: n => `~${n} s restantes`,
+    min: n => `~${n} min restantes`,
+    hm: (h, m) => `~${h} h ${m} min restantes`,
+  },
+}
+
+/** Human-friendly "~Xs / ~X min / ~Hh Mm remaining" in the player's language, or
+ * null when not estimable. */
+export function formatEta(
+  seconds: number | null,
+  lang: ActiveLanguage = 'en',
+): string | null {
   if (seconds === null || !Number.isFinite(seconds) || seconds <= 0) return null
-  if (seconds < 60) return `~${Math.round(seconds)}s remaining`
-  if (seconds < 3600) return `~${Math.round(seconds / 60)} min remaining`
+  const t = ETA[lang]
+  if (seconds < 60) return t.s(Math.round(seconds))
+  if (seconds < 3600) return t.min(Math.round(seconds / 60))
   // Round to whole minutes FIRST, then split — rounding the remainder directly
   // can yield m === 60 ("~1h 60m") near an hour boundary (review).
   const totalMinutes = Math.round(seconds / 60)
   const h = Math.floor(totalMinutes / 60)
   const m = totalMinutes % 60
-  return `~${h}h ${m}m remaining`
+  return t.hm(h, m)
 }

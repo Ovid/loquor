@@ -12,7 +12,10 @@ export function describeLoadError(title: string, err: unknown): string {
     err instanceof TypeError ||
     /failed to fetch|networkerror|load failed/i.test(msg)
   )
-    return `${stem}: the game file couldn’t be reached. Is the server running?`
+    // Player-facing wording, not "Is the server running?" dev-speak (m5); the
+    // cause distinction (unreachable vs missing vs server error) from review #2
+    // is preserved, and the raw error is still logged by the caller.
+    return `${stem}: the game file couldn’t be reached — you may be offline.`
   const http = msg.match(/HTTP (\d+)/)
   if (http)
     return http[1] === '404'

@@ -36,6 +36,27 @@ describe('Scrollback', () => {
     expect(document.querySelectorAll('p.nl-source')).toHaveLength(1)
   })
 
+  it('exposes the transcript as a polite live log so output is announced', () => {
+    render(<Scrollback lines={[line({ id: 1, text: 'West of House' })]} />)
+    // Screen readers must hear streamed game output; the always-mounted
+    // container is a polite log that announces additions.
+    const log = screen.getByRole('log', { name: 'Game transcript' })
+    expect(log).toHaveAttribute('aria-live', 'polite')
+    expect(log).toHaveAttribute('aria-relevant', 'additions')
+  })
+
+  it('renders the per-line lang so localized text is pronounced right (3.1.2)', () => {
+    render(
+      <Scrollback
+        lines={[
+          { id: 1, kind: 'room', text: "À l'ouest de la maison", lang: 'fr' },
+        ]}
+      />,
+    )
+    const p = screen.getByText(/ouest de la maison/).closest('p')!
+    expect(p).toHaveAttribute('lang', 'fr')
+  })
+
   it('focuses the prompt on mouse-up when no text is selected', () => {
     const onActivate = vi.fn()
     const { container } = render(

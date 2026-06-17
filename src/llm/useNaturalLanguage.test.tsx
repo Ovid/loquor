@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { useNaturalLanguage } from './useNaturalLanguage'
 import { FakeLlmEngine } from './engine.fake'
-import { readNlPref } from './nlpref'
+import { readNlPref, writeNlPref } from './nlpref'
 import { EngineGate } from '../shared/engineGate'
 import type { CapabilityResult } from './types'
 import type { Vocab } from './grammar/types'
@@ -100,27 +100,44 @@ async function reachOn(hook: ReturnType<typeof setup>['hook']) {
   await waitFor(() => expect(hook.result.current.state.phase).toBe('on'))
 }
 
+// Thin wrapper over setup() that exposes the hook's `result` directly — the
+// grammar-only NlState suite reads `result.current.state` after a synchronous
+// pick (no download round-trip), mirroring the existing setup() call sites.
+function renderNl(
+  over: Partial<Parameters<typeof useNaturalLanguage>[0]> = {},
+) {
+  return setup(over).hook
+}
+
 describe('useNaturalLanguage', () => {
   beforeEach(() => localStorage.clear())
 
-  it('tier none → unavailable (offers override)', () => {
+  it('tier none → no unavailable phase; off with canUpgrade false (vocab present)', async () => {
     const { hook } = setup({
       capability: { tier: 'none', reasons: ['no-webgpu'] },
     })
-    expect(hook.result.current.state.phase).toBe('unavailable')
+    // capability no longer disables NL — it only gates the model upgrade.
+    await waitFor(() =>
+      expect(hook.result.current.state).toEqual({
+        phase: 'off',
+        installed: false,
+        canUpgrade: false,
+      }),
+    )
   })
 
-  it('vocab null → disabled (silent), not unavailable', () => {
+  it('vocab null → disabled (silent), regardless of capability', () => {
     const { hook } = setup({ vocab: null })
     expect(hook.result.current.state.phase).toBe('disabled')
   })
 
-  it('capable + not cached → off (installed:false)', async () => {
+  it('capable + not cached → off (installed:false, canUpgrade:true)', async () => {
     const { hook } = setup()
     await waitFor(() =>
       expect(hook.result.current.state).toEqual({
         phase: 'off',
         installed: false,
+        canUpgrade: true,
       }),
     )
   })
@@ -131,6 +148,7 @@ describe('useNaturalLanguage', () => {
       expect(hook.result.current.state).toEqual({
         phase: 'off',
         installed: true,
+        canUpgrade: true,
       }),
     )
   })
@@ -146,14 +164,14 @@ describe('useNaturalLanguage', () => {
     await reachOn(hook)
   })
 
-  it('load failure reverts to off and sets a notice', async () => {
+  it('load failure stays grammar-only and sets a notice', async () => {
     // The genuine (non-abort) load failure is now log.error'd by design (F7);
     // own the log so it doesn't leak to stderr.
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
       const { hook } = setup({ engine: new FakeLlmEngine({ failLoad: true }) })
       act(() => hook.result.current.requestDownload())
-      await waitFor(() => expect(hook.result.current.state.phase).toBe('off'))
+      await waitFor(() => expect(hook.result.current.state.phase).toBe('on'))
       expect(hook.result.current.notice).toBeTruthy()
       expect(errSpy).toHaveBeenCalledWith(
         '[nl] model download failed:',
@@ -265,13 +283,18 @@ describe('useNaturalLanguage', () => {
       engine: new FakeLlmEngine({ cached: true }),
     })
     await waitFor(() =>
-      expect(hook.result.current.state).toEqual({
+      expect(hook.result.current.state).toMatchObject({
         phase: 'off',
         installed: true,
       }),
     )
     act(() => hook.result.current.setLanguage('es'))
-    expect(hook.result.current.state).toEqual({ phase: 'on', language: 'es' })
+    expect(hook.result.current.state).toEqual({
+      phase: 'on',
+      language: 'es',
+      model: 'full',
+      canUpgrade: true,
+    })
     await act(async () => {
       await hook.result.current.translate('inventario')
     })
@@ -286,7 +309,7 @@ describe('useNaturalLanguage', () => {
     })
     const { hook } = setup({ engine })
     await reachOn(hook)
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('go')
     })
@@ -322,7 +345,7 @@ describe('useNaturalLanguage', () => {
     const { hook, sendLine } = setup({ engine, watchdogMs: 1000 })
     await reachOn(hook) // real timers: load resolves immediately
     vi.useFakeTimers()
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('take lantern')
     })
@@ -347,48 +370,56 @@ describe('useNaturalLanguage', () => {
     expect(readNlPref().declined).toBe(true)
   })
 
-  it('decline clears a stale enabled:true so it cannot auto-restore to on', async () => {
+  it('decline keeps grammar-only active and only sets declined:true', async () => {
     localStorage.setItem('loquor.nl', JSON.stringify({ enabled: true }))
     const { hook } = setup() // not cached → stays off
     await waitFor(() =>
       expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
     )
-    act(() => hook.result.current.setLanguage('en')) // not installed → opens modal
+    act(() => hook.result.current.setLanguage('en')) // not installed → on/grammar + opens modal
     act(() => hook.result.current.declineDownload())
-    expect(readNlPref().language).toBe('off')
+    // grammar-only stays active; declined only suppresses the auto-modal
+    expect(hook.result.current.state.phase).toBe('on')
     expect(readNlPref().declined).toBe(true)
   })
 
   it('setLanguage on a cached model activates that language and persists it', async () => {
     const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
     await waitFor(() =>
-      expect(hook.result.current.state).toEqual({
+      expect(hook.result.current.state).toMatchObject({
         phase: 'off',
         installed: true,
       }),
     )
     act(() => hook.result.current.setLanguage('fr'))
-    expect(hook.result.current.state).toEqual({ phase: 'on', language: 'fr' })
+    expect(hook.result.current.state).toEqual({
+      phase: 'on',
+      language: 'fr',
+      model: 'full',
+      canUpgrade: true,
+    })
     expect(readNlPref().language).toBe('fr')
     expect(hook.result.current.modalOpen).toBe(false) // cached → no re-prompt
   })
 
-  it('setLanguage with no cached model opens the modal; accepting activates THAT language', async () => {
+  it('setLanguage with no cached model sets grammar-only + opens modal; accepting upgrades to full', async () => {
     const { hook } = setup() // not cached
     await waitFor(() =>
-      expect(hook.result.current.state).toEqual({
+      expect(hook.result.current.state).toMatchObject({
         phase: 'off',
         installed: false,
       }),
     )
     act(() => hook.result.current.setLanguage('de'))
     expect(hook.result.current.modalOpen).toBe(true)
-    expect(hook.result.current.state.phase).toBe('off') // nothing active yet
+    expect(hook.result.current.state.phase).toBe('on') // grammar-only active immediately
     act(() => hook.result.current.requestDownload())
     await waitFor(() =>
       expect(hook.result.current.state).toEqual({
         phase: 'on',
         language: 'de',
+        model: 'full',
+        canUpgrade: true,
       }),
     )
     expect(readNlPref().language).toBe('de')
@@ -404,6 +435,8 @@ describe('useNaturalLanguage', () => {
       expect(hook.result.current.state).toEqual({
         phase: 'on',
         language: 'es',
+        model: 'full',
+        canUpgrade: true,
       }),
     )
   })
@@ -414,22 +447,28 @@ describe('useNaturalLanguage', () => {
     // initial pre-probe 'off' state — otherwise setLanguage('fr') races the
     // probe and takes the download-modal branch instead of activating.
     await waitFor(() =>
-      expect(hook.result.current.state).toEqual({
+      expect(hook.result.current.state).toMatchObject({
         phase: 'off',
         installed: true,
       }),
     )
     act(() => hook.result.current.setLanguage('fr'))
-    expect(hook.result.current.state).toEqual({ phase: 'on', language: 'fr' })
+    expect(hook.result.current.state).toEqual({
+      phase: 'on',
+      language: 'fr',
+      model: 'full',
+      canUpgrade: true,
+    })
     act(() => hook.result.current.setLanguage('off'))
     expect(hook.result.current.state).toEqual({
       phase: 'off',
       installed: true,
+      canUpgrade: true,
     })
     expect(readNlPref().language).toBe('off')
   })
 
-  it('cancelDownload aborts an in-flight load, reverts to off, persists nothing', async () => {
+  it('cancelDownload aborts an in-flight load, returns to grammar-only, persists the picked language', async () => {
     let resolveLoad!: () => void
     const blockingEngine: import('./types').LlmEngine = {
       isCached: async () => false,
@@ -451,13 +490,13 @@ describe('useNaturalLanguage', () => {
     act(() => hook.result.current.requestDownload())
     expect(hook.result.current.state.phase).toBe('downloading')
     act(() => hook.result.current.cancelDownload())
-    await waitFor(() => expect(hook.result.current.state.phase).toBe('off'))
+    await waitFor(() => expect(hook.result.current.state.phase).toBe('on'))
     expect(hook.result.current.notice).toBeNull()
-    expect(readNlPref().language).toBe('off')
+    expect(readNlPref().language).toBe('en') // pendingLangRef default
     resolveLoad()
   })
 
-  it('a load that RESOLVES after cancel does not flip on / persist enabled', async () => {
+  it('a load that RESOLVES after cancel stays grammar-only (stale guard)', async () => {
     let resolveLoad!: () => void
     const racingEngine: import('./types').LlmEngine = {
       isCached: async () => false,
@@ -476,25 +515,27 @@ describe('useNaturalLanguage', () => {
     await act(async () => {
       resolveLoad()
     })
-    expect(hook.result.current.state.phase).toBe('off')
-    expect(readNlPref().language).toBe('off')
+    // cancel set on/grammar; the stale .then must not flip to on/full
+    expect(hook.result.current.state.phase).toBe('on')
+    expect(readNlPref().language).toBe('en') // pendingLangRef default
   })
 
-  it('cancel racing a COMPLETED download still persists language off ([P])', async () => {
-    // The sub-ms window: the load resolves (pref written, phase on) just as
-    // the player clicks Cancel. The cancel must persist 'off' too, or NL
-    // self-enables next session against an explicit cancel.
+  it('cancel after a completed download returns to grammar-only and persists the language ([P])', async () => {
+    // The sub-ms window: the load resolves (pref written, phase on/full) just as
+    // the player clicks Cancel. Cancel must flip back to grammar-only and keep
+    // the language (grammar-only is still usable; the player just doesn't want
+    // the model active).
     const { hook } = setup()
     await waitFor(() =>
       expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
     )
-    act(() => hook.result.current.setLanguage('fr')) // not installed → modal
+    act(() => hook.result.current.setLanguage('fr')) // not installed → on/grammar + modal
     act(() => hook.result.current.requestDownload())
     await waitFor(() => expect(hook.result.current.state.phase).toBe('on'))
     expect(readNlPref().language).toBe('fr')
     act(() => hook.result.current.cancelDownload())
-    expect(hook.result.current.state.phase).toBe('off')
-    expect(readNlPref().language).toBe('off')
+    expect(hook.result.current.state.phase).toBe('on') // grammar-only stays
+    expect(readNlPref().language).toBe('fr') // language persisted
   })
 
   it('a second requestDownload aborts the previous in-flight load ([L2])', async () => {
@@ -529,12 +570,18 @@ describe('useNaturalLanguage', () => {
     expect(signals[1].aborted).toBe(false)
   })
 
-  it('a STALLED lazy engine.load cannot wedge input forever ([M])', async () => {
+  it('a STALLED lazy engine.load demotes to basic mode and cannot wedge input ([M])', async () => {
     // Reload session: model cached on disk, not in memory — the first command
     // triggers engine.load inside generateRaw. The generate watchdog never
     // covered the load, so a stalled load (WebGPU init, cache eviction →
     // network) held translatingRef forever: every later line queued to the
-    // cap, then dropped. The load gets its own generous watchdog.
+    // cap, then dropped. The load gets its own generous watchdog, and on its
+    // timeout the lazy load throws ModelLoadError (reason=WatchdogTimeout) at
+    // clause time. Task 5 FINALIZES this: that demotes full→grammar for the
+    // session and shows the shared basic-mode notice; for an EN language the
+    // typed line still raw-sends to the Z-parser. A demotion is a KNOWN
+    // degradation, not a generate fault, so it is NOT log.error'd (the
+    // ModelLoadError exclusion in stage 8) — the test owns no stray output.
     localStorage.setItem('loquor.nl', JSON.stringify({ language: 'en' }))
     const stalledEngine: import('./types').LlmEngine = {
       isCached: async () => true,
@@ -546,7 +593,7 @@ describe('useNaturalLanguage', () => {
     const { hook, sendLine } = setup({ engine: stalledEngine })
     await waitFor(() => expect(hook.result.current.state.phase).toBe('on'))
     vi.useFakeTimers()
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('sing a ditty')
     })
@@ -556,8 +603,15 @@ describe('useNaturalLanguage', () => {
     })
     vi.useRealTimers()
     expect(sendLine).toHaveBeenCalledWith('sing a ditty') // EN raw fallback
-    expect(hook.result.current.notice).toMatch(/timed out/i)
+    // The shared basic-mode notice (en: "… staying in basic mode …").
+    expect(hook.result.current.notice).toMatch(/staying in basic mode/i)
+    expect(hook.result.current.notice).toMatch(/download failed/i)
     expect(hook.result.current.pending).toBe(false) // input not wedged
+    // EN was already grammar-only-equivalent (it raw-sends); the demotion path
+    // ran but EN has no `full` to flip, so the public model stays grammar.
+    const st = hook.result.current.state
+    expect(st.phase).toBe('on')
+    if (st.phase === 'on') expect(st.model).toBe('grammar')
   })
 
   it("phase 'off' beats the queue: a line typed mid-drain after switching off goes raw ([M])", async () => {
@@ -569,7 +623,7 @@ describe('useNaturalLanguage', () => {
     })
     const { hook, sendLine } = setup({ engine })
     await reachOn(hook)
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('open the mailbox') // drain in flight
     })
@@ -890,7 +944,7 @@ describe('useNaturalLanguage', () => {
       ),
     )
     vi.useFakeTimers()
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('look and check inventory')
     })
@@ -1199,7 +1253,7 @@ describe('useNaturalLanguage', () => {
       ),
     )
     vi.useFakeTimers()
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('open mailbox and take leaflet')
     })
@@ -1266,7 +1320,7 @@ describe('useNaturalLanguage', () => {
       awaitTurn: turnScript([northView, invView]),
     })
     await waitFor(() =>
-      expect(hook.result.current.state).toEqual({
+      expect(hook.result.current.state).toMatchObject({
         phase: 'off',
         installed: true,
       }),
@@ -1333,7 +1387,7 @@ describe('useNaturalLanguage', () => {
       ),
     )
     expect(hook.result.current.isSequencing()).toBe(false)
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('open mailbox and take it')
     })
@@ -1351,6 +1405,50 @@ describe('useNaturalLanguage', () => {
       await p
     })
     expect(hook.result.current.isSequencing()).toBe(false)
+  })
+})
+
+describe('grammar-only NlState', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('pick a language with no model → state on/grammar with canUpgrade', async () => {
+    const result = renderNl({
+      capability: { tier: 'full', reasons: [] },
+    }).result
+    act(() => result.current.setLanguage('fr'))
+    expect(result.current.state).toMatchObject({
+      phase: 'on',
+      language: 'fr',
+      model: 'grammar',
+      canUpgrade: true,
+    })
+    await act(async () => {}) // flush the async isCached() probe
+  })
+
+  it('capability none → no unavailable phase; pick still activates grammar-only, canUpgrade false', async () => {
+    const result = renderNl({
+      capability: { tier: 'none', reasons: ['no-webgpu'] },
+    }).result
+    act(() => result.current.setLanguage('de'))
+    expect(result.current.state).toMatchObject({
+      phase: 'on',
+      language: 'de',
+      model: 'grammar',
+      canUpgrade: false,
+    })
+    // DECISION (spec ambiguity resolved): the once-ever auto-modal fires even on
+    // a `none` device — the "model not loaded → modal appears once ever" row is
+    // unconditional, and Terminal renders it with warn=true (canUpgrade false),
+    // so the player gets honest discoverability and never lands worse.
+    expect(result.current.modalOpen).toBe(true)
+    await act(async () => {}) // flush the async isCached() probe
+  })
+
+  it('no vocab → disabled regardless of a persisted language', async () => {
+    writeNlPref({ language: 'fr' })
+    const result = renderNl({ vocab: null }).result
+    expect(result.current.state).toEqual({ phase: 'disabled' })
+    await act(async () => {}) // flush the async isCached() probe
   })
 })
 
@@ -1374,7 +1472,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
         viewState('West of House', ['There is a small mailbox here.']),
       ),
     )
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('open the mailbox')
     })
@@ -1404,7 +1502,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
     })
     const { hook } = setup({ engine })
     await reachOn(hook)
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('open the mailbox')
     })
@@ -1441,7 +1539,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
     })
     const { hook } = setup({ engine })
     await reachOn(hook)
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('open the mailbox') // in flight
     })
@@ -1491,7 +1589,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
         viewState('West of House', ['There is a small mailbox here.']),
       ),
     )
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('open the mailbox')
     })
@@ -1542,7 +1640,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
     const getContext = () => ({ location: 'West of House', recentOutput: '' })
     const { hook } = setup({ engine, sendLine, awaitTurn, getContext })
     await reachOn(hook)
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('quit')
       void hook.result.current.translate('north')
@@ -1587,7 +1685,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
         viewState('West of House', ['There is a small mailbox here.']),
       ),
     )
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('open the mailbox')
     })
@@ -1617,13 +1715,13 @@ describe('input queue (NL v2 §11, F-A)', () => {
       signature: ZORK1_SIG,
     })
     await waitFor(() =>
-      expect(hook.result.current.state).toEqual({
+      expect(hook.result.current.state).toMatchObject({
         phase: 'off',
         installed: true,
       }),
     )
     act(() => hook.result.current.setLanguage('fr'))
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('blorple le ciel') // LLM → abstain
     })
@@ -1639,8 +1737,8 @@ describe('input queue (NL v2 §11, F-A)', () => {
     // Line 2 drained through the deterministic lexicon stage and ran.
     expect(sendLine.mock.calls.map(c => c[0])).toEqual(['open trapdoor'])
     // Line 1's abstain notice survives (line 2 set none); no "queue cleared".
-    // Localized (F1) — fr: "Traduction impossible …".
-    expect(hook.result.current.notice).toMatch(/traduction impossible/i)
+    // Localized (F1) — fr plain-language recovery (m4): "Je n’ai pas compris…".
+    expect(hook.result.current.notice).toMatch(/je n’ai pas compris/i)
   })
 
   it('a mid-drain language switch applies to queued lines ([N])', async () => {
@@ -1661,13 +1759,13 @@ describe('input queue (NL v2 §11, F-A)', () => {
       signature: ZORK1_SIG,
     })
     await waitFor(() =>
-      expect(hook.result.current.state).toEqual({
+      expect(hook.result.current.state).toMatchObject({
         phase: 'off',
         installed: true,
       }),
     )
     act(() => hook.result.current.setLanguage('fr'))
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('blorple le ciel') // fr, slow LLM
     })
@@ -1690,7 +1788,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
     })
     const { hook, sendLine } = setup({ engine })
     await reachOn(hook)
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('open the mailbox')
     })
@@ -1738,7 +1836,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
     })
     act(() => hook.result.current.requestDownload())
     await waitFor(() => expect(hook.result.current.state.phase).toBe('on'))
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate('open the mailbox')
     })
@@ -1779,7 +1877,7 @@ describe('NL v2 pipeline stages (spec §4)', () => {
       ...over,
     })
     await waitFor(() =>
-      expect(s.hook.result.current.state).toEqual({
+      expect(s.hook.result.current.state).toMatchObject({
         phase: 'off',
         installed: true,
       }),
@@ -1788,6 +1886,8 @@ describe('NL v2 pipeline stages (spec §4)', () => {
     expect(s.hook.result.current.state).toEqual({
       phase: 'on',
       language: 'fr',
+      model: 'full',
+      canUpgrade: true,
     })
     return s
   }
@@ -1912,8 +2012,8 @@ describe('NL v2 pipeline stages (spec §4)', () => {
     })
     expect(sendLine).not.toHaveBeenCalled()
     expect(echoLocal).not.toHaveBeenCalled()
-    // Localized (F1) — fr abstain: "Traduction impossible …".
-    expect(hook.result.current.notice).toMatch(/traduction impossible/i)
+    // Localized (F1) — fr abstain, plain-language recovery (m4): "Je n’ai pas compris…".
+    expect(hook.result.current.notice).toMatch(/je n’ai pas compris/i)
   })
 
   it('stage 8: EN abstain falls back to the raw line — the Z-parser explains the failure', async () => {
@@ -1984,7 +2084,7 @@ describe('NL v2 pipeline stages (spec §4)', () => {
     const engine = new FakeLlmEngine({ cached: true, generateDelayMs: 10000 })
     const { hook, sendLine } = await setupFr({ engine, watchdogMs: 1000 })
     vi.useFakeTimers()
-    let p!: Promise<void>
+    let p!: Promise<string | null>
     act(() => {
       p = hook.result.current.translate(
         'frobnicate la trappe et ouvre la trappe',
@@ -2062,7 +2162,7 @@ describe('EngineGate integration (output-translation spec §6)', () => {
 
     // Submit a line that reaches the LLM stage — it must queue behind the
     // held output task and still complete once the output task releases.
-    let translateDone!: Promise<void>
+    let translateDone!: Promise<string | null>
     act(() => {
       translateDone = hook.result.current.translate('open the mailbox')
     })

@@ -1,6 +1,16 @@
 import { describe, it, expect, vi } from 'vitest'
-import { runClause } from './translatePipeline'
-import type { ClauseDeps, GenerateRaw, Lex } from './translatePipeline'
+import {
+  runClause,
+  createGenerateRaw,
+  createTranslate,
+  ModelLoadError,
+} from './translatePipeline'
+import type {
+  ClauseDeps,
+  GenerateRaw,
+  Lex,
+  TranslateDeps,
+} from './translatePipeline'
 import type { Vocab } from './grammar/types'
 import type { Scene } from './scene/types'
 import { buildGrammar } from './grammar/buildGrammar'
@@ -8,6 +18,18 @@ import { coreLexicon, nounLexicon, lexiconWordSet } from './lexicon/index'
 import { ZORK1_SIG } from './grammar/index'
 import { ZORK1_VOCAB } from './grammar/zork1.vocab'
 import { TAKE_ACK, DROP_ACK, ABSENCE_PAT } from './grammar/patterns'
+import { FakeLlmEngine } from './engine.fake'
+import { EngineGate } from '../shared/engineGate'
+import { TextSceneTracker } from './scene/tracker'
+import { emptyView } from '../glkote-react/types'
+import type { Internal } from './useModelDownload'
+import type { ActiveLanguage } from './types'
+import {
+  grammarOnlyFirstMiss,
+  couldntTranslate,
+  modelDownloadFailed,
+  nothingSent,
+} from './notices'
 
 // Direct unit tests for the now-pure clause pipeline (F-1). The hook-level
 // suite (useNaturalLanguage.test.tsx) already exercises every stage through the
@@ -64,7 +86,7 @@ function detDeps(): {
 describe('runClause (NL v2 pipeline stages 3–7)', () => {
   it('stage 3 (meta): a Z-machine meta-verb routes raw, no model', async () => {
     const { deps, generateRaw } = detDeps()
-    const r = await runClause('restart', emptyScene, 'en', null, deps)
+    const r = await runClause('restart', emptyScene, 'en', null, false, deps)
     expect(r.stage).toBe('meta')
     expect(r.result).toEqual({ kind: 'command', text: 'restart' })
     expect(generateRaw).not.toHaveBeenCalled()
@@ -72,7 +94,14 @@ describe('runClause (NL v2 pipeline stages 3–7)', () => {
 
   it('stage 4 (vocab passthrough): an all-vocab clause is sent verbatim, no model', async () => {
     const { deps, generateRaw } = detDeps()
-    const r = await runClause('open trapdoor', emptyScene, 'en', null, deps)
+    const r = await runClause(
+      'open trapdoor',
+      emptyScene,
+      'en',
+      null,
+      false,
+      deps,
+    )
     expect(r.stage).toBe('vocab')
     expect(r.result).toEqual({ kind: 'command', text: 'open trapdoor' })
     expect(generateRaw).not.toHaveBeenCalled()
@@ -80,7 +109,14 @@ describe('runClause (NL v2 pipeline stages 3–7)', () => {
 
   it('stage 4 sends the trailing-punctuation-stripped form it gated on ([C])', async () => {
     const { deps, generateRaw } = detDeps()
-    const r = await runClause('open trapdoor!', emptyScene, 'en', null, deps)
+    const r = await runClause(
+      'open trapdoor!',
+      emptyScene,
+      'en',
+      null,
+      false,
+      deps,
+    )
     expect(r.stage).toBe('vocab')
     expect(r.result).toEqual({ kind: 'command', text: 'open trapdoor' })
     expect(generateRaw).not.toHaveBeenCalled()
@@ -91,7 +127,7 @@ describe('runClause (NL v2 pipeline stages 3–7)', () => {
     // 'go' isn't a parser word), so it falls through to the direction fast-path,
     // which strips the lead and resolves the closed multilingual set.
     const { deps, generateRaw } = detDeps()
-    const r = await runClause('go north', emptyScene, 'en', null, deps)
+    const r = await runClause('go north', emptyScene, 'en', null, false, deps)
     expect(r.stage).toBe('direction')
     expect(r.result).toEqual({ kind: 'command', text: 'north' })
     expect(generateRaw).not.toHaveBeenCalled()
@@ -112,7 +148,14 @@ describe('runClause (NL v2 pipeline stages 3–7)', () => {
       generateRaw,
       getContext: ctx,
     }
-    const r = await runClause('ouvre la trappe', emptyScene, 'fr', lex, deps)
+    const r = await runClause(
+      'ouvre la trappe',
+      emptyScene,
+      'fr',
+      lex,
+      false,
+      deps,
+    )
     expect(r.stage).toBe('lexicon')
     expect(r.result).toEqual({ kind: 'command', text: 'open trapdoor' })
     expect(generateRaw).not.toHaveBeenCalled()
@@ -129,7 +172,14 @@ describe('runClause (NL v2 pipeline stages 3–7)', () => {
       generateRaw,
       getContext: ctx,
     }
-    const r = await runClause('pop the mailbox', emptyScene, 'en', null, deps)
+    const r = await runClause(
+      'pop the mailbox',
+      emptyScene,
+      'en',
+      null,
+      false,
+      deps,
+    )
     expect(r.stage).toBe('llm')
     expect(r.result).toEqual({ kind: 'command', text: 'open mailbox' })
     // The validator's grammar is the FULL vocab (NL v2 §7), forwarded untouched.
@@ -152,12 +202,253 @@ describe('runClause (NL v2 pipeline stages 3–7)', () => {
       inScope: [{ canonical: 'leaflet' }, { canonical: 'mailbox' }],
       antecedent: 'leaflet',
     }
-    await runClause('grab it', scene, 'en', null, deps)
+    await runClause('grab it', scene, 'en', null, false, deps)
     // buildPrompt folds the scene into the messages; assert the in-scope
     // canonicals and antecedent reached the model.
     const messages = generateRaw.mock.calls[0][0]
     const serialized = JSON.stringify(messages)
     expect(serialized).toContain('leaflet')
     expect(serialized).toContain('mailbox')
+  })
+})
+
+describe('runClause grammar-only', () => {
+  it('skips stage 7 and abstains — engine.generate is never called', async () => {
+    const engine = new FakeLlmEngine({
+      default: '{"verb":"take","noun":"lamp"}',
+    })
+    const generateRaw = createGenerateRaw({
+      engine,
+      watchdogMs: 1000,
+      engineGate: new EngineGate(),
+    })
+    const deps = {
+      vocab: TEST_VOCAB,
+      grammar: 'root ::= "x"',
+      generateRaw,
+      getContext: () => ({ location: '', recentOutput: '' }),
+    }
+    // A clause that reaches stage 7 (not a meta/vocab/direction/lexicon hit):
+    const { result, stage } = await runClause(
+      'frobnicate the gadget',
+      emptyScene,
+      'fr',
+      null,
+      true,
+      deps,
+    )
+    expect(result).toEqual({ kind: 'abstain' })
+    expect(stage).toBe('llm')
+    expect(engine.generateCalls).toBe(0)
+  })
+
+  it('grammarOnly:false still calls the model at stage 7', async () => {
+    const engine = new FakeLlmEngine({ default: 'I_DONT_KNOW' })
+    const generateRaw = createGenerateRaw({
+      engine,
+      watchdogMs: 1000,
+      engineGate: new EngineGate(),
+    })
+    const deps = {
+      vocab: TEST_VOCAB,
+      grammar: 'root ::= "x"',
+      generateRaw,
+      getContext: () => ({ location: '', recentOutput: '' }),
+    }
+    await runClause(
+      'frobnicate the gadget',
+      emptyScene,
+      'fr',
+      null,
+      false,
+      deps,
+    )
+    expect(engine.generateCalls).toBe(1)
+  })
+})
+
+describe('createGenerateRaw load vs generate failures', () => {
+  it('a lazy-load failure throws ModelLoadError', async () => {
+    const engine = new FakeLlmEngine({ failLoad: true }) // not loaded → load() runs and throws
+    const g = createGenerateRaw({
+      engine,
+      watchdogMs: 1000,
+      engineGate: new EngineGate(),
+    })
+    await expect(
+      g([{ role: 'user', content: 'x' }], 'root ::= "x"'),
+    ).rejects.toBeInstanceOf(ModelLoadError)
+  })
+
+  it('a generate failure (model loaded) is NOT a ModelLoadError', async () => {
+    const engine = new FakeLlmEngine({ failGenerate: true })
+    await engine.load(() => {}, new AbortController().signal) // model resident → skip the load path
+    const g = createGenerateRaw({
+      engine,
+      watchdogMs: 1000,
+      engineGate: new EngineGate(),
+    })
+    await expect(
+      g([{ role: 'user', content: 'x' }], 'root ::= "x"'),
+    ).rejects.not.toBeInstanceOf(ModelLoadError)
+  })
+})
+
+/** Minimal createTranslate harness (no hook): builds the SAME refs/deps the hook
+ * holds (translatePipeline's TranslateDeps), so a single translate() call drives
+ * the real stages 1–8 + the degenerate total===1 drain. Mirrors the production
+ * createTranslate({...}) call site in useNaturalLanguage; only test scaffolding,
+ * no new production seam. `sendLine` is the raw send seam stage 8 uses for the
+ * EN raw-send path. */
+function makeTranslate(opts: {
+  engine: FakeLlmEngine
+  internalOn: Internal & { phase: 'on' }
+  setNotice: TranslateDeps['setNotice']
+  demote: () => void
+  educatedRef: { current: boolean }
+  sendLine?: (text: string) => void
+  watchdogMs?: number
+}): (english: string) => Promise<string | null> {
+  const watchdogMs = opts.watchdogMs ?? 1000
+  const generateRaw = createGenerateRaw({
+    engine: opts.engine,
+    watchdogMs,
+    engineGate: new EngineGate(),
+  })
+  // lex is null here: the grammar-only / load-failure cases route a stage-7-bound
+  // clause (no lexicon resolution), exactly like runClause(..., null, ...) above.
+  const liveRef = { current: { internal: opts.internalOn, lex: null } }
+  const deps: TranslateDeps = {
+    internal: opts.internalOn,
+    vocab: TEST_VOCAB,
+    grammar: buildGrammar(TEST_VOCAB),
+    generateRaw,
+    watchdogMs,
+    getContext: () => ({ location: '', recentOutput: '' }),
+    echoLocal: () => {},
+    sendLine: opts.sendLine ?? (() => {}),
+    awaitTurn: async () => ({ view: emptyView, reason: 'line' as const }),
+    trackerRef: { current: new TextSceneTracker(TEST_VOCAB) },
+    translatingRef: { current: false },
+    queueRef: { current: [] },
+    queueIdRef: { current: 0 },
+    lastCommandRef: { current: null },
+    inSequenceRef: { current: false },
+    epochRef: { current: 0 },
+    liveRef,
+    demote: opts.demote,
+    educatedRef: opts.educatedRef,
+    setPending: () => {},
+    setNotice: opts.setNotice,
+    syncQueue: () => {},
+  }
+  return createTranslate(deps)
+}
+
+describe('createTranslate grammar-only + demotion', () => {
+  const on = (
+    language: ActiveLanguage,
+    model: 'full' | 'grammar',
+  ): Internal & { phase: 'on' } => ({ phase: 'on', language, model })
+
+  it('grammar-only: a stage-7-bound non-EN line abstains with the educational notice (once)', async () => {
+    const engine = new FakeLlmEngine({ default: 'X' })
+    const setNotice = vi.fn()
+    const educatedRef = { current: false }
+    const demote = vi.fn()
+    const t = makeTranslate({
+      engine,
+      internalOn: on('fr', 'grammar'),
+      setNotice,
+      demote,
+      educatedRef,
+    })
+    await t('frobnique le gadget')
+    expect(engine.generateCalls).toBe(0)
+    expect(setNotice).toHaveBeenLastCalledWith(grammarOnlyFirstMiss('fr'))
+    setNotice.mockClear()
+    await t('frobnique encore')
+    expect(setNotice).toHaveBeenLastCalledWith(couldntTranslate('fr'))
+  })
+
+  it('full: a clause-time ModelLoadError demotes and shows the basic-mode notice', async () => {
+    const engine = new FakeLlmEngine({ failLoad: true }) // not loaded → load() throws
+    const setNotice = vi.fn()
+    const demote = vi.fn()
+    const t = makeTranslate({
+      engine,
+      internalOn: on('fr', 'full'),
+      setNotice,
+      demote,
+      educatedRef: { current: false },
+    })
+    await t('frobnique le gadget')
+    expect(demote).toHaveBeenCalledTimes(1)
+    expect(setNotice).toHaveBeenLastCalledWith(modelDownloadFailed('fr'))
+  })
+
+  it('full: a GENERATE-time watchdog does NOT demote (model loaded, inference stalls)', async () => {
+    // Model resident, generate stalls past the watchdog → a generate-time
+    // WatchdogTimeout (timedOut=true), distinct from a load failure: no demote.
+    const engine = new FakeLlmEngine({ generateDelayMs: 10000 })
+    await engine.load(() => {}, new AbortController().signal) // resident
+    const setNotice = vi.fn()
+    const demote = vi.fn()
+    const t = makeTranslate({
+      engine,
+      internalOn: on('fr', 'full'),
+      setNotice,
+      demote,
+      educatedRef: { current: false },
+      watchdogMs: 5, // fire fast (real timers; the stall is 10s)
+    })
+    await t('frobnique le gadget')
+    expect(demote).not.toHaveBeenCalled()
+    expect(setNotice).toHaveBeenLastCalledWith(nothingSent('fr', true)) // non-EN timeout notice
+  })
+
+  it('grammar-only EN: a stage-7-bound miss raw-sends, NO educational notice', async () => {
+    const engine = new FakeLlmEngine({ default: 'X' })
+    const setNotice = vi.fn()
+    const sendLine = vi.fn()
+    const t = makeTranslate({
+      engine,
+      internalOn: on('en', 'grammar'),
+      setNotice,
+      sendLine,
+      demote: vi.fn(),
+      educatedRef: { current: false },
+    })
+    await t('frobnicate the gadget')
+    expect(engine.generateCalls).toBe(0)
+    expect(sendLine).toHaveBeenCalledWith('frobnicate the gadget')
+    expect(setNotice).not.toHaveBeenCalledWith(grammarOnlyFirstMiss('en'))
+  })
+
+  it('returns the typed line to restore on a non-EN nothing-sent abstain (M8)', async () => {
+    const engine = new FakeLlmEngine({ default: 'X' })
+    const t = makeTranslate({
+      engine,
+      internalOn: on('fr', 'grammar'),
+      setNotice: vi.fn(),
+      demote: vi.fn(),
+      educatedRef: { current: false },
+    })
+    // Non-EN abstain sends nothing → hand the line back for restore.
+    expect(await t('frobnique le gadget')).toBe('frobnique le gadget')
+  })
+
+  it('returns null when EN raw-sends the line (nothing to restore) (M8)', async () => {
+    const engine = new FakeLlmEngine({ default: 'X' })
+    const t = makeTranslate({
+      engine,
+      internalOn: on('en', 'grammar'),
+      setNotice: vi.fn(),
+      sendLine: vi.fn(),
+      demote: vi.fn(),
+      educatedRef: { current: false },
+    })
+    // EN abstain raw-sends to the Z-parser → the field should clear, not restore.
+    expect(await t('frobnicate the gadget')).toBeNull()
   })
 })

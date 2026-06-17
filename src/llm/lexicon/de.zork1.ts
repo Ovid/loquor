@@ -15,7 +15,12 @@ export const DE_ZORK1: NounLexicon = {
   'ancient map': ['karte', 'landkarte', 'alte karte'],
   basket: ['korb', 'lastenkorb'], // the shaft dumbwaiter basket
   bat: ['fledermaus'],
-  'beautiful brass bauble': ['schmuckstuck', 'kleinod', 'messingkugel', 'kugel'], // 'messingkugel'/'kugel': the game's floor noun (UAT F20)
+  'beautiful brass bauble': [
+    'schmuckstuck',
+    'kleinod',
+    'messingkugel',
+    'kugel',
+  ], // 'messingkugel'/'kugel': the game's floor noun (UAT F20)
   'beautiful jeweled scarab': ['skarabaus', 'kafer'],
   "bird's nest": ['nest', 'vogelnest'], // DE Nest = EN nest (same object)
   'black book': ['buch', 'schwarzes buch', 'schwarze buch'], // declined display forms (output-xl §4)

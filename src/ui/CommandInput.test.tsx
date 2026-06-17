@@ -6,6 +6,34 @@ const field = () =>
   screen.getByPlaceholderText('type a command…') as HTMLInputElement
 
 describe('CommandInput', () => {
+  it('exposes an accessible name (placeholder is not a label)', () => {
+    render(<CommandInput onSubmit={() => {}} />)
+    // The sole input of the game must be named for screen readers; the
+    // placeholder disappears on input and is not a reliable accessible name.
+    expect(
+      screen.getByRole('textbox', { name: 'Game command' }),
+    ).toBeInTheDocument()
+  })
+
+  it('reflects an NL-active label/placeholder when given (S3)', () => {
+    render(
+      <CommandInput
+        onSubmit={() => {}}
+        label="Commande de jeu — français naturel accepté"
+        placeholder="écrivez en français — ex. : ouvrez la boîte aux lettres"
+        lang="fr"
+      />,
+    )
+    const input = screen.getByRole('textbox', {
+      name: 'Commande de jeu — français naturel accepté',
+    })
+    expect(input).toHaveAttribute('lang', 'fr')
+    expect(input).toHaveAttribute(
+      'placeholder',
+      expect.stringMatching(/français/),
+    )
+  })
+
   it('submits a non-empty command and clears the field', () => {
     const onSubmit = vi.fn()
     render(<CommandInput onSubmit={onSubmit} />)
@@ -32,6 +60,30 @@ describe('CommandInput', () => {
     fireEvent.change(field(), { target: { value: '   ' } })
     fireEvent.submit(field())
     expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('restores a discarded line on request, but not over new typing (M8)', () => {
+    const { rerender } = render(<CommandInput onSubmit={() => {}} />)
+    const input = field()
+    // A failed translation asks to restore the cleared line.
+    rerender(
+      <CommandInput
+        onSubmit={() => {}}
+        restore={{ text: 'ouvre la boîte', key: 1 }}
+      />,
+    )
+    expect(input.value).toBe('ouvre la boîte')
+
+    // If the player has already started the next command, a later restore must
+    // not clobber it.
+    fireEvent.change(input, { target: { value: 'regarde' } })
+    rerender(
+      <CommandInput
+        onSubmit={() => {}}
+        restore={{ text: 'prends la lampe', key: 2 }}
+      />,
+    )
+    expect(input.value).toBe('regarde')
   })
 
   it('routes a single keystroke to onKey while awaiting a char prompt', () => {

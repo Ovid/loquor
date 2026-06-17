@@ -10,9 +10,9 @@
 //   • "Queue cleared — natural language is off." likewise stays inline English
 //     at its call site: it fires only when the player turned NL OFF, which in
 //     this app means English play.
-// The embedded example command (`open mailbox`) stays English in every
-// language: the quote-escape passes it verbatim to the Z-parser, which only
-// understands English.
+// Recovery notices suggest a simple phrase to TYPE (in the player's own
+// language — the NL layer translates it), so those examples are localized;
+// they are not quote-escapes, which would need to stay English (m4).
 import type { ActiveLanguage } from './types'
 
 type ByLang = Record<ActiveLanguage, string>
@@ -55,10 +55,10 @@ export function nothingSent(lang: ActiveLanguage, timedOut: boolean): string {
 export function couldntTranslate(lang: ActiveLanguage): string {
   return byLang(
     {
-      en: 'Couldn’t translate — try simpler wording, or quote a command: "open mailbox"',
-      fr: 'Traduction impossible — essayez une formulation plus simple, ou citez une commande : « open mailbox »',
-      de: 'Übersetzung nicht möglich — versuchen Sie eine einfachere Formulierung oder setzen Sie einen Befehl in Anführungszeichen: „open mailbox“',
-      es: 'No se pudo traducir — pruebe con palabras más simples, o entrecomille un comando: «open mailbox»',
+      en: 'I didn’t understand that. Try simpler wording, like “take the lamp” or “open the door”.',
+      fr: 'Je n’ai pas compris. Essayez une formulation plus simple, comme « prends la lampe » ou « ouvre la porte ».',
+      de: 'Das habe ich nicht verstanden. Versuchen Sie eine einfachere Formulierung, etwa „nimm die Lampe“ oder „öffne die Tür“.',
+      es: 'No lo entendí. Prueba con palabras más simples, como «toma la lámpara» o «abre la puerta».',
     },
     lang,
   )
@@ -106,30 +106,115 @@ export function ranOfActions(
   return `${prefix[lang]} — ${body[lang]}`
 }
 
-/** The model download failed (genuine, non-abort) — the layer falls back to
- * the deterministic grammar-only pipeline. Shown in the language the player
- * picked when they triggered the download. */
+/** The model download failed (genuine, non-abort) — the NL layer stays in
+ * basic mode. The notice tells the player they can keep using common commands
+ * and offers the recovery path (re-pick the upgrade to retry). */
 export function modelDownloadFailed(lang: ActiveLanguage): string {
   return byLang(
     {
-      en: 'Model download failed — staying grammar-only.',
-      fr: 'Échec du téléchargement du modèle — mode grammaire uniquement.',
-      de: 'Modell-Download fehlgeschlagen — nur Grammatikmodus.',
-      es: 'Error al descargar el modelo — solo modo gramática.',
+      en: 'AI model download failed — staying in basic mode. Common commands still work; pick the upgrade again to retry.',
+      fr: 'Échec du téléchargement du modèle d’IA — passage en mode simplifié. Les commandes courantes fonctionnent toujours ; resélectionnez la mise à niveau pour réessayer.',
+      de: 'KI-Modell-Download fehlgeschlagen — Wechsel in den einfachen Modus. Gängige Befehle funktionieren weiterhin; wählen Sie die Aufwertung erneut, um es noch einmal zu versuchen.',
+      es: 'Error al descargar el modelo de IA — se mantiene el modo básico. Los comandos comunes siguen funcionando; vuelva a elegir la mejora para reintentar.',
     },
     lang,
   )
 }
 
 /** The model download stalled (no progress) and was aborted by the watchdog —
- * same grammar-only fallback as a failure. */
+ * the NL layer stays in basic mode. Same recovery path as a failure. */
 export function modelDownloadStalled(lang: ActiveLanguage): string {
   return byLang(
     {
-      en: 'Model download stalled — staying grammar-only.',
-      fr: 'Téléchargement du modèle bloqué — mode grammaire uniquement.',
-      de: 'Modell-Download hängt — nur Grammatikmodus.',
-      es: 'Descarga del modelo estancada — solo modo gramática.',
+      en: 'AI model download stalled — staying in basic mode. Common commands still work; pick the upgrade again to retry.',
+      fr: 'Téléchargement du modèle d’IA bloqué — passage en mode simplifié. Les commandes courantes fonctionnent toujours ; resélectionnez la mise à niveau pour réessayer.',
+      de: 'KI-Modell-Download hängt fest — Wechsel in den einfachen Modus. Gängige Befehle funktionieren weiterhin; wählen Sie die Aufwertung erneut, um es noch einmal zu versuchen.',
+      es: 'Descarga del modelo de IA estancada — se mantiene el modo básico. Los comandos comunes siguen funcionando; vuelva a elegir la mejora para reintentar.',
+    },
+    lang,
+  )
+}
+
+/** First abstain in grammar-only this stint — connects the miss to the declined
+ * upgrade at the moment of confusion. Fires once per grammar-only stint, then the
+ * plain couldntTranslate notice takes over. (EN grammar-only raw-sends, so in
+ * practice this serves non-English players.) */
+export function grammarOnlyFirstMiss(lang: ActiveLanguage): string {
+  return byLang(
+    {
+      en: 'I didn’t catch that. Simple commands like “take the lamp” work now — add the optional upgrade for full sentences.',
+      fr: 'Je n’ai pas compris. Les commandes simples comme « prends la lampe » fonctionnent déjà — ajoutez la mise à niveau facultative pour les phrases complètes.',
+      de: 'Das habe ich nicht verstanden. Einfache Befehle wie „nimm die Lampe“ funktionieren bereits — fügen Sie die optionale Aufwertung für vollständige Sätze hinzu.',
+      es: 'No lo entendí. Los comandos simples como «toma la lámpara» ya funcionan — añade la mejora opcional para frases completas.',
+    },
+    lang,
+  )
+}
+
+/** Transient "thinking" indicator shown while a translation is in flight.
+ * Localized so a FR/DE/ES player doesn't see English mid-translation (I5). */
+export function thinking(lang: ActiveLanguage): string {
+  return byLang(
+    {
+      en: '…thinking',
+      fr: '…réflexion',
+      de: '…denke nach',
+      es: '…pensando',
+    },
+    lang,
+  )
+}
+
+/** Status-bar/transcript chip words shown while an NL language is active, so a
+ * FR/DE/ES player doesn't see English chrome mid-flow (M7). These appear only
+ * under an active language (downloading/on phases); the off-phase "installed"
+ * chips stay English because off means English play. */
+export function downloadingChip(lang: ActiveLanguage): string {
+  return byLang(
+    { en: 'downloading', fr: 'téléchargement', de: 'lädt', es: 'descargando' },
+    lang,
+  )
+}
+
+/** Marker for grammar-only "basic mode" — matches the modal's "simplified mode" copy. */
+export function basicChip(lang: ActiveLanguage): string {
+  return byLang(
+    { en: 'basic', fr: 'simplifié', de: 'einfach', es: 'básico' },
+    lang,
+  )
+}
+
+/** Chip on a typed-ahead line waiting for the translator. */
+export function queuedChip(lang: ActiveLanguage): string {
+  return byLang(
+    { en: 'queued', fr: 'en attente', de: 'wartet', es: 'en cola' },
+    lang,
+  )
+}
+
+/** Command-field placeholder when an NL language is active — signals that plain
+ * language is accepted (S3), the headline feature the classic "type a command"
+ * copy hid. The example stays a simple command so it's honest in basic mode too. */
+export function commandPlaceholder(lang: ActiveLanguage): string {
+  return byLang(
+    {
+      en: 'type plain English — e.g. open the mailbox',
+      fr: 'écrivez en français — ex. : ouvrez la boîte aux lettres',
+      de: 'schreiben Sie auf Deutsch — z. B. öffnen Sie den Briefkasten',
+      es: 'escribe en español — p. ej.: abre el buzón',
+    },
+    lang,
+  )
+}
+
+/** Accessible name for the command field when an NL language is active (S3). */
+export function commandLabel(lang: ActiveLanguage): string {
+  return byLang(
+    {
+      en: 'Game command — plain English accepted',
+      fr: 'Commande de jeu — français naturel accepté',
+      de: 'Spielbefehl — natürliches Deutsch akzeptiert',
+      es: 'Comando del juego — español natural aceptado',
     },
     lang,
   )

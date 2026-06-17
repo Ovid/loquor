@@ -186,7 +186,7 @@ async function renderPipeline(opts: {
   // Wait for the async isCached() probe before setLanguage, or the call races
   // it and takes the download-modal branch (see the hook suite's note).
   await waitFor(() =>
-    expect(hook.result.current.state).toEqual({
+    expect(hook.result.current.state).toMatchObject({
       phase: 'off',
       installed: true,
     }),
@@ -196,6 +196,8 @@ async function renderPipeline(opts: {
     expect(hook.result.current.state).toEqual({
       phase: 'on',
       language: opts.language,
+      model: 'full',
+      canUpgrade: true,
     })
   }
   return { hook, engine, sent, recorded, echoLocal }

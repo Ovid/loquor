@@ -13,6 +13,12 @@ import {
 } from './useGameEngine'
 import { vocabForSignature } from '../llm/grammar/index'
 import { viewToContext } from '../llm/prompt'
+import {
+  thinking,
+  queuedChip,
+  commandLabel,
+  commandPlaceholder,
+} from '../llm/notices'
 import { useNaturalLanguage } from '../llm/useNaturalLanguage'
 import { useOutputTranslation } from '../translate/useOutputTranslation'
 import { loudEchoToken } from '../translate/loudEcho'
@@ -27,18 +33,24 @@ const log = createLogger('ui')
 
 export function Terminal({
   storyBytes,
+  storyTitle,
   onChangeStory,
   themeToggle,
+  backgroundInert = false,
 }: {
   storyBytes: Uint8Array
+  /** The current game's title — the game screen's heading for screen readers. */
+  storyTitle: string
   onChangeStory: () => void
   themeToggle: ReactNode
+  /** True while the change-story overlay covers the game — makes the whole
+   *  terminal inert so a screen-reader virtual cursor can't read it (M9). */
+  backgroundInert?: boolean
 }) {
-  const [override, setOverride] = useState(false)
   // Game-loop coordination lives in extracted hooks (F-17): the ZMachine
   // boot/dispose lifecycle and device-capability detection.
   const { view, signature, engineRef } = useGameEngine(storyBytes)
-  const capability = useCapability(override)
+  const capability = useCapability()
   const viewRef = useRef<ViewState>(view)
   const inputRef = useRef<HTMLInputElement>(null)
   // One stable LLM engine instance for this Terminal (created once, lazily). The
@@ -61,13 +73,16 @@ export function Terminal({
   const [echoMap, setEchoMap] = useState<ReadonlyMap<string, string>>(
     () => new Map(),
   )
+  // A line a failed translation discarded, handed to CommandInput to restore so
+  // the player can edit it instead of retyping (M8). `key` bumps per failure.
+  const [restore, setRestore] = useState<{ text: string; key: number } | null>(
+    null,
+  )
   const recordEcho = useCallback((canonical: string, source: string) => {
     const k = loudEchoToken(canonical)
     const v = loudEchoToken(source)
     if (k === '' || v === '') return
-    setEchoMap(prev =>
-      prev.get(k) === v ? prev : new Map(prev).set(k, v),
-    )
+    setEchoMap(prev => (prev.get(k) === v ? prev : new Map(prev).set(k, v)))
   }, [])
 
   // Keep a ref to the latest view so the NL hook's getContext() can read it at
@@ -125,11 +140,18 @@ export function Terminal({
     echoMap,
   })
 
+  // The active NL language: `activeLang` (incl. 'en') localizes copy; `nlLang`
+  // is undefined for English so only non-English text carries a lang attribute,
+  // letting a screen reader pronounce it right (3.1.2).
+  const activeLang = nl.state.phase === 'on' ? nl.state.language : 'en'
+  const nlLang = activeLang !== 'en' ? activeLang : undefined
+
   // Live download progress for the modal — derived from NL state during render
   // (no separate state or effect needed).
   const dlProgress: LoadProgress | null =
     nl.state.phase === 'downloading'
-      ? { loaded: nl.state.loaded, total: nl.state.total, text: 'downloading' }
+      ? // text is unused by the localized modal (review I3); only loaded/total are.
+        { loaded: nl.state.loaded, total: nl.state.total, text: '' }
       : null
 
   useEffect(() => {
@@ -138,60 +160,126 @@ export function Terminal({
     // exhaustive-deps now that it's a hook return rather than a local useRef.
   }, [view.inputRequest, engineRef])
 
+  // The download/upgrade modal is open — everything behind it must be inert so
+  // a screen-reader virtual cursor stays inside the dialog (aria-modal alone is
+  // unevenly honored). The modal is a sibling below, so it stays operable (M9).
+  const modalOpen = nl.modalOpen || nl.state.phase === 'downloading'
+  const bgInert = backgroundInert || modalOpen
+
   return (
-    <div className="screen term">
+    <div className="screen term" inert={backgroundInert}>
+      <h1 className="sr-only">{storyTitle}</h1>
       <StatusBar
         status={xl.status}
         onChangeStory={onChangeStory}
         themeToggle={themeToggle}
+        inert={bgInert}
         nlToggle={
           <NlLanguagePicker
             state={nl.state}
             onSelect={nl.setLanguage}
-            onOverride={() => setOverride(true)}
+            onUpgrade={nl.requestUpgrade}
           />
         }
       />
-      <Scrollback lines={xl.lines} onActivate={() => inputRef.current?.focus()}>
-        {/* Lines typed ahead while a translation runs (F-A): dimmed, chipped,
+      <main className="term-main" inert={bgInert}>
+        <Scrollback
+          lines={xl.lines}
+          onActivate={() => inputRef.current?.focus()}
+        >
+          {/* Lines typed ahead while a translation runs (F-A): dimmed, chipped,
             drained FIFO by the hook. Keyed on the hook's monotonic id — the
             queue shifts from the FRONT, so index keys would re-point a node
             at a different line. */}
-        {nl.queued.map(q => (
-          <p key={q.id} className="nl-source">
-            <span className="you">you</span> {q.text}
-            <span className="chip">queued</span>
-          </p>
-        ))}
-        {nl.pending && <p className="nl-thinking">…thinking</p>}
-        {nl.notice && <p className="nl-notice">{nl.notice}</p>}
-        <CommandInput
-          inputRef={inputRef}
-          onSubmit={text => {
-            // The Loud Room echo is re-voiced per clause via recordEcho as the
-            // pipeline sends each canonical command (loudEcho / F6).
-            if (nl.state.phase === 'on') void nl.translate(text)
-            else if (engineRef.current) engineRef.current.sendLine(text)
-            // Practically unreachable (engine is set synchronously and input is
-            // disabled until a line request), but warn rather than silently
-            // swallow the turn if it ever happens (review S11).
-            else log.warn('submit ignored: engine not ready')
-          }}
-          // Never pending-disabled ([M]): while NL is on, typed-ahead lines
-          // queue (F-A); when NL is off/left mid-drain, typing raw-sends —
-          // pending could only become true under phase 'on', so disabling on
-          // `pending && phase !== 'on'` locked the player out exactly when a
-          // wedged or slow drain coincided with switching NL off.
-          awaitingKey={view.inputRequest === 'char'}
-          awaitingLine={view.inputRequest === 'line'}
-          onKey={key => engineRef.current?.sendChar(key)}
-        />
-      </Scrollback>
+          {nl.queued.map(q => (
+            <p key={q.id} className="nl-source" lang={nlLang}>
+              <span className="you" lang="en">
+                you
+              </span>{' '}
+              {q.text}
+              <span className="chip" lang={nlLang}>
+                {queuedChip(activeLang)}
+              </span>
+            </p>
+          ))}
+          {/* Transient NL status — the thinking indicator and abstain/timeout
+              notices — in a dedicated role=status region (S1), not the role=log
+              transcript: a screen reader announces them as status updates so a
+              silent abstain (common in FR/DE/ES) is heard. Always mounted so the
+              live region is registered before a notice appears. */}
+          <div role="status" aria-live="polite" className="nl-status">
+            {nl.pending && (
+              <p className="nl-thinking" lang={nlLang}>
+                {thinking(activeLang)}
+              </p>
+            )}
+            {nl.notice && (
+              <p className="nl-notice" lang={nlLang}>
+                {nl.notice}
+              </p>
+            )}
+          </div>
+          <CommandInput
+            inputRef={inputRef}
+            // When an NL language is on, the field accepts plain language — say
+            // so in the label/placeholder, or the headline feature stays hidden
+            // behind classic-parser copy (S3). Localized; English when off.
+            label={
+              nl.state.phase === 'on'
+                ? commandLabel(activeLang)
+                : 'Game command'
+            }
+            placeholder={
+              nl.state.phase === 'on'
+                ? commandPlaceholder(activeLang)
+                : 'type a command…'
+            }
+            lang={nlLang}
+            restore={restore ?? undefined}
+            onSubmit={text => {
+              // The Loud Room echo is re-voiced per clause via recordEcho as the
+              // pipeline sends each canonical command (loudEcho / F6).
+              if (nl.state.phase === 'on')
+                void nl.translate(text).then(retained => {
+                  // Non-EN abstain/timeout/failure sent nothing — restore the
+                  // discarded line so it isn't lost (M8).
+                  if (retained != null)
+                    setRestore(r => ({
+                      text: retained,
+                      key: (r?.key ?? 0) + 1,
+                    }))
+                })
+              else if (engineRef.current) engineRef.current.sendLine(text)
+              // Practically unreachable (engine is set synchronously and input is
+              // disabled until a line request), but warn rather than silently
+              // swallow the turn if it ever happens (review S11).
+              else log.warn('submit ignored: engine not ready')
+            }}
+            // Never pending-disabled ([M]): while NL is on, typed-ahead lines
+            // queue (F-A); when NL is off/left mid-drain, typing raw-sends —
+            // pending could only become true under phase 'on', so disabling on
+            // `pending && phase !== 'on'` locked the player out exactly when a
+            // wedged or slow drain coincided with switching NL off.
+            awaitingKey={view.inputRequest === 'char'}
+            awaitingLine={view.inputRequest === 'line'}
+            onKey={key => engineRef.current?.sendChar(key)}
+          />
+        </Scrollback>
+      </main>
       <ModelDownloadModal
         open={nl.modalOpen || nl.state.phase === 'downloading'}
+        warn={
+          (nl.state.phase === 'on' || nl.state.phase === 'off') &&
+          !nl.state.canUpgrade
+        }
         progress={dlProgress}
         etaSeconds={
           nl.state.phase === 'downloading' ? nl.state.etaSeconds : null
+        }
+        lang={
+          nl.state.phase === 'on' || nl.state.phase === 'downloading'
+            ? nl.state.language
+            : 'en'
         }
         onAccept={nl.requestDownload}
         onDecline={nl.declineDownload}

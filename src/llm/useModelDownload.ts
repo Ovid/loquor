@@ -4,7 +4,7 @@
 // state with the per-clause translation pipeline — only the `notice` UI channel,
 // which stays parent-owned and is passed in. This hook owns the phase machine
 // (`internal`), the installed/modal flags, the download refs, the on-disk cache
-// probe, and the four player-facing actions; the parent derives `state` /
+// probe, and the player-facing actions; the parent derives `state` /
 // `language` / `lex` from the returned `internal`.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ActiveLanguage, LlmEngine, NlLanguage } from './types'
@@ -23,15 +23,15 @@ export type Internal =
   | { phase: 'off' }
   | {
       phase: 'downloading'
+      language: ActiveLanguage
       loaded: number
       total: number
       etaSeconds: number | null
     }
-  | { phase: 'on'; language: ActiveLanguage }
+  | { phase: 'on'; language: ActiveLanguage; model: 'full' | 'grammar' }
 
 export interface ModelDownloadParams {
   engine: LlmEngine
-  available: boolean
   hasVocab: boolean
   /** Parent-owned notice channel (shared with the translation pipeline's
    * queue messages) — the download flow writes failure/clear notices through it. */
@@ -47,10 +47,14 @@ export interface ModelDownload {
   requestDownload: () => void
   declineDownload: () => void
   cancelDownload: () => void
+  /** Open the upgrade modal on demand (picker "✦ improve" / "try the model anyway"). */
+  requestUpgrade: () => void
+  /** Flip the active language full → grammar after a clause-time load failure. */
+  demoteToGrammar: () => void
 }
 
 export function useModelDownload(params: ModelDownloadParams): ModelDownload {
-  const { engine, available, hasVocab, setNotice } = params
+  const { engine, hasVocab, setNotice } = params
 
   const [internal, setInternal] = useState<Internal>({ phase: 'off' })
   const [installed, setInstalled] = useState(false)
@@ -68,12 +72,23 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
   // download modal flow activates THIS language once the load resolves.
   const pendingLangRef = useRef<ActiveLanguage>('en')
 
+  // Tear down any in-flight download — kill the no-progress watchdog and abort
+  // the fetch. The aborted load settles into its stale() guard and becomes a
+  // no-op, so a superseding action (a new language pick, or 'off') can't have the
+  // old load flip the phase back to on/full or persist a language behind it ([C1]).
+  const abortInFlight = useCallback(() => {
+    if (stallTimerRef.current !== null) {
+      clearTimeout(stallTimerRef.current)
+      stallTimerRef.current = null
+    }
+    abortRef.current?.abort()
+  }, [])
+
   // Probe the ON-DISK cache (survives reloads) for the installed/not-installed
   // distinction — distinct from isLoaded() (in-memory, this session only) — and,
-  // in the same async callback, restore the player's prior language choice once
-  // the model is known cached. (Don't auto-enable against an uncached model — that
-  // would re-prompt.) Doing this in the async callback (not synchronously in the
-  // effect body) avoids react-hooks/set-state-in-effect while preserving behavior.
+  // in the same async callback, restore the player's prior language choice.
+  // If cached, restore to full; if uncached but a language was stored, restore
+  // to grammar-only (deterministic stages still work without the model).
   //
   // Depends on [engine] only (review S6): re-running on every phase change just
   // re-probed redundantly. A successful download sets `installed` directly (below),
@@ -88,11 +103,25 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
         const cached = c || engine.isLoaded()
         setInstalled(cached)
         const pref = readNlPref()
-        if (cached && pref.language !== 'off') {
+        if (pref.language !== 'off') {
           const lang = pref.language // narrowed to ActiveLanguage; survives the closure
-          setInternal(prev =>
-            prev.phase === 'off' ? { phase: 'on', language: lang } : prev,
-          )
+          setInternal(prev => {
+            if (prev.phase === 'off')
+              return {
+                phase: 'on',
+                language: lang,
+                model: cached ? 'full' : 'grammar',
+              }
+            // Race ([I1]): the player picked a language before this probe
+            // resolved, landing in on/grammar (installed was still false) with a
+            // spurious upgrade modal. If the model is in fact cached on disk,
+            // promote that pick to full — and dismiss the modal — rather than
+            // leaving a cached player stuck in basic mode behind a download offer.
+            if (cached && prev.phase === 'on' && prev.model === 'grammar')
+              return { ...prev, model: 'full' }
+            return prev
+          })
+          if (cached) setModalOpen(false)
         }
       })
       .catch(() => {})
@@ -123,7 +152,13 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
     const ac = new AbortController()
     abortRef.current = ac
     dlSamplesRef.current = []
-    setInternal({ phase: 'downloading', loaded: 0, total: 0, etaSeconds: null })
+    setInternal({
+      phase: 'downloading',
+      language: pendingLangRef.current,
+      loaded: 0,
+      total: 0,
+      etaSeconds: null,
+    })
     // True once this load is no longer the active one — aborted (cancel) or
     // superseded by a newer requestDownload. A load that resolves on/around the
     // abort tick must NOT flip the state back to 'on' or persist a language against
@@ -132,8 +167,8 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
     // No-progress watchdog (F6): a stalled fetch would otherwise sit in
     // 'downloading' forever. Reset on every progress tick; on genuine silence,
     // abort the load and surface a notice. abort() routes into the .catch's
-    // stale/AbortError branch (which leaves the notice intact, only re-asserts
-    // 'off'), so we set the notice HERE before aborting.
+    // stale/AbortError branch (which leaves the notice intact), so we set the
+    // notice HERE before aborting.
     const clearStall = () => {
       if (stallTimerRef.current !== null) clearTimeout(stallTimerRef.current)
       stallTimerRef.current = null
@@ -144,7 +179,11 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
         if (stale()) return
         log.error('model download stalled — no progress, aborting')
         setNotice(modelDownloadStalled(pendingLangRef.current))
-        setInternal({ phase: 'off' })
+        setInternal({
+          phase: 'on',
+          language: pendingLangRef.current,
+          model: 'grammar',
+        })
         ac.abort()
       }, DOWNLOAD_STALL_MS)
     }
@@ -159,6 +198,7 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
         ].slice(-60)
         setInternal({
           phase: 'downloading',
+          language: pendingLangRef.current,
           loaded: p.loaded,
           total: p.total,
           etaSeconds: estimateRemainingSeconds(dlSamplesRef.current),
@@ -174,15 +214,17 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
         // probe effect needn't re-run on the phase change to discover it (S6).
         setInstalled(true)
         // Activate the language the player picked when they triggered the modal.
-        setInternal({ phase: 'on', language: pendingLangRef.current })
+        setInternal({
+          phase: 'on',
+          language: pendingLangRef.current,
+          model: 'full',
+        })
         writeNlPref({ language: pendingLangRef.current })
       })
       .catch(err => {
         if (stale() || (err as Error).name === 'AbortError') {
-          // clearStall only on a NON-stale settle ([I1]): a load rejecting
-          // because it was aborted/superseded must not clear the shared stall
-          // timer now owned by the live download.
-          setInternal({ phase: 'off' })
+          // Aborted/superseded: whoever caused it (cancelDownload / a newer
+          // requestDownload) already set the correct state — don't revert it.
           return
         }
         clearStall()
@@ -191,52 +233,73 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
         // just the player notice, or the cause is undiagnosable.
         log.error('model download failed:', err)
         setNotice(modelDownloadFailed(pendingLangRef.current))
-        setInternal({ phase: 'off' })
+        setInternal({
+          phase: 'on',
+          language: pendingLangRef.current,
+          model: 'grammar',
+        })
       })
   }, [engine, setNotice])
 
   const cancelDownload = useCallback(() => {
-    if (stallTimerRef.current !== null) {
-      clearTimeout(stallTimerRef.current)
-      stallTimerRef.current = null
-    }
-    abortRef.current?.abort()
-    setInternal({ phase: 'off' })
-    // [P] Persist 'off' too: a cancel racing download COMPLETION (the load's
-    // .then already wrote the picked language) must not leave a pref that
-    // self-enables NL next session against an explicit cancel.
-    writeNlPref({ language: 'off' })
-  }, [])
+    abortInFlight()
+    setInternal({
+      phase: 'on',
+      language: pendingLangRef.current,
+      model: 'grammar',
+    })
+    writeNlPref({ language: pendingLangRef.current })
+  }, [abortInFlight])
 
   const declineDownload = useCallback(() => {
     setModalOpen(false)
-    setInternal({ phase: 'off' })
-    // Reset `language` alongside `declined`: an explicit "Not now" must not leave
-    // a stale active language that the isCached effect later auto-restores to 'on'
-    // once the model happens to be cached (review inline comment).
-    writeNlPref({ declined: true, language: 'off' })
+    // "Not now" keeps grammar-only active (the pick already set on/grammar). The
+    // declined flag only suppresses the unsolicited auto-modal on future picks;
+    // re-discovery lives in the picker's "✦ improve" affordance.
+    writeNlPref({ declined: true })
   }, [])
 
   const setLanguage = useCallback(
     (lang: NlLanguage) => {
-      if (!available || !hasVocab) return
+      if (!hasVocab) return // hasVocab is the sole NL prerequisite
+      // A new pick supersedes any download in progress ([C1]). Without this, an
+      // in-flight load resolving after the pick would re-enable NL (and persist
+      // a language) against the player's explicit choice — most visibly 'off'.
+      abortInFlight()
       if (lang === 'off') {
         setInternal({ phase: 'off' }) // off is instant; model stays cached
         writeNlPref({ language: 'off' })
         return
       }
+      writeNlPref({ language: lang })
       if (installed || engine.isLoaded()) {
-        setInternal({ phase: 'on', language: lang }) // cached → no re-download
-        writeNlPref({ language: lang })
-      } else {
-        // No model yet: remember the choice and ask permission to download.
-        // requestDownload activates pendingLangRef.current once the load lands.
-        pendingLangRef.current = lang
-        setModalOpen(true)
+        setInternal({ phase: 'on', language: lang, model: 'full' }) // cached → lazy full
+        return
       }
+      // No model yet: grammar-only is active immediately; offer the upgrade modal
+      // ONCE (suppressed thereafter by the declined flag).
+      setInternal({ phase: 'on', language: lang, model: 'grammar' })
+      pendingLangRef.current = lang
+      if (!readNlPref().declined) setModalOpen(true)
     },
-    [available, hasVocab, installed, engine],
+    [hasVocab, installed, engine, abortInFlight],
   )
+
+  const requestUpgrade = useCallback(() => {
+    // Read the active language to download from `internal` directly, not inside a
+    // setInternal updater (review S3): a state-updater must be pure, and mutating
+    // a ref from it is a React-contract hazard (double-invoke in StrictMode).
+    if (internal.phase === 'on') pendingLangRef.current = internal.language
+    setModalOpen(true)
+  }, [internal])
+
+  const demoteToGrammar = useCallback(() => {
+    setInternal(prev =>
+      prev.phase === 'on' && prev.model === 'full'
+        ? { ...prev, model: 'grammar' }
+        : prev,
+    )
+  }, [])
 
   return {
     internal,
@@ -246,5 +309,7 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
     requestDownload,
     declineDownload,
     cancelDownload,
+    requestUpgrade,
+    demoteToGrammar,
   }
 }

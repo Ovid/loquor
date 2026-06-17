@@ -21,7 +21,6 @@ function setup(
   const hook = renderHook(() =>
     useModelDownload({
       engine,
-      available: opts.available ?? true,
       hasVocab: opts.hasVocab ?? true,
       setNotice,
     }),
@@ -46,6 +45,7 @@ describe('boot probe (isCached)', () => {
       expect(hook.result.current.internal).toEqual({
         phase: 'on',
         language: 'fr',
+        model: 'full',
       }),
     )
     expect(hook.result.current.installed).toBe(true)
@@ -55,6 +55,43 @@ describe('boot probe (isCached)', () => {
     const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
     await waitFor(() => expect(hook.result.current.installed).toBe(true))
     expect(hook.result.current.internal).toEqual({ phase: 'off' })
+  })
+
+  it('a pick during the async probe upgrades to full and dismisses the spurious modal when the model is cached ([I1])', async () => {
+    let resolveCached!: (v: boolean) => void
+    const engine: LlmEngine = {
+      load: async () => {},
+      unload: async () => {},
+      isLoaded: () => false,
+      isCached: () =>
+        new Promise<boolean>(r => {
+          resolveCached = r
+        }),
+      generate: async () => '',
+    }
+    const { hook } = setup({ engine })
+    // Player picks before isCached resolves → installed still false → on/grammar
+    // with the upgrade modal (the regression: a cached player stuck in basic).
+    act(() => hook.result.current.setLanguage('fr'))
+    expect(hook.result.current.internal).toEqual({
+      phase: 'on',
+      language: 'fr',
+      model: 'grammar',
+    })
+    expect(hook.result.current.modalOpen).toBe(true)
+    // Probe resolves: the model IS cached → promote the pick to full and dismiss
+    // the spurious download offer.
+    await act(async () => {
+      resolveCached(true)
+      await Promise.resolve()
+    })
+    expect(hook.result.current.internal).toEqual({
+      phase: 'on',
+      language: 'fr',
+      model: 'full',
+    })
+    expect(hook.result.current.modalOpen).toBe(false)
+    expect(hook.result.current.installed).toBe(true)
   })
 
   it('an isCached rejection is swallowed — installed:false, no throw', async () => {
@@ -76,7 +113,7 @@ describe('boot probe (isCached)', () => {
 })
 
 describe('requestDownload', () => {
-  it('success: downloading → on (the pending language), installed:true, persisted', async () => {
+  it('success: downloading → on/full (the pending language), installed:true, persisted', async () => {
     const engine = new FakeLlmEngine({
       progress: [
         { loaded: 1, total: 2, text: 'a' },
@@ -90,6 +127,7 @@ describe('requestDownload', () => {
       expect(hook.result.current.internal).toEqual({
         phase: 'on',
         language: 'en', // pendingLangRef default when no setLanguage preceded it
+        model: 'full',
       }),
     )
     expect(hook.result.current.installed).toBe(true)
@@ -126,7 +164,7 @@ describe('requestDownload', () => {
     })
   })
 
-  it('failure reverts to off, reports it through the notice channel, and logs the cause (F7)', async () => {
+  it('failure stays grammar-only, reports it through the notice channel, and logs the cause (F7)', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
       const { hook, setNotice } = setup({
@@ -134,10 +172,14 @@ describe('requestDownload', () => {
       })
       act(() => hook.result.current.requestDownload())
       await waitFor(() =>
-        expect(hook.result.current.internal).toEqual({ phase: 'off' }),
+        expect(hook.result.current.internal).toEqual({
+          phase: 'on',
+          language: 'en',
+          model: 'grammar',
+        }),
       )
       expect(setNotice).toHaveBeenCalledWith(
-        'Model download failed — staying grammar-only.',
+        'AI model download failed — staying in basic mode. Common commands still work; pick the upgrade again to retry.',
       )
       // F7: the underlying error must reach the logger (ring buffer + console),
       // not be discarded.
@@ -153,8 +195,8 @@ describe('requestDownload', () => {
   it('the failure notice is localized to the picked language (F1)', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
-      // Uncached engine → setLanguage('fr') opens the modal and records 'fr' as
-      // the pending language; requestDownload then fails against it.
+      // Uncached engine → setLanguage('fr') sets on/grammar and records 'fr' as
+      // the pending language; requestDownload then fails, staying grammar-only.
       const { hook, setNotice } = setup({
         engine: new FakeLlmEngine({ failLoad: true }),
       })
@@ -162,17 +204,21 @@ describe('requestDownload', () => {
       act(() => hook.result.current.setLanguage('fr'))
       act(() => hook.result.current.requestDownload())
       await waitFor(() =>
-        expect(hook.result.current.internal).toEqual({ phase: 'off' }),
+        expect(hook.result.current.internal).toEqual({
+          phase: 'on',
+          language: 'fr',
+          model: 'grammar',
+        }),
       )
       expect(setNotice).toHaveBeenCalledWith(
-        'Échec du téléchargement du modèle — mode grammaire uniquement.',
+        'Échec du téléchargement du modèle d’IA — passage en mode simplifié. Les commandes courantes fonctionnent toujours ; resélectionnez la mise à niveau pour réessayer.',
       )
     } finally {
       errSpy.mockRestore()
     }
   })
 
-  it('a stalled download (no further progress) trips the no-progress watchdog → off + notice + abort (F6)', async () => {
+  it('a stalled download (no further progress) trips the no-progress watchdog → grammar-only + notice + abort (F6)', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.useFakeTimers()
     try {
@@ -194,9 +240,13 @@ describe('requestDownload', () => {
       await act(async () => {
         await vi.advanceTimersByTimeAsync(DOWNLOAD_STALL_MS + 100)
       })
-      expect(hook.result.current.internal).toEqual({ phase: 'off' })
+      expect(hook.result.current.internal).toEqual({
+        phase: 'on',
+        language: 'en',
+        model: 'grammar',
+      })
       expect(setNotice).toHaveBeenCalledWith(
-        'Model download stalled — staying grammar-only.',
+        'AI model download stalled — staying in basic mode. Common commands still work; pick the upgrade again to retry.',
       )
       expect(sig.aborted).toBe(true) // the orphaned load was actually aborted
       expect(errSpy).toHaveBeenCalledWith(
@@ -248,9 +298,13 @@ describe('requestDownload', () => {
       await act(async () => {
         await vi.advanceTimersByTimeAsync(DOWNLOAD_STALL_MS + 100)
       })
-      expect(hook.result.current.internal).toEqual({ phase: 'off' })
+      expect(hook.result.current.internal).toEqual({
+        phase: 'on',
+        language: 'en',
+        model: 'grammar',
+      })
       expect(setNotice).toHaveBeenCalledWith(
-        'Model download stalled — staying grammar-only.',
+        'AI model download stalled — staying in basic mode. Common commands still work; pick the upgrade again to retry.',
       )
       expect(signals[1].aborted).toBe(true) // #2's watchdog aborted it
     } finally {
@@ -294,28 +348,34 @@ describe('requestDownload', () => {
 })
 
 describe('setLanguage', () => {
-  it('a cached model activates the chosen language immediately and persists it', async () => {
+  it('a cached model activates the chosen language immediately as full and persists it', async () => {
     const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
     await waitFor(() => expect(hook.result.current.installed).toBe(true))
     act(() => hook.result.current.setLanguage('de'))
     expect(hook.result.current.internal).toEqual({
       phase: 'on',
       language: 'de',
+      model: 'full',
     })
     expect(readNlPref().language).toBe('de')
   })
 
-  it('no cached model opens the modal; the subsequent download activates THAT language', async () => {
+  it('no cached model opens the modal and sets grammar-only; the subsequent download upgrades to full', async () => {
     const { hook } = setup() // not cached, not loaded
     await waitFor(() => expect(hook.result.current.installed).toBe(false))
     act(() => hook.result.current.setLanguage('es'))
     expect(hook.result.current.modalOpen).toBe(true)
-    expect(hook.result.current.internal).toEqual({ phase: 'off' }) // not yet on
+    expect(hook.result.current.internal).toEqual({
+      phase: 'on',
+      language: 'es',
+      model: 'grammar',
+    })
     act(() => hook.result.current.requestDownload())
     await waitFor(() =>
       expect(hook.result.current.internal).toEqual({
         phase: 'on',
         language: 'es', // the language picked when the modal opened
+        model: 'full',
       }),
     )
     expect(hook.result.current.modalOpen).toBe(false)
@@ -329,18 +389,45 @@ describe('setLanguage', () => {
     expect(hook.result.current.internal).toEqual({
       phase: 'on',
       language: 'fr',
+      model: 'full',
     })
     act(() => hook.result.current.setLanguage('off'))
     expect(hook.result.current.internal).toEqual({ phase: 'off' })
     expect(readNlPref().language).toBe('off')
   })
 
-  it('is a no-op when the layer is unavailable (tier none)', async () => {
-    const { hook } = setup({ available: false })
+  it("'off' mid-download aborts the load and stays off — a late resolve can't re-enable NL ([C1])", async () => {
+    let resolveLoad!: () => void
+    let sig!: AbortSignal
+    const engine: LlmEngine = {
+      unload: async () => {},
+      isLoaded: () => false,
+      isCached: async () => false,
+      generate: async () => '',
+      load: (_p, signal) =>
+        new Promise<void>(resolve => {
+          sig = signal
+          resolveLoad = resolve
+        }),
+    }
+    const { hook } = setup({ engine })
     await waitFor(() => expect(hook.result.current.installed).toBe(false))
-    act(() => hook.result.current.setLanguage('fr'))
+    act(() => hook.result.current.setLanguage('fr')) // on/grammar + pending fr
+    act(() => hook.result.current.requestDownload()) // downloading
+    await waitFor(() =>
+      expect(hook.result.current.internal.phase).toBe('downloading'),
+    )
+    act(() => hook.result.current.setLanguage('off'))
     expect(hook.result.current.internal).toEqual({ phase: 'off' })
-    expect(hook.result.current.modalOpen).toBe(false)
+    expect(sig.aborted).toBe(true) // the in-flight load was actually aborted
+    // The superseded load resolving afterwards must NOT flip back to on/full or
+    // re-persist a language the player turned off (the stale() guard holds).
+    await act(async () => {
+      resolveLoad()
+      await Promise.resolve()
+    })
+    expect(hook.result.current.internal).toEqual({ phase: 'off' })
+    expect(readNlPref().language).toBe('off')
   })
 
   it('is a no-op when the game has no vocab', async () => {
@@ -353,20 +440,31 @@ describe('setLanguage', () => {
 })
 
 describe('declineDownload', () => {
-  it('closes the modal, stays off, and persists declined + off', async () => {
+  it('closes the modal, keeps grammar-only active, and persists declined (language stays)', async () => {
     const { hook } = setup()
     await waitFor(() => expect(hook.result.current.installed).toBe(false))
-    act(() => hook.result.current.setLanguage('fr')) // opens the modal
+    act(() => hook.result.current.setLanguage('fr')) // sets on/grammar + opens modal
     expect(hook.result.current.modalOpen).toBe(true)
+    expect(hook.result.current.internal).toEqual({
+      phase: 'on',
+      language: 'fr',
+      model: 'grammar',
+    })
     act(() => hook.result.current.declineDownload())
     expect(hook.result.current.modalOpen).toBe(false)
-    expect(hook.result.current.internal).toEqual({ phase: 'off' })
-    expect(readNlPref()).toEqual({ language: 'off', declined: true })
+    // grammar-only stays active — declined only suppresses the auto-modal
+    expect(hook.result.current.internal).toEqual({
+      phase: 'on',
+      language: 'fr',
+      model: 'grammar',
+    })
+    expect(readNlPref().declined).toBe(true)
+    expect(readNlPref().language).toBe('fr') // language stays persisted
   })
 })
 
 describe('cancelDownload', () => {
-  it('aborts an in-flight load, reverts to off, and persists off', async () => {
+  it('aborts an in-flight load, returns to grammar-only, and persists the pending language', async () => {
     let rejectLoad!: (e: unknown) => void
     const engine: LlmEngine = {
       unload: async () => {},
@@ -382,6 +480,7 @@ describe('cancelDownload', () => {
         }),
     }
     const { hook } = setup({ engine })
+    // pendingLangRef defaults to 'en'; grammar-only is active while downloading
     act(() => hook.result.current.requestDownload())
     await waitFor(() =>
       expect(hook.result.current.internal.phase).toBe('downloading'),
@@ -389,14 +488,18 @@ describe('cancelDownload', () => {
     await act(async () => {
       hook.result.current.cancelDownload()
     })
-    expect(hook.result.current.internal).toEqual({ phase: 'off' })
-    expect(readNlPref().language).toBe('off')
+    expect(hook.result.current.internal).toEqual({
+      phase: 'on',
+      language: 'en',
+      model: 'grammar',
+    })
+    expect(readNlPref().language).toBe('en')
     expect(rejectLoad).toBeDefined() // (load was wired to the abort signal)
   })
 
-  it('a load that RESOLVES after cancel does not flip on or persist a language ([P])', async () => {
+  it('a load that RESOLVES after cancel stays grammar-only (stale guard) ([P])', async () => {
     // This load ignores the abort signal and resolves anyway — the stale()
-    // guard, not the rejection, must keep a cancelled download off.
+    // guard must not flip the state to on/full after cancel.
     let resolveLoad!: () => void
     const engine: LlmEngine = {
       unload: async () => {},
@@ -418,7 +521,173 @@ describe('cancelDownload', () => {
       resolveLoad() // the superseded load settles after the cancel
       await Promise.resolve()
     })
-    expect(hook.result.current.internal).toEqual({ phase: 'off' })
-    expect(readNlPref().language).toBe('off') // never flipped to a language
+    // cancel already wrote on/grammar; the stale .then must not override it
+    expect(hook.result.current.internal).toEqual({
+      phase: 'on',
+      language: 'en',
+      model: 'grammar',
+    })
+    expect(readNlPref().language).toBe('en')
+  })
+})
+
+describe('grammar-only fallback', () => {
+  it('pick a language with no model → on/grammar immediately, no download', async () => {
+    const { hook, engine } = setup()
+    await waitFor(() =>
+      expect(hook.result.current.internal).toEqual({ phase: 'off' }),
+    )
+    act(() => hook.result.current.setLanguage('fr'))
+    expect(hook.result.current.internal).toEqual({
+      phase: 'on',
+      language: 'fr',
+      model: 'grammar',
+    })
+    expect((engine as FakeLlmEngine).generateCalls).toBe(0)
+    expect(readNlPref().language).toBe('fr')
+  })
+
+  it('pick with model cached → on/full, no eager load', async () => {
+    const { hook, engine } = setup({
+      engine: new FakeLlmEngine({ cached: true }),
+    })
+    await waitFor(() => expect(hook.result.current.installed).toBe(true))
+    act(() => hook.result.current.setLanguage('fr'))
+    expect(hook.result.current.internal).toEqual({
+      phase: 'on',
+      language: 'fr',
+      model: 'full',
+    })
+    expect((engine as FakeLlmEngine).isLoaded()).toBe(false) // load is lazy — only on the first stage-7 miss
+  })
+
+  it('first pick opens the upgrade modal once; "Not now" keeps grammar-only', async () => {
+    const { hook } = setup()
+    await waitFor(() =>
+      expect(hook.result.current.internal).toEqual({ phase: 'off' }),
+    )
+    act(() => hook.result.current.setLanguage('fr'))
+    expect(hook.result.current.modalOpen).toBe(true)
+    act(() => hook.result.current.declineDownload())
+    expect(hook.result.current.modalOpen).toBe(false)
+    expect(hook.result.current.internal).toEqual({
+      phase: 'on',
+      language: 'fr',
+      model: 'grammar',
+    })
+    expect(readNlPref().declined).toBe(true)
+  })
+
+  it('after declining once, a later pick does NOT reopen the modal', async () => {
+    writeNlPref({ declined: true })
+    const { hook } = setup()
+    await waitFor(() =>
+      expect(hook.result.current.internal).toEqual({ phase: 'off' }),
+    )
+    act(() => hook.result.current.setLanguage('de'))
+    expect(hook.result.current.modalOpen).toBe(false)
+    expect(hook.result.current.internal).toEqual({
+      phase: 'on',
+      language: 'de',
+      model: 'grammar',
+    })
+  })
+
+  it('requestUpgrade reopens the modal on demand', async () => {
+    writeNlPref({ declined: true })
+    const { hook } = setup()
+    await waitFor(() =>
+      expect(hook.result.current.internal).toEqual({ phase: 'off' }),
+    )
+    act(() => hook.result.current.setLanguage('fr'))
+    expect(hook.result.current.modalOpen).toBe(false)
+    act(() => hook.result.current.requestUpgrade())
+    expect(hook.result.current.modalOpen).toBe(true)
+  })
+
+  it('download failure stays in grammar-only (not off) with a notice', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { hook, setNotice } = setup({
+        engine: new FakeLlmEngine({ failLoad: true }),
+      })
+      await waitFor(() =>
+        expect(hook.result.current.internal).toEqual({ phase: 'off' }),
+      )
+      act(() => hook.result.current.setLanguage('fr')) // on/grammar + pendingLang fr, modal open
+      act(() => hook.result.current.requestDownload())
+      await waitFor(() =>
+        expect(hook.result.current.internal).toEqual({
+          phase: 'on',
+          language: 'fr',
+          model: 'grammar',
+        }),
+      )
+      expect(setNotice).toHaveBeenCalled()
+    } finally {
+      errSpy.mockRestore()
+    }
+  })
+
+  it('successful download upgrades to on/full', async () => {
+    const { hook } = setup({
+      engine: new FakeLlmEngine({
+        progress: [{ loaded: 1, total: 1, text: 'done' }],
+      }),
+    })
+    await waitFor(() =>
+      expect(hook.result.current.internal).toEqual({ phase: 'off' }),
+    )
+    act(() => hook.result.current.setLanguage('fr'))
+    act(() => hook.result.current.requestDownload())
+    await waitFor(() =>
+      expect(hook.result.current.internal).toEqual({
+        phase: 'on',
+        language: 'fr',
+        model: 'full',
+      }),
+    )
+  })
+
+  it('demoteToGrammar flips on/full → on/grammar (idempotent on grammar)', async () => {
+    const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
+    await waitFor(() => expect(hook.result.current.installed).toBe(true))
+    act(() => hook.result.current.setLanguage('fr')) // on/full
+    act(() => hook.result.current.demoteToGrammar())
+    expect(hook.result.current.internal).toEqual({
+      phase: 'on',
+      language: 'fr',
+      model: 'grammar',
+    })
+    act(() => hook.result.current.demoteToGrammar()) // no-op when already grammar
+    expect(hook.result.current.internal).toEqual({
+      phase: 'on',
+      language: 'fr',
+      model: 'grammar',
+    })
+  })
+
+  it('reload with a persisted language restores grammar-only when uncached', async () => {
+    writeNlPref({ language: 'es' })
+    const { hook } = setup() // not cached
+    await waitFor(() =>
+      expect(hook.result.current.internal).toEqual({
+        phase: 'on',
+        language: 'es',
+        model: 'grammar',
+      }),
+    )
+  })
+
+  it('reload with a persisted language restores full when cached', async () => {
+    writeNlPref({ language: 'es' })
+    const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
+    await waitFor(() =>
+      expect(hook.result.current.internal).toEqual({
+        phase: 'on',
+        language: 'es',
+        model: 'full',
+      }),
+    )
   })
 })

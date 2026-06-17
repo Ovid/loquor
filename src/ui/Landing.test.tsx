@@ -12,6 +12,34 @@ describe('Landing', () => {
     fireEvent.click(screen.getByText(/Light the lamp/))
     expect(onEnter).toHaveBeenCalledWith('zork2')
   })
+  it('exposes the volumes as a named radiogroup with arrow-key selection (M2)', () => {
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    const group = screen.getByRole('radiogroup', {
+      name: /choose your descent/i,
+    })
+    const radios = screen.getAllByRole('radio')
+    expect(radios).toHaveLength(3)
+    // Zork I is selected by default.
+    expect(radios[0]).toHaveAttribute('aria-checked', 'true')
+    expect(radios[0]).toHaveAttribute('tabindex', '0')
+    expect(radios[1]).toHaveAttribute('tabindex', '-1')
+    // ArrowRight moves the checked state to the next volume.
+    fireEvent.keyDown(group, { key: 'ArrowRight' })
+    expect(screen.getAllByRole('radio')[1]).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+  })
+
+  it('renders the initial landing inside a main landmark (m1)', () => {
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    expect(screen.getByRole('main')).toBeInTheDocument()
+  })
+
   it('shows a resume hint for saved games', () => {
     render(
       <Landing
@@ -56,5 +84,23 @@ describe('Landing', () => {
     )
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(onDismiss).toHaveBeenCalledTimes(1)
+  })
+  it('traps Tab within the plate so focus cannot reach the game behind it', () => {
+    render(
+      <Landing
+        onEnter={() => {}}
+        savedSlugs={new Set()}
+        themeToggle={null}
+        onDismiss={() => {}}
+      />,
+    )
+    const focusables = screen.getAllByRole('button')
+    const last = focusables[focusables.length - 1]
+    last.focus()
+    expect(document.activeElement).toBe(last)
+    // Tab from the last control wraps back to the first (the dismiss button),
+    // rather than escaping into the dimmed game.
+    fireEvent.keyDown(document, { key: 'Tab' })
+    expect(document.activeElement).toBe(focusables[0])
   })
 })

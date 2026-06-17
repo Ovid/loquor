@@ -40,6 +40,10 @@ import { createFallbackResolver, type OverlayState } from './fallbackResolve'
 export interface DisplayLine extends BufferLine {
   /** True while the LLM fallback is in flight (renders the shimmer). */
   pending?: boolean
+  /** The natural language this line's text is actually in (3.1.2), e.g. 'fr'.
+   * Set on translated output/room lines and on the player's nl-source input;
+   * absent means English (the document's default), so it carries no attribute. */
+  lang?: LexLang
 }
 
 /** The overlay's render output. NOTE: producing it is effectful — see the
@@ -187,6 +191,13 @@ export function useOutputTranslation(args: {
   // corpus, and settle() rebuilds it under the new tag.)
   useEffect(() => {
     epochRef.current++
+    // Abort any in-flight generation from the previous language so it releases
+    // the shared engine gate immediately, instead of holding it until its
+    // watchdog (XLATE_WATCHDOG_MS) fires — otherwise the new language's first
+    // translation waits behind a result that's already epoch-invalidated and
+    // will be discarded anyway (review S7). Mirrors the unmount teardown.
+    for (const ac of acsRef.current) ac.abort()
+    acsRef.current.clear()
     backlogRef.current = new Set(viewRef.current.lines.map(l => l.id))
     basisRef.current = new Map()
     retryRef.current = new Map()
@@ -309,16 +320,26 @@ export function useOutputTranslation(args: {
   }, [view, corpus, lang, signature, engine, gate, watchdogMs])
 
   const lines: DisplayLine[] = useMemo(() => {
-    if (!corpus || lang === null) return view.lines
+    // en/off: pure passthrough — keep the array identity (callers/tests rely on
+    // it; no nl-source language to mark since the input was English).
+    if (lang === null) return view.lines
+    // Mark the player's typed input (nl-source) with the active language so a
+    // screen reader pronounces it right (3.1.2). Applies to every active
+    // language, including any without a corpus that otherwise falls through
+    // untranslated below.
+    const tag = (l: BufferLine): DisplayLine =>
+      l.kind === 'nl-source' ? { ...l, lang } : l
+
+    if (!corpus) return view.lines.map(tag)
     // A map built against another corpus is stale — ignore it wholesale.
     const resolved = overlay.for === corpus ? overlay.map : null
     return view.lines.map(l => {
-      if (l.kind !== 'output' && l.kind !== 'room') return l
+      if (l.kind !== 'output' && l.kind !== 'room') return tag(l)
       const { indent, body } = splitIndent(l.text)
       const en = normalize(body)
       if (untranslatable(en)) return l
       const hit = matchLine(corpus, en)
-      if (hit !== null) return { ...l, text: indent + hit }
+      if (hit !== null) return { ...l, text: indent + hit, lang }
       // Loud Room input-echo (F6): substitute the player's own last word so the
       // echo reads in their language ("mira mira ..."). Deterministic, so it
       // takes precedence over any in-flight LLM overlay for this line. The
@@ -331,7 +352,7 @@ export function useOutputTranslation(args: {
       if (isLoudEchoShape(en)) {
         const d = echoDecision(l, en, view.status?.location, echoMap)
         if (typeof d === 'string')
-          return { ...l, text: indent + `${d} ${d} ...` }
+          return { ...l, text: indent + `${d} ${d} ...`, lang }
         if (d === false) return l
       }
       const o = resolved?.get(l.id)
@@ -339,8 +360,13 @@ export function useOutputTranslation(args: {
       // stale for THIS text — ignore it (English) until the new text settles.
       if (o !== undefined && o.en === en) {
         if (o.res === 'pending')
-          return { ...l, text: indent + shimmerLabel(lang), pending: true }
-        if (o.res !== 'english') return { ...l, text: indent + o.res }
+          return {
+            ...l,
+            text: indent + shimmerLabel(lang),
+            pending: true,
+            lang,
+          }
+        if (o.res !== 'english') return { ...l, text: indent + o.res, lang }
       }
       return l // backlog miss, failure, or superseded entry → English
     })

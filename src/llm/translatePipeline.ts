@@ -49,6 +49,8 @@ import {
   couldntTranslate,
   ranOfActions,
   queueClearedNeedsAnswer,
+  modelDownloadFailed,
+  grammarOnlyFirstMiss,
 } from './notices'
 import { createLogger } from '../logger'
 import type { Internal } from './useModelDownload'
@@ -82,6 +84,24 @@ export class WatchdogTimeout extends Error {
   constructor() {
     super('watchdog')
     this.name = 'WatchdogTimeout'
+  }
+}
+
+/**
+ * Clause-time model **load** failure (lazy load into VRAM threw or its watchdog
+ * fired) — distinct from a generate-time WatchdogTimeout. Only this demotes a
+ * `full` language to grammar-only: a load failure means the model can't run at
+ * all, whereas a generate stall is per-clause and keeps `full`. Carries the
+ * underlying cause for the diagnostic log.
+ */
+export class ModelLoadError extends Error {
+  // Plain field assignment (not a parameter property): `tsconfig`'s
+  // `erasableSyntaxOnly` forbids constructor parameter-property shorthand.
+  readonly reason?: unknown
+  constructor(reason?: unknown) {
+    super('model-load')
+    this.name = 'ModelLoadError'
+    this.reason = reason
   }
 }
 
@@ -202,6 +222,11 @@ export function createGenerateRaw(deps: GenerateRawDeps): GenerateRaw {
             engine.load(() => {}, loadAc.signal),
             loadWatchdog,
           ])
+        } catch (err) {
+          // A load failure (watchdog or engine.load reject) demotes full →
+          // grammar (see createTranslate). Wrap so the caller can tell it apart
+          // from a generate-time WatchdogTimeout, which does NOT demote.
+          throw new ModelLoadError(err)
         } finally {
           clearTimeout(loadId!)
           // DELIBERATELY NOT awaiting the orphaned load (review I3): when the
@@ -260,6 +285,7 @@ export async function runClause(
   scene: Scene,
   activeLang: ActiveLanguage,
   lex: Lex | null,
+  grammarOnly: boolean,
   deps: ClauseDeps,
 ): Promise<{ result: TranslateResult; raw: string; stage: Stage }> {
   const { vocab, grammar, generateRaw, getContext } = deps
@@ -316,7 +342,11 @@ export async function runClause(
     if (r.kind === 'command')
       return { result: r, raw: '(lexicon)', stage: 'lexicon' }
   }
-  // 7. LLM fallback. NL v2 §7: the grammar is the FULL vocab — scope
+  // 7. LLM fallback — skipped in grammar-only: abstain so stage 8 applies the
+  //    existing policy (EN raw-send / non-EN notice). The engine is never touched.
+  if (grammarOnly)
+    return { result: { kind: 'abstain' }, raw: '(grammar-only)', stage: 'llm' }
+  // NL v2 §7: the grammar is the FULL vocab — scope
   // feeds the prompt hint below, never the grammar or the validator.
   const base = getContext()
   const ctx: PromptContext = {
@@ -357,6 +387,10 @@ export interface TranslateDeps {
   inSequenceRef: MutableRefObject<boolean>
   epochRef: MutableRefObject<number>
   liveRef: MutableRefObject<LiveState>
+  /** Flip the active language full → grammar after a clause-time load failure. */
+  demote: () => void
+  /** First-abstain education latch (once per grammar-only stint). */
+  educatedRef: MutableRefObject<boolean>
   setPending: Dispatch<SetStateAction<boolean>>
   setNotice: Dispatch<SetStateAction<string | null>>
   syncQueue: () => void
@@ -370,7 +404,7 @@ export interface TranslateDeps {
  */
 export function createTranslate(
   deps: TranslateDeps,
-): (english: string) => Promise<void> {
+): (english: string) => Promise<string | null> {
   const {
     internal,
     vocab,
@@ -390,6 +424,8 @@ export function createTranslate(
     inSequenceRef,
     epochRef,
     liveRef,
+    demote,
+    educatedRef,
     setPending,
     setNotice,
     syncQueue,
@@ -397,6 +433,10 @@ export function createTranslate(
 
   return async (english: string) => {
     const tracker = trackerRef.current
+    // Set to the typed line when it sends nothing and should be restored to the
+    // field (M8) — a non-English abstain/timeout/failure. Stays null when the
+    // line is consumed (sent, queued, raw, or English raw-send).
+    let retainTyped: string | null = null
     // The live picker language for notices set OUTSIDE runLine (queue guard /
     // drain), where runLine's per-line `activeLang` isn't in scope (F1). Falls
     // back to 'en' when the layer isn't 'on' — defensive; the call sites below
@@ -413,7 +453,7 @@ export function createTranslate(
     if (internal.phase !== 'on' || vocab === null || tracker === null) {
       lastCommandRef.current = null
       sendLine(english)
-      return
+      return null
     }
     // A translation is already in flight — QUEUE this line instead of dropping
     // it (F-A, NL v2 §11): the input stays enabled while NL is on, so typing
@@ -424,11 +464,11 @@ export function createTranslate(
     if (translatingRef.current) {
       if (queueRef.current.length >= QUEUE_CAP) {
         setNotice(queueFullDropped(liveLang(), english))
-        return
+        return null
       }
       queueRef.current.push({ id: queueIdRef.current++, text: english })
       syncQueue()
-      return
+      return null
     }
     // [O] Snapshot the story epoch: the drain abandons everything (in-flight
     // results included) once the game underneath it changes.
@@ -484,6 +524,25 @@ export function createTranslate(
       sendLine(text)
     }
 
+    // Shared abstain-on-error action (review S6): a translator failure (timeout
+    // or engine fault) on a line. EN raw-sends the typed line (the Z-parser's
+    // own error is useful) with a "sent as typed" notice; a non-EN line sends
+    // NOTHING — raw FR/DE/ES earns only a useless "I don't know the word…" and
+    // burns a game turn — and shows a notice instead. Used by both the in-runLine
+    // stage-8 path and the drain's per-line catch.
+    const abstainOnError = (
+      lang: ActiveLanguage,
+      line: string,
+      timedOut: boolean,
+    ) => {
+      if (lang === 'en') {
+        sendTracked(line)
+        setNotice(sentAsTyped(timedOut))
+      } else {
+        setNotice(nothingSent(lang, timedOut))
+      }
+    }
+
     // Run ONE LINE through the full pipeline (stages 1–8). Returns 'flush'
     // when the game raised an interactive prompt: queued lines were typed
     // BEFORE the player saw that question, so the drain must discard them
@@ -508,6 +567,10 @@ export function createTranslate(
       const activeLang: ActiveLanguage =
         live.internal.phase === 'on' ? live.internal.language : 'en'
       const lex = live.lex
+      // Grammar-only: the model isn't loaded for this stint, so stage 7 abstains
+      // (runClause skips the engine) and stage 8 educates / EN raw-sends.
+      const grammarOnly =
+        live.internal.phase === 'on' && live.internal.model === 'grammar'
       // STAGE 1 (spec §4): the game is asking. The interpreter's yes/no
       // confirmations (restart/quit/restore), the parser's disambiguation
       // questions ("Which door…?"), and the parser's orphan prompts ("What do
@@ -597,9 +660,20 @@ export function createTranslate(
             scene,
             activeLang,
             lex,
+            grammarOnly,
             clauseDeps,
           ))
         } catch (err) {
+          // A clause-time model LOAD failure demotes full → grammar for the rest
+          // of the session and stops; stage 8 surfaces the shared basic-mode
+          // notice (EN raw-send / non-EN nothing-sent). Handled FIRST so it can't
+          // be mistaken for a generate-time error or rethrown as a bare timeout.
+          if (err instanceof ModelLoadError) {
+            demote()
+            stopReason = 'load-failed'
+            stopError = err
+            break
+          }
           // Single command: surface through the outer catch (timeout/failure
           // notice + raw send — unchanged contract). Mid-compound: stop the
           // sequence (locked decision 4).
@@ -702,8 +776,14 @@ export function createTranslate(
       // A genuine engine error mid-compound never propagates to the drain's
       // catch (total>1 swallows it above), so it is logged HERE, before any
       // branching, to keep the "generate failures stay diagnosable"
-      // contract on every path ([B]).
-      if (stopError !== null && !(stopError instanceof WatchdogTimeout))
+      // contract on every path ([B]). A ModelLoadError is NOT a generate fault
+      // — it is a known degradation handled by demoting to grammar-only — so it
+      // is excluded (it would otherwise log on every clause-time load failure).
+      if (
+        stopError !== null &&
+        !(stopError instanceof WatchdogTimeout) &&
+        !(stopError instanceof ModelLoadError)
+      )
         log.error('translation failed:', stopError)
 
       if (done === 0) {
@@ -716,21 +796,34 @@ export function createTranslate(
         // masquerade as a deliberate abstain — it gets the failure notice.
         lastCommandRef.current = null
         if (stopError !== null) {
-          // The translator broke (timeout/engine error) — don't blame the
-          // player's wording (Task 21 review).
-          const timedOut = stopError instanceof WatchdogTimeout
-          if (activeLang === 'en') {
-            sendTracked(line)
-            setNotice(sentAsTyped(timedOut))
+          if (stopError instanceof ModelLoadError) {
+            // Clause-time load failure (demote already fired): the shared
+            // basic-mode notice; EN still raw-sends the typed line.
+            setNotice(modelDownloadFailed(activeLang))
+            if (activeLang === 'en') sendTracked(line)
           } else {
-            // Nothing was sent: the non-EN abstain policy still holds.
-            setNotice(nothingSent(activeLang, timedOut))
+            // The translator broke (timeout/engine error) — don't blame the
+            // player's wording (Task 21 review).
+            abstainOnError(
+              activeLang,
+              line,
+              stopError instanceof WatchdogTimeout,
+            )
           }
         } else if (activeLang === 'en') {
           sendTracked(line)
+        } else if (grammarOnly && !educatedRef.current) {
+          // First grammar-only abstain this stint: connect the miss to the
+          // declined/absent upgrade at the moment of confusion (once per stint).
+          educatedRef.current = true
+          setNotice(grammarOnlyFirstMiss(activeLang))
         } else {
           setNotice(couldntTranslate(activeLang))
         }
+        // Every non-English branch above sends NOTHING (only the EN arms
+        // raw-send); when that nothing-sent line is the player's typed input,
+        // hand it back so the field can restore it instead of discarding it (M8).
+        if (!fromQueue && activeLang !== 'en') retainTyped = line
       } else if (done < total) {
         // Truncated sequence → make it visible (decision 7); an engine
         // error labels the notice so it can't pass for a quiet stop ([B]).
@@ -797,22 +890,31 @@ export function createTranslate(
           // benign watchdog timeout) is logged so the root cause stays
           // diagnosable, and the drain continues.
           lastCommandRef.current = null
+          // Backstop: a clause-time load failure that reaches the drain catch
+          // (e.g. a future rethrow path) must still demote + show the shared
+          // basic-mode notice, then advance the drain like a normal stop. The
+          // in-runLine stage-8 path handles the total===1 case directly today,
+          // but mirroring it here keeps the contract on every path.
+          if (err instanceof ModelLoadError) {
+            demote()
+            const lang = liveLang()
+            setNotice(modelDownloadFailed(lang))
+            if (lang === 'en') sendTracked(line)
+            else if (!fromQueue) retainTyped = line // non-EN nothing-sent (M8)
+            inSequenceRef.current = false
+            line = queueRef.current.shift()?.text
+            fromQueue = true
+            syncQueue()
+            settled = null
+            continue
+          }
           if (!(err instanceof WatchdogTimeout))
             log.error('translation failed:', err)
-          // F2/F-R: honor stage-8's abstain policy here too. EN raw-sends (the
-          // Z-parser's own error is useful); a non-EN line must NOT raw-send
-          // untranslated FR/DE/ES — that only earns a useless "I don't know the
-          // word…" AND burns a turn — so send NOTHING and show a notice. (The
-          // in-runLine stage-8 path already does this; this outer catch
-          // catches the total===1 rethrow that bypassed it.)
-          const lang = liveLang()
-          const timedOut = err instanceof WatchdogTimeout
-          if (lang === 'en') {
-            setNotice(sentAsTyped(timedOut))
-            sendTracked(line)
-          } else {
-            setNotice(nothingSent(lang, timedOut))
-          }
+          // F2/F-R: honor stage-8's abstain policy here too (this outer catch
+          // catches the total===1 rethrow that bypassed the in-runLine path).
+          abstainOnError(liveLang(), line, err instanceof WatchdogTimeout)
+          // Non-EN abstainOnError sends nothing → restore the typed line (M8).
+          if (!fromQueue && liveLang() !== 'en') retainTyped = line
         }
         // A compound that stopped mid-sequence leaves this set; reset it per
         // line so Terminal's observe effect resumes for later queued lines.
@@ -876,6 +978,7 @@ export function createTranslate(
       setPending(false)
       inSequenceRef.current = false
     }
+    return retainTyped
   }
 }
 

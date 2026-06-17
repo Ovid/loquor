@@ -1,6 +1,12 @@
 import { describe, it, expect, vi } from 'vitest'
 import 'fake-indexeddb/auto'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { Terminal } from './Terminal'
 import { WebLlmEngine } from '../llm/engine.webllm'
@@ -30,6 +36,7 @@ describe('Terminal', () => {
     render(
       <Terminal
         storyBytes={bytes}
+        storyTitle="Zork I"
         onChangeStory={() => {}}
         themeToggle={null}
       />,
@@ -57,6 +64,7 @@ describe('Terminal', () => {
     render(
       <Terminal
         storyBytes={new Uint8Array([1, 2, 3, 4])}
+        storyTitle="Zork I"
         onChangeStory={() => {}}
         themeToggle={null}
       />,
@@ -69,7 +77,7 @@ describe('Terminal', () => {
 
   it('renders queued lines with a "queued" chip and keeps the input enabled (F-A)', async () => {
     nlOverride = {
-      state: { phase: 'on', language: 'en' },
+      state: { phase: 'on', language: 'en', model: 'full', canUpgrade: true },
       pending: true,
       queued: [{ id: 0, text: 'take the lamp' }],
     }
@@ -77,6 +85,7 @@ describe('Terminal', () => {
       render(
         <Terminal
           storyBytes={bytes}
+          storyTitle="Zork I"
           onChangeStory={() => {}}
           themeToggle={null}
         />,
@@ -87,9 +96,35 @@ describe('Terminal', () => {
       )
       expect(screen.getByText(/take the lamp/)).toBeInTheDocument()
       // F-A: while NL is on, a mid-translation line queues — the input field
-      // must stay ENABLED even though a translation is pending.
-      const input = screen.getByPlaceholderText('type a command…')
+      // must stay ENABLED even though a translation is pending. With NL on the
+      // placeholder signals plain-language input (S3), not the classic copy.
+      const input = screen.getByPlaceholderText(/plain English/)
       expect(input).not.toBeDisabled()
+    } finally {
+      nlOverride = null
+    }
+  })
+
+  it('surfaces an abstain notice in a role=status region, not the log (S1)', async () => {
+    nlOverride = {
+      state: { phase: 'on', language: 'fr', model: 'full', canUpgrade: true },
+      notice: 'Je n’ai pas compris. Essayez une formulation plus simple.',
+    }
+    try {
+      render(
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
+      )
+      // The notice must reach a screen reader as a status message, not buried
+      // in the sequential transcript log.
+      const status = await screen.findByRole('status', {}, { timeout: 8000 })
+      expect(
+        within(status).getByText(/Je n’ai pas compris/),
+      ).toBeInTheDocument()
     } finally {
       nlOverride = null
     }
@@ -100,7 +135,7 @@ describe('Terminal', () => {
     // when a wedged/slow drain coincided with switching NL off — the one
     // moment raw play must be reachable. The input is never pending-disabled.
     nlOverride = {
-      state: { phase: 'off', installed: true },
+      state: { phase: 'off', installed: true, canUpgrade: true },
       pending: true,
       queued: [],
     }
@@ -108,6 +143,7 @@ describe('Terminal', () => {
       render(
         <Terminal
           storyBytes={bytes}
+          storyTitle="Zork I"
           onChangeStory={() => {}}
           themeToggle={null}
         />,
@@ -123,12 +159,42 @@ describe('Terminal', () => {
     }
   })
 
+  it('makes the game inert behind the download/upgrade modal (M9)', async () => {
+    nlOverride = {
+      state: { phase: 'off', installed: false, canUpgrade: true },
+      modalOpen: true,
+    }
+    try {
+      const { container } = render(
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
+      )
+      await waitFor(
+        () => expect(screen.getByRole('dialog')).toBeInTheDocument(),
+        { timeout: 8000 },
+      )
+      // The transcript and status bar are inert; the modal (a sibling) is not.
+      expect(container.querySelector('main.term-main')).toHaveAttribute('inert')
+      expect(container.querySelector('header.statusbar')).toHaveAttribute(
+        'inert',
+      )
+      expect(screen.getByRole('dialog').closest('[inert]')).toBeNull()
+    } finally {
+      nlOverride = null
+    }
+  })
+
   it('renders English transcript unchanged when NL is off (output-translation passthrough)', async () => {
     // With NL off (default phase), useOutputTranslation is a passthrough — the
     // English ViewState lines must reach the DOM unmodified (spec §3).
     render(
       <Terminal
         storyBytes={bytes}
+        storyTitle="Zork I"
         onChangeStory={() => {}}
         themeToggle={null}
       />,
@@ -148,6 +214,7 @@ describe('Terminal', () => {
     const { unmount } = render(
       <Terminal
         storyBytes={bytes}
+        storyTitle="Zork I"
         onChangeStory={() => {}}
         themeToggle={null}
       />,
@@ -171,6 +238,7 @@ describe('Terminal', () => {
       const { unmount } = render(
         <Terminal
           storyBytes={bytes}
+          storyTitle="Zork I"
           onChangeStory={() => {}}
           themeToggle={null}
         />,

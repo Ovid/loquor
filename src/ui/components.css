@@ -12,6 +12,15 @@
   flex-direction: column;
   align-items: stretch;
 }
+/* <main> landmark wrapping the transcript. display:contents would drop the role
+   in some engines, so it's a real flex box: take the remaining column height and
+   let the .scroll child own the overflow (min-height:0 frees it to shrink). */
+.term-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
 
 /* ---------- Theme toggle button ---------- */
 /* shared small theme control — used inside the plate and the status bar, never floating */
@@ -19,7 +28,7 @@
   cursor: pointer;
   font-family: 'IM Fell English', serif;
   font-style: italic;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--brass-soft);
   background: transparent;
   border: 1px solid var(--rule);
@@ -32,6 +41,11 @@
   border-color: var(--brass);
   color: var(--brass);
 }
+.themebtn:focus-visible {
+  border-color: var(--brass);
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
 
 /* ---------- StatusBar ---------- */
 .statusbar {
@@ -42,7 +56,7 @@
   background: var(--status-grad);
   border-bottom: 1px solid var(--rule);
   padding: 9px 18px;
-  font-size: 13px;
+  font-size: 0.8125rem;
   transition: background 0.5s;
 }
 
@@ -51,7 +65,7 @@
   font-family: 'IM Fell English SC', serif;
   color: var(--brass);
   letter-spacing: 0.5px;
-  font-size: 15px;
+  font-size: 0.9375rem;
   text-shadow: var(--loc-shadow);
   flex: 1;
   min-width: 0;
@@ -79,7 +93,13 @@
   font: inherit;
   background: none;
   border: none;
-  padding: 0;
+  /* Standalone toolbar controls need a real hit area (>=24px) for touch /
+     head-pointer / eye-gaze users (2.5.8) — the inline-text exception is too
+     shaky here, so pad to the minimum target like the modal buttons. */
+  padding: 4px 6px;
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
 }
 .meta .sw:hover {
   color: var(--brass);
@@ -94,7 +114,7 @@
   flex: 1;
   overflow-y: auto;
   padding: 30px 8vw 10px;
-  font-size: 15px;
+  font-size: 0.9375rem;
   line-height: 1.65;
   max-width: 920px;
   width: 100%;
@@ -126,7 +146,7 @@
 .scroll .room {
   color: var(--brass);
   font-family: 'IM Fell English SC', serif;
-  font-size: 17px;
+  font-size: 1.0625rem;
   letter-spacing: 0.4px;
 }
 .scroll p {
@@ -180,17 +200,27 @@
   outline: 0;
   color: var(--text);
   font-family: 'JetBrains Mono', monospace;
-  font-size: 15px;
+  font-size: 0.9375rem;
   caret-color: var(--brass);
 }
 .cmd::placeholder {
+  /* No opacity dim: --text-dim alone clears 4.5:1 in both themes; at 0.6 the
+     light placeholder was 2.40:1 (1.4.3). */
   color: var(--text-dim);
-  opacity: 0.6;
+}
+/* The primary control: it clears its default outline for the inline look, so it
+   must supply its own visible focus ring (2.4.7). */
+.cmd:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: 3px;
 }
 
-/* Player's literal English before NL translation — muted vs. the VM's echo. */
+/* Player's literal English before NL translation — muted vs. the VM's echo.
+   0.78 (not 0.65) so the light-theme text clears 4.5:1 (1.4.3); the worded
+   `you` label already distinguishes it without relying on the dim (1.4.1). */
 .nl-source {
-  opacity: 0.65;
+  opacity: 0.78;
   font-style: italic;
 }
 /* Worded 'you' label for the player's pre-translation line (NL v2 §12). */
@@ -229,7 +259,10 @@
 
 /* Transient "…thinking" while a translation is in flight. */
 .nl-thinking {
-  opacity: 0.6;
+  /* No opacity dim: --text-dim alone clears 4.5:1 in both themes; at 0.6 the
+     light text was 3.45:1 (1.4.3), the same anti-pattern fixed for the
+     placeholder and nl-source. */
+  color: var(--text-dim);
   font-style: italic;
 }
 /* Watchdog/timeout/error notice — distinguishable from a normal abstain. */
@@ -252,7 +285,7 @@
 }
 .nl-caret {
   margin-left: 5px;
-  font-size: 9px;
+  font-size: 0.5625rem;
   color: var(--brass-soft);
   transition: color 0.2s;
 }
@@ -327,6 +360,11 @@
   line-height: 1.5;
   margin: 0 0 1rem;
 }
+.modal-warn {
+  border-left: 3px solid var(--brass-soft);
+  padding-left: 0.65rem;
+  color: var(--text);
+}
 .modal progress {
   width: 100%;
   accent-color: var(--brass);
@@ -342,8 +380,16 @@
   font: inherit;
   background: none;
   border: none;
-  padding: 0;
+  /* Standalone dialog buttons — give them a real hit area (>=24px) for touch /
+     head-pointer / eye-gaze users (2.5.8); they don't get the inline-text
+     exception the status-bar switches do. */
+  padding: 6px 10px;
+  min-height: 24px;
 }
 .modal .sw:hover {
   color: var(--brass);
+}
+.modal .sw:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
 }

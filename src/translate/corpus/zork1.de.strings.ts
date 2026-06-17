@@ -1412,7 +1412,8 @@ export const ZORK1_DE_STRINGS: Readonly<Record<string, string>> = {
     'Die Nägel, tief in die Tür eingelassen, lassen sich nicht entfernen.',
   'There are no stairs leading down.':
     'Es gibt keine Treppe, die nach unten führt.',
-  'ZORK: The Great Underground Empire.': 'ZORK: Das Große Unterirdische Imperium.',
+  'ZORK: The Great Underground Empire.':
+    'ZORK: Das Große Unterirdische Imperium.',
   'The door is too heavy.': 'Die Tür ist zu schwer.',
   'You see a rickety staircase descending into darkness.':
     'Du siehst eine wackelige Treppe, die in die Dunkelheit hinabführt.',

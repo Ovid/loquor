@@ -23,7 +23,7 @@ async function loadStory(file: string): Promise<Uint8Array> {
 }
 
 export default function App() {
-  const { toggle } = useTheme()
+  const { theme, toggle } = useTheme()
   const [slug, setSlug] = useState<Game['slug'] | null>(null)
   const [bytes, setBytes] = useState<Uint8Array | null>(null)
   const [savedSlugs, setSavedSlugs] = useState<Set<string>>(new Set())
@@ -77,15 +77,19 @@ export default function App() {
     }
   }
 
-  const toggleEl = <ThemeToggle onToggle={toggle} />
+  const toggleEl = <ThemeToggle theme={theme} onToggle={toggle} />
   const inGame = slug && bytes
   return (
     <>
       {inGame && (
         <Terminal
           storyBytes={bytes}
+          storyTitle={gameBySlug(slug)!.title}
           themeToggle={toggleEl}
           onChangeStory={() => setPicking(true)}
+          // The change-story overlay covers the game → make it inert so a
+          // virtual cursor can't wander behind the dialog (M9).
+          backgroundInert={picking}
         />
       )}
       {(!inGame || picking) && (

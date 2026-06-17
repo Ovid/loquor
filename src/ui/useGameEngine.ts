@@ -65,23 +65,24 @@ export function useGameEngine(storyBytes: Uint8Array): {
 }
 
 /**
- * Detect the device's LLM capability tier once, re-running when the player forces
- * an override (the NL picker's "try anyway").
+ * Detect the device's LLM capability tier once on mount. (The picker's "try the
+ * model anyway" now routes through the upgrade modal, not a detection override,
+ * so this no longer takes an override knob — review S4.)
  */
-export function useCapability(override: boolean): CapabilityResult {
+export function useCapability(): CapabilityResult {
   const [capability, setCapability] = useState<CapabilityResult>({
     tier: 'none',
     reasons: [],
   })
   useEffect(() => {
     let cancelled = false
-    detectCapability({ navigator: navigator as never }, override).then(c => {
+    detectCapability({ navigator: navigator as never }).then(c => {
       if (!cancelled) setCapability(c)
     })
     return () => {
       cancelled = true
     }
-  }, [override])
+  }, [])
   return capability
 }
 

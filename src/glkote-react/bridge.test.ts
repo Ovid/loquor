@@ -276,3 +276,31 @@ describe('GlkOteBridge', () => {
     expect(both.map(r => r.reason)).toEqual(['line', 'line'])
   })
 })
+
+describe('canonical send flagging', () => {
+  // Input-echo update shape (matches reduce's buffer-paragraph contract).
+  const echoUpdate = (cmd: string) => ({
+    type: 'update' as const,
+    content: [{ text: [{ append: true, content: ['input', cmd] }] }],
+    input: [{ type: 'line', id: 1, gen: 0 }],
+  })
+
+  it('sendLineCanonical makes the next echo render nl-canonical', () => {
+    let view: any
+    const bridge = new GlkOteBridge(v => (view = v))
+    bridge.init({ accept: vi.fn() })
+    bridge.echoLocal('arriba') // the player's Spanish, UI-only
+    bridge.sendLineCanonical('up') // canonical send → arms the flag
+    bridge.update(echoUpdate('up') as any)
+    expect(view.lines.at(-1)).toMatchObject({ kind: 'nl-canonical', text: 'up' })
+  })
+
+  it('plain sendLine leaves the next echo as input', () => {
+    let view: any
+    const bridge = new GlkOteBridge(v => (view = v))
+    bridge.init({ accept: vi.fn() })
+    bridge.sendLine('up')
+    bridge.update(echoUpdate('up') as any)
+    expect(view.lines.at(-1)).toMatchObject({ kind: 'input', text: 'up' })
+  })
+})

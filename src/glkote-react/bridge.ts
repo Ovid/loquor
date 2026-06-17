@@ -50,6 +50,14 @@ export class GlkOteBridge implements GlkOteDisplay {
    * for a future display-injected [MORE] marker if the UI ever needs it.
    */
   private charIsMore = false
+  /**
+   * Whether the most recent send was an NL-translated canonical command (set by
+   * sendLineCanonical, cleared by sendLine). Read in update() and handed to the
+   * reducer so EVERY echo of a translated turn — including compound clauses that
+   * land after intervening output — is tagged nl-canonical, not just the first.
+   * A labelling concern only: the command sent to the VM is identical.
+   */
+  private canonicalEcho = false
   /** Pending awaitTurn() resolvers, drained at the next turn boundary. */
   private turnResolvers: Array<(r: TurnResult) => void> = []
   /** Latches once onEnd has fired so a trailing update can't re-fire it. */
@@ -107,7 +115,7 @@ export class GlkOteBridge implements GlkOteDisplay {
     // it from a still-pending char prompt.
     if (arg.input !== undefined)
       this.charIsMore = (req as any)?.type === 'char' && isMorePrompt(arg)
-    this.view = reduce(this.view, arg)
+    this.view = reduce(this.view, arg, this.canonicalEcho)
     this.onState(this.view)
     // Turn boundary handling. The line path still fires onTurn AFTER onState so
     // observers see the settled view; the native autosave fires here too.
@@ -160,6 +168,22 @@ export class GlkOteBridge implements GlkOteDisplay {
   }
 
   sendLine(text: string) {
+    this.canonicalEcho = false
+    this.accept?.({
+      type: 'line',
+      gen: this.gen,
+      window: this.mainWindow,
+      value: text,
+    })
+  }
+
+  /**
+   * Like sendLine, but marks the send as an NL-translated canonical command so
+   * its VM echo renders as nl-canonical (hidden in debug-off). Used by the NL
+   * pipeline for every translated clause of a turn.
+   */
+  sendLineCanonical(text: string) {
+    this.canonicalEcho = true
     this.accept?.({
       type: 'line',
       gen: this.gen,

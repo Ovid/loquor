@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { Landing } from './Landing'
+import { LANDING_EXAMPLES } from './landingExamples'
 import { LS_KEYS } from '../storageKeys'
 
 describe('Landing', () => {
@@ -132,6 +133,30 @@ describe('Landing', () => {
     const es = screen.getByRole('radio', { name: 'Español' })
     fireEvent.click(es)
     expect(es).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('shows plain-language how-to copy, not the old canonical-command framing', () => {
+    render(<Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />)
+    expect(
+      screen.getByText(/Type what you want to do in plain language/i),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/the way the game expects it/i)).not.toBeInTheDocument()
+  })
+
+  it('shows English examples by default and localizes them on selection', () => {
+    render(<Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />)
+    const region = screen.getByRole('region', { name: /examples/i })
+    expect(region).toHaveTextContent(LANDING_EXAMPLES.en.join(' · '))
+    fireEvent.click(screen.getByRole('radio', { name: 'Français' }))
+    expect(region).toHaveTextContent(LANDING_EXAMPLES.fr.join(' · '))
+  })
+
+  it('announces example changes politely (aria-live)', () => {
+    render(<Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />)
+    expect(screen.getByRole('region', { name: /examples/i })).toHaveAttribute(
+      'aria-live',
+      'polite',
+    )
   })
 
   it('traps Tab within the plate so focus cannot reach the game behind it', () => {

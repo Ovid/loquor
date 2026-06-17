@@ -3,6 +3,7 @@ import { GAMES, type Game } from '../games/catalog'
 import { useFocusTrap } from './useFocusTrap'
 import { readNlPref, writeNlPref } from '../llm/nlpref'
 import { LANGUAGE_OPTIONS } from './languageOptions'
+import { LANDING_EXAMPLES } from './landingExamples'
 import type { NlLanguage } from '../llm/types'
 
 /** APG radio-pattern roving: arrows move selection AND focus among the radios
@@ -51,6 +52,9 @@ export function Landing({
   const [language, setLanguage] = useState<NlLanguage>(
     () => readNlPref().language,
   )
+  // Off and English both show the English example set (Off = English raw-send).
+  const exampleLang = language === 'off' || language === 'en' ? 'en' : language
+  const examples = LANDING_EXAMPLES[exampleLang]
   const dismissRef = useRef<HTMLButtonElement>(null)
   const plateRef = useRef<HTMLDivElement>(null)
   const volumesRef = useRef<HTMLDivElement>(null)
@@ -116,12 +120,15 @@ export function Landing({
         <h1 className="title">Loquor</h1>
         <p className="tagline">to speak, and be understood, in the dark</p>
         <div className="howto">
-          <b>How to play.</b> Type what you want to do, the way the game expects
-          it.
+          <b>How to play.</b> Type what you want to do in plain language.
           <br />
-          <span className="cmds">
-            look · go north · open mailbox · take lamp · read leaflet ·
-            inventory
+          <span
+            className="cmds"
+            role="region"
+            aria-label="Command examples"
+            aria-live="polite"
+          >
+            {examples.join(' · ')}
           </span>
           <br />
           <span style={{ opacity: 0.75 }}>

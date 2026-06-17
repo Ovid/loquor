@@ -259,6 +259,111 @@ describe('Terminal', () => {
     }
   })
 
+  // Option A (Georgian output-translation, spec §5): an OUTPUT_ONLY_LANGS
+  // language translates the DISPLAY but raw-sends English from the command
+  // field — exactly as 'off' does — and offers no model download/upgrade.
+  describe('output-only language (Option A)', () => {
+    it('ka: a typed command raw-sends English, never nl.translate', async () => {
+      const sendLine = vi.spyOn(ZMachine.prototype, 'sendLine')
+      const translate = vi.fn(async () => null)
+      nlOverride = {
+        state: {
+          phase: 'on',
+          language: 'ka',
+          model: 'grammar',
+          canUpgrade: true,
+        },
+        translate,
+      }
+      try {
+        render(
+          <Terminal
+            storyBytes={bytes}
+            storyTitle="Zork I"
+            onChangeStory={() => {}}
+            themeToggle={null}
+          />,
+        )
+        // Wait for the line-input request (input enabled) — the field carries
+        // the classic placeholder because NL INPUT is off for output-only ka.
+        const input = await screen.findByPlaceholderText(
+          'type a command…',
+          {},
+          { timeout: 8000 },
+        )
+        fireEvent.change(input, { target: { value: 'open mailbox' } })
+        fireEvent.submit(input)
+        expect(sendLine).toHaveBeenCalledWith('open mailbox')
+        expect(translate).not.toHaveBeenCalled()
+      } finally {
+        sendLine.mockRestore()
+        nlOverride = null
+      }
+    })
+
+    it('ka: selecting it does not auto-open the model-download modal', async () => {
+      nlOverride = {
+        state: {
+          phase: 'on',
+          language: 'ka',
+          model: 'grammar',
+          canUpgrade: true,
+        },
+        modalOpen: true,
+      }
+      try {
+        render(
+          <Terminal
+            storyBytes={bytes}
+            storyTitle="Zork I"
+            onChangeStory={() => {}}
+            themeToggle={null}
+          />,
+        )
+        await waitFor(
+          () =>
+            expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+          { timeout: 8000 },
+        )
+        expect(screen.queryByRole('dialog')).toBeNull()
+      } finally {
+        nlOverride = null
+      }
+    })
+
+    it('fr (regression): a typed command still routes through nl.translate', async () => {
+      const sendLine = vi.spyOn(ZMachine.prototype, 'sendLine')
+      const translate = vi.fn(async () => null)
+      nlOverride = {
+        state: { phase: 'on', language: 'fr', model: 'full', canUpgrade: true },
+        translate,
+      }
+      try {
+        render(
+          <Terminal
+            storyBytes={bytes}
+            storyTitle="Zork I"
+            onChangeStory={() => {}}
+            themeToggle={null}
+          />,
+        )
+        // fr engages NL input → the field carries the plain-language placeholder.
+        const input = await screen.findByPlaceholderText(
+          /écrivez en français/i,
+          {},
+          { timeout: 8000 },
+        )
+        fireEvent.change(input, { target: { value: 'ouvre la boîte' } })
+        fireEvent.submit(input)
+        expect(translate).toHaveBeenCalledWith('ouvre la boîte')
+        expect(sendLine).not.toHaveBeenCalled()
+      } finally {
+        sendLine.mockRestore()
+        nlOverride = null
+      }
+    })
+  })
+
   describe('preferences', () => {
     it('opens the Preferences modal from the ⚙ button and toggles debug', async () => {
       render(

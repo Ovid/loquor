@@ -29,6 +29,7 @@ import { selectedModelId } from '../llm/modelSelection'
 import { EngineGate } from '../shared/engineGate'
 import { GENERATE_WATCHDOG_MS } from '../llm/config'
 import type { LoadProgress } from '../llm/types'
+import { OUTPUT_ONLY_LANGS } from '../llm/types'
 import { createLogger } from '../logger'
 
 const log = createLogger('ui')
@@ -135,11 +136,21 @@ export function Terminal({
   // to the NL scene tracker, deferring to the hook during a compound sequence.
   useSceneObservation(nl, view)
 
-  // Output translation (display overlay — spec §3): same language the input
-  // layer is set to; passthrough for en/off.
+  // The active OUTPUT language drives the display overlay (incl. output-only
+  // languages like Georgian). `outputOnly` languages (OUTPUT_ONLY_LANGS) have a
+  // display corpus but no INPUT support yet (Phase 1): they translate output but
+  // raw-send English from the command field — exactly as 'off' does — so NL
+  // *input* is engaged only for a fully-supported on-language (`nlInputOn`).
+  const outLang = nl.state.phase === 'on' ? nl.state.language : 'off'
+  const outputOnly = outLang !== 'off' && OUTPUT_ONLY_LANGS.has(outLang)
+  const nlInputOn = nl.state.phase === 'on' && !outputOnly
+
+  // Output translation (display overlay — spec §3): the language the player
+  // picked drives the overlay (including output-only languages); passthrough
+  // for en/off.
   const xl = useOutputTranslation({
     view,
-    language: nl.state.phase === 'on' ? nl.state.language : 'off',
+    language: outLang,
     signature,
     engine: llmEngine,
     gate,
@@ -170,7 +181,9 @@ export function Terminal({
   // a screen-reader virtual cursor stays inside the dialog (aria-modal alone is
   // unevenly honored). The modal is a sibling below, so it stays operable (M9).
   const modalOpen =
-    nl.modalOpen || nl.state.phase === 'downloading' || prefsOpen
+    (nl.modalOpen && !outputOnly) ||
+    nl.state.phase === 'downloading' ||
+    prefsOpen
   const bgInert = backgroundInert || modalOpen
 
   return (
@@ -186,6 +199,7 @@ export function Terminal({
             state={nl.state}
             onSelect={nl.setLanguage}
             onUpgrade={nl.requestUpgrade}
+            hideUpgrade={outputOnly}
           />
         }
         prefsToggle={
@@ -248,22 +262,18 @@ export function Terminal({
             // When an NL language is on, the field accepts plain language — say
             // so in the label/placeholder, or the headline feature stays hidden
             // behind classic-parser copy (S3). Localized; English when off.
-            label={
-              nl.state.phase === 'on'
-                ? commandLabel(activeLang)
-                : 'Game command'
-            }
+            label={nlInputOn ? commandLabel(activeLang) : 'Game command'}
             placeholder={
-              nl.state.phase === 'on'
-                ? commandPlaceholder(activeLang)
-                : 'type a command…'
+              nlInputOn ? commandPlaceholder(activeLang) : 'type a command…'
             }
-            lang={nlLang}
+            lang={nlInputOn ? nlLang : undefined}
             restore={restore ?? undefined}
             onSubmit={text => {
               // The Loud Room echo is re-voiced per clause via recordEcho as the
               // pipeline sends each canonical command (loudEcho / F6).
-              if (nl.state.phase === 'on')
+              // Output-only languages (Georgian, Phase 1) are NOT nlInputOn: the
+              // field raw-sends English even while the display is translated.
+              if (nlInputOn)
                 void nl.translate(text).then(retained => {
                   // Non-EN abstain/timeout/failure sent nothing — restore the
                   // discarded line so it isn't lost (M8).
@@ -291,7 +301,7 @@ export function Terminal({
         </Scrollback>
       </main>
       <ModelDownloadModal
-        open={nl.modalOpen || nl.state.phase === 'downloading'}
+        open={(nl.modalOpen && !outputOnly) || nl.state.phase === 'downloading'}
         warn={
           (nl.state.phase === 'on' || nl.state.phase === 'off') &&
           !nl.state.canUpgrade

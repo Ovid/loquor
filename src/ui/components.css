@@ -233,6 +233,24 @@
   font-style: normal;
   color: var(--text-dim);
 }
+/* Inverted ‹you› badge for the player's pre-translation line in debug view.
+   bg = theme foreground (--text), text = theme background (--bg-base): a true
+   fg/bg inversion, so the contrast ratio is preserved in both light and dark
+   themes without any per-theme override. The pill shape (border-radius + padding)
+   is the non-colour cue required by WCAG 1.4.1 — state is not conveyed by
+   colour alone. No unit test: the invariant is structural (CSS variable inversion),
+   not a colour value that could be asserted numerically. */
+.you-pill {
+  display: inline-block;
+  padding: 0 6px;
+  margin-right: 6px;
+  border-radius: 8px;
+  font-size: 0.78em;
+  font-style: normal;
+  letter-spacing: 0.04em;
+  background: var(--text);
+  color: var(--bg-base);
+}
 /* 'queued' chip on lines waiting for the translator (NL v2 §11). */
 .chip {
   margin-left: 8px;

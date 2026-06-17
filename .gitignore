@@ -49,3 +49,7 @@ dist-ssr
 !.claude/
 .claude/*
 !.claude/settings.json
+
+# Dropped-in reference screenshots (not project assets)
+/screenshot.png
+/language-picker.png

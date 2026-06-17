@@ -31,6 +31,16 @@ function isBufferLine(l: unknown): l is BufferLine {
   )
 }
 
+// ponytail: cap the autosaved transcript tail. save_allstate() fires at EVERY
+// turn boundary, so carrying the full (ever-growing) view.lines re-serialized
+// O(transcript) into IndexedDB each turn — slower autosaves + unbounded storage
+// on long playthroughs (review I1). The tail is all a resume needs (it only has
+// to keep the recent nl-source/nl-canonical kinds the VM buffer replay can't
+// reproduce); deep scrollback is lost only on a page reload. In-memory scrollback
+// is untouched (a true transcript cap would be a player-facing change). Raise it
+// if reload-scrollback depth matters more than save cost.
+const SNAPSHOT_MAX_LINES = 500
+
 const METRICS = {
   width: 80,
   height: 50,
@@ -147,18 +157,34 @@ export class GlkOteBridge implements GlkOteDisplay {
     const restore = arg.autorestore
     // The snapshot is an UNVERSIONED IndexedDB blob keyed by story signature: a
     // future BufferLine schema change could hand back malformed lines from an
-    // older app version. Validate every element before trusting it; on any miss
-    // fall back to the reducer-built view (loses nl kinds, but never crashes the
-    // resume — review S2). Clamp nextId past every restored id so a stale/short
-    // snapshot can't reissue a live id and collide React keys (review S3).
-    if (restore && Array.isArray(restore.lines) && restore.lines.every(isBufferLine)) {
+    // older app version. Validate before trusting it; on any miss fall back to
+    // the reducer-built view (loses nl kinds, but never crashes the resume —
+    // review S2). The guards, beyond per-element well-formedness:
+    //   - length > 0: `[].every()` is true, so an empty array would pass and
+    //     blank the transcript instead of falling back (review I3).
+    //   - unique ids: duplicate ids → duplicate React keys (review S2).
+    //   - finite restored nextId: a string/NaN from a corrupt blob would poison
+    //     Math.max → NaN ids forever (review S1).
+    // Clamp nextId past every restored id so a stale/short snapshot can't
+    // reissue a live id and collide React keys (review S3).
+    const restoredNextId =
+      typeof restore?.nextId === 'number' && Number.isFinite(restore.nextId)
+        ? restore.nextId
+        : 0
+    if (
+      restore &&
+      Array.isArray(restore.lines) &&
+      restore.lines.length > 0 &&
+      restore.lines.every(isBufferLine) &&
+      new Set(restore.lines.map(l => l.id)).size === restore.lines.length
+    ) {
       const lines = restore.lines
       this.view = {
         ...this.view,
         lines,
         nextId: Math.max(
           this.view.nextId,
-          restore.nextId ?? 0,
+          restoredNextId,
           ...lines.map(l => l.id + 1),
         ),
       }
@@ -207,7 +233,7 @@ export class GlkOteBridge implements GlkOteDisplay {
     // survives a reload, and it stays in sync with the VM snapshot (same boundary).
     return {
       metrics: METRICS,
-      lines: this.view.lines,
+      lines: this.view.lines.slice(-SNAPSHOT_MAX_LINES),
       nextId: this.view.nextId,
     }
   }

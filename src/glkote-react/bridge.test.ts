@@ -422,4 +422,74 @@ describe('autosave round-trips NL line kinds (resume leak fix)', () => {
     } as any)
     expect(view.nextId).toBeGreaterThan(11)
   })
+
+  // I3: `[].every()` is true, so an empty `lines` array would pass the validator
+  // and replace the reduced view with zero lines — blanking the transcript on a
+  // no-output-moment snapshot. It must fall back to the reduced view instead.
+  it('rejects an empty autorestore lines array, keeping the reduced view (I3)', () => {
+    let view: any
+    const bridge = new GlkOteBridge(v => (view = v))
+    bridge.init({ accept: vi.fn() })
+    bridge.update({
+      type: 'update',
+      gen: 1,
+      content: [{ text: [{ content: ['normal', 'West of House'] }] }],
+      input: [{ type: 'line', id: 1, gen: 1 }],
+      autorestore: { lines: [], nextId: 5 },
+    } as any)
+    expect(view.lines.some((l: any) => l.text === 'West of House')).toBe(true)
+  })
+
+  // S2: duplicate ids among restored lines would mint duplicate React keys.
+  it('rejects autorestore lines with duplicate ids, keeping the reduced view (S2)', () => {
+    let view: any
+    const bridge = new GlkOteBridge(v => (view = v))
+    bridge.init({ accept: vi.fn() })
+    bridge.update({
+      type: 'update',
+      gen: 1,
+      content: [{ text: [{ content: ['normal', 'West of House'] }] }],
+      input: [{ type: 'line', id: 1, gen: 1 }],
+      autorestore: {
+        lines: [
+          { id: 5, kind: 'output', text: 'a' },
+          { id: 5, kind: 'output', text: 'b' },
+        ],
+        nextId: 9,
+      },
+    } as any)
+    expect(view.lines.some((l: any) => l.text === 'West of House')).toBe(true)
+  })
+
+  // S1: a non-finite restored nextId (string/NaN from a corrupt blob) must not
+  // poison Math.max → NaN ids forever; it is ignored and nextId stays finite.
+  it('ignores a non-finite restored nextId (S1)', () => {
+    let view: any
+    const bridge = new GlkOteBridge(v => (view = v))
+    bridge.init({ accept: vi.fn() })
+    bridge.update({
+      type: 'update',
+      gen: 1,
+      content: [{ text: [{ content: ['normal', 'West of House'] }] }],
+      input: [{ type: 'line', id: 1, gen: 1 }],
+      autorestore: {
+        lines: [{ id: 3, kind: 'output', text: 'old line' }],
+        nextId: 'boom',
+      },
+    } as any)
+    expect(view.lines.some((l: any) => l.text === 'old line')).toBe(true)
+    expect(Number.isFinite(view.nextId)).toBe(true)
+  })
+
+  // I1: save_allstate() fires every turn, so it must carry only a bounded tail —
+  // not the ever-growing transcript — to keep autosave O(1)-ish in storage.
+  it('caps the autosaved transcript to a recent tail (I1)', () => {
+    const bridge = new GlkOteBridge(() => {})
+    bridge.init({ accept: vi.fn() })
+    for (let i = 0; i < 600; i++) bridge.echoLocal(`line ${i}`)
+    const saved = bridge.save_allstate() as { lines: any[] }
+    expect(saved.lines.length).toBe(500)
+    // It is the TAIL (most recent), so the last line survives.
+    expect(saved.lines.at(-1).text).toBe('line 599')
+  })
 })

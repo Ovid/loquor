@@ -116,6 +116,7 @@ export function Terminal({
     getContext,
     echoLocal: t => engineRef.current?.echoLocal(t),
     sendLine: t => engineRef.current?.sendLine(t),
+    sendCanonical: t => engineRef.current?.sendLineCanonical(t),
     recordEcho,
     awaitTurn: () =>
       engineRef.current?.awaitTurn() ??

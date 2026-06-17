@@ -307,6 +307,8 @@ function makeTranslate(opts: {
   demote: () => void
   educatedRef: { current: boolean }
   sendLine?: (text: string) => void
+  sendCanonical?: (text: string) => void
+  echoLocal?: (text: string) => void
   watchdogMs?: number
 }): (english: string) => Promise<string | null> {
   const watchdogMs = opts.watchdogMs ?? 1000
@@ -325,8 +327,9 @@ function makeTranslate(opts: {
     generateRaw,
     watchdogMs,
     getContext: () => ({ location: '', recentOutput: '' }),
-    echoLocal: () => {},
+    echoLocal: opts.echoLocal ?? (() => {}),
     sendLine: opts.sendLine ?? (() => {}),
+    sendCanonical: opts.sendCanonical ?? (() => {}),
     awaitTurn: async () => ({ view: emptyView, reason: 'line' as const }),
     trackerRef: { current: new TextSceneTracker(TEST_VOCAB) },
     translatingRef: { current: false },
@@ -350,6 +353,33 @@ describe('createTranslate grammar-only + demotion', () => {
     language: ActiveLanguage,
     model: 'full' | 'grammar',
   ): Internal & { phase: 'on' } => ({ phase: 'on', language, model })
+
+  it('compound: every translated clause is sent canonical, with ONE nl-source echo', async () => {
+    // Both clauses are non-vocab/non-direction → stage 7 (llm). The fake returns
+    // a valid full-vocab command for each, so each clause translates and sends.
+    const engine = new FakeLlmEngine({
+      default: '{"verb":"open","object":"mailbox"}',
+    })
+    const sendCanonical = vi.fn()
+    const sendLine = vi.fn()
+    let echoCount = 0
+    const t = makeTranslate({
+      engine,
+      internalOn: on('fr', 'full'),
+      setNotice: vi.fn(),
+      demote: vi.fn(),
+      educatedRef: { current: false },
+      sendLine,
+      sendCanonical,
+      echoLocal: () => {
+        echoCount++
+      },
+    })
+    await t('frobnique le gadget et frobnique encore')
+    expect(echoCount).toBe(1) // one UI-only nl-source line for the whole compound
+    expect(sendCanonical).toHaveBeenCalledTimes(2) // BOTH echoes tagged canonical
+    expect(sendLine).not.toHaveBeenCalled() // translated sends never go raw
+  })
 
   it('grammar-only: a stage-7-bound non-EN line abstains with the educational notice (once)', async () => {
     const engine = new FakeLlmEngine({ default: 'X' })

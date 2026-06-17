@@ -74,7 +74,20 @@ function turnScript(views: ViewState[]): () => Promise<TurnResult> {
 
 function setup(over: Partial<Parameters<typeof useNaturalLanguage>[0]> = {}) {
   const echoLocal = vi.fn()
+  // Translated-clause sends now route through the canonical seam (Task 4); raw
+  // / passthrough / abstain sends still use sendLine. These suites assert the
+  // *command that reached the VM* regardless of seam, so by default both point
+  // at one spy and `sendLine` observes every send. A test that needs to tell the
+  // two apart passes its own distinct `sendCanonical`.
   const sendLine = vi.fn()
+  // The send seam the VM actually sees: a test override wins, else the default
+  // spy. Both sendLine and sendCanonical resolve to it unless a test passes its
+  // own sendCanonical — so the default `sendLine` spy observes every send (raw +
+  // canonical), and the awaitTurn-before-send tests keep their custom
+  // synchronous-turn spy on BOTH seams. (A custom `sendLine` in `over` is read by
+  // those tests via their own local variable, not the returned one.)
+  const wiredSendLine = over.sendLine ?? sendLine
+  const sendCanonical = over.sendCanonical ?? wiredSendLine
   const engine =
     over.engine ?? new FakeLlmEngine({ default: '{"verb":"__UNKNOWN__"}' })
   const hook = renderHook(() =>
@@ -84,14 +97,15 @@ function setup(over: Partial<Parameters<typeof useNaturalLanguage>[0]> = {}) {
       vocab: TEST_VOCAB,
       getContext: ctx,
       echoLocal,
-      sendLine,
       awaitTurn: async () => ({ view: emptyView, reason: 'line' as const }),
       watchdogMs: 5000,
       signature: 'test-signature', // consumed by Task 21 (per-game lexicons)
       ...over,
+      sendLine: wiredSendLine,
+      sendCanonical,
     }),
   )
-  return { hook, echoLocal, sendLine, engine }
+  return { hook, echoLocal, sendLine, sendCanonical, engine }
 }
 
 // Reach the 'on' state through the REAL download path (no test-only back door).
@@ -1827,6 +1841,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
       getContext: ctx,
       echoLocal,
       sendLine,
+      sendCanonical: sendLine, // one spy observes both seams (asserts [] sent)
       awaitTurn: async () => ({ view: emptyView, reason: 'line' as const }),
       watchdogMs: 5000,
       signature,

@@ -173,6 +173,12 @@ async function renderPipeline(opts: {
       sendLine: (t: string) => {
         sent.push(t)
       },
+      // Translated-clause sends route through the canonical seam (Task 4); this
+      // harness asserts the command that reached the VM regardless of seam, so
+      // both collect into the same `sent` log.
+      sendCanonical: (t: string) => {
+        sent.push(t)
+      },
       recordEcho: (canonical: string, source: string) => {
         recorded.push([canonical, source])
       },

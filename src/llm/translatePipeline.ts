@@ -520,6 +520,25 @@ export function createTranslate(
       sendLine(text)
     }
 
+    // Shared abstain-on-error action (review S6): a translator failure (timeout
+    // or engine fault) on a line. EN raw-sends the typed line (the Z-parser's
+    // own error is useful) with a "sent as typed" notice; a non-EN line sends
+    // NOTHING — raw FR/DE/ES earns only a useless "I don't know the word…" and
+    // burns a game turn — and shows a notice instead. Used by both the in-runLine
+    // stage-8 path and the drain's per-line catch.
+    const abstainOnError = (
+      lang: ActiveLanguage,
+      line: string,
+      timedOut: boolean,
+    ) => {
+      if (lang === 'en') {
+        sendTracked(line)
+        setNotice(sentAsTyped(timedOut))
+      } else {
+        setNotice(nothingSent(lang, timedOut))
+      }
+    }
+
     // Run ONE LINE through the full pipeline (stages 1–8). Returns 'flush'
     // when the game raised an interactive prompt: queued lines were typed
     // BEFORE the player saw that question, so the drain must discard them
@@ -781,14 +800,11 @@ export function createTranslate(
           } else {
             // The translator broke (timeout/engine error) — don't blame the
             // player's wording (Task 21 review).
-            const timedOut = stopError instanceof WatchdogTimeout
-            if (activeLang === 'en') {
-              sendTracked(line)
-              setNotice(sentAsTyped(timedOut))
-            } else {
-              // Nothing was sent: the non-EN abstain policy still holds.
-              setNotice(nothingSent(activeLang, timedOut))
-            }
+            abstainOnError(
+              activeLang,
+              line,
+              stopError instanceof WatchdogTimeout,
+            )
           }
         } else if (activeLang === 'en') {
           sendTracked(line)
@@ -885,20 +901,9 @@ export function createTranslate(
           }
           if (!(err instanceof WatchdogTimeout))
             log.error('translation failed:', err)
-          // F2/F-R: honor stage-8's abstain policy here too. EN raw-sends (the
-          // Z-parser's own error is useful); a non-EN line must NOT raw-send
-          // untranslated FR/DE/ES — that only earns a useless "I don't know the
-          // word…" AND burns a turn — so send NOTHING and show a notice. (The
-          // in-runLine stage-8 path already does this; this outer catch
-          // catches the total===1 rethrow that bypassed it.)
-          const lang = liveLang()
-          const timedOut = err instanceof WatchdogTimeout
-          if (lang === 'en') {
-            setNotice(sentAsTyped(timedOut))
-            sendTracked(line)
-          } else {
-            setNotice(nothingSent(lang, timedOut))
-          }
+          // F2/F-R: honor stage-8's abstain policy here too (this outer catch
+          // catches the total===1 rethrow that bypassed the in-runLine path).
+          abstainOnError(liveLang(), line, err instanceof WatchdogTimeout)
         }
         // A compound that stopped mid-sequence leaves this set; reset it per
         // line so Terminal's observe effect resumes for later queued lines.

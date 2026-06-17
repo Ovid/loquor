@@ -145,5 +145,16 @@ describe('Scrollback', () => {
       // The toggle commit must not announce the bulk re-render.
       expect(screen.getByRole('log')).toHaveAttribute('aria-live', 'off')
     })
+
+    it('resumes polite announcements on the next real-output render', () => {
+      const { rerender } = render(<Scrollback lines={lines} debug={false} />)
+      rerender(<Scrollback lines={lines} debug={true} />) // toggle → muted
+      const more = [
+        ...lines,
+        { id: 4, kind: 'output' as const, text: 'Taken.' },
+      ]
+      rerender(<Scrollback lines={more} debug={true} />) // real output → live again
+      expect(screen.getByRole('log')).toHaveAttribute('aria-live', 'polite')
+    })
   })
 })

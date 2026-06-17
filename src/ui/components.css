@@ -251,6 +251,18 @@
   background: var(--text);
   color: var(--bg-base);
 }
+/* Preferences modal: the checkbox row and its help text. */
+.prefs-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 4px;
+}
+.prefs-help {
+  margin: 0 0 8px;
+  font-size: 0.85em;
+  color: var(--text-dim);
+}
 /* 'queued' chip on lines waiting for the translator (NL v2 §11). */
 .chip {
   margin-left: 8px;

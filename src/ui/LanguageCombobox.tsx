@@ -105,7 +105,9 @@ export function LanguageCombobox({
         aria-label={label}
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-controls={listboxId}
+        // Only reference the listbox while it exists in the DOM (it renders on
+        // open); a dangling idref to an absent node is invalid ARIA (S3).
+        aria-controls={open ? listboxId : undefined}
         aria-activedescendant={
           open ? `${idBase}-opt-${options[active].value}` : undefined
         }

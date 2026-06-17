@@ -296,6 +296,19 @@
   margin: 18px 0 6px;
   text-align: center;
 }
+/* Inline "Language:" label sitting to the LEFT of the picker (the whole pair is
+   centered by .langpick's text-align). Matches the folio label voice without
+   .label's block/margin, which would stack it above. */
+.langpick-label {
+  font-family: 'IM Fell English', serif;
+  font-style: italic;
+  font-size: 0.9375rem;
+  color: var(--brass-soft);
+  vertical-align: middle;
+}
+.langpick .nl-select {
+  vertical-align: middle;
+}
 /* The picker is the shared LanguageCombobox (.nl-select / .nl-menu, styled in
    components.css). On the folio the trigger reads like the other text controls
    (brass, no chrome — the .sw base is scoped to .meta/.modal, so restate it

@@ -136,7 +136,7 @@ export function Landing({
           </span>
         </div>
         <div className="langpick">
-          <span className="label">Language</span>{' '}
+          <span className="langpick-label">Language:</span>{' '}
           <LanguageCombobox
             options={LANDING_LANGUAGES}
             value={language}

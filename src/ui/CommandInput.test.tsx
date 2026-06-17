@@ -15,6 +15,22 @@ describe('CommandInput', () => {
     ).toBeInTheDocument()
   })
 
+  it('reflects an NL-active label/placeholder when given (S3)', () => {
+    render(
+      <CommandInput
+        onSubmit={() => {}}
+        label="Commande de jeu — français naturel accepté"
+        placeholder="écrivez en français — ex. : ouvrez la boîte aux lettres"
+        lang="fr"
+      />,
+    )
+    const input = screen.getByRole('textbox', {
+      name: 'Commande de jeu — français naturel accepté',
+    })
+    expect(input).toHaveAttribute('lang', 'fr')
+    expect(input).toHaveAttribute('placeholder', expect.stringMatching(/français/))
+  })
+
   it('submits a non-empty command and clears the field', () => {
     const onSubmit = vi.fn()
     render(<CommandInput onSubmit={onSubmit} />)

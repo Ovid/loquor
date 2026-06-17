@@ -90,8 +90,9 @@ describe('Terminal', () => {
       )
       expect(screen.getByText(/take the lamp/)).toBeInTheDocument()
       // F-A: while NL is on, a mid-translation line queues — the input field
-      // must stay ENABLED even though a translation is pending.
-      const input = screen.getByPlaceholderText('type a command…')
+      // must stay ENABLED even though a translation is pending. With NL on the
+      // placeholder signals plain-language input (S3), not the classic copy.
+      const input = screen.getByPlaceholderText(/plain English/)
       expect(input).not.toBeDisabled()
     } finally {
       nlOverride = null

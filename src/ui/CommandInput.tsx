@@ -7,6 +7,9 @@ export function CommandInput({
   awaitingLine = false,
   onKey,
   inputRef,
+  label = 'Game command',
+  placeholder = 'type a command…',
+  lang,
 }: {
   onSubmit: (text: string) => void
   disabled?: boolean
@@ -17,6 +20,13 @@ export function CommandInput({
   onKey?: (key: string) => void
   /** Shared ref so the transcript can refocus the prompt on click. */
   inputRef?: RefObject<HTMLInputElement | null>
+  /** Accessible name — reflects NL mode when a language is active (S3). */
+  label?: string
+  /** Placeholder hint — reflects NL mode when a language is active (S3). */
+  placeholder?: string
+  /** Language the field expects, so a screen reader pronounces the localized
+   *  placeholder/value right; omitted (undefined) for English. */
+  lang?: string
 }) {
   const internalRef = useRef<HTMLInputElement>(null)
   const ref = inputRef ?? internalRef
@@ -51,8 +61,9 @@ export function CommandInput({
         value={value}
         disabled={disabled}
         autoFocus
-        aria-label="Game command"
-        placeholder="type a command…"
+        lang={lang}
+        aria-label={label}
+        placeholder={placeholder}
         onKeyDown={e => {
           if (awaitingKey && onKey && e.key.length === 1) {
             e.preventDefault()

@@ -13,7 +13,12 @@ import {
 } from './useGameEngine'
 import { vocabForSignature } from '../llm/grammar/index'
 import { viewToContext } from '../llm/prompt'
-import { thinking, queuedChip } from '../llm/notices'
+import {
+  thinking,
+  queuedChip,
+  commandLabel,
+  commandPlaceholder,
+} from '../llm/notices'
 import { useNaturalLanguage } from '../llm/useNaturalLanguage'
 import { useOutputTranslation } from '../translate/useOutputTranslation'
 import { loudEchoToken } from '../translate/loudEcho'
@@ -200,6 +205,20 @@ export function Terminal({
           </div>
           <CommandInput
             inputRef={inputRef}
+            // When an NL language is on, the field accepts plain language — say
+            // so in the label/placeholder, or the headline feature stays hidden
+            // behind classic-parser copy (S3). Localized; English when off.
+            label={
+              nl.state.phase === 'on'
+                ? commandLabel(activeLang)
+                : 'Game command'
+            }
+            placeholder={
+              nl.state.phase === 'on'
+                ? commandPlaceholder(activeLang)
+                : 'type a command…'
+            }
+            lang={nlLang}
             onSubmit={text => {
               // The Loud Room echo is re-voiced per clause via recordEcho as the
               // pipeline sends each canonical command (loudEcho / F6).

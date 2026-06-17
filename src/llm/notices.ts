@@ -192,6 +192,34 @@ export function queuedChip(lang: ActiveLanguage): string {
   )
 }
 
+/** Command-field placeholder when an NL language is active — signals that plain
+ * language is accepted (S3), the headline feature the classic "type a command"
+ * copy hid. The example stays a simple command so it's honest in basic mode too. */
+export function commandPlaceholder(lang: ActiveLanguage): string {
+  return byLang(
+    {
+      en: 'type plain English — e.g. open the mailbox',
+      fr: 'écrivez en français — ex. : ouvrez la boîte aux lettres',
+      de: 'schreiben Sie auf Deutsch — z. B. öffnen Sie den Briefkasten',
+      es: 'escribe en español — p. ej.: abre el buzón',
+    },
+    lang,
+  )
+}
+
+/** Accessible name for the command field when an NL language is active (S3). */
+export function commandLabel(lang: ActiveLanguage): string {
+  return byLang(
+    {
+      en: 'Game command — plain English accepted',
+      fr: 'Commande de jeu — français naturel accepté',
+      de: 'Spielbefehl — natürliches Deutsch akzeptiert',
+      es: 'Comando del juego — español natural aceptado',
+    },
+    lang,
+  )
+}
+
 /** A queued line was discarded because the game raised an interactive prompt. */
 export function queueClearedNeedsAnswer(lang: ActiveLanguage): string {
   return byLang(

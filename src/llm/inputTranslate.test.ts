@@ -153,6 +153,15 @@ describe('parseCommand (vocab-gated, scope-free)', () => {
     expect(parseCommand('not json', vocab)).toEqual({ kind: 'abstain' })
     expect(parseCommand('', vocab)).toEqual({ kind: 'abstain' })
   })
+
+  it('extracts the JSON from fenced / preamble-wrapped output (review S10)', () => {
+    expect(
+      parseCommand('```json\n{"verb":"take","object":"leaflet"}\n```', vocab),
+    ).toEqual({ kind: 'command', text: 'take leaflet' })
+    expect(
+      parseCommand('Sure! {"verb":"look"} is the command.', vocab),
+    ).toEqual({ kind: 'command', text: 'look' })
+  })
 })
 
 describe('isMetaCommand', () => {

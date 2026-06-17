@@ -586,7 +586,16 @@ export function parseCommand(rawJson: string, vocab: Vocab): TranslateResult {
   try {
     cmd = JSON.parse(rawJson.trim()) as RawCmd
   } catch {
-    return { kind: 'abstain' }
+    // GBNF makes wrapped output unlikely, but if the model ever fences the JSON
+    // (```json) or adds a preamble, a bare parse throws → silent abstain.
+    // Extract the first {...} block and retry once before giving up (review S10).
+    const m = rawJson.match(/\{[\s\S]*\}/)
+    if (!m) return { kind: 'abstain' }
+    try {
+      cmd = JSON.parse(m[0]) as RawCmd
+    } catch {
+      return { kind: 'abstain' }
+    }
   }
   if (!cmd || typeof cmd.verb !== 'string') return { kind: 'abstain' }
   const verb = cmd.verb

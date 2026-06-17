@@ -14,8 +14,8 @@ describe('Landing', () => {
     render(
       <Landing onEnter={onEnter} savedSlugs={new Set()} themeToggle={null} />,
     )
-    fireEvent.click(screen.getByText('The Wizard of Frobozz'))
-    fireEvent.click(screen.getByText(/Light the lamp/))
+    fireEvent.click(screen.getByText(LANDING_STRINGS.en.subtitles.zork2))
+    fireEvent.click(screen.getByRole('button', { name: /Light the lamp/i }))
     expect(onEnter).toHaveBeenCalledWith('zork2')
   })
   it('exposes the volumes as a named radiogroup with arrow-key selection (M2)', () => {
@@ -138,7 +138,7 @@ describe('Landing', () => {
     // After picking Deutsch the enter button shows the German label.
     fireEvent.click(
       screen.getByRole('button', {
-        name: new RegExp(LANDING_STRINGS.de.enter.replace('→', '')),
+        name: new RegExp(LANDING_STRINGS.de.enter.replace(/\s*→\s*$/, '')),
       }),
     )
     expect(onEnter).toHaveBeenCalledWith('zork1')
@@ -157,7 +157,7 @@ describe('Landing', () => {
     render(
       <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
     )
-    fireEvent.click(screen.getByText(/Light the lamp/))
+    fireEvent.click(screen.getByRole('button', { name: /Light the lamp/i }))
     expect(JSON.parse(localStorage.getItem(LS_KEYS.nlPref)!).language).toBe(
       'off',
     )
@@ -169,7 +169,7 @@ describe('Landing', () => {
     render(
       <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
     )
-    fireEvent.click(screen.getByText(/Light the lamp/))
+    fireEvent.click(screen.getByRole('button', { name: /Light the lamp/i }))
     expect(JSON.parse(localStorage.getItem(LS_KEYS.nlPref)!).language).toBe(
       'en',
     )
@@ -188,7 +188,7 @@ describe('Landing', () => {
     // After picking Deutsch the enter button shows the German label.
     fireEvent.click(
       screen.getByRole('button', {
-        name: new RegExp(LANDING_STRINGS.de.enter.replace('→', '')),
+        name: new RegExp(LANDING_STRINGS.de.enter.replace(/\s*→\s*$/, '')),
       }),
     )
     expect(JSON.parse(localStorage.getItem(LS_KEYS.nlPref)!).language).toBe(
@@ -311,7 +311,7 @@ describe('Landing', () => {
     expect(screen.getByText(de.howToBody)).toBeInTheDocument()
     // The primary action is found by its localized accessible name.
     expect(
-      screen.getByRole('button', { name: new RegExp(de.enter.replace('→', '')) }),
+      screen.getByRole('button', { name: new RegExp(de.enter.replace(/\s*→\s*$/, '')) }),
     ).toBeInTheDocument()
     // The volume subtitle is localized, not the English catalog value.
     expect(screen.getByText(de.subtitles.zork1)).toBeInTheDocument()

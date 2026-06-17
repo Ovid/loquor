@@ -141,6 +141,48 @@ describe('Landing', () => {
     )
   })
 
+  it('preserves a saved Off across landing→enter when the picker is untouched (I1)', () => {
+    // An in-game "Off" (NL disabled) must survive a landing round-trip — a plain
+    // reload or "Change story" must not silently re-enable the layer.
+    localStorage.setItem(
+      LS_KEYS.nlPref,
+      JSON.stringify({ language: 'off', declined: false }),
+    )
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    fireEvent.click(screen.getByText(/Light the lamp/))
+    expect(JSON.parse(localStorage.getItem(LS_KEYS.nlPref)!).language).toBe(
+      'off',
+    )
+  })
+
+  it('onboards a brand-new player into the shown language on enter (no stored pref)', () => {
+    // No stored pref: the picker shows English and the pitch says "type in plain
+    // language", so entering must persist English (not the DEFAULT off).
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    fireEvent.click(screen.getByText(/Light the lamp/))
+    expect(JSON.parse(localStorage.getItem(LS_KEYS.nlPref)!).language).toBe('en')
+  })
+
+  it('lets an Off player opt back in by choosing a language on the landing', () => {
+    localStorage.setItem(
+      LS_KEYS.nlPref,
+      JSON.stringify({ language: 'off', declined: false }),
+    )
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    fireEvent.click(screen.getByRole('combobox', { name: /language/i }))
+    fireEvent.click(screen.getByRole('option', { name: 'Deutsch' }))
+    fireEvent.click(screen.getByText(/Light the lamp/))
+    expect(JSON.parse(localStorage.getItem(LS_KEYS.nlPref)!).language).toBe(
+      'de',
+    )
+  })
+
   it('keeps the language picker operable in the Change story overlay variant', () => {
     render(
       <Landing

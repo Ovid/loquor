@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { GAMES, type Game } from '../games/catalog'
 import { useFocusTrap } from './useFocusTrap'
-import { readNlPref, writeNlPref } from '../llm/nlpref'
+import { readNlPref, writeNlPref, nlDisabledByChoice } from '../llm/nlpref'
 import { LANGUAGE_OPTIONS } from './languageOptions'
 import { LanguageCombobox } from './LanguageCombobox'
 import { LANDING_EXAMPLES } from './landingExamples'
@@ -62,6 +62,13 @@ export function Landing({
     const saved = readNlPref().language
     return saved === 'off' ? 'en' : saved
   })
+  // Whether the player touched the picker this session, and whether they had an
+  // explicit stored Off. Entering persists the language UNLESS a stored Off is
+  // left untouched — that preserves an in-game "Off" across the landing while
+  // still onboarding new players (and honouring any pick) into the shown
+  // language (I1). Computed once (lazy initialiser).
+  const [touched, setTouched] = useState(false)
+  const [hadStoredOff] = useState(nlDisabledByChoice)
   // language is never 'off' on the landing, but the guard keeps the type narrow.
   const exampleLang = language === 'off' || language === 'en' ? 'en' : language
   const examples = LANDING_EXAMPLES[exampleLang]
@@ -140,7 +147,10 @@ export function Landing({
           <LanguageCombobox
             options={LANDING_LANGUAGES}
             value={language}
-            onChange={setLanguage}
+            onChange={l => {
+              setLanguage(l)
+              setTouched(true)
+            }}
             idBase="landing-lang"
             label="Language"
           />
@@ -181,7 +191,7 @@ export function Landing({
         <button
           className="enter"
           onClick={() => {
-            writeNlPref({ language })
+            if (touched || !hadStoredOff) writeNlPref({ language })
             onEnter(selected)
           }}
         >

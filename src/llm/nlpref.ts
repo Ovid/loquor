@@ -41,6 +41,19 @@ export function readNlPref(store?: Storage): NlPref {
   }
 }
 
+/** True only when an Off (NL-disabled) choice was actually *stored* — distinct
+ * from a brand-new player, whose absent pref also reads back as DEFAULT 'off'.
+ * The landing uses this to preserve an explicit Off across enter (don't re-write
+ * it) while still onboarding new players into the shown language. */
+export function nlDisabledByChoice(store?: Storage): boolean {
+  try {
+    const s = store ?? localStorage
+    return s.getItem(KEY) !== null && readNlPref(s).language === 'off'
+  } catch {
+    return false
+  }
+}
+
 export function writeNlPref(patch: Partial<NlPref>, store?: Storage): void {
   try {
     // Same [K] note as readNlPref: localStorage resolves inside the try.

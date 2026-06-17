@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { readNlPref, writeNlPref } from './nlpref'
+import { readNlPref, writeNlPref, nlDisabledByChoice } from './nlpref'
 
 function fakeStore(initial: Record<string, string> = {}): Storage {
   const m = new Map(Object.entries(initial))
@@ -21,6 +21,16 @@ describe('NlPref v2 (language picker)', () => {
       language: 'off',
       declined: false,
     })
+  })
+
+  it('nlDisabledByChoice distinguishes a stored Off from a new player (I1)', () => {
+    expect(nlDisabledByChoice(fakeStore())).toBe(false) // no pref = new player
+    const off = fakeStore()
+    writeNlPref({ language: 'off' }, off)
+    expect(nlDisabledByChoice(off)).toBe(true) // explicitly stored Off
+    const fr = fakeStore()
+    writeNlPref({ language: 'fr' }, fr)
+    expect(nlDisabledByChoice(fr)).toBe(false) // a language, not Off
   })
 
   it('round-trips a language', () => {

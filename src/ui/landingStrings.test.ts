@@ -30,8 +30,11 @@ const FOOTER_KEYS = ['trademark', 'licenseLinkText', 'githubLinkText'] as const
 // corresponding LandingCopy shape. Add a field to LandingCopy without listing it
 // here and these assignments stop compiling (caught by `tsc -b`) — the runtime
 // completeness checks above only cover the keys these arrays list.
-type Exhaustive<Listed extends readonly string[], All extends string> =
-  [Exclude<All, Listed[number]>] extends [never] ? true : Exclude<All, Listed[number]>
+type Exhaustive<Listed extends readonly string[], All extends string> = [
+  Exclude<All, Listed[number]>,
+] extends [never]
+  ? true
+  : Exclude<All, Listed[number]>
 const _scalarsCovered: Exhaustive<
   typeof SCALAR_KEYS,
   keyof Omit<LandingCopy, 'footer' | 'subtitles'>
@@ -60,7 +63,10 @@ describe('LANDING_STRINGS', () => {
     })
     it(`${lang} defines a subtitle for every game`, () => {
       for (const g of GAMES) {
-        expect(copy.subtitles[g.slug], `${lang}.subtitles.${g.slug}`).toBeTruthy()
+        expect(
+          copy.subtitles[g.slug],
+          `${lang}.subtitles.${g.slug}`,
+        ).toBeTruthy()
       }
     })
   }

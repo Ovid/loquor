@@ -137,8 +137,7 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
       'según el idioma.',
     descent: '— elige tu descenso —',
     enter: 'Enciende la lámpara →',
-    resume:
-      '↩ un descenso guardado te espera — continuarás donde lo dejaste',
+    resume: '↩ un descenso guardado te espera — continuarás donde lo dejaste',
     returnToGame: 'Volver al juego',
     changeStory: 'Cambiar de historia',
     commandExamples: 'Ejemplos de comandos',

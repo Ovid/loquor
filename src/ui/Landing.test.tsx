@@ -101,9 +101,9 @@ describe('Landing', () => {
     )
     // When saved pref is French, the plate localizes and the combobox aria-label
     // is "Langue" (the French visible label, colon stripped).
-    expect(
-      screen.getByRole('combobox', { name: /langue/i }),
-    ).toHaveTextContent('Français')
+    expect(screen.getByRole('combobox', { name: /langue/i })).toHaveTextContent(
+      'Français',
+    )
   })
 
   it('defaults to English and does not offer Off on the title screen', () => {
@@ -313,7 +313,9 @@ describe('Landing', () => {
     expect(screen.getByText(de.howToBody)).toBeInTheDocument()
     // The primary action is found by its localized accessible name.
     expect(
-      screen.getByRole('button', { name: new RegExp(de.enter.replace(/\s*→\s*$/, '')) }),
+      screen.getByRole('button', {
+        name: new RegExp(de.enter.replace(/\s*→\s*$/, '')),
+      }),
     ).toBeInTheDocument()
     // The volume subtitle is localized, not the English catalog value.
     expect(screen.getByText(de.subtitles.zork1)).toBeInTheDocument()

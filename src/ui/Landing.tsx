@@ -198,9 +198,7 @@ export function Landing({
         >
           {s.enter}
         </button>
-        {savedSlugs.has(selected) && (
-          <div className="resume">{s.resume}</div>
-        )}
+        {savedSlugs.has(selected) && <div className="resume">{s.resume}</div>}
         {loadError && (
           <div className="loaderr" role="alert">
             {loadError}

@@ -286,12 +286,12 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
   )
 
   const requestUpgrade = useCallback(() => {
-    setInternal(prev => {
-      if (prev.phase === 'on') pendingLangRef.current = prev.language
-      return prev
-    })
+    // Read the active language to download from `internal` directly, not inside a
+    // setInternal updater (review S3): a state-updater must be pure, and mutating
+    // a ref from it is a React-contract hazard (double-invoke in StrictMode).
+    if (internal.phase === 'on') pendingLangRef.current = internal.language
     setModalOpen(true)
-  }, [])
+  }, [internal])
 
   const demoteToGrammar = useCallback(() => {
     setInternal(prev =>

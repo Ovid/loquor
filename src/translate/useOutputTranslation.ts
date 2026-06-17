@@ -317,8 +317,9 @@ export function useOutputTranslation(args: {
     // it; no nl-source language to mark since the input was English).
     if (lang === null) return view.lines
     // Mark the player's typed input (nl-source) with the active language so a
-    // screen reader pronounces it right (3.1.2). Applies even to de/es, which
-    // have no output corpus yet and otherwise fall through untranslated below.
+    // screen reader pronounces it right (3.1.2). Applies to every active
+    // language, including any without a corpus that otherwise falls through
+    // untranslated below.
     const tag = (l: BufferLine): DisplayLine =>
       l.kind === 'nl-source' ? { ...l, lang } : l
 

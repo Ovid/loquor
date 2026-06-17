@@ -41,7 +41,7 @@ export function Terminal({
   // Game-loop coordination lives in extracted hooks (F-17): the ZMachine
   // boot/dispose lifecycle and device-capability detection.
   const { view, signature, engineRef } = useGameEngine(storyBytes)
-  const capability = useCapability(false)
+  const capability = useCapability()
   const viewRef = useRef<ViewState>(view)
   const inputRef = useRef<HTMLInputElement>(null)
   // One stable LLM engine instance for this Terminal (created once, lazily). The

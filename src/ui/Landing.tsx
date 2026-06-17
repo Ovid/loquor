@@ -111,6 +111,13 @@ export function Landing({
         className="plate"
         ref={plateRef}
         lang={exampleLang}
+        // The plate carries localized copy with lang="de|fr|es" on an
+        // <html lang="en"> page — exactly the cue Chrome's built-in translator
+        // uses to auto-rewrite it to English (Safari doesn't auto-translate, so
+        // it looked fine there). translate="no" tells the browser to leave the
+        // player's chosen language alone. The "Loquor" wordmark/tagline are
+        // lang="en" so they're untouched regardless.
+        translate="no"
         role={onDismiss ? 'dialog' : undefined}
         aria-modal={onDismiss ? true : undefined}
         aria-label={onDismiss ? s.changeStory : undefined}

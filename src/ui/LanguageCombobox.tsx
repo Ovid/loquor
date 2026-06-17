@@ -97,7 +97,11 @@ export function LanguageCombobox({
   }
 
   return (
-    <span className="nl-select" ref={rootRef}>
+    // translate="no": the option labels carry lang="fr|de|es" (Français/Deutsch/
+    // Español) which Chrome's page translator would otherwise rewrite to English
+    // ("French"/"German"). Covers the in-game status-bar picker too, not just the
+    // landing (the plate's own translate="no" already covers the landing copy).
+    <span className="nl-select" translate="no" ref={rootRef}>
       <button
         type="button"
         className="sw nl-select-btn"

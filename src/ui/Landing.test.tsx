@@ -18,6 +18,12 @@ describe('Landing', () => {
     fireEvent.click(screen.getByRole('button', { name: /Light the lamp/i }))
     expect(onEnter).toHaveBeenCalledWith('zork2')
   })
+  it('marks the localized plate translate="no" so Chrome cannot rewrite the chosen language to English', () => {
+    const { container } = render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    expect(container.querySelector('.plate')).toHaveAttribute('translate', 'no')
+  })
   it('exposes the volumes as a named radiogroup with arrow-key selection (M2)', () => {
     render(
       <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,

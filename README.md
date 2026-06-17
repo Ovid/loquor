@@ -1,5 +1,10 @@
 # Loquor
 
+<p align="center">
+  <img src="images/screenshot.png" alt="Loquor: Zork in your browser." width="600">
+</p>
+
+
 > *Loquor* — Latin for "I speak." With WebLLM, **Loquor** lets you talk to Zork
 > in plain English.
 

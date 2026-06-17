@@ -87,6 +87,9 @@ export default function App() {
           storyTitle={gameBySlug(slug)!.title}
           themeToggle={toggleEl}
           onChangeStory={() => setPicking(true)}
+          // The change-story overlay covers the game → make it inert so a
+          // virtual cursor can't wander behind the dialog (M9).
+          backgroundInert={picking}
         />
       )}
       {(!inGame || picking) && (

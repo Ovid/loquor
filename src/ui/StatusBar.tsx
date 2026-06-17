@@ -6,14 +6,17 @@ export function StatusBar({
   onChangeStory,
   themeToggle,
   nlToggle,
+  inert = false,
 }: {
   status: StatusLine | null
   onChangeStory: () => void
   themeToggle: ReactNode
   nlToggle?: ReactNode
+  /** Make the bar inert while a modal/overlay is open (M9). */
+  inert?: boolean
 }) {
   return (
-    <header className="statusbar">
+    <header className="statusbar" inert={inert}>
       {/* Location and score/moves are the v3 status line — they change every turn
           and never reach the transcript, so a screen-reader player has no other
           way to track them. aria-live wraps only the dynamic text, not the

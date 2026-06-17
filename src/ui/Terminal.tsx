@@ -36,12 +36,16 @@ export function Terminal({
   storyTitle,
   onChangeStory,
   themeToggle,
+  backgroundInert = false,
 }: {
   storyBytes: Uint8Array
   /** The current game's title — the game screen's heading for screen readers. */
   storyTitle: string
   onChangeStory: () => void
   themeToggle: ReactNode
+  /** True while the change-story overlay covers the game — makes the whole
+   *  terminal inert so a screen-reader virtual cursor can't read it (M9). */
+  backgroundInert?: boolean
 }) {
   // Game-loop coordination lives in extracted hooks (F-17): the ZMachine
   // boot/dispose lifecycle and device-capability detection.
@@ -156,13 +160,20 @@ export function Terminal({
     // exhaustive-deps now that it's a hook return rather than a local useRef.
   }, [view.inputRequest, engineRef])
 
+  // The download/upgrade modal is open — everything behind it must be inert so
+  // a screen-reader virtual cursor stays inside the dialog (aria-modal alone is
+  // unevenly honored). The modal is a sibling below, so it stays operable (M9).
+  const modalOpen = nl.modalOpen || nl.state.phase === 'downloading'
+  const bgInert = backgroundInert || modalOpen
+
   return (
-    <div className="screen term">
+    <div className="screen term" inert={backgroundInert}>
       <h1 className="sr-only">{storyTitle}</h1>
       <StatusBar
         status={xl.status}
         onChangeStory={onChangeStory}
         themeToggle={themeToggle}
+        inert={bgInert}
         nlToggle={
           <NlLanguagePicker
             state={nl.state}
@@ -171,7 +182,7 @@ export function Terminal({
           />
         }
       />
-      <main className="term-main">
+      <main className="term-main" inert={bgInert}>
         <Scrollback
           lines={xl.lines}
           onActivate={() => inputRef.current?.focus()}

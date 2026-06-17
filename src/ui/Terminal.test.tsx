@@ -153,6 +153,35 @@ describe('Terminal', () => {
     }
   })
 
+  it('makes the game inert behind the download/upgrade modal (M9)', async () => {
+    nlOverride = {
+      state: { phase: 'off', installed: false, canUpgrade: true },
+      modalOpen: true,
+    }
+    try {
+      const { container } = render(
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
+      )
+      await waitFor(
+        () => expect(screen.getByRole('dialog')).toBeInTheDocument(),
+        { timeout: 8000 },
+      )
+      // The transcript and status bar are inert; the modal (a sibling) is not.
+      expect(container.querySelector('main.term-main')).toHaveAttribute('inert')
+      expect(container.querySelector('header.statusbar')).toHaveAttribute(
+        'inert',
+      )
+      expect(screen.getByRole('dialog').closest('[inert]')).toBeNull()
+    } finally {
+      nlOverride = null
+    }
+  })
+
   it('renders English transcript unchanged when NL is off (output-translation passthrough)', async () => {
     // With NL off (default phase), useOutputTranslation is a passthrough — the
     // English ViewState lines must reach the DOM unmodified (spec §3).

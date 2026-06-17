@@ -1,6 +1,12 @@
 import { describe, it, expect, vi } from 'vitest'
 import 'fake-indexeddb/auto'
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { Terminal } from './Terminal'
 import { WebLlmEngine } from '../llm/engine.webllm'

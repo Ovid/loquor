@@ -244,7 +244,10 @@ export function Terminal({
                   // Non-EN abstain/timeout/failure sent nothing — restore the
                   // discarded line so it isn't lost (M8).
                   if (retained != null)
-                    setRestore(r => ({ text: retained, key: (r?.key ?? 0) + 1 }))
+                    setRestore(r => ({
+                      text: retained,
+                      key: (r?.key ?? 0) + 1,
+                    }))
                 })
               else if (engineRef.current) engineRef.current.sendLine(text)
               // Practically unreachable (engine is set synchronously and input is

@@ -28,7 +28,10 @@ describe('CommandInput', () => {
       name: 'Commande de jeu — français naturel accepté',
     })
     expect(input).toHaveAttribute('lang', 'fr')
-    expect(input).toHaveAttribute('placeholder', expect.stringMatching(/français/))
+    expect(input).toHaveAttribute(
+      'placeholder',
+      expect.stringMatching(/français/),
+    )
   })
 
   it('submits a non-empty command and clears the field', () => {

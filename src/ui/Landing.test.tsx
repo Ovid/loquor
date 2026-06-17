@@ -16,7 +16,9 @@ describe('Landing', () => {
     render(
       <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
     )
-    const group = screen.getByRole('radiogroup', { name: /choose your descent/i })
+    const group = screen.getByRole('radiogroup', {
+      name: /choose your descent/i,
+    })
     const radios = screen.getAllByRole('radio')
     expect(radios).toHaveLength(3)
     // Zork I is selected by default.

@@ -164,7 +164,9 @@ describe('Landing', () => {
       <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
     )
     fireEvent.click(screen.getByText(/Light the lamp/))
-    expect(JSON.parse(localStorage.getItem(LS_KEYS.nlPref)!).language).toBe('en')
+    expect(JSON.parse(localStorage.getItem(LS_KEYS.nlPref)!).language).toBe(
+      'en',
+    )
   })
 
   it('lets an Off player opt back in by choosing a language on the landing', () => {

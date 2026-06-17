@@ -157,8 +157,9 @@ export function Landing({
         </div>
         <p className="lang-caveat">
           Basic commands work now in all four languages. To understand more of
-          what you type, you can add an optional, experimental model — a one-time
-          download whose richer understanding may be uneven across languages.
+          what you type, you can add an optional, experimental model — a
+          one-time download whose richer understanding may be uneven across
+          languages.
         </p>
         <span className="label" id="descent-label">
           — choose your descent —

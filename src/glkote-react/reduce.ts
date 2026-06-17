@@ -87,7 +87,11 @@ function bufferParagraphs(
         prev: last.prev,
       }
     } else {
-      emitted.push({ text, input: isInput, canonical: isInput && canonicalEcho })
+      emitted.push({
+        text,
+        input: isInput,
+        canonical: isInput && canonicalEcho,
+      })
     }
   }
 

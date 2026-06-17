@@ -292,7 +292,10 @@ describe('canonical send flagging', () => {
     bridge.echoLocal('arriba') // the player's Spanish, UI-only
     bridge.sendLineCanonical('up') // canonical send → arms the flag
     bridge.update(echoUpdate('up') as any)
-    expect(view.lines.at(-1)).toMatchObject({ kind: 'nl-canonical', text: 'up' })
+    expect(view.lines.at(-1)).toMatchObject({
+      kind: 'nl-canonical',
+      text: 'up',
+    })
   })
 
   it('plain sendLine leaves the next echo as input', () => {

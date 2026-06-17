@@ -24,8 +24,14 @@ export function Scrollback({
   // disappear, nl-source flips pill↔command); that bulk mutation must NOT be
   // announced — it's a settings action, not game output. Mute the live region for
   // the toggle commit, then restore 'polite' on the next render driven by real
-  // output. prevDebugRef is READ during render and synced in an effect.
+  // output. prevDebugRef is READ during render and synced in an effect below.
+  // This compare-and-sync read is deliberate: it yields exactly one committed
+  // aria-live="off" frame (the toggle render), then 'polite' resumes. A
+  // setState-during-render alternative can't do this — it re-renders before
+  // commit so 'off' never reaches the DOM — and a lines-identity-based reset
+  // would be clobbered when the parent rebuilds the lines array each render.
   const prevDebugRef = useRef(debug)
+  // eslint-disable-next-line react-hooks/refs -- intentional compare-and-sync; see note above
   const toggled = prevDebugRef.current !== debug
   useEffect(() => {
     prevDebugRef.current = debug

@@ -242,7 +242,12 @@ describe('NlLanguagePicker', () => {
   it('drops the visible "Language:" text but keeps the combobox accessible name', () => {
     render(
       <NlLanguagePicker
-        state={{ phase: 'on', language: 'fr', model: 'grammar', canUpgrade: true }}
+        state={{
+          phase: 'on',
+          language: 'fr',
+          model: 'grammar',
+          canUpgrade: true,
+        }}
         onSelect={() => {}}
         onUpgrade={() => {}}
       />,

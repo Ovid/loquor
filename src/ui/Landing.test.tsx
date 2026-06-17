@@ -94,7 +94,9 @@ describe('Landing', () => {
       LS_KEYS.nlPref,
       JSON.stringify({ language: 'fr', declined: false }),
     )
-    render(<Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />)
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
     const group = screen.getByRole('radiogroup', { name: /language/i })
     expect(group).toBeInTheDocument()
     const fr = screen.getByRole('radio', { name: 'Français' })
@@ -103,16 +105,22 @@ describe('Landing', () => {
 
   it('persists the chosen language when entering the game', () => {
     const onEnter = vi.fn()
-    render(<Landing onEnter={onEnter} savedSlugs={new Set()} themeToggle={null} />)
+    render(
+      <Landing onEnter={onEnter} savedSlugs={new Set()} themeToggle={null} />,
+    )
     fireEvent.click(screen.getByRole('radio', { name: 'Deutsch' }))
     fireEvent.click(screen.getByText(/Light the lamp/))
     expect(onEnter).toHaveBeenCalledWith('zork1')
-    expect(JSON.parse(localStorage.getItem(LS_KEYS.nlPref)!).language).toBe('de')
+    expect(JSON.parse(localStorage.getItem(LS_KEYS.nlPref)!).language).toBe(
+      'de',
+    )
   })
 
   it('moves language selection AND focus with arrow keys (roving radiogroup)', () => {
     // Default selection is Off (index 0). ArrowRight → English (index 1).
-    render(<Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />)
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
     const group = screen.getByRole('radiogroup', { name: /language/i })
     fireEvent.keyDown(group, { key: 'ArrowRight' })
     const english = screen.getByRole('radio', { name: 'English' })
@@ -136,15 +144,21 @@ describe('Landing', () => {
   })
 
   it('shows plain-language how-to copy, not the old canonical-command framing', () => {
-    render(<Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />)
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
     expect(
       screen.getByText(/Type what you want to do in plain language/i),
     ).toBeInTheDocument()
-    expect(screen.queryByText(/the way the game expects it/i)).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(/the way the game expects it/i),
+    ).not.toBeInTheDocument()
   })
 
   it('shows English examples by default and localizes them on selection', () => {
-    render(<Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />)
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
     const region = screen.getByRole('region', { name: /examples/i })
     expect(region).toHaveTextContent(LANDING_EXAMPLES.en.join(' · '))
     fireEvent.click(screen.getByRole('radio', { name: 'Français' }))
@@ -152,7 +166,9 @@ describe('Landing', () => {
   })
 
   it('announces example changes politely (aria-live)', () => {
-    render(<Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />)
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
     expect(screen.getByRole('region', { name: /examples/i })).toHaveAttribute(
       'aria-live',
       'polite',
@@ -160,13 +176,19 @@ describe('Landing', () => {
   })
 
   it('shows the basic-now / optional-model caveat under the picker', () => {
-    render(<Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />)
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
     expect(screen.getByText(/Basic commands work now/i)).toBeInTheDocument()
-    expect(screen.getByText(/optional, experimental model/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/optional, experimental model/i),
+    ).toBeInTheDocument()
   })
 
   it('shows the Zork trademark / open-source footnote', () => {
-    render(<Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />)
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
     // The footnote <footer> maps to a contentinfo landmark (its nearest sectioning
     // ancestor is <main>), but the overlay variant renders a <div> root instead —
     // so query by text, which is stable across both Landing variants.

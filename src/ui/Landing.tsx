@@ -27,7 +27,9 @@ function rovingRadioKeydown<T>(
   const i = values.indexOf(current)
   const next = (i + delta + values.length) % values.length
   setValue(values[next])
-  groupRef.current?.querySelectorAll<HTMLElement>('[role="radio"]')?.[next]?.focus()
+  groupRef.current
+    ?.querySelectorAll<HTMLElement>('[role="radio"]')
+    ?.[next]?.focus()
 }
 
 export function Landing({

@@ -80,6 +80,14 @@ export interface GlkOteUpdate {
   content?: Array<Record<string, unknown>>
   input?: Array<Record<string, unknown>>
   disable?: boolean
+  /**
+   * Present only on the FIRST post-restore update during native autorestore:
+   * glkapi hands back whatever save_allstate() returned (snapshot.glk.glkote),
+   * set as dataobj.autorestore (glkapi.js:778). We use its `lines` to restore the
+   * rendered transcript WITH its nl-source / nl-canonical kinds, which the VM's
+   * replayed buffer can't reproduce (so debug-off keeps hiding canonical echoes).
+   */
+  autorestore?: { lines?: BufferLine[]; nextId?: number; [k: string]: unknown }
   [k: string]: unknown
 }
 

@@ -116,6 +116,22 @@ export class GlkOteBridge implements GlkOteDisplay {
     if (arg.input !== undefined)
       this.charIsMore = (req as any)?.type === 'char' && isMorePrompt(arg)
     this.view = reduce(this.view, arg, this.canonicalEcho)
+    // First post-restore frame: glkapi hands back the display state our
+    // save_allstate() persisted, on arg.autorestore (glkapi.js:778). The VM's
+    // replayed buffer can't reproduce nl-source lines (UI-only) or the
+    // nl-canonical tag (a send-seam property), so the reducer above reclassifies
+    // a translated echo as plain `input` — leaking `> up` in debug-off after a
+    // resume. Restore the saved lines verbatim: they ARE the transcript at the
+    // autosave boundary (save_allstate runs right after this same turn's update —
+    // glkapi.js:781 then 786-795), with every kind intact.
+    const restore = arg.autorestore
+    if (restore && Array.isArray(restore.lines)) {
+      this.view = {
+        ...this.view,
+        lines: restore.lines,
+        nextId: restore.nextId ?? this.view.nextId,
+      }
+    }
     this.onState(this.view)
     // Turn boundary handling. The line path still fires onTurn AFTER onState so
     // observers see the settled view; the native autosave fires here too.
@@ -146,14 +162,23 @@ export class GlkOteBridge implements GlkOteDisplay {
 
   /**
    * Native-autosave display state. glkapi's save_allstate() embeds this as
-   * snapshot.glk.glkote; on restore glkapi stashes it and passes it back to our
-   * update() (second arg) for the first post-restore frame. We rebuild the React
-   * ViewState from that update()'s content, so only the metrics need to survive
-   * the round-trip. Must be JSON-serializable. See engine.ts boot() for the full
-   * autosave mechanism description.
+   * snapshot.glk.glkote; on restore glkapi hands it back on the first
+   * post-restore update()'s `arg.autorestore` (glkapi.js:778). We carry the
+   * rendered ViewState lines here so the nl-source / nl-canonical kinds survive a
+   * reload — the VM's replayed buffer alone loses them, which would leak `> up` in
+   * debug-off after a resume. Must be JSON-serializable. See engine.ts boot() for
+   * the full autosave mechanism description.
    */
   save_allstate(): unknown {
-    return { metrics: METRICS }
+    // Carry the rendered transcript (with nl-source / nl-canonical kinds) through
+    // the autosave so a resumed game keeps hiding canonical echoes in debug-off.
+    // The VM's own buffer replay loses those kinds; this is the only channel that
+    // survives a reload, and it stays in sync with the VM snapshot (same boundary).
+    return {
+      metrics: METRICS,
+      lines: this.view.lines,
+      nextId: this.view.nextId,
+    }
   }
   restore_allstate(_state: unknown): void {
     // Never called by the vendored glkapi.js: it replays autorestore state via

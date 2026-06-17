@@ -307,3 +307,78 @@ describe('canonical send flagging', () => {
     expect(view.lines.at(-1)).toMatchObject({ kind: 'input', text: 'up' })
   })
 })
+
+describe('autosave round-trips NL line kinds (resume leak fix)', () => {
+  // The canonical-echo property lives only at the send seam (canonicalEcho) and
+  // the nl-source line is UI-only — neither is in the VM's Glk buffer. So on a
+  // page reload + autorestore, the VM replays the echo as a plain input-styled
+  // paragraph and the reducer reclassifies it `input`, leaking the English `> up`
+  // in debug-off (the default). The fix carries the rendered ViewState lines
+  // through save_allstate()'s autosave round-trip (glkapi embeds it as
+  // snapshot.glk.glkote and hands it back on arg.autorestore — glkapi.js:778,988).
+  it('keeps a translated echo nl-canonical (and restores the nl-source line) after restore', () => {
+    // --- First session: a translated turn ("arriba" → canonical "up"). ---
+    let view: any
+    const bridge = new GlkOteBridge(v => (view = v))
+    bridge.init({ accept: vi.fn() })
+    bridge.echoLocal('arriba') // player's Spanish, UI-only nl-source line
+    bridge.sendLineCanonical('up') // canonical send arms the flag
+    bridge.update({
+      type: 'update',
+      gen: 1,
+      content: [
+        {
+          text: [
+            { append: true, content: ['input', 'up'] },
+            { content: ['normal', "You can't go that way."] },
+          ],
+        },
+      ],
+      input: [{ type: 'line', id: 7, gen: 1 }],
+    } as any)
+    // Sanity: live, the translated echo is nl-canonical (debug-off hides it).
+    expect(
+      view.lines.some((l: any) => l.kind === 'nl-canonical' && l.text === 'up'),
+    ).toBe(true)
+
+    // The native autosave captures our display state at this turn boundary.
+    const saved = bridge.save_allstate()
+
+    // --- Second session: a fresh bridge boots and glkapi autorestores. It
+    // replays the VM buffer (echo is plain input-styled) AND hands our saved
+    // glkote state back on arg.autorestore. ---
+    let view2: any
+    const bridge2 = new GlkOteBridge(v => (view2 = v))
+    bridge2.init({ accept: vi.fn() })
+    bridge2.update({
+      type: 'update',
+      gen: 1,
+      content: [
+        {
+          text: [
+            { content: ['input', 'up'] },
+            { content: ['normal', "You can't go that way."] },
+          ],
+        },
+      ],
+      input: [{ type: 'line', id: 7, gen: 1 }],
+      autorestore: saved,
+    } as any)
+
+    // The translated echo must stay hidden-able (nl-canonical), the nl-source
+    // line must come back, and the bare English `> up` input must NOT leak.
+    expect(
+      view2.lines.some(
+        (l: any) => l.kind === 'nl-canonical' && l.text === 'up',
+      ),
+    ).toBe(true)
+    expect(
+      view2.lines.some(
+        (l: any) => l.kind === 'nl-source' && l.text === 'arriba',
+      ),
+    ).toBe(true)
+    expect(
+      view2.lines.some((l: any) => l.kind === 'input' && l.text === 'up'),
+    ).toBe(false)
+  })
+})

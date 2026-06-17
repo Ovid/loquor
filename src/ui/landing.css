@@ -288,3 +288,82 @@
   color: var(--ember);
   font-family: 'IM Fell English', serif;
 }
+
+/* ---------- Language picker ---------- */
+/* Sibling of the volume picker (.volumes/.vol) — same brass tokens, rule
+   border, brass-soft focus/selected accent, and a non-colour selected cue. */
+.langpick {
+  margin: 18px 0 6px;
+  text-align: center;
+}
+/* Inline "Language:" label sitting to the LEFT of the picker (the whole pair is
+   centered by .langpick's text-align). Matches the folio label voice without
+   .label's block/margin, which would stack it above. */
+.langpick-label {
+  font-family: 'IM Fell English', serif;
+  font-style: italic;
+  font-size: 0.9375rem;
+  color: var(--brass-soft);
+  vertical-align: middle;
+}
+.langpick .nl-select {
+  vertical-align: middle;
+}
+/* The picker is the shared LanguageCombobox (.nl-select / .nl-menu, styled in
+   components.css). On the folio the trigger reads like the other text controls
+   (brass, no chrome — the .sw base is scoped to .meta/.modal, so restate it
+   here), and the popup centers under the trigger rather than opening from the
+   status bar's right edge. */
+.langpick .nl-select-btn {
+  color: var(--brass-soft);
+  cursor: pointer;
+  font: inherit;
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+}
+.langpick .nl-select-btn:hover {
+  color: var(--brass);
+}
+.langpick .nl-select-btn:focus-visible {
+  outline: 1px solid var(--brass);
+  outline-offset: 2px;
+}
+.langpick .nl-menu {
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.lang-caveat {
+  max-width: 52ch;
+  margin: 4px auto 0;
+  text-align: center;
+  font-size: 0.8125rem;
+  /* Muted via the themed --text-dim token (AA-verified in both themes) rather
+     than opacity on body text, matching .howto/.resume/.vol .nm. */
+  color: var(--text-dim);
+}
+
+/* ---------- Licensing footnote ---------- */
+.folio-footnote {
+  margin-top: 28px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
+  font-size: 0.6875rem;
+  /* Same AA-verified muted token as the caveat — avoids stacking opacity on an
+     already-dimmed colour, which would risk dropping below AA. */
+  color: var(--text-dim);
+  text-align: center;
+  line-height: 1.5;
+}
+.folio-footnote a {
+  color: var(--brass);
+  text-decoration: underline; /* non-colour cue (a11y §4): underline marks the link */
+}
+.folio-footnote a:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}

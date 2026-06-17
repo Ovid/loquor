@@ -1,8 +1,13 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import { Landing } from './Landing'
+import { LANDING_EXAMPLES } from './landingExamples'
+import { LS_KEYS } from '../storageKeys'
+import { FOCUSABLE } from './useFocusTrap'
 
 describe('Landing', () => {
+  afterEach(() => localStorage.clear())
+
   it('lets you pick a volume and enter', () => {
     const onEnter = vi.fn()
     render(
@@ -19,7 +24,7 @@ describe('Landing', () => {
     const group = screen.getByRole('radiogroup', {
       name: /choose your descent/i,
     })
-    const radios = screen.getAllByRole('radio')
+    const radios = within(group).getAllByRole('radio')
     expect(radios).toHaveLength(3)
     // Zork I is selected by default.
     expect(radios[0]).toHaveAttribute('aria-checked', 'true')
@@ -27,7 +32,7 @@ describe('Landing', () => {
     expect(radios[1]).toHaveAttribute('tabindex', '-1')
     // ArrowRight moves the checked state to the next volume.
     fireEvent.keyDown(group, { key: 'ArrowRight' })
-    expect(screen.getAllByRole('radio')[1]).toHaveAttribute(
+    expect(within(group).getAllByRole('radio')[1]).toHaveAttribute(
       'aria-checked',
       'true',
     )
@@ -85,6 +90,181 @@ describe('Landing', () => {
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(onDismiss).toHaveBeenCalledTimes(1)
   })
+  it('exposes a language combobox defaulting to the saved pref', () => {
+    localStorage.setItem(
+      LS_KEYS.nlPref,
+      JSON.stringify({ language: 'fr', declined: false }),
+    )
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    expect(
+      screen.getByRole('combobox', { name: /language/i }),
+    ).toHaveTextContent('Français')
+  })
+
+  it('defaults to English and does not offer Off on the title screen', () => {
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    const btn = screen.getByRole('combobox', { name: /language/i })
+    expect(btn).toHaveTextContent('English')
+    fireEvent.click(btn)
+    expect(screen.queryByRole('option', { name: 'Off' })).toBeNull()
+    expect(screen.getAllByRole('option')).toHaveLength(4)
+  })
+
+  it('maps a saved Off preference to English on the title screen', () => {
+    localStorage.setItem(
+      LS_KEYS.nlPref,
+      JSON.stringify({ language: 'off', declined: false }),
+    )
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    expect(
+      screen.getByRole('combobox', { name: /language/i }),
+    ).toHaveTextContent('English')
+  })
+
+  it('persists the chosen language when entering the game', () => {
+    const onEnter = vi.fn()
+    render(
+      <Landing onEnter={onEnter} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    fireEvent.click(screen.getByRole('combobox', { name: /language/i }))
+    fireEvent.click(screen.getByRole('option', { name: 'Deutsch' }))
+    fireEvent.click(screen.getByText(/Light the lamp/))
+    expect(onEnter).toHaveBeenCalledWith('zork1')
+    expect(JSON.parse(localStorage.getItem(LS_KEYS.nlPref)!).language).toBe(
+      'de',
+    )
+  })
+
+  it('preserves a saved Off across landing→enter when the picker is untouched (I1)', () => {
+    // An in-game "Off" (NL disabled) must survive a landing round-trip — a plain
+    // reload or "Change story" must not silently re-enable the layer.
+    localStorage.setItem(
+      LS_KEYS.nlPref,
+      JSON.stringify({ language: 'off', declined: false }),
+    )
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    fireEvent.click(screen.getByText(/Light the lamp/))
+    expect(JSON.parse(localStorage.getItem(LS_KEYS.nlPref)!).language).toBe(
+      'off',
+    )
+  })
+
+  it('onboards a brand-new player into the shown language on enter (no stored pref)', () => {
+    // No stored pref: the picker shows English and the pitch says "type in plain
+    // language", so entering must persist English (not the DEFAULT off).
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    fireEvent.click(screen.getByText(/Light the lamp/))
+    expect(JSON.parse(localStorage.getItem(LS_KEYS.nlPref)!).language).toBe(
+      'en',
+    )
+  })
+
+  it('lets an Off player opt back in by choosing a language on the landing', () => {
+    localStorage.setItem(
+      LS_KEYS.nlPref,
+      JSON.stringify({ language: 'off', declined: false }),
+    )
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    fireEvent.click(screen.getByRole('combobox', { name: /language/i }))
+    fireEvent.click(screen.getByRole('option', { name: 'Deutsch' }))
+    fireEvent.click(screen.getByText(/Light the lamp/))
+    expect(JSON.parse(localStorage.getItem(LS_KEYS.nlPref)!).language).toBe(
+      'de',
+    )
+  })
+
+  it('keeps the language picker operable in the Change story overlay variant', () => {
+    render(
+      <Landing
+        onEnter={() => {}}
+        savedSlugs={new Set()}
+        themeToggle={null}
+        onDismiss={() => {}}
+      />,
+    )
+    const btn = screen.getByRole('combobox', { name: /language/i })
+    fireEvent.click(btn)
+    fireEvent.click(screen.getByRole('option', { name: 'Español' }))
+    expect(btn).toHaveTextContent('Español')
+  })
+
+  it('shows plain-language how-to copy, not the old canonical-command framing', () => {
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    expect(
+      screen.getByText(/Type what you want to do in plain language/i),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText(/the way the game expects it/i),
+    ).not.toBeInTheDocument()
+  })
+
+  it('shows English examples by default and localizes them on selection', () => {
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    const region = screen.getByRole('region', { name: /examples/i })
+    expect(region).toHaveTextContent(LANDING_EXAMPLES.en.join(' · '))
+    fireEvent.click(screen.getByRole('combobox', { name: /language/i }))
+    fireEvent.click(screen.getByRole('option', { name: 'Français' }))
+    expect(region).toHaveTextContent(LANDING_EXAMPLES.fr.join(' · '))
+  })
+
+  it('announces example changes politely (aria-live)', () => {
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    expect(screen.getByRole('region', { name: /examples/i })).toHaveAttribute(
+      'aria-live',
+      'polite',
+    )
+  })
+
+  it('shows the basic-now / optional-model caveat under the picker', () => {
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    expect(screen.getByText(/Basic commands work now/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/optional, experimental model/i),
+    ).toBeInTheDocument()
+  })
+
+  it('shows the Zork trademark / open-source footnote', () => {
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    // The footnote <footer> maps to a contentinfo landmark (its nearest sectioning
+    // ancestor is <main>), but the overlay variant renders a <div> root instead —
+    // so query by text/role, which is stable across both Landing variants.
+    expect(screen.getByText(/trademark of Activision/i)).toBeInTheDocument()
+    // The "code was released" sentence links to Microsoft's open-source announcement.
+    const blog = screen.getByRole('link', {
+      name: /released by Microsoft under the MIT License/i,
+    })
+    expect(blog).toHaveAttribute(
+      'href',
+      'https://opensource.microsoft.com/blog/2025/11/20/preserving-code-that-shaped-generations-zork-i-ii-and-iii-go-open-source/',
+    )
+    expect(blog).toHaveAttribute('rel', expect.stringContaining('noopener'))
+    const repo = screen.getByRole('link', { name: /View on GitHub/i })
+    expect(repo).toHaveAttribute('href', 'https://github.com/Ovid/loquor')
+    expect(repo).toHaveAttribute('rel', expect.stringContaining('noopener'))
+  })
+
   it('traps Tab within the plate so focus cannot reach the game behind it', () => {
     render(
       <Landing
@@ -94,7 +274,11 @@ describe('Landing', () => {
         onDismiss={() => {}}
       />,
     )
-    const focusables = screen.getAllByRole('button')
+    // Gather focusables exactly as the trap does (buttons AND the repo link),
+    // so the list's "last" matches the trap's real last element.
+    const focusables = Array.from(
+      document.querySelectorAll<HTMLElement>(FOCUSABLE),
+    )
     const last = focusables[focusables.length - 1]
     last.focus()
     expect(document.activeElement).toBe(last)

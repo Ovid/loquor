@@ -1,6 +1,43 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { GAMES, type Game } from '../games/catalog'
 import { useFocusTrap } from './useFocusTrap'
+import { readNlPref, writeNlPref, nlDisabledByChoice } from '../llm/nlpref'
+import { LANGUAGE_OPTIONS } from './languageOptions'
+import { LanguageCombobox } from './LanguageCombobox'
+import { LANDING_EXAMPLES } from './landingExamples'
+import type { NlLanguage } from '../llm/types'
+
+// The title screen offers only the play languages, not "Off" (disabling the NL
+// layer is an in-game advanced toggle, not a first-run choice): a new player is
+// told to "type in plain language", so starting with the NL layer off would
+// contradict the copy. A saved "off" preference therefore maps to English here.
+const LANDING_LANGUAGES = LANGUAGE_OPTIONS.filter(o => o.value !== 'off')
+
+/** APG radio-pattern roving: arrows move selection AND focus among the radios
+ *  of the volumes group. `values` is the ordered option list; `groupRef` wraps
+ *  the radios. */
+function rovingRadioKeydown<T>(
+  e: React.KeyboardEvent,
+  values: readonly T[],
+  current: T,
+  setValue: (v: T) => void,
+  groupRef: React.RefObject<HTMLElement | null>,
+) {
+  const delta =
+    e.key === 'ArrowRight' || e.key === 'ArrowDown'
+      ? 1
+      : e.key === 'ArrowLeft' || e.key === 'ArrowUp'
+        ? -1
+        : 0
+  if (delta === 0) return
+  e.preventDefault()
+  const i = values.indexOf(current)
+  const next = (i + delta + values.length) % values.length
+  setValue(values[next])
+  groupRef.current
+    ?.querySelectorAll<HTMLElement>('[role="radio"]')
+    ?.[next]?.focus()
+}
 
 export function Landing({
   onEnter,
@@ -21,6 +58,20 @@ export function Landing({
   onDismiss?: () => void
 }) {
   const [selected, setSelected] = useState<Game['slug']>('zork1')
+  const [language, setLanguage] = useState<NlLanguage>(() => {
+    const saved = readNlPref().language
+    return saved === 'off' ? 'en' : saved
+  })
+  // Whether the player touched the picker this session, and whether they had an
+  // explicit stored Off. Entering persists the language UNLESS a stored Off is
+  // left untouched — that preserves an in-game "Off" across the landing while
+  // still onboarding new players (and honouring any pick) into the shown
+  // language (I1). Computed once (lazy initialiser).
+  const [touched, setTouched] = useState(false)
+  const [hadStoredOff] = useState(nlDisabledByChoice)
+  // language is never 'off' on the landing, but the guard keeps the type narrow.
+  const exampleLang = language === 'off' || language === 'en' ? 'en' : language
+  const examples = LANDING_EXAMPLES[exampleLang]
   const dismissRef = useRef<HTMLButtonElement>(null)
   const plateRef = useRef<HTMLDivElement>(null)
   const volumesRef = useRef<HTMLDivElement>(null)
@@ -28,22 +79,14 @@ export function Landing({
   // Radiogroup roving: arrows move selection AND focus among the volumes (APG
   // radio pattern), so the mutual exclusivity is operable by keyboard, not just
   // mouse. The selected radio is the only tab stop (roving tabindex).
-  const onVolumeKey = (e: React.KeyboardEvent) => {
-    const i = GAMES.findIndex(g => g.slug === selected)
-    const delta =
-      e.key === 'ArrowRight' || e.key === 'ArrowDown'
-        ? 1
-        : e.key === 'ArrowLeft' || e.key === 'ArrowUp'
-          ? -1
-          : 0
-    if (delta === 0) return
-    e.preventDefault()
-    const nextIndex = (i + delta + GAMES.length) % GAMES.length
-    setSelected(GAMES[nextIndex].slug)
-    const radios =
-      volumesRef.current?.querySelectorAll<HTMLElement>('[role="radio"]')
-    radios?.[nextIndex]?.focus()
-  }
+  const onVolumeKey = (e: React.KeyboardEvent) =>
+    rovingRadioKeydown(
+      e,
+      GAMES.map(g => g.slug),
+      selected,
+      setSelected,
+      volumesRef,
+    )
 
   // Overlay-only behaviour (the in-game "Change story" picker): Escape returns to
   // the game, focus lands on the dismiss control so a keyboard user can leave
@@ -84,18 +127,40 @@ export function Landing({
         <h1 className="title">Loquor</h1>
         <p className="tagline">to speak, and be understood, in the dark</p>
         <div className="howto">
-          <b>How to play.</b> Type what you want to do, the way the game expects
-          it.
+          <b>How to play.</b> Type what you want to do in plain language.
           <br />
-          <span className="cmds">
-            look · go north · open mailbox · take lamp · read leaflet ·
-            inventory
+          <span
+            className="cmds"
+            role="region"
+            aria-label="Command examples"
+            aria-live="polite"
+          >
+            {examples.join(' · ')}
           </span>
           <br />
           <span style={{ opacity: 0.75 }}>
             Your progress is kept; close the tab and return whenever you like.
           </span>
         </div>
+        <div className="langpick">
+          <span className="langpick-label">Language:</span>{' '}
+          <LanguageCombobox
+            options={LANDING_LANGUAGES}
+            value={language}
+            onChange={l => {
+              setLanguage(l)
+              setTouched(true)
+            }}
+            idBase="landing-lang"
+            label="Language"
+          />
+        </div>
+        <p className="lang-caveat">
+          Basic commands work now in all four languages. To understand more of
+          what you type, you can add an optional, experimental model — a
+          one-time download whose richer understanding may be uneven across
+          languages.
+        </p>
         <span className="label" id="descent-label">
           — choose your descent —
         </span>
@@ -124,7 +189,13 @@ export function Landing({
             </button>
           ))}
         </div>
-        <button className="enter" onClick={() => onEnter(selected)}>
+        <button
+          className="enter"
+          onClick={() => {
+            if (touched || !hadStoredOff) writeNlPref({ language })
+            onEnter(selected)
+          }}
+        >
           Light the lamp →
         </button>
         {savedSlugs.has(selected) && (
@@ -137,6 +208,26 @@ export function Landing({
             {loadError}
           </div>
         )}
+        <footer className="folio-footnote">
+          Zork is a trademark of Activision Publishing, Inc., a Microsoft
+          company.{' '}
+          <a
+            href="https://opensource.microsoft.com/blog/2025/11/20/preserving-code-that-shaped-generations-zork-i-ii-and-iii-go-open-source/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            The Zork I–III game code was released by Microsoft under the MIT
+            License in 2025.
+          </a>{' '}
+          <a
+            href="https://github.com/Ovid/loquor"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View on GitHub
+          </a>
+          .
+        </footer>
       </div>
     </Root>
   )

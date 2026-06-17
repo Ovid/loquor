@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 
 // Shared with the modal and the change-story overlay (review I2): a single
 // definition of "what counts as focusable" so the two traps can't drift.
-const FOCUSABLE =
+export const FOCUSABLE =
   'button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])'
 
 /**

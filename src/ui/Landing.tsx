@@ -137,7 +137,7 @@ export function Landing({
           <span
             className="cmds"
             role="region"
-            aria-label="Command examples"
+            aria-label={s.commandExamples}
             aria-live="polite"
           >
             {examples.join(' · ')}

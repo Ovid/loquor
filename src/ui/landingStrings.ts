@@ -22,6 +22,7 @@ export interface LandingCopy {
   resume: string // the saved-game resume hint
   returnToGame: string // overlay dismiss button aria-label
   changeStory: string // overlay dialog aria-label
+  commandExamples: string // aria-label for the command-examples region
   footer: {
     trademark: string // sentence before the two footer links
     licenseLinkText: string // visible text of the MIT-license link
@@ -47,6 +48,7 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
     resume: '↩ a saved descent awaits — you will resume where you left off',
     returnToGame: 'Return to game',
     changeStory: 'Change story',
+    commandExamples: 'Command examples',
     footer: {
       trademark:
         'Zork is a trademark of Activision Publishing, Inc., a Microsoft company.',
@@ -77,6 +79,7 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
       '↩ une descente sauvegardée vous attend — vous reprendrez là où vous en étiez',
     returnToGame: 'Retour au jeu',
     changeStory: 'Changer d’histoire',
+    commandExamples: 'Exemples de commandes',
     footer: {
       trademark:
         'Zork est une marque déposée d’Activision Publishing, Inc., une société Microsoft.',
@@ -107,6 +110,7 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
       '↩ ein gespeicherter Abstieg wartet — du machst dort weiter, wo du aufgehört hast',
     returnToGame: 'Zurück zum Spiel',
     changeStory: 'Geschichte wechseln',
+    commandExamples: 'Befehlsbeispiele',
     footer: {
       trademark:
         'Zork ist eine Marke von Activision Publishing, Inc., einem Microsoft-Unternehmen.',
@@ -137,6 +141,7 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
       '↩ un descenso guardado te espera — continuarás donde lo dejaste',
     returnToGame: 'Volver al juego',
     changeStory: 'Cambiar de historia',
+    commandExamples: 'Ejemplos de comandos',
     footer: {
       trademark:
         'Zork es una marca registrada de Activision Publishing, Inc., una empresa de Microsoft.',

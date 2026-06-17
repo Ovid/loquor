@@ -335,6 +335,24 @@ describe('Landing', () => {
     ).toBeInTheDocument()
   })
 
+  it('localizes the command-examples region accessible name (de)', () => {
+    localStorage.setItem(
+      LS_KEYS.nlPref,
+      JSON.stringify({ language: 'de', declined: false }),
+    )
+    const { container } = render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    // The element has role="region" via an explicit role attribute on a <span>.
+    // Assert the German label is present and the English hardcode is gone.
+    expect(
+      container.querySelector('[aria-label="Befehlsbeispiele"]'),
+    ).toBeInTheDocument()
+    expect(
+      container.querySelector('[aria-label="Command examples"]'),
+    ).toBeNull()
+  })
+
   it('marks the localized plate with a lang attribute and keeps the tagline English', () => {
     localStorage.setItem(
       LS_KEYS.nlPref,

@@ -21,6 +21,7 @@ const SCALAR_KEYS = [
   'resume',
   'returnToGame',
   'changeStory',
+  'commandExamples',
 ] as const
 
 const FOOTER_KEYS = ['trademark', 'licenseLinkText', 'githubLinkText'] as const

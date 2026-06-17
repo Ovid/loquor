@@ -6,12 +6,15 @@ export function StatusBar({
   onChangeStory,
   themeToggle,
   nlToggle,
+  prefsToggle,
   inert = false,
 }: {
   status: StatusLine | null
   onChangeStory: () => void
   themeToggle: ReactNode
   nlToggle?: ReactNode
+  /** The ⚙ Preferences opener, rendered between the picker and theme toggle. */
+  prefsToggle?: ReactNode
   /** Make the bar inert while a modal/overlay is open (M9). */
   inert?: boolean
 }) {
@@ -30,9 +33,10 @@ export function StatusBar({
           ·
         </span>
         <button className="sw" type="button" onClick={onChangeStory}>
-          <span aria-hidden="true">⌄</span> Change story
+          Change story <span aria-hidden="true">▾</span>
         </button>
         {nlToggle}
+        {prefsToggle}
         {themeToggle}
       </span>
     </header>

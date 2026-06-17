@@ -1,31 +1,46 @@
 # Loquor
 
 <p align="center">
-  <img src="images/screenshot.png" alt="Loquor: Zork in your browser." width="600">
+  <img src="images/screenshot.png" alt="Loquor — play Zork in your own language, in your browser." width="600">
 </p>
 
 
-> *Loquor* — Latin for "I speak." With WebLLM, **Loquor** lets you talk to Zork
-> in plain English.
+> *Loquor* — Latin for "I speak."
+> *to speak, and be understood, in the dark.*
 
-Loquor is a fully client-side web app for playing **Zork I, II, and III** in the
-browser, on top of a JavaScript Z-machine. Pick a game, play it, and resume
-automatically where you left off — nothing leaves your machine.
+**Play Zork in your own words.** Loquor runs **Zork I, II, and III** entirely in
+your browser and lets you type what you want to do in plain language — in
+**English, French, German, or Spanish** — and turns it into commands the game
+understands. Pick a game, play it, and pick up automatically where you left off.
+The game runs on your machine; the base experience never phones home.
 
-The eventual goal — what the name promises — is to let you type plain
-English and have an in-browser LLM translate it into commands the game
-understands. That natural-language layer is **future work** — see
-[`docs/notes.md`](docs/notes.md). The current first pass focuses on getting the
-three games running with a custom interface; see the design spec at
-[`docs/superpowers/specs/2026-06-06-loquor-design.md`](docs/superpowers/specs/2026-06-06-loquor-design.md).
+## Speak, and be understood
+
+Type `coge la lámpara y ve al norte` or `nimm die Lampe und geh nach Norden`, and
+Loquor translates it into the canonical Zork command before the dungeon ever sees
+it. A built-in, per-language grammar handles the everyday commands **instantly and
+offline** — no account, no download, no GPU required.
+
+Want richer understanding of the things you type? Add the **optional AI model**
+(WebLLM, via WebGPU): a one-time download that then runs **entirely on your
+device**. It's an upgrade, never a gate — pick a language and you're playing
+immediately, with or without it.
+
+And Loquor doesn't just understand you — it can **answer in your language**, too.
+Output translation renders Zork's replies back into the tongue you chose (rolling
+out now, starting with Zork I in French, German, and Spanish), so the whole
+adventure reads end to end in your own words.
+
+It's built to be played by everyone: full keyboard operation, screen-reader
+support, and high-contrast themes are requirements, not afterthoughts.
 
 ## Why we can do this — Zork is open source
 
 In November 2025, Microsoft released the original source code for Zork I, II, and
 III under the **MIT License** (the `LICENSE` files in the game directories read
 *Copyright (c) 2025 Microsoft*). This is what makes Loquor possible: we can ship
-the games, read their ZIL source, and — later — derive a command grammar directly
-from that source.
+the games, read their ZIL source, and derive a command grammar directly from that
+source.
 
 - Announcement: [*Preserving code that shaped generations: Zork I, II, and III go open source*](https://opensource.microsoft.com/blog/2025/11/20/preserving-code-that-shaped-generations-zork-i-ii-and-iii-go-open-source/) (Microsoft Open Source Blog, 2025-11-20)
 
@@ -37,13 +52,24 @@ originally published by Infocom, in **ZIL** (Zork Implementation Language).
 | Component | What it does | License |
 |---|---|---|
 | [ifvms.js](https://github.com/curiousdannii/ifvms.js) | The Z-machine virtual machine that runs the compiled `.z3` Zork story files in the browser (the engine behind Parchment and Lectrote). | MIT |
-| [WebLLM](https://github.com/mlc-ai/web-llm) | High-performance in-browser LLM inference (WebGPU). Powers the planned natural-language layer; not used in the first pass. | Apache-2.0 |
-| [Zork I/II/III source](https://opensource.microsoft.com/blog/2025/11/20/preserving-code-that-shaped-generations-zork-i-ii-and-iii-go-open-source/) | The games themselves — compiled story files we ship, plus ZIL source for future grammar extraction. | MIT (© 2025 Microsoft) |
-| React + Vite + TypeScript | The application itself. | — |
+| [WebLLM](https://github.com/mlc-ai/web-llm) | Optional in-browser LLM inference (WebGPU) for richer natural-language understanding — a one-time, on-device upgrade over the built-in grammar. | Apache-2.0 |
+| [Zork I/II/III source](https://opensource.microsoft.com/blog/2025/11/20/preserving-code-that-shaped-generations-zork-i-ii-and-iii-go-open-source/) | The games themselves — compiled story files we ship, plus ZIL source for grammar extraction. | MIT (© 2025 Microsoft) |
+| React + Vite + TypeScript | The application itself, including the multilingual natural-language and output-translation layers. | — |
 
-These upstream projects are vendored locally for reference (and are
-git-ignored — we never modify them); the application consumes `ifvms.js` and
-WebLLM from npm.
+The natural-language pipeline is **deterministic-first**: per-language lexicons
+and a full-vocabulary grammar translate most input on-device, with the optional
+LLM as a fallback for the rest. These upstream projects are vendored locally for
+reference (and are git-ignored — we never modify them); the application consumes
+`ifvms.js` and WebLLM from npm.
+
+### A note on the offline promise
+
+The base game is fully self-hosted — engine, fonts, and story files all ship with
+the app, so it plays with no network access and nothing leaves your machine.
+There is **one documented exception**: turning on the optional AI model triggers a
+one-time, third-party download of the model weights (the disclosed, opt-in
+download modal). After that fetch the model is cached and runs entirely
+on-device/offline.
 
 ## Running locally
 
@@ -78,5 +104,10 @@ binding automatically (no platform table) and is a silent ~0.1s no-op when healt
 
 ## Status
 
-First pass — in active development on the `ovid/first-pass` branch. See the design
-spec and notes linked above.
+Loquor is in active development. The playable engine + custom UI and the
+**multilingual natural-language layer** (deterministic grammar with an optional
+on-device LLM; English, French, German, and Spanish) are built and under active
+refinement. **Output translation** — Zork's replies rendered in your language — is
+rolling out, starting with Zork I in French, German, and Spanish. Design specs and
+plans live under [`docs/superpowers/`](docs/superpowers/); contributor guidance is
+in [`CLAUDE.md`](CLAUDE.md).

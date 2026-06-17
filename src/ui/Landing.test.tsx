@@ -167,8 +167,9 @@ describe('Landing', () => {
 
   it('shows the Zork trademark / open-source footnote', () => {
     render(<Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />)
-    // A <footer> nested in the landing's <main> is scoped to main (NOT exposed
-    // as contentinfo), so query by text, which is stable across both variants.
+    // The footnote <footer> maps to a contentinfo landmark (its nearest sectioning
+    // ancestor is <main>), but the overlay variant renders a <div> root instead —
+    // so query by text, which is stable across both Landing variants.
     expect(screen.getByText(/trademark of Activision/i)).toBeInTheDocument()
     expect(screen.getByText(/MIT License/i)).toBeInTheDocument()
   })

@@ -220,6 +220,19 @@
   margin-top: 6px;
   line-height: 1.3;
 }
+/* "English only" badge — small and muted, but a real color token (--text-dim,
+   the same WCAG-AA token .vol .nm uses in both themes), never opacity, so it
+   stays legible. It is text, not a colour-only cue, and is part of the radio's
+   accessible name. */
+.vol .vol-untranslated {
+  display: block;
+  font-family: 'IM Fell English', serif;
+  font-size: 0.625rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-top: 6px;
+}
 .vol:hover {
   border-color: var(--brass-soft);
   background: var(--vol-hover-bg);

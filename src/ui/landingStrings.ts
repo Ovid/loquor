@@ -23,6 +23,7 @@ export interface LandingCopy {
   returnToGame: string // overlay dismiss button aria-label
   changeStory: string // overlay dialog aria-label
   commandExamples: string // aria-label for the command-examples region
+  englishOnly: string // badge on volumes that have no corpus for the chosen language
   footer: {
     trademark: string // sentence before the two footer links
     licenseLinkText: string // visible text of the MIT-license link
@@ -49,6 +50,7 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
     returnToGame: 'Return to game',
     changeStory: 'Change story',
     commandExamples: 'Command examples',
+    englishOnly: 'English only',
     footer: {
       trademark:
         'Zork is a trademark of Activision Publishing, Inc., a Microsoft company.',
@@ -80,6 +82,7 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
     returnToGame: 'Retour au jeu',
     changeStory: 'Changer d’histoire',
     commandExamples: 'Exemples de commandes',
+    englishOnly: 'en anglais',
     footer: {
       trademark:
         'Zork est une marque déposée d’Activision Publishing, Inc., une société Microsoft.',
@@ -111,6 +114,7 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
     returnToGame: 'Zurück zum Spiel',
     changeStory: 'Geschichte wechseln',
     commandExamples: 'Befehlsbeispiele',
+    englishOnly: 'nur Englisch',
     footer: {
       trademark:
         'Zork ist eine Marke von Activision Publishing, Inc., einem Microsoft-Unternehmen.',
@@ -141,6 +145,7 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
     returnToGame: 'Volver al juego',
     changeStory: 'Cambiar de historia',
     commandExamples: 'Ejemplos de comandos',
+    englishOnly: 'solo en inglés',
     footer: {
       trademark:
         'Zork es una marca registrada de Activision Publishing, Inc., una empresa de Microsoft.',
@@ -176,6 +181,7 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
     returnToGame: 'თამაშში დაბრუნება',
     changeStory: 'ისტორიის შეცვლა',
     commandExamples: 'ბრძანებების მაგალითები',
+    englishOnly: 'ინგლისურად',
     footer: {
       trademark:
         'Zork არის Activision Publishing, Inc.-ის (Microsoft-ის კომპანია) სავაჭრო ნიშანი.',

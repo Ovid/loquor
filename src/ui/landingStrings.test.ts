@@ -22,6 +22,7 @@ const SCALAR_KEYS = [
   'returnToGame',
   'changeStory',
   'commandExamples',
+  'englishOnly',
 ] as const
 
 const FOOTER_KEYS = ['trademark', 'licenseLinkText', 'githubLinkText'] as const

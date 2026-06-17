@@ -6,6 +6,7 @@ import { LANGUAGE_OPTIONS } from './languageOptions'
 import { LanguageCombobox } from './LanguageCombobox'
 import { LANDING_EXAMPLES } from './landingExamples'
 import { LANDING_STRINGS } from './landingStrings'
+import { corpusFor } from '../translate/corpus/index'
 import type { NlLanguage } from '../llm/types'
 
 // The title screen offers only the play languages, not "Off" (disabling the NL
@@ -195,6 +196,16 @@ export function Landing({
             >
               <span className="num">{g.numeral}</span>
               <span className="nm">{s.subtitles[g.slug]}</span>
+              {/* Honest, self-correcting "English only" badge: shown only when a
+                  translation language is selected AND this game has no corpus
+                  for it (read from the corpus registry, not a hardcoded list).
+                  English (the source) is excluded by the guard; a future corpus
+                  removes the badge by itself. It's literal text inside the radio
+                  so it joins the accessible name (a11y), and it's text — not
+                  colour-only. */}
+              {exampleLang !== 'en' && corpusFor(g.sig, exampleLang) === null && (
+                <span className="vol-untranslated">{s.englishOnly}</span>
+              )}
             </button>
           ))}
         </div>

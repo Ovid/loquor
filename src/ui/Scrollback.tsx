@@ -30,12 +30,19 @@ export function Scrollback({
   // setState-during-render alternative can't do this — it re-renders before
   // commit so 'off' never reaches the DOM — and a lines-identity-based reset
   // would be clobbered when the parent rebuilds the lines array each render.
+  // Suppress ONLY when the debug flag flipped AND no new line arrived in the same
+  // commit (review S3): if a genuine game-output line and a debug toggle happen to
+  // batch into one render, the new line must still be announced, so we don't mute
+  // it. lines.length is the cheap identity proxy — the parent rebuilds the array
+  // each render, so a reference compare is useless, but a new line always grows it.
   const prevDebugRef = useRef(debug)
+  const prevLenRef = useRef(lines.length)
   // eslint-disable-next-line react-hooks/refs -- intentional compare-and-sync; see note above
-  const toggled = prevDebugRef.current !== debug
+  const toggled = prevDebugRef.current !== debug && prevLenRef.current === lines.length
   useEffect(() => {
     prevDebugRef.current = debug
-  }, [debug])
+    prevLenRef.current = lines.length
+  }, [debug, lines.length])
 
   // The game prints a bare '>' to the buffer as its line-input prompt. The
   // inline CommandInput already shows that prompt, so the bare-'>' lines are

@@ -146,6 +146,18 @@ describe('Scrollback', () => {
       expect(screen.getByRole('log')).toHaveAttribute('aria-live', 'off')
     })
 
+    it('still announces a new line that arrives in the same commit as a toggle (S3)', () => {
+      const { rerender } = render(<Scrollback lines={lines} debug={false} />)
+      // A debug toggle AND a genuine new output line land in one render: the new
+      // line must not be muted just because debug flipped.
+      const more = [
+        ...lines,
+        { id: 4, kind: 'output' as const, text: 'Taken.' },
+      ]
+      rerender(<Scrollback lines={more} debug={true} />)
+      expect(screen.getByRole('log')).toHaveAttribute('aria-live', 'polite')
+    })
+
     it('resumes polite announcements on the next real-output render', () => {
       const { rerender } = render(<Scrollback lines={lines} debug={false} />)
       rerender(<Scrollback lines={lines} debug={true} />) // toggle → muted

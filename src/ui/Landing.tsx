@@ -162,6 +162,11 @@ export function Landing({
             ))}
           </div>
         </div>
+        <p className="lang-caveat">
+          Basic commands work now. To understand more of what you type, you can
+          add an optional, experimental model — a one-time download that may not
+          support every language.
+        </p>
         <span className="label" id="descent-label">
           — choose your descent —
         </span>
@@ -209,6 +214,12 @@ export function Landing({
             {loadError}
           </div>
         )}
+        <footer className="folio-footnote">
+          Zork is a trademark of Activision Publishing, Inc. (a Microsoft
+          company); the name and brand are not licensed here. The Zork I–III
+          game code was released by Microsoft under the MIT License in 2025 —
+          this project plays those open-source games.
+        </footer>
       </div>
     </Root>
   )

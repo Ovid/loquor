@@ -159,6 +159,20 @@ describe('Landing', () => {
     )
   })
 
+  it('shows the basic-now / optional-model caveat under the picker', () => {
+    render(<Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />)
+    expect(screen.getByText(/Basic commands work now/i)).toBeInTheDocument()
+    expect(screen.getByText(/optional, experimental model/i)).toBeInTheDocument()
+  })
+
+  it('shows the Zork trademark / open-source footnote', () => {
+    render(<Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />)
+    // A <footer> nested in the landing's <main> is scoped to main (NOT exposed
+    // as contentinfo), so query by text, which is stable across both variants.
+    expect(screen.getByText(/trademark of Activision/i)).toBeInTheDocument()
+    expect(screen.getByText(/MIT License/i)).toBeInTheDocument()
+  })
+
   it('traps Tab within the plate so focus cannot reach the game behind it', () => {
     render(
       <Landing

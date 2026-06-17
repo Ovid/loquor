@@ -288,3 +288,66 @@
   color: var(--ember);
   font-family: 'IM Fell English', serif;
 }
+
+/* ---------- Language picker ---------- */
+/* Sibling of the volume picker (.volumes/.vol) — same brass tokens, rule
+   border, brass-soft focus/selected accent, and a non-colour selected cue. */
+.langpick {
+  margin: 18px 0 6px;
+  text-align: center;
+}
+.lang-options {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.lang-opt {
+  padding: 4px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--vol-bg);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  transition: all 0.25s ease;
+}
+.lang-opt:hover {
+  border-color: var(--brass-soft);
+  background: var(--vol-hover-bg);
+}
+.lang-opt.sel {
+  border-color: var(--brass);
+  /* Non-colour cue (a11y §4): the selected option is also bold + given an
+     extra outline ring, so the state survives a colourblind/forced-colors
+     display. aria-checked conveys it to assistive tech. */
+  font-weight: 600;
+  outline: 1px solid var(--brass-soft);
+}
+.lang-opt:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+.lang-caveat {
+  max-width: 52ch;
+  margin: 4px auto 0;
+  text-align: center;
+  font-size: 0.8125rem;
+  /* Muted via the themed --text-dim token (AA-verified in both themes) rather
+     than opacity on body text, matching .howto/.resume/.vol .nm. */
+  color: var(--text-dim);
+}
+
+/* ---------- Licensing footnote ---------- */
+.folio-footnote {
+  margin-top: 28px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
+  font-size: 0.6875rem;
+  /* Same AA-verified muted token as the caveat — avoids stacking opacity on an
+     already-dimmed colour, which would risk dropping below AA. */
+  color: var(--text-dim);
+  text-align: center;
+  line-height: 1.5;
+}

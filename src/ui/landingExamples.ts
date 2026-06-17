@@ -7,7 +7,13 @@
 // No multi-word noun phrase is used: under the game-independent constraint none
 // resolves across all three games (see the design doc's "example richness"
 // note). The remaining two examples are a simple direction and a single verb.
-export const LANDING_EXAMPLES: Record<'en' | 'fr' | 'de' | 'es', string[]> = {
+//
+// Keyed by ActiveLanguage (the NL_LANGUAGES source of truth) so adding a play
+// language is a compile error here until its examples exist — mirrors
+// LANDING_STRINGS, so the two parallel tables can't drift (review I1).
+import type { ActiveLanguage } from '../llm/types'
+
+export const LANDING_EXAMPLES: Record<ActiveLanguage, string[]> = {
   en: ['take the lamp and go north', 'go south', 'look'],
   fr: ['prends la lampe et va au nord', 'va au sud', 'regarde'],
   de: ['nimm die lampe und geh nach norden', 'geh nach süden', 'schau'],

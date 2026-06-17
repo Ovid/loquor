@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { Landing } from './Landing'
 import { LANDING_EXAMPLES } from './landingExamples'
+import { LANDING_STRINGS } from './landingStrings'
 import { LS_KEYS } from '../storageKeys'
 import { FOCUSABLE } from './useFocusTrap'
 
@@ -13,8 +14,8 @@ describe('Landing', () => {
     render(
       <Landing onEnter={onEnter} savedSlugs={new Set()} themeToggle={null} />,
     )
-    fireEvent.click(screen.getByText('The Wizard of Frobozz'))
-    fireEvent.click(screen.getByText(/Light the lamp/))
+    fireEvent.click(screen.getByText(LANDING_STRINGS.en.subtitles.zork2))
+    fireEvent.click(screen.getByRole('button', { name: /Light the lamp/i }))
     expect(onEnter).toHaveBeenCalledWith('zork2')
   })
   it('exposes the volumes as a named radiogroup with arrow-key selection (M2)', () => {
@@ -36,6 +37,23 @@ describe('Landing', () => {
       'aria-checked',
       'true',
     )
+  })
+
+  it('gives each volume radio a localized accessible name (numeral + subtitle) (S3)', () => {
+    localStorage.setItem(
+      LS_KEYS.nlPref,
+      JSON.stringify({ language: 'de', declined: false }),
+    )
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    // The radio's accessible name is its numeral + the localized subtitle, so a
+    // screen-reader user hears "I Das große unterirdische Reich", not a bare "I".
+    expect(
+      screen.getByRole('radio', {
+        name: new RegExp(`I.*${LANDING_STRINGS.de.subtitles.zork1}`),
+      }),
+    ).toBeInTheDocument()
   })
 
   it('renders the initial landing inside a main landmark (m1)', () => {
@@ -98,9 +116,11 @@ describe('Landing', () => {
     render(
       <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
     )
-    expect(
-      screen.getByRole('combobox', { name: /language/i }),
-    ).toHaveTextContent('Français')
+    // When saved pref is French, the plate localizes and the combobox aria-label
+    // is "Langue" (the French visible label, colon stripped).
+    expect(screen.getByRole('combobox', { name: /langue/i })).toHaveTextContent(
+      'Français',
+    )
   })
 
   it('defaults to English and does not offer Off on the title screen', () => {
@@ -134,7 +154,12 @@ describe('Landing', () => {
     )
     fireEvent.click(screen.getByRole('combobox', { name: /language/i }))
     fireEvent.click(screen.getByRole('option', { name: 'Deutsch' }))
-    fireEvent.click(screen.getByText(/Light the lamp/))
+    // After picking Deutsch the enter button shows the German label.
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: new RegExp(LANDING_STRINGS.de.enter.replace(/\s*→\s*$/, '')),
+      }),
+    )
     expect(onEnter).toHaveBeenCalledWith('zork1')
     expect(JSON.parse(localStorage.getItem(LS_KEYS.nlPref)!).language).toBe(
       'de',
@@ -151,7 +176,7 @@ describe('Landing', () => {
     render(
       <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
     )
-    fireEvent.click(screen.getByText(/Light the lamp/))
+    fireEvent.click(screen.getByRole('button', { name: /Light the lamp/i }))
     expect(JSON.parse(localStorage.getItem(LS_KEYS.nlPref)!).language).toBe(
       'off',
     )
@@ -163,7 +188,7 @@ describe('Landing', () => {
     render(
       <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
     )
-    fireEvent.click(screen.getByText(/Light the lamp/))
+    fireEvent.click(screen.getByRole('button', { name: /Light the lamp/i }))
     expect(JSON.parse(localStorage.getItem(LS_KEYS.nlPref)!).language).toBe(
       'en',
     )
@@ -179,7 +204,12 @@ describe('Landing', () => {
     )
     fireEvent.click(screen.getByRole('combobox', { name: /language/i }))
     fireEvent.click(screen.getByRole('option', { name: 'Deutsch' }))
-    fireEvent.click(screen.getByText(/Light the lamp/))
+    // After picking Deutsch the enter button shows the German label.
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: new RegExp(LANDING_STRINGS.de.enter.replace(/\s*→\s*$/, '')),
+      }),
+    )
     expect(JSON.parse(localStorage.getItem(LS_KEYS.nlPref)!).language).toBe(
       'de',
     )
@@ -286,5 +316,91 @@ describe('Landing', () => {
     // rather than escaping into the dimmed game.
     fireEvent.keyDown(document, { key: 'Tab' })
     expect(document.activeElement).toBe(focusables[0])
+  })
+
+  it('renders localized copy and volume subtitle for the stored language (de)', () => {
+    localStorage.setItem(
+      LS_KEYS.nlPref,
+      JSON.stringify({ language: 'de', declined: false }),
+    )
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    const de = LANDING_STRINGS.de
+    expect(screen.getByText(de.howToBody)).toBeInTheDocument()
+    // The primary action is found by its localized accessible name.
+    expect(
+      screen.getByRole('button', {
+        name: new RegExp(de.enter.replace(/\s*→\s*$/, '')),
+      }),
+    ).toBeInTheDocument()
+    // The volume subtitle is localized, not the English catalog value.
+    expect(screen.getByText(de.subtitles.zork1)).toBeInTheDocument()
+    expect(
+      screen.queryByText('The Great Underground Empire'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('localizes the radiogroup label for the stored language (es)', () => {
+    localStorage.setItem(
+      LS_KEYS.nlPref,
+      JSON.stringify({ language: 'es', declined: false }),
+    )
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    expect(
+      screen.getByRole('radiogroup', { name: /elige tu descenso/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('localizes the command-examples region accessible name (de)', () => {
+    localStorage.setItem(
+      LS_KEYS.nlPref,
+      JSON.stringify({ language: 'de', declined: false }),
+    )
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    // The examples element has role="region"; assert its accessible name is the
+    // localized label and not the former English hardcode.
+    const de = LANDING_STRINGS.de
+    expect(
+      screen.getByRole('region', { name: de.commandExamples }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('region', { name: 'Command examples' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('marks the localized plate with a lang attribute and keeps the tagline English', () => {
+    localStorage.setItem(
+      LS_KEYS.nlPref,
+      JSON.stringify({ language: 'fr', declined: false }),
+    )
+    const { container } = render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    expect(container.querySelector('.plate')).toHaveAttribute('lang', 'fr')
+    expect(container.querySelector('.tagline')).toHaveAttribute('lang', 'en')
+    // The Loquor wordmark is the English brand, not French — so a French screen
+    // reader doesn't mispronounce it (S1).
+    expect(container.querySelector('.title')).toHaveAttribute('lang', 'en')
+  })
+
+  it('localizes the language picker accessible name (de)', () => {
+    localStorage.setItem(
+      LS_KEYS.nlPref,
+      JSON.stringify({ language: 'de', declined: false }),
+    )
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    expect(
+      screen.getByRole('combobox', { name: /sprache/i }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('combobox', { name: /^language$/i }),
+    ).not.toBeInTheDocument()
   })
 })

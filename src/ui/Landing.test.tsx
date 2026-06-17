@@ -99,8 +99,10 @@ describe('Landing', () => {
     render(
       <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
     )
+    // When saved pref is French, the plate localizes and the combobox aria-label
+    // is "Langue" (the French visible label, colon stripped).
     expect(
-      screen.getByRole('combobox', { name: /language/i }),
+      screen.getByRole('combobox', { name: /langue/i }),
     ).toHaveTextContent('Français')
   })
 
@@ -331,5 +333,33 @@ describe('Landing', () => {
     expect(
       screen.getByRole('radiogroup', { name: /elige tu descenso/i }),
     ).toBeInTheDocument()
+  })
+
+  it('marks the localized plate with a lang attribute and keeps the tagline English', () => {
+    localStorage.setItem(
+      LS_KEYS.nlPref,
+      JSON.stringify({ language: 'fr', declined: false }),
+    )
+    const { container } = render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    expect(container.querySelector('.plate')).toHaveAttribute('lang', 'fr')
+    expect(container.querySelector('.tagline')).toHaveAttribute('lang', 'en')
+  })
+
+  it('localizes the language picker accessible name (de)', () => {
+    localStorage.setItem(
+      LS_KEYS.nlPref,
+      JSON.stringify({ language: 'de', declined: false }),
+    )
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    expect(
+      screen.getByRole('combobox', { name: /sprache/i }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('combobox', { name: /^language$/i }),
+    ).not.toBeInTheDocument()
   })
 })

@@ -110,6 +110,7 @@ export function Landing({
       <div
         className="plate"
         ref={plateRef}
+        lang={exampleLang}
         role={onDismiss ? 'dialog' : undefined}
         aria-modal={onDismiss ? true : undefined}
         aria-label={onDismiss ? s.changeStory : undefined}
@@ -127,7 +128,9 @@ export function Landing({
         )}
         {themeToggle}
         <h1 className="title">Loquor</h1>
-        <p className="tagline">to speak, and be understood, in the dark</p>
+        <p className="tagline" lang="en">
+          to speak, and be understood, in the dark
+        </p>
         <div className="howto">
           <b>{s.howToTitle}</b> {s.howToBody}
           <br />
@@ -152,7 +155,9 @@ export function Landing({
               setTouched(true)
             }}
             idBase="landing-lang"
-            label="Language"
+            // aria-label derived from the localized visible label (trailing colon/space
+            // stripped) so the picker is announced in the player's own language.
+            label={s.languageLabel.replace(/[:\s]+$/, '')}
           />
         </div>
         <p className="lang-caveat">{s.caveat}</p>

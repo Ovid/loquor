@@ -52,4 +52,38 @@ describe('autosave/resume', () => {
     await e.boot(story())
     expect(view.status?.location).toMatch(/West of House/i)
   })
+
+  it('boot() warms the autosave cache (preload) before ifvms reads it synchronously [F-4 ordering]', async () => {
+    // F-4 temporal coupling, made legible: boot() must `await dialog.preload(sig)`
+    // BEFORE Glk.init() runs the VM, because ifvms calls autosave_read SYNCHRONOUSLY
+    // during start(). A refactor that moved Glk.init ahead of the preload await
+    // would otherwise only manifest as the resume test above breaking "for no
+    // reason"; this records the call order so a reorder fails pointing AT the
+    // ordering invariant, not a downstream symptom.
+    const base = new IdbDialog()
+    const calls: string[] = []
+    const dialog = {
+      streaming: base.streaming,
+      preload: (sig: string) => {
+        calls.push('preload')
+        return base.preload(sig)
+      },
+      autosave_read: (sig: string) => {
+        calls.push('autosave_read')
+        return base.autosave_read(sig)
+      },
+      autosave_write: (sig: string, snapshot: unknown) =>
+        base.autosave_write(sig, snapshot),
+      hasSave: (sig: string) => base.hasSave(sig),
+      dispose: () => base.dispose(),
+    }
+    const e = new ZMachine({ dialog: dialog as any, onState: () => {} })
+    await e.boot(story())
+    // Both fired during boot, and preload strictly preceded the sync read.
+    expect(calls).toContain('preload')
+    expect(calls).toContain('autosave_read')
+    expect(calls.indexOf('preload')).toBeLessThan(
+      calls.indexOf('autosave_read'),
+    )
+  })
 })

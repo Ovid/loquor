@@ -10,7 +10,7 @@
 
 This branch implements the "preferences panel + debug echo + menu-bar polish" spec: a `debug`
 display preference, a new `nl-canonical` line kind for translated command echoes (hidden in
-debug-off), a `PreferencesModal`, and menu-bar tweaks — plus an *unplanned but justified* autosave
+debug-off), a `PreferencesModal`, and menu-bar tweaks — plus an _unplanned but justified_ autosave
 round-trip that carries the rendered transcript so NL line kinds survive a page reload. The plan is
 implemented faithfully and the a11y/localization work is solid. No critical or security issues.
 The highest-value finding is **F4**: the autosave fix now serializes the entire, ever-growing
@@ -25,6 +25,7 @@ None found.
 ## Important Issues
 
 ### [I1] Autosave serializes the entire transcript on every turn (unbounded growth)
+
 - **File:** `src/glkote-react/bridge.ts:203-213` (`save_allstate`)
 - **Bug:** `save_allstate()` now returns `lines: this.view.lines` in full (was `{ metrics }` only).
   Native autosave fires at **every** line-input turn boundary (`engine.ts:147` `do_vm_autosave:true`
@@ -42,16 +43,17 @@ None found.
 - **Found by:** Error Handling, Contract & Integration, Verifier
 
 ### [I2] `alias`-stage echoes are hidden in debug-off, contradicting the spec
+
 - **File:** `src/llm/translatePipeline.ts:122-127` (`TRANSLATED_STAGES`) vs `:723-744`
 - **Bug:** `alias` is a member of `TRANSLATED_STAGES`. For a non-English language an alias clause
   (e.g. ES `inventario` → `inventory`) computes `translated = true`, sends via `sendCanonical`, and
   its echo is tagged `nl-canonical` → **hidden in debug-off** (`Scrollback.tsx:49`). The spec says a
   meta/**alias** clause's echo "stays a plain `input` line" (visible) — design doc lines 63-65,
-  217-219, 232-234. (`meta` is *not* in `TRANSLATED_STAGES` and correctly stays `input`; the conflict
+  217-219, 232-234. (`meta` is _not_ in `TRANSLATED_STAGES` and correctly stays `input`; the conflict
   is alias-specific. This refines the plan-alignment reviewer's "meta stays plain" claim, which holds
   only for `meta`.)
 - **Impact:** Spec/code divergence on the exact behavior this feature controls. Arguably the
-  debug-off result (player sees their own `> inventario`, the English `> inventory` hidden) is *better*
+  debug-off result (player sees their own `> inventario`, the English `> inventory` hidden) is _better_
   for the player — which is why this is a clarify-then-decide item, not a clear defect. Existing tests
   assert the command text but do **not** pin debug-off visibility either way.
 - **Suggested fix:** Decide intended behavior. If alias echoes should stay visible, pass
@@ -62,6 +64,7 @@ None found.
 - **Found by:** Logic & Correctness, Verifier (adjudicated against Plan Alignment)
 
 ### [I3] Empty `lines: []` passes restore validation and blanks the transcript
+
 - **File:** `src/glkote-react/bridge.ts:154`
 - **Bug:** `restore.lines.every(isBufferLine)` returns `true` for an empty array (`[].every() === true`),
   so an `autorestore` blob with `lines: []` is "trusted" and replaces the reducer-built view with zero

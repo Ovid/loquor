@@ -37,9 +37,19 @@ export function Scrollback({
   // each render, so a reference compare is useless, but a new line always grows it.
   const prevDebugRef = useRef(debug)
   const prevLenRef = useRef(lines.length)
-  // eslint-disable-next-line react-hooks/refs -- intentional compare-and-sync; see note above
+
+  // Reading these refs DURING RENDER is deliberate (see the block comment above):
+  // we need the PREVIOUS committed values to emit exactly one committed
+  // aria-live="off" frame on the debug-toggle render. The alternatives the
+  // react-hooks/refs rule would steer toward don't work here — setState-during-
+  // render collapses before commit (the 'off' frame never reaches the DOM), and a
+  // layout-effect would mute only AFTER the bulk lines already rendered 'polite'
+  // (announcing them — the regression this pattern exists to avoid). So the read
+  // is correct; suppress the rule for this one intentional previous-value read.
+  /* eslint-disable react-hooks/refs */
   const toggled =
     prevDebugRef.current !== debug && prevLenRef.current === lines.length
+  /* eslint-enable react-hooks/refs */
   useEffect(() => {
     prevDebugRef.current = debug
     prevLenRef.current = lines.length

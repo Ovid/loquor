@@ -109,7 +109,7 @@ export function ranOfActions(
           de: 'Übersetzung fehlgeschlagen',
           es: 'Error de traducción',
         }
-  return `${prefix[lang]} — ${body[lang]}`
+  return `${byLang(prefix, lang)} — ${byLang(body, lang)}`
 }
 
 /** The model download failed (genuine, non-abort) — the NL layer stays in

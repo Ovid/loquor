@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { corpusFor } from './index'
 import { ZORK1_SIG, ZORK2_SIG } from '../../llm/grammar/index'
-import { ZORK1_KA_STRINGS } from './zork1.ka.strings'
 
 describe('corpusFor (spec §3 passthrough contract)', () => {
   it('returns the Zork I French corpus', () => {
@@ -36,10 +35,20 @@ describe('Georgian corpus correctness (the one machine-detectable gap)', () => {
   // review loop's job). The single correctness failure a test CAN catch is a
   // value accidentally left byte-identical to its English key, which matchLine
   // would happily return — reading as "covered" while showing English.
-  it('ka: no string value is left byte-identical to its English key (English passthrough)', () => {
-    const leaked = Object.entries(ZORK1_KA_STRINGS).filter(
-      ([en, ka]) => en === ka,
-    )
-    expect(leaked.map(([en]) => en)).toEqual([])
+  // Covers ALL THREE maps, not just strings (review S2): an English-identical
+  // object form or template `out` would render English-in-Georgian mid-transcript
+  // without failing any other gate. Mkhedruli shares no glyphs with Latin, so any
+  // ASCII-identical value IS a leak, never a coincidental match.
+  it('ka: no value is left byte-identical to its English source (English passthrough)', () => {
+    const c = corpusFor(ZORK1_SIG, 'ka')!
+    const leaked: string[] = []
+    for (const [en, ka] of Object.entries(c.strings))
+      if (en === ka) leaked.push(`string: ${en}`)
+    for (const [name, forms] of Object.entries(c.objects))
+      for (const [key, value] of Object.entries(forms))
+        if (value === name) leaked.push(`object: ${name}.${key}`)
+    for (const t of c.templates)
+      if (t.out === t.en) leaked.push(`template: ${t.en}`)
+    expect(leaked).toEqual([])
   })
 })

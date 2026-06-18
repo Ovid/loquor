@@ -28,17 +28,23 @@ picker's "✦ improve"). A device that can't or won't run the model stays in
 grammar-only; English raw-sends, non-English abstains with a notice. (The old
 `unavailable` NL state is gone; the state now carries `canUpgrade` / `model`
 (`full | grammar`).) **Output translation v1 is implemented and tested** (Zork I,
-corpora for French/Spanish/German): a display-layer overlay (`src/translate/`)
-with a pre-translated corpus (strings/templates/objects) gated by a
-walkthrough-coverage test and a string-inventory test, plus an LLM fallback behind
-the shared engine gate. Sources of truth, in priority order:
+corpora for French/Spanish/German, plus **Georgian (`ka`)** as a Phase-1
+output-only language — read-Georgian / type-English, corpus-only with no LLM
+fallback since small models can't produce Georgian): a display-layer overlay
+(`src/translate/`) with a pre-translated corpus (strings/templates/objects) gated
+by a walkthrough-coverage test and a string-inventory test, plus an LLM fallback
+behind the shared engine gate (for fr/de/es only). Sources of truth, in priority
+order:
 
 1. `docs/superpowers/specs/2026-06-16-loquor-grammar-only-fallback-design.md` —
    the **current NL-activation design** (model as optional upgrade; immediate
    grammar-only activation). Its implementation plan,
    `docs/superpowers/plans/2026-06-16-loquor-grammar-only-fallback.md`, is
    executed. Supersedes the v2 download-gate where they conflict.
-2. `docs/superpowers/specs/2026-06-10-loquor-output-translation-design.md` — the
+2. `docs/superpowers/specs/2026-06-17-loquor-output-translation-georgian-design.md`
+   — the **Georgian (`ka`) Phase-1 output-translation design** (output-only,
+   type-English, corpus-only). Builds on the v1 output-translation design below.
+2b. `docs/superpowers/specs/2026-06-10-loquor-output-translation-design.md` — the
    **current output-translation design** (v1, Zork I; French/Spanish/German). Its
    implementation plan, `docs/superpowers/plans/2026-06-10-loquor-output-translation.md`,
    is executed.

@@ -265,6 +265,10 @@ export function Terminal({
               // Bilingual notice: each half carries its own lang so a screen
               // reader voices the English half with English phonemes, not
               // Georgian (3.1.2 — review I1).
+              // SIBLING COPY: landingStrings.ts `ka.caveat` is the landing-plate
+              // variant of this same beta note (worded for that surface). Both
+              // are drafts pending native review (§8) — apply any wording fix to
+              // BOTH so they don't drift (review S4).
               <p className="nl-notice">
                 <span lang="ka">
                   ქართული თარგმანი ჯერ სატესტოა — ზოგი ტექსტი შეიძლება ინგლისურად

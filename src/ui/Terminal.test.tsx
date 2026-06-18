@@ -427,6 +427,42 @@ describe('Terminal', () => {
         nlOverride = null
       }
     })
+
+    it('suppresses the beta notice when the game has no Georgian corpus (review S5)', async () => {
+      // Zork II has no ka corpus → display stays English, so the "beta
+      // translation" claim must NOT appear (it would be misleading). This
+      // suppression is load-bearing; guard it against a refactor regression.
+      const zork2 = new Uint8Array(readFileSync('public/games/zork2.z3'))
+      nlOverride = {
+        state: {
+          phase: 'on',
+          language: 'ka',
+          model: 'grammar',
+          canUpgrade: true,
+        },
+      }
+      try {
+        render(
+          <Terminal
+            storyBytes={zork2}
+            storyTitle="Zork II"
+            onChangeStory={() => {}}
+            themeToggle={null}
+          />,
+        )
+        // Wait for boot to emit transcript output — the signature has resolved
+        // and the corpus has been consulted by then.
+        await waitFor(
+          () => expect(screen.getByRole('log')).toHaveTextContent(/\S/),
+          { timeout: 8000 },
+        )
+        expect(
+          screen.queryByText(/ქართული თარგმანი ჯერ სატესტოა/),
+        ).toBeNull()
+      } finally {
+        nlOverride = null
+      }
+    })
   })
 
   describe('preferences', () => {

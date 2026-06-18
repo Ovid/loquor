@@ -38,6 +38,16 @@ export const LOAD_WATCHDOG_MS = 60_000
  */
 export const DOWNLOAD_STALL_MS = 60_000
 
+/**
+ * F-8: backoff before the ONE automatic retry of a failed model download. A
+ * transient network blip on the multi-GB fetch otherwise costs the player the
+ * upgrade and forces a manual "✦ improve"; a single delayed retry rides out the
+ * blip before degrading to grammar-only. Only a genuine rejection of the load
+ * promise is retried — an abort (cancel/supersede) and a no-progress stall are
+ * NOT (the player or watchdog deliberately ended it).
+ */
+export const DOWNLOAD_RETRY_MS = 2000
+
 /** Safety cap: at most this many clauses run per compound input (locked decision 6). */
 export const MAX_CLAUSES = 8
 

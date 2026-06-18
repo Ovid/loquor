@@ -213,6 +213,11 @@ export const DE_CORE: CoreLexicon = {
     { phrase: 'steige aus', to: 'exit' },
     { phrase: 'setz dich', to: 'sit' },
     { phrase: 'setze dich', to: 'sit' },
+    // knock (Zork III, "knock on door"). 'klopfen an' is knock-specific (hit =
+    // schlagen), and the idiom consumes verb+prep so the door resolves as the
+    // object: 'klopfe an die tur' → 'knock on tur'.
+    { phrase: 'klopfe an', to: 'knock on' },
+    { phrase: 'klopf an', to: 'knock on' },
   ],
   particleVerbs: [
     // seed (plan baseline)

@@ -14,7 +14,9 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
-import { coreLexicon } from './index'
+import { coreLexicon, nounLexicon } from './index'
+import { parseLexicon } from './parse'
+import type { Scene } from '../scene/types'
 import { ZORK1_VOCAB } from '../grammar/zork1.vocab'
 import { ZORK2_VOCAB } from '../grammar/zork2.vocab'
 import { ZORK3_VOCAB } from '../grammar/zork3.vocab'
@@ -80,18 +82,15 @@ const MOVEMENT_VERBS = new Set(['go', 'walk', 'run'])
  * the suite is green while the player-harm stays VISIBLE (set-equality forces
  * shrinking as each is fixed). Each is a real grammar-only completion blocker:
  *
- *  - 'knock' (Zork III, "knock on door" — the Dungeon Master's door): a bare
- *    verb collides with "hit" (attack) in fr/es ('frappe'/'golpea'), so it
- *    needs a door-scoped idiom; deferred for collision-safe authoring.
  *  - 'tell'  (Zork II, "tell robot go east"): a NESTED NPC command, not a
  *    single verb→verb map — the deterministic lexicon can't compose
  *    "tell <actor> <command>", so the robot puzzle is grammar-only-blocked in
  *    every non-English language. Needs a design decision (see notes).
  */
 const KNOWN_GAPS: Record<LexLang, Record<string, string[]>> = {
-  fr: { zork2: ['tell'], zork3: ['knock'] },
-  de: { zork2: ['tell'], zork3: ['knock'] },
-  es: { zork2: ['tell'], zork3: ['knock'] },
+  fr: { zork2: ['tell'] },
+  de: { zork2: ['tell'] },
+  es: { zork2: ['tell'] },
 }
 function equivalents(verb: string): Set<string> {
   const out = new Set<string>(CLOSURE.get(verb) ?? [verb])
@@ -152,6 +151,21 @@ describe('walkthrough-reachability gate', () => {
       expect(blockers.sort(), `${name}/${lang} unreachable winning verbs`).toEqual(
         [...pinned].sort(),
       )
+    })
+  })
+
+  // The knock fix is a verb+prep idiom (collision-safe with "hit"): pin that it
+  // emits a real "knock on <door>" command, not just that the head is reachable.
+  describe('knock idioms emit a valid knock command (Zork III door)', () => {
+    const scene: Scene = { inScope: [{ canonical: 'bronze door' }], antecedent: null }
+    it.each([
+      ['fr', 'frappe a la porte'],
+      ['de', 'klopfe an die tur'],
+      ['es', 'llama a la puerta'],
+    ] as [LexLang, string][])('%s: "%s" → knock on door', (lang, input) => {
+      const r = parseLexicon(input, coreLexicon(lang), nounLexicon(lang, ZORK3_SIG)!, ZORK3_VOCAB, scene)
+      expect(r.kind).toBe('command')
+      expect(r.kind === 'command' && r.text).toMatch(/^knock on .*door$/)
     })
   })
 })

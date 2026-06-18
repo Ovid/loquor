@@ -330,6 +330,12 @@ export const ES_CORE: CoreLexicon = {
     { phrase: 'abre con llave', to: 'unlock' },
     { phrase: 'sube a bordo', to: 'board' }, // mirrors fr 'monte a bord'
     { phrase: 'prende fuego a', to: 'burn' }, // mirrors fr 'mets le feu a'
+    // knock (Zork III, "knock on door"). 'llamar a la puerta' is the idiomatic
+    // Spanish knock; the prep distinguishes it from 'golpea'→attack. The idiom
+    // consumes verb+prep so the door resolves as the object: 'llama a la
+    // puerta' → 'knock on puerta'.
+    { phrase: 'llama a', to: 'knock on' },
+    { phrase: 'llamad a', to: 'knock on' },
   ],
   particleVerbs: [],
   // NOTE (personal-`a` hazard, for the deterministic parser — Task 13):

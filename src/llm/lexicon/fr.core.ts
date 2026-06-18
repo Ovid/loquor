@@ -54,6 +54,14 @@ export const FR_CORE: CoreLexicon = {
     jetez: 'throw',
     lance: 'throw',
     lancez: 'throw',
+    // spray (Zork III grue repellent: 'spray repellent on self'). 'vaporise' /
+    // 'pulverise' / 'asperge' are spray-specific, no combat collision.
+    vaporise: 'spray',
+    vaporisez: 'spray',
+    pulverise: 'spray', // pulvérise folded
+    pulverisez: 'spray',
+    asperge: 'spray',
+    aspergez: 'spray',
     // open/close
     ouvre: 'open',
     ouvrez: 'open',

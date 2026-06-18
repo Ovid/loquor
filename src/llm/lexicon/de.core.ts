@@ -84,6 +84,11 @@ export const DE_CORE: CoreLexicon = {
     // a bare 'starte' emits 'launch' and the Z-parser finds the vehicle.
     starte: 'launch',
     start: 'launch',
+    // spray (Zork III grue repellent: 'spray repellent on self'). 'sprühe' /
+    // 'spritze' / 'besprühe' are spray-specific, no combat collision.
+    spruhe: 'spray', // sprühe folded
+    spritze: 'spray',
+    bespruhe: 'spray', // besprühe folded
     aktiviere: 'activate',
     // UAT verb traps (mirrors fr.core.ts)
     schwenke: 'wave',

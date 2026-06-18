@@ -116,6 +116,22 @@ export const ES_CORE: CoreLexicon = {
     embarcar: 'board',
     desembarca: 'disembark',
     desembarcar: 'disembark',
+    // launch the boat (Frigid River) — mirrors de 'starte' and the fr launch
+    // idioms. 'launch' is FIND VEHBIT, so a bare 'zarpa' emits 'launch' and the
+    // Z-parser finds the vehicle. 'zarpar' (to set sail) is unambiguous — unlike
+    // 'lanza' (= throw) — so no full-phrase idiom is needed.
+    zarpa: 'launch',
+    zarpad: 'launch',
+    zarpar: 'launch',
+    // spray (Zork III grue repellent: 'spray repellent on self'). 'rociar' /
+    // 'vaporizar' / 'pulverizar' are spray-specific, no combat collision.
+    rocia: 'spray', // rocía folded
+    rociad: 'spray',
+    rociar: 'spray',
+    vaporiza: 'spray',
+    vaporizar: 'spray',
+    pulveriza: 'spray',
+    pulverizar: 'spray',
     // light/extinguish
     enciende: 'light',
     encended: 'light',

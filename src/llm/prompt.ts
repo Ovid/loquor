@@ -78,7 +78,9 @@ const PROMPT_VERB_CORE = [
 // read-Georgian / type-English in Phase 1: it raw-sends English and never reaches
 // the input LLM, so authoring ka few-shots would be dead AND misleading. The call
 // site falls back to the en few-shots for any language without its own entry.
-const FEWSHOTS: Partial<Record<ActiveLanguage, ChatMessages>> = {
+const FEWSHOTS: { en: ChatMessages } & Partial<
+  Record<ActiveLanguage, ChatMessages>
+> = {
   en: [
     { role: 'user', content: 'put the sword down' },
     { role: 'assistant', content: '{"verb":"drop","object":"sword"}' },
@@ -198,7 +200,7 @@ export function buildPrompt(
     { role: 'system', content: lines.join('\n') },
     // ka has no input path in Phase 1, so it falls back to the en few-shots
     // (never actually invoked — ka raw-sends English upstream).
-    ...(FEWSHOTS[language] ?? FEWSHOTS.en!),
+    ...(FEWSHOTS[language] ?? FEWSHOTS.en),
     { role: 'user', content: english },
   ]
 }

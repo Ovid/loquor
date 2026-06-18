@@ -21,8 +21,8 @@ import type { ActiveLanguage } from './types'
 // the en string for any language without its own entry — so the ~14 inline
 // {en,fr,de,es} objects below need no ka key, and Phase 2 can add ka entries
 // without touching the call sites. en/fr/de/es behaviour is identical.
-type ByLang = Partial<Record<ActiveLanguage, string>>
-const byLang = (m: ByLang, lang: ActiveLanguage): string => m[lang] ?? m.en!
+type ByLang = { en: string } & Partial<Record<ActiveLanguage, string>>
+const byLang = (m: ByLang, lang: ActiveLanguage): string => m[lang] ?? m.en
 
 /** The newest typed line was dropped because the input queue is full. */
 export function queueFullDropped(lang: ActiveLanguage, line: string): string {

@@ -172,10 +172,8 @@ export function Terminal({
   // claim would be misleading; the Landing "English only" badge is the honest
   // cue there instead. The corpus appears once the story signature resolves at
   // boot, so the notice surfaces alongside the first translated output.
-  const betaNotice =
+  const showBetaNotice =
     outLang === 'ka' && corpusFor(signature, 'ka') !== null
-      ? 'ქართული თარგმანი ჯერ სატესტოა — ზოგი ტექსტი შეიძლება ინგლისურად გამოჩნდეს. / Georgian is a beta translation; some text may still appear in English.'
-      : null
 
   // Live download progress for the modal — derived from NL state during render
   // (no separate state or effect needed).
@@ -263,9 +261,19 @@ export function Terminal({
               silent abstain (common in FR/DE/ES) is heard. Always mounted so the
               live region is registered before a notice appears. */}
           <div role="status" aria-live="polite" className="nl-status">
-            {betaNotice && (
-              <p className="nl-notice" lang="ka">
-                {betaNotice}
+            {showBetaNotice && (
+              // Bilingual notice: each half carries its own lang so a screen
+              // reader voices the English half with English phonemes, not
+              // Georgian (3.1.2 — review I1).
+              <p className="nl-notice">
+                <span lang="ka">
+                  ქართული თარგმანი ჯერ სატესტოა — ზოგი ტექსტი შეიძლება ინგლისურად
+                  გამოჩნდეს.
+                </span>{' '}
+                <span lang="en">
+                  Georgian is a beta translation; some text may still appear in
+                  English.
+                </span>
               </p>
             )}
             {nl.pending && (

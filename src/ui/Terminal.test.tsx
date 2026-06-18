@@ -397,6 +397,12 @@ describe('Terminal', () => {
         )
         const status = screen.getByRole('status')
         expect(status).toHaveTextContent(/Georgian is a beta translation/)
+        // Each half carries its own lang so a screen reader voices the English
+        // sentence with English phonemes, not Georgian (review I1).
+        const ka = screen.getByText(/ქართული თარგმანი ჯერ სატესტოა/)
+        expect(ka).toHaveAttribute('lang', 'ka')
+        const en = screen.getByText(/Georgian is a beta translation/)
+        expect(en).toHaveAttribute('lang', 'en')
       } finally {
         nlOverride = null
       }

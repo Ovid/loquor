@@ -69,8 +69,16 @@ correction loop.
   Zork I only). They stay English — but that is **signaled, not silent**: a
   localized landing badge marks untranslated volumes (§7).
 - **Round-trip gate enrollment** for `ka` (deferred to Phase 2 — see §6).
-- **Full *in-game* UI chrome localization** (in-game menus, buttons, modals stay
-  English in v1). **Exception — the landing page copy IS localized:**
+- **Full *in-game* UI chrome localization is not in scope** (no new Georgian
+  copy is authored for in-game chrome in v1). **However, any chrome that is
+  already an exhaustive `Record<ActiveLanguage, …>` localizes for `ka` for free,
+  exactly as it does for fr/de/es** — specifically the in-game **Preferences
+  modal** (`PREFS_COPY`) and the **status-bar ⚙ `aria-label`** render in
+  Georgian when `ka` is active. This is the same behavior fr/de/es already get,
+  it is better for the player than an English island in a Georgian transcript,
+  and it requires no extra work (the exhaustive record forces the `ka` entry to
+  exist). What stays English in v1 is only chrome that is *not* already fully
+  localized per language. **Exception — the landing page copy IS localized:**
   `LANDING_STRINGS`/`LANDING_EXAMPLES` are exhaustive `Record<ActiveLanguage, …>`
   records gated for completeness, so registering `ka` *forces* Georgian landing
   copy to exist (it is not optional). It ships with **read-Georgian/type-English**

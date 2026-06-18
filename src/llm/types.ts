@@ -39,6 +39,15 @@ export interface LoadProgress {
   text: string
 }
 
+/**
+ * The abstain sentinel: the model emits `{"verb":"__UNKNOWN__"}` (and the grammar
+ * allows it) when no canonical command expresses the player's English, or when a
+ * pronoun's antecedent is ambiguous. Single source of truth shared by the engines,
+ * buildGrammar, and parseCommand — it lives here in the shared contract so the
+ * engine boundary need not import the dense inputTranslate parser just to read it.
+ */
+export const ABSTAIN = '__UNKNOWN__'
+
 /** The swappable LLM boundary. Real impl: engine.webllm.ts. Test: engine.fake.ts. */
 export interface LlmEngine {
   load(

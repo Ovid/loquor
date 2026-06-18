@@ -1,6 +1,6 @@
 // src/llm/grammar/buildGrammar.ts
 import type { Vocab } from './types'
-import { ABSTAIN } from '../inputTranslate'
+import { ABSTAIN } from '../types'
 
 // XGrammar's EBNF parser (W3C XML notation; see web-llm's Grammar.fromEBNF doc)
 // only accepts C-style unicode escapes (\uXXXX) inside a "..." string literal —

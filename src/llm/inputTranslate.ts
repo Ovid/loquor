@@ -1,4 +1,5 @@
-// src/llm/translate.ts
+// src/llm/inputTranslate.ts
+import { ABSTAIN } from './types'
 import type { TranslateResult, ActiveLanguage } from './types'
 import type { Vocab } from './grammar/types'
 import { META_COMMANDS } from './meta'
@@ -6,14 +7,6 @@ import type { CoreLexicon, NounLexicon } from './lexicon/types'
 import { fold } from './lexicon/fold'
 import { parseDirection } from './directions'
 import { SOFT_NOOP_PAT } from './grammar/patterns'
-
-/**
- * The abstain sentinel: the model emits `{"verb":"__UNKNOWN__"}` (and the grammar
- * allows it) when no canonical command expresses the player's English, or when a
- * pronoun's antecedent is ambiguous. Single source of truth shared by the engines,
- * buildGrammar, and parseCommand.
- */
-export const ABSTAIN = '__UNKNOWN__'
 
 /** Sequential conjunctions, one per supported language: `and`/`then` (en),
  * `et`/`puis`/`ensuite` (fr), `und` (de), `y` (es). Matched whitespace-wrapped

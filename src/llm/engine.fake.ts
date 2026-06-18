@@ -1,5 +1,5 @@
 import type { ChatMessages, LlmEngine, LoadProgress } from './types'
-import { ABSTAIN } from './inputTranslate'
+import { ABSTAIN } from './types'
 
 export interface FakeOptions {
   completions?: Record<string, string>

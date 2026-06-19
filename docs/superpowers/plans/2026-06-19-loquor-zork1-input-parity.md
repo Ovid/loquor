@@ -626,17 +626,28 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 9: Decide `sube la cesta` and `entra en el bote` with Ovid (NO blind fix)
+## Task 9: Record the deferred `sube la cesta` / `entra en el bote` decision (DECIDED — deferred)
 
-Per CLAUDE.md's player-experience rule, these two are "talk to me first" — a natural command produces a wrong/missing result, but the fix is fragile (arity-conditional verb sense) and a workaround exists.
+**Decision (Ovid, 2026-06-19): both DEFERRED out of this branch.** `sube la cesta`
+(→`climb cage`) is not fixed because `sube` bare = go up/climb, so a context-free
+`sube`→raise would break navigation and an arity-conditional sense is fragile;
+in-language path is `levanta la cesta`→`raise cage`. `entra en el bote` (`miss`)
+is deferred too — `aborda`/`embarca`→board work. Already recorded in
+`notes/next.md` (deferred-work block).
 
-**Scope note (state plainly to Ovid):** `sube la cesta` was in the spec's *closed, in-scope* friction list. Deferring it here is a **scope reduction** the spec didn't authorize, so it needs Ovid's explicit sign-off — do not treat it as settled. (`entra en el bote` is only lightly scoped by the spec's boat row.)
+- [ ] **Step 1: Confirm the deferrals are logged.** Verify `notes/next.md`'s
+  deferred block lists `sube la cesta` and `entra en el bote`; add a matching
+  one-line note to `notes/uat.md`'s Spanish catalogue marking both as
+  deferred-with-workaround (so a future UAT session doesn't re-file them as new).
 
-- [ ] **Step 1: Write up the two cases for Ovid** — for each: the player input, what happens now (`sube la cesta`→`climb cage`; `entra en el bote`→`miss`), the working workaround (`levanta la cesta`→`raise cage`; `aborda`/`embarca`→board), why a blind fix is risky (`sube` bare = go up/climb, so a context-free `sube`→raise breaks navigation; boat-`enter` arity), and the options: (a) leave + document the workaround, (b) arity-conditional sense, (c) add `sube`→raise only when an object follows. **Explicitly ask Ovid to confirm removing `sube la cesta` from this branch's committed scope.**
+- [ ] **Step 2: Commit (docs only — NO code/lexicon change for these two)**
 
-- [ ] **Step 2: Present to Ovid and wait for the call.** Do not implement until he chooses. Record the decision in `notes/uat.md` (Spanish catalogue) regardless of outcome.
+```bash
+git add notes/uat.md
+git commit -m "docs(notes): mark sube la cesta / entra en el bote as deferred (Ovid 2026-06-19)
 
-- [ ] **Step 3 (conditional): implement the chosen option** if Ovid picks a fix, with its own red→green test in `parse.es-uat.test.ts` and commit. If "leave + document," just commit the `notes/uat.md` update.
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+```
 
 ---
 
@@ -852,6 +863,6 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
   - Task 5: `lid` is NOT a canonical — it's a synonym of `machine`; `tapa` appends to `machine`, assertion is `open/close machine`.
   - Task 6: the simple `ataca al troll` case already works (existing `parse.ts:270-283` block); the fix extends the prep-split object span, not a duplicate strip; the weapon emit is `rusty knives` (plural), not `knife`.
   - Conjoined+prep was pinned nowhere — Task 8b adds the `inputTranslate.ts`-surface pin the spec's N3 mandates.
-- **Divergence from spec (ground truth), to reconcile with Ovid:** the spec's "conjoined+prep = one genuine code change" is obsolete (already works; now just pinned in 8b); the real one code change is the personal-`a` prep-split fix (Task 6). `apaga` and `bote`→bottle were already fixed (apaga now regression-pinned in Task 2; bote→boat confirmed). `sube la cesta` moved to a talk-first decision (Task 9) — **a scope reduction needing Ovid's explicit sign-off.**
+- **Divergence from spec (ground truth), to reconcile with Ovid:** the spec's "conjoined+prep = one genuine code change" is obsolete (already works; now just pinned in 8b); the real one code change is the personal-`a` prep-split fix (Task 6). `apaga` and `bote`→bottle were already fixed (apaga now regression-pinned in Task 2; bote→boat confirmed). `sube la cesta` and `entra en el bote` are **DEFERRED (Ovid sign-off 2026-06-19)** — Task 9 is now docs-only; the deferrals are logged in `notes/next.md`.
 - **Diagnose-first tasks** (5, 6, 8b, 13) confirm the exact vocab `emit`/canonical before asserting.
-- **Decision-gated tasks** (9, 10) write no code until Ovid weighs in, per the player-experience rule; Task 10 now has an agent-executable `.zil`-read fallback (no browser).
+- **Decision-gated task** (10) writes no code until the native-help audit is reviewed; it has an agent-executable `.zil`-read fallback (no browser). Task 9 is decided (deferred).

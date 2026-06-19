@@ -61,94 +61,106 @@ versa). Every P1.1 fix below is reasoned per language.
 
 The work-list is the **Spanish INPUT-NL bug catalogue** in `notes/uat.md`
 (UAT-es-3/UAT-es-4). For each es bug, apply the fix and reason about the fr/de
-cognate. The fix surface is **mostly data** (lexicon/idioms) with **one genuine
-parser change**.
+cognate.
+
+> **Ground truth (characterized 2026-06-19 against the shipping lexicons).** The
+> 2026-06-15 catalogue is stale: several items are **already fixed**, and the
+> remaining bugs are almost all **es-only** (fr/de already pass). Specifically:
+> - **Already fixed:** the conjoined+trailing-prep case (`splitClauses` handles
+>   Spanish `y`; `distributePrepTail` distributes the destination), `apaga`→
+>   `extinguish`, and the `bote`→bottle false friend (`bote` maps to boat, not
+>   bottle). These need **regression pins only**, not fixes.
+> - **The single genuine code change is no longer the conjoined case** — it is
+>   **Spanish personal-`a` stripping** in `parse.ts` (the combat slot).
+> - fr/de already pass songbird, `echo`, boat-exit, and quantifier-all, so their
+>   tasks are **verification pins**, not fixes.
+
+The fix surface is **mostly data** (lexicon/idioms) with **one genuine parser
+change** (personal-`a`).
 
 ### Blocking bugs (puzzle unsolvable without quoted-English)
 
 | Bug | es fix | fr | de | Location |
 | --- | ------ | -- | -- | -------- |
-| **Songbird** `dar cuerda al canario` → "give rope to canary" | idiom `dar cuerda a` → `wind up` | already `remonte`✓ (pin only) | particle verb `zieh…auf` → `wind up` | `es.core.ts` verbIdioms / `de.core.ts` particleVerbs |
-| **Boat false-friend** `bote`→bottle | add `bote`→boat canonical; scene-scope disambiguates vs bottle | verify `bateau` | verify `boot` | `*.zork1.ts` |
-| **Boat exit** `sal del bote` → "move raft" | verb `sal`/`salir` → `exit` (+ verify enter/launch) | cognate | cognate | `*.core.ts` |
-| **Loud Room** `eco` → "look" | verb `eco` → `echo` | `écho` | `echo` | `*.core.ts` verbs |
-| **Combat weapon slot** `mata … con el cuchillo` → wrong weapon (stiletto) | **diagnose first** (see below), likely noun-lexicon: ensure `cuchillo` maps to the `knife`/`knives` canonical so the `con`-slot never resolves to the thief's `estilete` | cognate | cognate | `*.zork1.ts` (root cause TBD) |
-| **Conjoined + trailing prep** `mete X y Y en Z` → drops Y AND Z | **debug existing pipeline** (see below) — NOT a new feature | verify only | verify only | `inputTranslate.ts` |
+| **Songbird** `da cuerda al canario` → "give rope to canary" | idioms `da/dale cuerda a` exist but `al` (a+el) defeats them — add `al`/`a la` idiom variants | already `remonte`✓ (pin only) | already `zieh…auf`✓ (pin only) | `es.core.ts` verbIdioms |
+| **Boat false-friend** | **already fixed** — `bote`→`magic boat`/`punctured boat` (not bottle). Pin only | verify `bateau` | verify `boot` | — |
+| **Boat exit** `sal del bote` → `miss` | `sal`→exit already works; treat `del` as a strippable **article** (mirrors fr `du`) | already `sors du bateau`✓ (pin) | already `steig aus dem boot`✓ (pin) | `es.core.ts` articles |
+| **Loud Room** `eco` → `miss` | verb `eco` → `echo` | already `echo`✓ (pin) | already `echo`✓ (pin) | `es.core.ts` verbs |
+| **Combat weapon slot** `mata al ladron con el cuchillo` → `miss` | **the one code change**: strip the leading personal-`a`/`al` in the prep-split object span (extend the existing `parse.ts:270-283` block); `cuchillo` then resolves via scene scope to `rusty knives` | cognate (verify) | cognate (verify) | `parse.ts` |
+| **Conjoined + trailing prep** `mete X y Y en Z` | **already fixed** — pin only on the `inputTranslate.ts` surface (spec N3) | verify | verify | `inputTranslate.ts` (pin) |
 
 ### Friction bugs (a natural command fails; in-language workaround exists)
 
 The complete, closed list (no "etc." — `notes/uat.md`'s trailing items resolved
 into this set; each carries a ×3 per-language cognate check):
 
-1. `apaga` (imperative) unknown — the infinitive `apagar` works; add the
-   imperative form → `extinguish`.
-2. `deja todo` → "drop advertisement" — the `todo` quantifier mis-maps; fix the
-   "all" quantifier path.
-3. `abre la tapa` → "open cage" / `cierra la tapa` → "turn off candles" — `tapa`
-   (lid) mis-maps; fix the noun.
-4. `coge el jade` → "take jeweled egg" — `jade` mis-maps; fix the noun.
-5. `coge la calavera de cristal` → "take crack" — the `de cristal` modifier
-   breaks resolution; bare `calavera`→skull works, so the modified phrase must
-   resolve to the same canonical.
-6. `sube la cesta` → "climb cage" (should raise) — `sube`/`subir` overloads
-   "climb" vs "raise"; `levanta`→raise works.
+1. `apaga` — **already fixed** (`apaga: 'extinguish'` ships); regression-pin only.
+2. `deja todo` → `miss` — ES_CORE has no `quantifiersAll` (fr/de do); add it.
+3. `abre/cierra la tapa` → `miss` — `tapa` (the diamond-machine lid) absent. **`lid`
+   is NOT a canonical** — it is a synonym of canonical `machine`, so `tapa` maps
+   to `machine` and emits `open/close machine`.
+4. `coge el jade` → `miss` — `jade` surface absent; maps to `jade figurine` (emit
+   `figurine`).
+5. `coge la calavera de cristal` → `miss` — only `craneo de cristal` is mapped; add
+   `calavera de cristal` to `crystal skull` (emit `skull`).
+6. **`sube la cesta` → `climb cage` — DEFERRED out of this branch (Ovid sign-off,
+   2026-06-19).** `sube` bare = go up/climb, so a context-free `sube`→raise would
+   break navigation; an arity-conditional sense is fragile. `levanta la cesta`→
+   `raise cage` works as the in-language path. Logged as a follow-up in
+   `notes/next.md`.
 
-Most are one-line verb/noun lexicon additions, but **each requires the fr/de
-cognate check**, so the real cost is ≈3× the bullet count. CLAUDE.md treats a
-failing *natural* command as player harm, so these are in scope.
+Items 2–5 are one-line lexicon additions; each still gets the fr/de cognate
+check. CLAUDE.md treats a failing *natural* command as player harm, so these are
+in scope.
 
-### Known implementation wrinkle: fused prepositions
+### Known implementation wrinkle: fused prepositions (resolved)
 
-Spanish `al` and `del` are fused `a+el` / `de+el` single tokens. Both the
-songbird idiom (`dar cuerda al`) and the boat-exit (`sal del bote`) depend on
-matching through the fused preposition. **`es.core.ts` deliberately omits `del`
-today** (it maps `al`→`to` but leaves `del` to the LLM, with a comment warning
-that any `del` addition must consider the personal-`a` collision — e.g. `huye
-del troll`). So the boat-exit fix *forces* that flagged decision. The plan MUST
-choose one approach explicitly and justify the `del`/personal-`a` interaction:
-either idiom/phrase variants (`dar cuerda al`, `sal del`) or a fold-time split of
-`al`/`del`.
+Spanish `al`/`del` are fused `a+el`/`de+el` single tokens, and both songbird and
+boat-exit hinge on them:
 
-French has the analogous fusion `du` (`de+le`) / `au` (`à+le`). `fr.core.ts`
-has no general `du`/`au` prep entry (only the `à l'eau` boat idiom as a folded
-full phrase). The plan MUST either resolve `du`/`au` for the specific fr cognate
-commands in scope (boat, songbird) **or** state concretely why those commands
-don't traverse a fused prep. "Should be checked" is not an acceptable
-resolution. German does not fuse.
+- **Songbird:** the idioms `da cuerda a` / `dale cuerda a` already ship, but the
+  player types `da cuerda **al** canario`, and `al` is one token the literal `a`
+  never matches (`da cuerda a la canario` → `wind up canary` ✓ proves the
+  mechanism). **Resolution: add `al`/`a la` idiom variants** (`da cuerda al`,
+  `dale cuerda al`, …).
+- **Boat-exit:** `sal`→exit ships, but `del` was deliberately unhandled (the
+  `es.core.ts` comment warned of a personal-`a` collision). **Resolution: treat
+  `del` as a strippable article**, mirroring fr's `du` (`fr.core.ts` lists `du`
+  in *articles*, not preps, so `sors du bateau`→`exit raft`). This sidesteps the
+  prep-split/personal-`a` hazard. Known ceiling: stripping `del` also drops the
+  "from the" genitive (`coge la llave del cajon`); fr accepts the identical
+  ceiling for `du`, and the boat-exit win outweighs the rare genitive in Zork.
 
-### Combat weapon-slot: diagnose before fixing
+fr/de already pass both (verified) — fr `remonte`/`sors du bateau`, de
+`zieh…auf`/`steig aus dem boot` — so this is es-only.
 
-`coge el cuchillo`→"take nasty knives" is already CORRECT (object slot); the bug
-is *only* the `con <arma>` instrument slot (`parse.ts:285–299` splits
-`<verb> <obj> con <ind>`), which resolves `cuchillo` to the thief's `estilete`.
-The plan MUST first capture the `nl debug` `{stage, result}` for `mata al ladrón
-con el cuchillo` to find *why* the instrument slot resolves differently from the
-object slot, then state the concrete rule (most likely: a noun-lexicon entry so
-`cuchillo` lands on the `knife`/`knives` canonical and never reaches the stiletto
-disambiguation). Do not pre-commit to a mechanism before the root cause is known.
+### Combat weapon-slot: the one genuine parser change (diagnosed)
 
-### Conjoined + trailing prep: a debug, not a build
+`coge el cuchillo`→"take nasty knives" is already correct (object slot), and
+`ataca al troll`→`attack troll` **already works** (the existing personal-`a`/
+leading-`to` block at `parse.ts:270-283` fires when the whole post-`a` remainder
+resolves as one noun). The combat slot misses *only* because an instrument
+follows: `mata al ladron con el cuchillo` can't use that whole-remainder block,
+so it falls to the **prep-split branch** (`parse.ts:287`), which resolves the
+object span `[al, ladron]` and fails — `al` isn't stripped there.
 
-`mete la antorcha y el destornillador en la cesta` → only "put torch" (drops the
-2nd object AND the `en la cesta` destination). **The mechanism the spec earlier
-implied building already exists and ships:** clause splitting, verb-gapping, and
-trailing-prep distribution all live in `src/llm/inputTranslate.ts`
-(`splitClauses`, `fillElidedVerbs`, `prepTail`, `distributePrepTail`) — and
-`distributePrepTail` was written *for the German* `lege A und B in die Vitrine`
-(UAT F16). So:
+**Fix: strip a leading personal-`a`/`al` from the prep-split object span**,
+reusing the existing block's concept (not a duplicate top-level strip). `cuchillo`
+then resolves via scene scope to `rusty knives` (its emit is plural). Guarded to
+`a`/`al`; fr `au`/`aux` and German are untouched.
 
-- The fix is **debugging why the es case drops the object/destination**, not
-  writing a new distribution feature. Likely root cause inside `inputTranslate.ts`:
-  the second bare object `el destornillador` failing to gap (article/`isForeignNoun`
-  path), or `prepTail` not recognizing Spanish `en`, or a fold/casing interaction.
-- The plan MUST first reproduce the es failure as a failing test against
-  `inputTranslate.ts`, diagnose which function drops it, *then* propose a change.
-- German is **verify-only** (the F16 fix should already cover it — listing it as
-  "needs the same fix" would double-count); French likewise verify.
+### Conjoined + trailing prep: already works — pin only
 
-This is the single genuine code change in P1.1. It is a pipeline debug of
-existing multi-clause code, not a one-line data edit — the "mostly data" framing
-applies to everything *except* this.
+`mete la antorcha y el destornillador en la cesta` → `put torch in cage` +
+`put screwdriver in cage` ✓ (characterized through the real pipeline).
+`splitClauses` handles Spanish `y`; `fillElidedVerbs` distributes the verb;
+`distributePrepTail` (written for the German F16 `lege A und B in die Vitrine`)
+distributes the destination. **No fix needed.** But the spec's N3/DoD requires a
+regression pin, and there is currently none anywhere in `src/` — so add a pin on
+the `inputTranslate.ts` surface (it must drive `splitClauses`→`fillElidedVerbs`→
+`distributePrepTail`; a `parse.*-uat` pin can't reach the clause-split path). If
+that pin unexpectedly fails, the "already fixed" claim is wrong and the debug
+task is live.
 
 ### Regression pins (the forcing function)
 

@@ -154,13 +154,34 @@ fallback exists — and a ka player is _always_ typing English. Both are in
 
 > **IN PROGRESS (2026-06-19, branch `ovid/zork1-input-parity`):** this slice is
 > being built. Design:
-> `docs/superpowers/specs/2026-06-19-loquor-zork1-input-parity-design.md`. Scope
-> locked there: P1.1 **blocking + friction** tiers for fr/de/es (cosmetic tier
+> `docs/superpowers/specs/2026-06-19-loquor-zork1-input-parity-design.md`; plan:
+> `docs/superpowers/plans/2026-06-19-loquor-zork1-input-parity.md`. Scope locked
+> there: P1.1 **blocking + friction** tiers for fr/de/es (cosmetic tier
 > deferred); P2.2 disambiguation templates for fr/de/es **+ ka**; P3 passive
 > signposting (localized `help` + one-time notice + placeholder, no on-failure
 > detection) for fr/de/es **+ ka output text**. ka stays out of the **input**
 > layer (Phase 2). fr/de done by analytical cognate + parse-level unit pins, not
 > driven browser UAT (deferred). ka template/help lines are native-review drafts.
+>
+> **Ground truth (characterized 2026-06-19) — the catalogue below (lines ~54-67)
+> is STALE.** Several listed bugs are **already fixed** in the shipping lexicons
+> and need regression pins only, not fixes: the **conjoined+trailing-prep** case
+> (`distributePrepTail` covers Spanish `y`), **`apaga`**→extinguish, and the
+> **`bote`→bottle** false friend (`bote` maps to boat). The real bugs are almost
+> all **es-only** (fr/de already pass songbird/echo/boat-exit/quantifier). The
+> single genuine code change is **Spanish personal-`a` stripping** (combat slot),
+> not the conjoined case.
+>
+> **DEFERRED out of this branch (Ovid sign-off, 2026-06-19):**
+> - **`sube la cesta` → `climb cage`** (P1.1 friction). `sube` bare = go up/climb,
+>   so a context-free `sube`→raise breaks navigation; arity-conditional sense is
+>   fragile. In-language path: `levanta la cesta`→`raise cage`. Revisit only with
+>   a safe arity-aware design.
+> - **`entra en el bote`** (boat *enter*, `miss`) — `aborda`/`embarca`→board work;
+>   enter-arity is a separate, lower-value fix.
+> - **Cosmetic tier** (`libro`→page, `oro`→pot, `subir` flakiness — resolve
+>   correctly anyway), **driven fr/de UAT catalogues**, **ka native review** of
+>   the new draft template/help lines, **ka Phase-2 input**.
 
 **Recommendation: "Zork I input parity for fr/de/es"** — P1.1 (puzzle-verb
 blockers) + P2.2 (disambiguation) + P3 (help / quoted-fallback signposting),

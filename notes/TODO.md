@@ -1,40 +1,3 @@
-Is there a test we can write which validates that all text in each zork is
-properly translated into each language, including all words allowed, for every
-language?
-
----
-
-    ZORK I: დიდი მიწისქვეშა იმპერია
-
-    infocom-ის ინტერაქტიული მხატვრული ნაწარმოები - ფანტასტიკური ამბავი
-
-    საავტორო უფლება (c) 1981, 1982, 1983, 1984, 1985, 1986 infocom, inc. ყველა
-    უფლება დაცულია.
-
-    ZORK არის infocom, inc.-ის რეგისტრირებული სავაჭრო ნიშანი.
-
-    გამოშვება 119 / სერიული ნომერი 880429
-
-    სახლის დასავლეთით
-
-    ღია მინდორზე დგახარ, თეთრი სახლის დასავლეთით, რომლის შესასვლელი კარი
-    ფიცრებითაა ამოჭედილი.
-
-    აქ პატარა საფოსტო ყუთი არის.
-
-    > open mailbox
-
-    Opening the small mailbox reveals a leaflet.
-
-    ქართული თარგმანი ჯერ სატესტოა — ზოგი ტექსტი შეიძლება ინგლისურად გამოჩნდეს. /
-    Georgian is a beta translation; some text may still appear in English.
-
----
-
-Need a proper responsive run.
-
----
-
 Sound effects?
 
 ---
@@ -48,7 +11,8 @@ Those special commands should also have foreign language equivalents, so that
 users who speak different languages can understand them. It should also
 explain the "quoted english" fallback, so that the user understands that if
 they type a command in their native language and it fails, they can try typing
-the command in English (enclosed in quotes) to see if it works.
+the command in English (enclosed in quotes) to see if it works. What else
+might it need?
 
 ---
 

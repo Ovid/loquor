@@ -55,3 +55,28 @@ describe('Spanish UAT — verbs', () => {
     expect(es('sal del bote')).toEqual({ kind: 'command', text: 'exit boat' })
   })
 })
+
+describe('Spanish UAT — noun surfaces', () => {
+  it('"calavera de cristal" → crystal skull (the modifier must not break it)', () => {
+    expect(es('coge la calavera de cristal', inScope('crystal skull'))).toEqual({
+      kind: 'command',
+      text: 'take skull',
+    })
+  })
+  it('"tapa" → the diamond-machine lid (canonical is "machine")', () => {
+    expect(es('abre la tapa', inScope('machine'))).toEqual({
+      kind: 'command',
+      text: 'open machine',
+    })
+    expect(es('cierra la tapa', inScope('machine'))).toEqual({
+      kind: 'command',
+      text: 'close machine',
+    })
+  })
+  it('"jade" → the jade figurine', () => {
+    expect(es('coge el jade', inScope('jade figurine'))).toEqual({
+      kind: 'command',
+      text: 'take figurine',
+    })
+  })
+})

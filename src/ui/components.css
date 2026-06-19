@@ -356,11 +356,18 @@
   position: fixed;
   inset: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start; /* was center — scroll-safe top pin (responsive §1) */
   justify-content: center;
+  overflow-y: auto; /* tall modal on a short viewport scrolls instead of clipping */
+  overscroll-behavior: contain; /* don't chain-scroll the inert game behind it */
   background: var(--vignette);
   z-index: 50;
   padding: 1rem;
+}
+/* `margin:auto` centers the modal when it fits and keeps its top reachable when
+   it's taller than the viewport (same recipe as the plate, responsive §1). */
+.modal-backdrop .modal {
+  margin: auto;
 }
 .modal {
   background: var(--plate-grad), var(--bg-base);

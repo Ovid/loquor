@@ -18,6 +18,27 @@
   pointer-events: none;
 }
 
+/* ---------- Scroll-safe, top-reachable plate surface ---------- */
+/* The acute bug (responsive design 2026-06-19 §1): a fixed, hard-centered flex
+   container with no overflow clips the top of any child taller than the
+   viewport, stranding the corner controls. `.screen` is shared with the live
+   terminal (`.screen.term`, which re-lays-out to a stretched column), so scope
+   this to `:not(.term)` — never put it on base `.screen` or it lands on the
+   running game's root container.
+   `align-items:flex-start` + `overflow-y:auto` + `margin:auto` on the child is
+   the scroll-safe centering recipe: it centers when there's room and pins the
+   top scrollable-to when there isn't. `align-items:center` would clip the top
+   even with overflow; `align-items:safe center` has a support cliff and falls
+   back to plain `center` — do not use it. */
+.screen:not(.term) {
+  align-items: flex-start;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.screen:not(.term) .plate {
+  margin: auto;
+}
+
 /* ---------- Landing plate ---------- */
 .plate {
   width: min(680px, 92vw);

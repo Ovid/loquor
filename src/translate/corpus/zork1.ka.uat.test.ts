@@ -52,9 +52,9 @@ describe('Zork I × Georgian — UAT-2026-06-19 composed-line fixes', () => {
     expect(out).not.toBeNull()
     expect(out).not.toBe("There's nothing special about the sword.")
     // object-agnostic: a different (known) object yields the same Georgian
-    expect(matchLine(c, "There's nothing special about the brass lantern.")).toBe(
-      out,
-    )
+    expect(
+      matchLine(c, "There's nothing special about the brass lantern."),
+    ).toBe(out)
   })
 
   // C: "open mailbox" — the FIRST command most players type — printed its

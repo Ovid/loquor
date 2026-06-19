@@ -91,6 +91,20 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
   { en: 'The {obj} opens.', out: '{obj.indef} იღება.' },
   { en: 'The {obj} is closed.', out: '{obj.indef} დახურულია.' },
 
+  // ── Examine default (gverbs.zil V-EXAMINE). fr/de/es bind {obj} inside the
+  //    sentence, but "about the X" needs the object in a CASE (genitive/
+  //    postpositional), which §4 forbids composing onto the citation form. So
+  //    the `out` DROPS the object and renders an object-agnostic, caseless
+  //    sentence — "there's nothing special about this" — which is still natural
+  //    Georgian and far better than the English leak (UAT 2026-06-19). The {obj}
+  //    slot stays on the `en` side only so the regex still requires a KNOWN
+  //    object (an unknown one misses → English, like every other template).
+  //    Native-review item (§8): naming the object would need per-object pins.
+  {
+    en: "There's nothing special about the {obj}.",
+    out: 'ამაში განსაკუთრებული არაფერია.',
+  },
+
   // ── Score (numerals stay Arabic; no object slot) ──────────────────────────
   {
     en: 'Your score is {num} (total of 350 points), in {num2} moves.',

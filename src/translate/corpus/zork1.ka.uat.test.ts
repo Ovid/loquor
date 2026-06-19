@@ -42,4 +42,18 @@ describe('Zork I × Georgian — UAT-2026-06-19 composed-line fixes', () => {
       'სპილენძის ფარანი: აღებულია.',
     )
   })
+
+  // B: `examine <ordinary object>` → "There's nothing special about the X."
+  // leaked English. fr/de/es template it with the object inside; Georgian
+  // can't (the object would need a case suffix, §4), so the out drops the
+  // object and renders a caseless, object-agnostic sentence.
+  it('B: examine "nothing special about the {obj}" composes caselessly', () => {
+    const out = matchLine(c, "There's nothing special about the sword.")
+    expect(out).not.toBeNull()
+    expect(out).not.toBe("There's nothing special about the sword.")
+    // object-agnostic: a different (known) object yields the same Georgian
+    expect(matchLine(c, "There's nothing special about the brass lantern.")).toBe(
+      out,
+    )
+  })
 })

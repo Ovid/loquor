@@ -19,8 +19,10 @@ import { META_COMMANDS } from './meta'
 import { FR_CORE } from './lexicon/fr.core'
 import { ES_CORE } from './lexicon/es.core'
 import { DE_CORE } from './lexicon/de.core'
+import { ES_ZORK1 } from './lexicon/es.zork1'
 import type { Vocab } from './grammar/types'
 import type { NounLexicon } from './lexicon/types'
+import { ZORK1_VOCAB } from './grammar/zork1.vocab'
 import {
   TAKE_ACK,
   DROP_ACK,
@@ -853,5 +855,24 @@ describe('isVocabPassthrough (stage 4 + collision guard)', () => {
     expect(isVocabPassthrough('Open the small mailbox!', pvVocab, null)).toBe(
       true,
     )
+  })
+})
+
+// Task 8b: pin es conjoined+trailing-prep distribution (spec N3 coverage).
+// "mete la antorcha y el destornillador en la cesta" must distribute
+// "en la cesta" across both put-conjuncts, driving the full
+// splitClauses → fillElidedVerbs → distributePrepTail pipeline.
+describe('es conjoined+trailing-prep distribution (spec N3)', () => {
+  it('es conjoined+prep: distributes the destination across conjuncts', () => {
+    const line = 'mete la antorcha y el destornillador en la cesta'
+    const dist = distributePrepTail(
+      fillElidedVerbs(splitClauses(line), ES_CORE, ZORK1_VOCAB, ES_ZORK1),
+      ES_CORE,
+      ZORK1_VOCAB,
+    )
+    expect(dist).toEqual([
+      'mete la antorcha en la cesta',
+      'mete el destornillador en la cesta',
+    ])
   })
 })

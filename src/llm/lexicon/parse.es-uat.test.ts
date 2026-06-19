@@ -18,6 +18,19 @@ const inScope = (...canonicals: string[]): Scene => ({
 const es = (clause: string, scene: Scene = empty) =>
   parseLexicon(clause, ES_CORE, ES_ZORK1, ZORK1_VOCAB, scene)
 
+describe('Spanish UAT — idioms', () => {
+  it('Songbird: "da/dale cuerda al canario" → wind up canary', () => {
+    expect(es('da cuerda al canario')).toEqual({
+      kind: 'command',
+      text: 'wind up canary',
+    })
+    expect(es('dale cuerda al canario')).toEqual({
+      kind: 'command',
+      text: 'wind up canary',
+    })
+  })
+})
+
 describe('Spanish UAT — verbs', () => {
   it('Loud Room: "eco" → echo (the puzzle solution)', () => {
     expect(es('eco')).toEqual({ kind: 'command', text: 'echo' })

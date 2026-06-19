@@ -324,6 +324,10 @@ export const ES_CORE: CoreLexicon = {
     { phrase: 'pon en marcha', to: 'turn on' },
     { phrase: 'date la vuelta', to: 'turn' },
     { phrase: 'tira de', to: 'pull' }, // Peninsular; beats bare tira→throw
+    { phrase: 'dale cuerda al', to: 'wind up' }, // fused a+el; players type 'al canario'
+    { phrase: 'da cuerda al', to: 'wind up' },
+    { phrase: 'dale cuerda a la', to: 'wind up' },
+    { phrase: 'da cuerda a la', to: 'wind up' },
     { phrase: 'dale cuerda a', to: 'wind up' }, // F-CC parity (fr remonte)
     { phrase: 'da cuerda a', to: 'wind up' },
     { phrase: 'haz sonar', to: 'ring' },

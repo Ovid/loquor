@@ -8,6 +8,7 @@
 // `language` / `lex` from the returned `internal`.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ActiveLanguage, LlmEngine, NlLanguage } from './types'
+import { OUTPUT_ONLY_LANGS } from './types'
 import { readNlPref, writeNlPref } from './nlpref'
 import { pct as toPct, estimateRemainingSeconds } from './progress'
 import type { ProgressSample } from './progress'
@@ -147,8 +148,10 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
     // Abort any previous in-flight download FIRST ([L2]): re-picking a
     // language must not stack a second concurrent engine.load on top of the
     // old one (double VRAM on exactly the devices the capability gate
-    // worries about). The engine releases the loser's resources.
-    abortRef.current?.abort()
+    // worries about). The engine releases the loser's resources. Route through
+    // abortInFlight so a pending F-8 retry timer (which shares stallTimerRef) is
+    // cleared too, not left to fire and null out the new download's watchdog (S2).
+    abortInFlight()
     const ac = new AbortController()
     abortRef.current = ac
     setInternal({
@@ -263,7 +266,7 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
         })
     }
     attempt()
-  }, [engine, setNotice])
+  }, [engine, setNotice, abortInFlight])
 
   const cancelDownload = useCallback(() => {
     abortInFlight()
@@ -301,10 +304,15 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
         return
       }
       // No model yet: grammar-only is active immediately; offer the upgrade modal
-      // ONCE (suppressed thereafter by the declined flag).
+      // ONCE (suppressed thereafter by the declined flag). Output-only languages
+      // (Georgian, Phase 1) get NO modal — they have no input LLM to upgrade to,
+      // and opening it here latched `modalOpen` true, masked only at render; a
+      // later switch away unmasked it as an unsolicited focus-trapping download
+      // ([I1]). The model-download egress must stay unreachable for ka.
       setInternal({ phase: 'on', language: lang, model: 'grammar' })
       pendingLangRef.current = lang
-      if (!readNlPref().declined) setModalOpen(true)
+      if (!readNlPref().declined && !OUTPUT_ONLY_LANGS.has(lang))
+        setModalOpen(true)
     },
     [hasVocab, installed, engine, abortInFlight],
   )

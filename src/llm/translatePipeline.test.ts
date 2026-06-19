@@ -446,6 +446,30 @@ describe('createTranslate grammar-only + demotion', () => {
     expect(sendLine).toHaveBeenCalledWith('open trapdoor')
   })
 
+  it('an output-only active language (ka) never invokes the input LLM — the drain bails ([I3])', async () => {
+    // ka has no input lexicon and raw-sends English. If the player switches to ka
+    // mid-drain, the queue must be abandoned (like 'off'), NOT fall through to
+    // stage 7 under activeLang='ka'. The drain guard reads liveRef each iteration,
+    // so an active ka language bails before runLine reaches generate.
+    const engine = new FakeLlmEngine({ default: '{"verb":"look"}' })
+    const setNotice = vi.fn()
+    const sendCanonical = vi.fn()
+    const t = makeTranslate({
+      engine,
+      internalOn: on('ka', 'grammar'),
+      setNotice,
+      demote: vi.fn(),
+      educatedRef: { current: false },
+      sendCanonical,
+    })
+    await t('open the mailbox')
+    expect(engine.generateCalls).toBe(0) // input LLM never reached
+    expect(sendCanonical).not.toHaveBeenCalled()
+    expect(setNotice).toHaveBeenLastCalledWith(
+      'Queue cleared — natural language is off.',
+    )
+  })
+
   it('grammar-only: a stage-7-bound non-EN line abstains with the educational notice (once)', async () => {
     const engine = new FakeLlmEngine({ default: 'X' })
     const setNotice = vi.fn()

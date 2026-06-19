@@ -441,6 +441,21 @@ describe('setLanguage', () => {
     expect(readNlPref().language).toBe('es')
   })
 
+  it('an output-only language (ka) activates grammar-only WITHOUT opening the modal ([I1])', async () => {
+    // ka has no input LLM to upgrade to. Opening the modal here latched
+    // modalOpen=true (masked at render only); a later switch away unmasked it as
+    // an unsolicited focus-trapping download. modalOpen must stay false for ka.
+    const { hook } = setup() // not cached, not loaded
+    await waitFor(() => expect(hook.result.current.installed).toBe(false))
+    act(() => hook.result.current.setLanguage('ka'))
+    expect(hook.result.current.modalOpen).toBe(false)
+    expect(hook.result.current.internal).toEqual({
+      phase: 'on',
+      language: 'ka',
+      model: 'grammar',
+    })
+  })
+
   it("'off' turns the layer off instantly and persists 'off' (model stays cached)", async () => {
     const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
     await waitFor(() => expect(hook.result.current.installed).toBe(true))

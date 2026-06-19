@@ -167,8 +167,12 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
   // no capitalization (§4). Draft pending native review (§8).
   ka: {
     howToTitle: 'როგორ ვითამაშოთ.',
+    // No embedded English here (3.1.2 — review I2): an English command quoted
+    // inside this lang="ka" string is voiced with Georgian phonemes by a screen
+    // reader. The English examples live in the lang="en" examples region below
+    // instead, so the how-to just points there.
     howToBody:
-      'თამაშის ტექსტი ქართულად ჩანს, ბრძანებებს კი ინგლისურად აკრიფეთ — მაგალითად „open the mailbox“.',
+      'თამაშის ტექსტი ქართულად ჩანს, ბრძანებებს კი ინგლისურად აკრიფეთ — იხ. მაგალითები ქვემოთ.',
     progressNote:
       'თქვენი მონაცემები ინახება; დახურეთ ფანჯარა და დაბრუნდით, როცა მოგესურვებათ.',
     languageLabel: 'ენა:',

@@ -149,6 +149,10 @@ export function Landing({
             role="region"
             aria-label={s.commandExamples}
             aria-live="polite"
+            // ka is read-Georgian / type-English: its examples ARE English, but
+            // the plate sets lang="ka", so without this a screen reader voices
+            // them with Georgian phonemes (3.1.2 — review I2). Override to en.
+            lang={exampleLang === 'ka' ? 'en' : undefined}
           >
             {examples.join(' · ')}
           </span>

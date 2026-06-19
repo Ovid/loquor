@@ -14,14 +14,15 @@
 // language — the NL layer translates it), so those examples are localized;
 // they are not quote-escapes, which would need to stay English (m4).
 import type { ActiveLanguage } from './types'
+import type { LexLang } from './lexicon/types'
 
-// Partial because not every ActiveLanguage has input-NL notices. Georgian (ka)
-// is read-Georgian / type-English in Phase 1: its input path is dead (it raw-sends
-// English), so these input-side notices never fire for ka. byLang falls back to
-// the en string for any language without its own entry — so the ~14 inline
-// {en,fr,de,es} objects below need no ka key, and Phase 2 can add ka entries
-// without touching the call sites. en/fr/de/es behaviour is identical.
-type ByLang = { en: string } & Partial<Record<ActiveLanguage, string>>
+// en + the input-lexicon languages (fr/de/es) are MANDATORY — a new notice that
+// forgets one fails the build instead of silently shipping English (review S1).
+// ka is optional: it's read-Georgian / type-English in Phase 1, so its input path
+// is dead (it raw-sends English) and these input-side notices never fire for it.
+// byLang still falls back to the en string for any language without its own entry,
+// so Phase 2 can add ka entries without touching the call sites.
+type ByLang = Record<LexLang | 'en', string> & Partial<Record<'ka', string>>
 const byLang = (m: ByLang, lang: ActiveLanguage): string => m[lang] ?? m.en
 
 /** The newest typed line was dropped because the input queue is full. */

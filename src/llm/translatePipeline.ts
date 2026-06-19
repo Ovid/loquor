@@ -17,6 +17,7 @@ import type {
   TranslateResult,
   ViewContext,
 } from './types'
+import { OUTPUT_ONLY_LANGS } from './types'
 import { EngineGate } from '../shared/engineGate'
 import type { TurnResult } from '../glkote-react/types'
 import type { Vocab } from './grammar/types'
@@ -901,7 +902,13 @@ export function createTranslate(
         // is abandoned with a notice instead of being translated by a
         // layer the player just turned off. Unreachable for the first
         // (typed) line — translate gated on phase with no await since.
-        if (liveRef.current.internal.phase !== 'on') {
+        // Also bail when the player switched to an output-only language
+        // ([I3]): ka has no input lexicon and raw-sends English, so a
+        // queue drained under activeLang='ka' would wrongly fall through to
+        // the input LLM (no language switch bumps the epoch). Treat it like
+        // 'off' for the input path and abandon the queue.
+        const live = liveRef.current.internal
+        if (live.phase !== 'on' || OUTPUT_ONLY_LANGS.has(live.language)) {
           lastCommandRef.current = null
           queueRef.current = []
           syncQueue()

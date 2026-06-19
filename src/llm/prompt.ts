@@ -7,6 +7,7 @@ import type {
   ViewState,
 } from './types'
 import type { Vocab } from './grammar/types'
+import type { LexLang } from './lexicon/types'
 import { PROMPT_CONTEXT_CAP as CONTEXT_CAP } from './config'
 
 /** Derive the pure view context from the live ViewState (location + recent output). */
@@ -78,9 +79,11 @@ const PROMPT_VERB_CORE = [
 // read-Georgian / type-English in Phase 1: it raw-sends English and never reaches
 // the input LLM, so authoring ka few-shots would be dead AND misleading. The call
 // site falls back to the en few-shots for any language without its own entry.
-const FEWSHOTS: { en: ChatMessages } & Partial<
-  Record<ActiveLanguage, ChatMessages>
-> = {
+// en + the input-lexicon languages (fr/de/es) are MANDATORY so a missing set
+// fails the build rather than silently using en (review S1); ka is optional —
+// it raw-sends English and never reaches the input LLM.
+const FEWSHOTS: Record<LexLang | 'en', ChatMessages> &
+  Partial<Record<'ka', ChatMessages>> = {
   en: [
     { role: 'user', content: 'put the sword down' },
     { role: 'assistant', content: '{"verb":"drop","object":"sword"}' },

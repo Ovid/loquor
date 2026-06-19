@@ -876,3 +876,22 @@ describe('es conjoined+trailing-prep distribution (spec N3)', () => {
     ])
   })
 })
+
+// Task 8: pin that every escape command the P3 signpost advertises clears the
+// quoted-English passthrough gate against the real Zork I vocab. These are the
+// commands shown to the player as "quote it verbatim" escapes, so each must
+// survive unquote → isVocabPassthrough. Regression net for the n.emit omission
+// in vocabWordSet ('thief' is the thief noun's emit, not a synonym).
+describe('P3 signpost escape commands pass the vocab gate (Zork I)', () => {
+  it.each([
+    '"wind up canary"',
+    '"enter boat"',
+    '"launch"',
+    '"echo"',
+    '"kill thief with knife"',
+  ])('%s clears unquote → isVocabPassthrough', quoted => {
+    const inner = unquote(quoted)
+    expect(inner).not.toBeNull()
+    expect(isVocabPassthrough(inner!, ZORK1_VOCAB, null)).toBe(true)
+  })
+})

@@ -314,6 +314,7 @@ export function vocabWordSet(vocab: Vocab): Set<string> {
   for (const w of [...vocab.movement, ...vocab.preps, ...vocab.verbSynonyms])
     addWords(w)
   for (const n of vocab.nouns) {
+    addWords(n.emit)
     for (const s of n.synonyms ?? []) addWords(s)
     for (const adj of n.adjectives ?? []) addWords(adj)
   }

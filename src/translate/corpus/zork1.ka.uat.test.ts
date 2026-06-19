@@ -26,3 +26,20 @@ describe('Zork I × Georgian — runtime-composed Living Room variants (UAT)', (
     })
   }
 })
+
+// Runtime-composed coverage gaps found in UAT (2026-06-19). Each is an
+// off-walkthrough, runtime-composed line the coverage/inventory gates can't
+// see; pin every fix so it can't silently regress (spec §8).
+describe('Zork I × Georgian — UAT-2026-06-19 composed-line fixes', () => {
+  const c = compileCorpus(ZORK1_KA)
+
+  // A: `take all` listed each object's outcome as "<obj>: Taken." — the
+  // multi-DROP analog "<obj>: Dropped." was templated but multi-TAKE was not,
+  // so Georgian leaked English on one of the most common commands.
+  it('A: multi-object "<obj>: Taken." composes (take all)', () => {
+    expect(matchLine(c, 'sword: Taken.')).toBe('მახვილი: აღებულია.')
+    expect(matchLine(c, 'brass lantern: Taken.')).toBe(
+      'სპილენძის ფარანი: აღებულია.',
+    )
+  })
+})

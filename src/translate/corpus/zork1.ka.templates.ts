@@ -67,6 +67,10 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
   //    safely (mirrors the standalone 'Dropped.' pin). Covers the multi-drop
   //    "<name>: Dropped." lines (bracelet/figurine/garlic/canary/lantern). ───
   { en: '{obj}: Dropped.', out: '{obj.indef}: დაგდებულია.' },
+  // ...and the multi-TAKE analog ("<name>: Taken." from `take all`); the same
+  // caseless nominative-label position as Dropped (mirrors the standalone
+  // 'Taken.' → 'აღებულია.' pin). UAT 2026-06-19: this leaked English.
+  { en: '{obj}: Taken.', out: '{obj.indef}: აღებულია.' },
 
   // ── Container header (gverbs.zil:1835 PRINT-CONT). {obj} is the NOMINATIVE
   //    subject of "შეიცავს" (contains) — no case marker, so it composes

@@ -3,7 +3,7 @@ import { renderHook, act, waitFor } from '@testing-library/react'
 import { useModelDownload, type ModelDownloadParams } from './useModelDownload'
 import { FakeLlmEngine } from './engine.fake'
 import { readNlPref, writeNlPref } from './nlpref'
-import { DOWNLOAD_STALL_MS } from './config'
+import { DOWNLOAD_STALL_MS, DOWNLOAD_RETRY_MS } from './config'
 import type { LlmEngine } from './types'
 
 // useModelDownload owns the model download / install / phase lifecycle that F-2
@@ -164,56 +164,115 @@ describe('requestDownload', () => {
     })
   })
 
-  it('failure stays grammar-only, reports it through the notice channel, and logs the cause (F7)', async () => {
+  it('a persistent failure degrades to grammar-only after the one retry, reports it via the notice channel, and logs the cause (F7/F-8)', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.useFakeTimers()
     try {
       const { hook, setNotice } = setup({
         engine: new FakeLlmEngine({ failLoad: true }),
       })
       act(() => hook.result.current.requestDownload())
-      await waitFor(() =>
-        expect(hook.result.current.internal).toEqual({
-          phase: 'on',
-          language: 'en',
-          model: 'grammar',
-        }),
-      )
+      // First attempt fails → one backoff retry (F-8) → still fails → degrade.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(DOWNLOAD_RETRY_MS + 100)
+      })
+      expect(hook.result.current.internal).toEqual({
+        phase: 'on',
+        language: 'en',
+        model: 'grammar',
+      })
       expect(setNotice).toHaveBeenCalledWith(
         'AI model download failed — staying in basic mode. Common commands still work; pick the upgrade again to retry.',
       )
-      // F7: the underlying error must reach the logger (ring buffer + console),
-      // not be discarded.
+      // F7: the final (post-retry) error must reach the logger, not be discarded.
       expect(errSpy).toHaveBeenCalledWith(
         '[nl] model download failed:',
         expect.objectContaining({ message: 'fake load failure' }),
       )
+      // F-8: the transient retry attempt is logged as a warn, exactly once.
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[nl] model download failed — retrying once after backoff:',
+        expect.objectContaining({ message: 'fake load failure' }),
+      )
+      expect(warnSpy).toHaveBeenCalledTimes(1)
     } finally {
+      vi.useRealTimers()
+      warnSpy.mockRestore()
       errSpy.mockRestore()
+    }
+  })
+
+  it('a transient failure recovers on the one automatic retry → on/full, no failure notice (F-8)', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.useFakeTimers()
+    try {
+      let calls = 0
+      const engine: LlmEngine = {
+        unload: async () => {},
+        isLoaded: () => false,
+        isCached: async () => false,
+        generate: async () => '',
+        // First load rejects (a transient blip); the retry succeeds.
+        load: async onProgress => {
+          calls++
+          if (calls === 1) throw new Error('transient blip')
+          onProgress({ loaded: 1, total: 1, text: 'done' })
+        },
+      }
+      const { hook, setNotice } = setup({ engine })
+      act(() => hook.result.current.requestDownload())
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(DOWNLOAD_RETRY_MS + 100)
+      })
+      expect(calls).toBe(2) // failed once, retried once
+      expect(hook.result.current.internal).toEqual({
+        phase: 'on',
+        language: 'en',
+        model: 'full',
+      })
+      expect(hook.result.current.installed).toBe(true)
+      // The transient failure is a warn; the player never sees a basic-mode notice.
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[nl] model download failed — retrying once after backoff:',
+        expect.objectContaining({ message: 'transient blip' }),
+      )
+      expect(setNotice).not.toHaveBeenCalledWith(
+        expect.stringContaining('basic mode'),
+      )
+    } finally {
+      vi.useRealTimers()
+      warnSpy.mockRestore()
     }
   })
 
   it('the failure notice is localized to the picked language (F1)', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.useFakeTimers()
     try {
       // Uncached engine → setLanguage('fr') sets on/grammar and records 'fr' as
-      // the pending language; requestDownload then fails, staying grammar-only.
+      // the pending language; requestDownload then fails (after one retry),
+      // staying grammar-only.
       const { hook, setNotice } = setup({
         engine: new FakeLlmEngine({ failLoad: true }),
       })
-      await waitFor(() => expect(hook.result.current.installed).toBe(false))
       act(() => hook.result.current.setLanguage('fr'))
       act(() => hook.result.current.requestDownload())
-      await waitFor(() =>
-        expect(hook.result.current.internal).toEqual({
-          phase: 'on',
-          language: 'fr',
-          model: 'grammar',
-        }),
-      )
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(DOWNLOAD_RETRY_MS + 100)
+      })
+      expect(hook.result.current.internal).toEqual({
+        phase: 'on',
+        language: 'fr',
+        model: 'grammar',
+      })
       expect(setNotice).toHaveBeenCalledWith(
         'Échec du téléchargement du modèle d’IA — passage en mode simplifié. Les commandes courantes fonctionnent toujours ; resélectionnez la mise à niveau pour réessayer.',
       )
     } finally {
+      vi.useRealTimers()
+      warnSpy.mockRestore()
       errSpy.mockRestore()
     }
   })
@@ -380,6 +439,21 @@ describe('setLanguage', () => {
     )
     expect(hook.result.current.modalOpen).toBe(false)
     expect(readNlPref().language).toBe('es')
+  })
+
+  it('an output-only language (ka) activates grammar-only WITHOUT opening the modal ([I1])', async () => {
+    // ka has no input LLM to upgrade to. Opening the modal here latched
+    // modalOpen=true (masked at render only); a later switch away unmasked it as
+    // an unsolicited focus-trapping download. modalOpen must stay false for ka.
+    const { hook } = setup() // not cached, not loaded
+    await waitFor(() => expect(hook.result.current.installed).toBe(false))
+    act(() => hook.result.current.setLanguage('ka'))
+    expect(hook.result.current.modalOpen).toBe(false)
+    expect(hook.result.current.internal).toEqual({
+      phase: 'on',
+      language: 'ka',
+      model: 'grammar',
+    })
   })
 
   it("'off' turns the layer off instantly and persists 'off' (model stays cached)", async () => {
@@ -605,26 +679,28 @@ describe('grammar-only fallback', () => {
     expect(hook.result.current.modalOpen).toBe(true)
   })
 
-  it('download failure stays in grammar-only (not off) with a notice', async () => {
+  it('download failure stays in grammar-only (not off) with a notice, after the retry', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.useFakeTimers()
     try {
       const { hook, setNotice } = setup({
         engine: new FakeLlmEngine({ failLoad: true }),
       })
-      await waitFor(() =>
-        expect(hook.result.current.internal).toEqual({ phase: 'off' }),
-      )
       act(() => hook.result.current.setLanguage('fr')) // on/grammar + pendingLang fr, modal open
       act(() => hook.result.current.requestDownload())
-      await waitFor(() =>
-        expect(hook.result.current.internal).toEqual({
-          phase: 'on',
-          language: 'fr',
-          model: 'grammar',
-        }),
-      )
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(DOWNLOAD_RETRY_MS + 100)
+      })
+      expect(hook.result.current.internal).toEqual({
+        phase: 'on',
+        language: 'fr',
+        model: 'grammar',
+      })
       expect(setNotice).toHaveBeenCalled()
     } finally {
+      vi.useRealTimers()
+      warnSpy.mockRestore()
       errSpy.mockRestore()
     }
   })

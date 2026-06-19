@@ -259,6 +259,247 @@ describe('Terminal', () => {
     }
   })
 
+  // Option A (Georgian output-translation, spec §5): an OUTPUT_ONLY_LANGS
+  // language translates the DISPLAY but raw-sends English from the command
+  // field — exactly as 'off' does — and offers no model download/upgrade.
+  describe('output-only language (Option A)', () => {
+    it('ka: a typed command raw-sends English, never nl.translate', async () => {
+      const sendLine = vi.spyOn(ZMachine.prototype, 'sendLine')
+      const translate = vi.fn(async () => null)
+      nlOverride = {
+        state: {
+          phase: 'on',
+          language: 'ka',
+          model: 'grammar',
+          canUpgrade: true,
+        },
+        translate,
+      }
+      try {
+        render(
+          <Terminal
+            storyBytes={bytes}
+            storyTitle="Zork I"
+            onChangeStory={() => {}}
+            themeToggle={null}
+          />,
+        )
+        // Wait for the line-input request (input enabled) — the field carries
+        // the classic placeholder because NL INPUT is off for output-only ka.
+        const input = await screen.findByPlaceholderText(
+          'type a command…',
+          {},
+          { timeout: 8000 },
+        )
+        fireEvent.change(input, { target: { value: 'open mailbox' } })
+        fireEvent.submit(input)
+        expect(sendLine).toHaveBeenCalledWith('open mailbox')
+        expect(translate).not.toHaveBeenCalled()
+      } finally {
+        sendLine.mockRestore()
+        nlOverride = null
+      }
+    })
+
+    it('ka: selecting it does not auto-open the model-download modal', async () => {
+      nlOverride = {
+        state: {
+          phase: 'on',
+          language: 'ka',
+          model: 'grammar',
+          canUpgrade: true,
+        },
+        modalOpen: true,
+      }
+      try {
+        render(
+          <Terminal
+            storyBytes={bytes}
+            storyTitle="Zork I"
+            onChangeStory={() => {}}
+            themeToggle={null}
+          />,
+        )
+        // Wait for boot to line-input (input field present). NB: the room name
+        // renders in GEORGIAN here (ka output is translated by the now-authored
+        // corpus), so don't wait on the English 'West of House' — wait on the
+        // language-agnostic input affordance instead.
+        await screen.findByPlaceholderText(
+          'type a command…',
+          {},
+          { timeout: 8000 },
+        )
+        expect(screen.queryByRole('dialog')).toBeNull()
+      } finally {
+        nlOverride = null
+      }
+    })
+
+    it('fr (regression): a typed command still routes through nl.translate', async () => {
+      const sendLine = vi.spyOn(ZMachine.prototype, 'sendLine')
+      const translate = vi.fn(async () => null)
+      nlOverride = {
+        state: { phase: 'on', language: 'fr', model: 'full', canUpgrade: true },
+        translate,
+      }
+      try {
+        render(
+          <Terminal
+            storyBytes={bytes}
+            storyTitle="Zork I"
+            onChangeStory={() => {}}
+            themeToggle={null}
+          />,
+        )
+        // fr engages NL input → the field carries the plain-language placeholder.
+        const input = await screen.findByPlaceholderText(
+          /écrivez en français/i,
+          {},
+          { timeout: 8000 },
+        )
+        fireEvent.change(input, { target: { value: 'ouvre la boîte' } })
+        fireEvent.submit(input)
+        expect(translate).toHaveBeenCalledWith('ouvre la boîte')
+        expect(sendLine).not.toHaveBeenCalled()
+      } finally {
+        sendLine.mockRestore()
+        nlOverride = null
+      }
+    })
+  })
+
+  describe('Georgian beta notice (spec §5)', () => {
+    it('announces a bilingual beta notice on first Georgian activation', async () => {
+      nlOverride = {
+        state: {
+          phase: 'on',
+          language: 'ka',
+          model: 'grammar',
+          canUpgrade: true,
+        },
+      }
+      try {
+        render(
+          <Terminal
+            storyBytes={bytes}
+            storyTitle="Zork I"
+            onChangeStory={() => {}}
+            themeToggle={null}
+          />,
+        )
+        // The notice surfaces once the story signature resolves at boot (it is
+        // gated on the game actually having a Georgian corpus), so wait for the
+        // text, not just the live region.
+        await screen.findByText(
+          /ქართული თარგმანი ჯერ სატესტოა/,
+          {},
+          { timeout: 8000 },
+        )
+        const status = screen.getByRole('status')
+        expect(status).toHaveTextContent(/Georgian is a beta translation/)
+        // Each half carries its own lang so a screen reader voices the English
+        // sentence with English phonemes, not Georgian (review I1).
+        const ka = screen.getByText(/ქართული თარგმანი ჯერ სატესტოა/)
+        expect(ka).toHaveAttribute('lang', 'ka')
+        const en = screen.getByText(/Georgian is a beta translation/)
+        expect(en).toHaveAttribute('lang', 'en')
+      } finally {
+        nlOverride = null
+      }
+    })
+
+    it('does not show the beta notice for French', async () => {
+      nlOverride = {
+        state: { phase: 'on', language: 'fr', model: 'full', canUpgrade: true },
+      }
+      try {
+        render(
+          <Terminal
+            storyBytes={bytes}
+            storyTitle="Zork I"
+            onChangeStory={() => {}}
+            themeToggle={null}
+          />,
+        )
+        const status = await screen.findByRole('status', {}, { timeout: 8000 })
+        expect(status).not.toHaveTextContent(/beta translation/)
+      } finally {
+        nlOverride = null
+      }
+    })
+
+    it('suppresses the beta notice when the game has no Georgian corpus (review S5)', async () => {
+      // Zork II has no ka corpus → display stays English, so the "beta
+      // translation" claim must NOT appear (it would be misleading). This
+      // suppression is load-bearing; guard it against a refactor regression.
+      const zork2 = new Uint8Array(readFileSync('public/games/zork2.z3'))
+      nlOverride = {
+        state: {
+          phase: 'on',
+          language: 'ka',
+          model: 'grammar',
+          canUpgrade: true,
+        },
+      }
+      try {
+        render(
+          <Terminal
+            storyBytes={zork2}
+            storyTitle="Zork II"
+            onChangeStory={() => {}}
+            themeToggle={null}
+          />,
+        )
+        // Wait for boot to emit transcript output — the signature has resolved
+        // and the corpus has been consulted by then.
+        await waitFor(
+          () => expect(screen.getByRole('log')).toHaveTextContent(/\S/),
+          { timeout: 8000 },
+        )
+        expect(screen.queryByText(/ქართული თარგმანი ჯერ სატესტოა/)).toBeNull()
+      } finally {
+        nlOverride = null
+      }
+    })
+
+    it('shows a bilingual "no Georgian for this story" cue on a corpus-less game ([I4])', async () => {
+      // Zork II has no ka corpus → display stays English. An in-game switch to ka
+      // would otherwise yield silent all-English; the inverse cue explains why
+      // (the Landing "English only" badge is invisible to a mid-session switcher).
+      const zork2 = new Uint8Array(readFileSync('public/games/zork2.z3'))
+      nlOverride = {
+        state: {
+          phase: 'on',
+          language: 'ka',
+          model: 'grammar',
+          canUpgrade: true,
+        },
+      }
+      try {
+        render(
+          <Terminal
+            storyBytes={zork2}
+            storyTitle="Zork II"
+            onChangeStory={() => {}}
+            themeToggle={null}
+          />,
+        )
+        const ka = await screen.findByText(
+          /ამ ისტორიისთვის ქართული თარგმანი ჯერ არ არის/,
+          {},
+          { timeout: 8000 },
+        )
+        expect(ka).toHaveAttribute('lang', 'ka')
+        const en = screen.getByText(/Georgian isn’t available for this story/)
+        expect(en).toHaveAttribute('lang', 'en')
+        // It is NOT the beta notice (corpus present) — the two are exclusive.
+        expect(screen.queryByText(/ქართული თარგმანი ჯერ სატესტოა/)).toBeNull()
+      } finally {
+        nlOverride = null
+      }
+    })
+  })
+
   describe('preferences', () => {
     it('opens the Preferences modal from the ⚙ button and toggles debug', async () => {
       render(

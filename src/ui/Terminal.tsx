@@ -23,12 +23,14 @@ import {
 } from '../llm/notices'
 import { useNaturalLanguage } from '../llm/useNaturalLanguage'
 import { useOutputTranslation } from '../translate/useOutputTranslation'
+import { corpusFor } from '../translate/corpus/index'
 import { loudEchoToken } from '../translate/loudEcho'
 import { WebLlmEngine } from '../llm/engine.webllm'
 import { selectedModelId } from '../llm/modelSelection'
 import { EngineGate } from '../shared/engineGate'
 import { GENERATE_WATCHDOG_MS } from '../llm/config'
 import type { LoadProgress } from '../llm/types'
+import { OUTPUT_ONLY_LANGS } from '../llm/types'
 import { createLogger } from '../logger'
 
 const log = createLogger('ui')
@@ -135,11 +137,21 @@ export function Terminal({
   // to the NL scene tracker, deferring to the hook during a compound sequence.
   useSceneObservation(nl, view)
 
-  // Output translation (display overlay — spec §3): same language the input
-  // layer is set to; passthrough for en/off.
+  // The active OUTPUT language drives the display overlay (incl. output-only
+  // languages like Georgian). `outputOnly` languages (OUTPUT_ONLY_LANGS) have a
+  // display corpus but no INPUT support yet (Phase 1): they translate output but
+  // raw-send English from the command field — exactly as 'off' does — so NL
+  // *input* is engaged only for a fully-supported on-language (`nlInputOn`).
+  const outLang = nl.state.phase === 'on' ? nl.state.language : 'off'
+  const outputOnly = outLang !== 'off' && OUTPUT_ONLY_LANGS.has(outLang)
+  const nlInputOn = nl.state.phase === 'on' && !outputOnly
+
+  // Output translation (display overlay — spec §3): the language the player
+  // picked drives the overlay (including output-only languages); passthrough
+  // for en/off.
   const xl = useOutputTranslation({
     view,
-    language: nl.state.phase === 'on' ? nl.state.language : 'off',
+    language: outLang,
     signature,
     engine: llmEngine,
     gate,
@@ -151,6 +163,26 @@ export function Terminal({
   // letting a screen reader pronounce it right (3.1.2).
   const activeLang = nl.state.phase === 'on' ? nl.state.language : 'en'
   const nlLang = activeLang !== 'en' ? activeLang : undefined
+
+  // First-class a11y (spec §5): a Georgian player is told, in their own language
+  // and English, that the translation is beta and may show English. Rendered in
+  // the existing role=status live region (no new live region). Gated on the
+  // CURRENT game actually having a Georgian corpus — otherwise (e.g. Zork II/III,
+  // which have no ka corpus and display fully in English) the "beta translation"
+  // claim would be misleading; the Landing "English only" badge is the honest
+  // cue there instead. The corpus appears once the story signature resolves at
+  // boot, so the notice surfaces alongside the first translated output.
+  const showBetaNotice = outLang === 'ka' && corpusFor(signature, 'ka') !== null
+
+  // The inverse cue ([I4]): Georgian is active but THIS story has no Georgian
+  // corpus (Zork II/III in Phase 1), so it shows fully in English. The honest
+  // "English only" badge lives on the Landing plate, which a mid-session in-game
+  // switcher never sees — so without this an in-game switch to ka on Zork II/III
+  // silently yields all-English with no explanation. Gated on a resolved
+  // signature so it can't flash before boot (corpusFor is null for every game
+  // until the signature loads). Mutually exclusive with showBetaNotice.
+  const showNoCorpusNotice =
+    outLang === 'ka' && signature !== '' && corpusFor(signature, 'ka') === null
 
   // Live download progress for the modal — derived from NL state during render
   // (no separate state or effect needed).
@@ -166,11 +198,16 @@ export function Terminal({
     // exhaustive-deps now that it's a hook return rather than a local useRef.
   }, [view.inputRequest, engineRef])
 
+  // The upgrade/download modal is suppressed for output-only languages (it does
+  // nothing for them). Single source so the modal's visibility and the
+  // background-inert/focus-trap state can never drift apart.
+  const upgradeModalOpen = nl.modalOpen && !outputOnly
+
   // The download/upgrade modal is open — everything behind it must be inert so
   // a screen-reader virtual cursor stays inside the dialog (aria-modal alone is
   // unevenly honored). The modal is a sibling below, so it stays operable (M9).
   const modalOpen =
-    nl.modalOpen || nl.state.phase === 'downloading' || prefsOpen
+    upgradeModalOpen || nl.state.phase === 'downloading' || prefsOpen
   const bgInert = backgroundInert || modalOpen
 
   return (
@@ -186,6 +223,7 @@ export function Terminal({
             state={nl.state}
             onSelect={nl.setLanguage}
             onUpgrade={nl.requestUpgrade}
+            hideUpgrade={outputOnly}
           />
         }
         prefsToggle={
@@ -232,6 +270,41 @@ export function Terminal({
               silent abstain (common in FR/DE/ES) is heard. Always mounted so the
               live region is registered before a notice appears. */}
           <div role="status" aria-live="polite" className="nl-status">
+            {showBetaNotice && (
+              // Bilingual notice: each half carries its own lang so a screen
+              // reader voices the English half with English phonemes, not
+              // Georgian (3.1.2 — review I1).
+              // SIBLING COPY: landingStrings.ts `ka.caveat` is the landing-plate
+              // variant of this same beta note (worded for that surface). Both
+              // are drafts pending native review (§8) — apply any wording fix to
+              // BOTH so they don't drift (review S4).
+              <p className="nl-notice">
+                <span lang="ka">
+                  ქართული თარგმანი ჯერ სატესტოა — ზოგი ტექსტი შეიძლება
+                  ინგლისურად გამოჩნდეს.
+                </span>{' '}
+                <span lang="en">
+                  Georgian is a beta translation; some text may still appear in
+                  English.
+                </span>
+              </p>
+            )}
+            {showNoCorpusNotice && (
+              // Bilingual, like the beta notice: each half carries its own lang
+              // so a screen reader voices the English half with English phonemes
+              // (3.1.2). Draft pending native review (§8) — same status as the
+              // beta notice / landing caveat; apply any wording fix consistently.
+              <p className="nl-notice">
+                <span lang="ka">
+                  ამ ისტორიისთვის ქართული თარგმანი ჯერ არ არის — თამაში
+                  ინგლისურად გამოჩნდება.
+                </span>{' '}
+                <span lang="en">
+                  Georgian isn’t available for this story yet; it is shown in
+                  English.
+                </span>
+              </p>
+            )}
             {nl.pending && (
               <p className="nl-thinking" lang={nlLang}>
                 {thinking(activeLang)}
@@ -248,22 +321,18 @@ export function Terminal({
             // When an NL language is on, the field accepts plain language — say
             // so in the label/placeholder, or the headline feature stays hidden
             // behind classic-parser copy (S3). Localized; English when off.
-            label={
-              nl.state.phase === 'on'
-                ? commandLabel(activeLang)
-                : 'Game command'
-            }
+            label={nlInputOn ? commandLabel(activeLang) : 'Game command'}
             placeholder={
-              nl.state.phase === 'on'
-                ? commandPlaceholder(activeLang)
-                : 'type a command…'
+              nlInputOn ? commandPlaceholder(activeLang) : 'type a command…'
             }
-            lang={nlLang}
+            lang={nlInputOn ? nlLang : undefined}
             restore={restore ?? undefined}
             onSubmit={text => {
               // The Loud Room echo is re-voiced per clause via recordEcho as the
               // pipeline sends each canonical command (loudEcho / F6).
-              if (nl.state.phase === 'on')
+              // Output-only languages (Georgian, Phase 1) are NOT nlInputOn: the
+              // field raw-sends English even while the display is translated.
+              if (nlInputOn)
                 void nl.translate(text).then(retained => {
                   // Non-EN abstain/timeout/failure sent nothing — restore the
                   // discarded line so it isn't lost (M8).
@@ -291,7 +360,7 @@ export function Terminal({
         </Scrollback>
       </main>
       <ModelDownloadModal
-        open={nl.modalOpen || nl.state.phase === 'downloading'}
+        open={upgradeModalOpen || nl.state.phase === 'downloading'}
         warn={
           (nl.state.phase === 'on' || nl.state.phase === 'off') &&
           !nl.state.canUpgrade

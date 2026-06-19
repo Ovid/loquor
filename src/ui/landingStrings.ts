@@ -23,6 +23,7 @@ export interface LandingCopy {
   returnToGame: string // overlay dismiss button aria-label
   changeStory: string // overlay dialog aria-label
   commandExamples: string // aria-label for the command-examples region
+  englishOnly: string // badge on volumes that have no corpus for the chosen language
   footer: {
     trademark: string // sentence before the two footer links
     licenseLinkText: string // visible text of the MIT-license link
@@ -49,6 +50,7 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
     returnToGame: 'Return to game',
     changeStory: 'Change story',
     commandExamples: 'Command examples',
+    englishOnly: 'English only',
     footer: {
       trademark:
         'Zork is a trademark of Activision Publishing, Inc., a Microsoft company.',
@@ -80,6 +82,7 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
     returnToGame: 'Retour au jeu',
     changeStory: 'Changer d’histoire',
     commandExamples: 'Exemples de commandes',
+    englishOnly: 'en anglais',
     footer: {
       trademark:
         'Zork est une marque déposée d’Activision Publishing, Inc., une société Microsoft.',
@@ -111,6 +114,7 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
     returnToGame: 'Zurück zum Spiel',
     changeStory: 'Geschichte wechseln',
     commandExamples: 'Befehlsbeispiele',
+    englishOnly: 'nur Englisch',
     footer: {
       trademark:
         'Zork ist eine Marke von Activision Publishing, Inc., einem Microsoft-Unternehmen.',
@@ -141,6 +145,7 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
     returnToGame: 'Volver al juego',
     changeStory: 'Cambiar de historia',
     commandExamples: 'Ejemplos de comandos',
+    englishOnly: 'solo en inglés',
     footer: {
       trademark:
         'Zork es una marca registrada de Activision Publishing, Inc., una empresa de Microsoft.',
@@ -152,6 +157,49 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
       zork1: 'El Gran Imperio Subterráneo',
       zork2: 'El Hechicero de Frobozz',
       zork3: 'El Maestro del Calabozo',
+    },
+  },
+  // Georgian (ka) — Phase 1 is read-Georgian / TYPE-ENGLISH (spec §1, §3a): the
+  // game text is shown in Georgian, but the player types commands in English.
+  // The how-to says exactly that; it must NEVER imply Georgian input. The caveat
+  // carries the beta note (corpus-only — NO optional AI model is offered) instead
+  // of the model-upgrade copy the other languages use. Mkhedruli is unicameral —
+  // no capitalization (§4). Draft pending native review (§8).
+  ka: {
+    howToTitle: 'როგორ ვითამაშოთ.',
+    // No embedded English here (3.1.2 — review I2): an English command quoted
+    // inside this lang="ka" string is voiced with Georgian phonemes by a screen
+    // reader. The English examples live in the lang="en" examples region below
+    // instead, so the how-to just points there.
+    howToBody:
+      'თამაშის ტექსტი ქართულად ჩანს, ბრძანებებს კი ინგლისურად აკრიფეთ — იხ. მაგალითები ქვემოთ.',
+    progressNote:
+      'თქვენი მონაცემები ინახება; დახურეთ ფანჯარა და დაბრუნდით, როცა მოგესურვებათ.',
+    languageLabel: 'ენა:',
+    // SIBLING COPY: Terminal.tsx renders the in-game variant of this same beta
+    // note. Both are drafts pending native review (§8) — apply any wording fix
+    // to BOTH so they don't drift (review S4).
+    caveat:
+      'ქართული თარგმანი ჯერ სატესტოა (beta) — ზოგი ტექსტი შეიძლება ჯერ კიდევ ' +
+      'ინგლისურად გამოჩნდეს. ამ ეტაპზე ბრძანებები ინგლისურად აკრიფეთ.',
+    descent: '— აირჩიეთ თქვენი ჩასვლა —',
+    enter: 'აანთეთ ლამპა →',
+    resume: 'შენახული ჩასვლა გელოდებათ — გააგრძელებთ იქიდან, სადაც გაჩერდით',
+    returnToGame: 'თამაშში დაბრუნება',
+    changeStory: 'ისტორიის შეცვლა',
+    commandExamples: 'ბრძანებების მაგალითები',
+    englishOnly: 'ინგლისურად',
+    footer: {
+      trademark:
+        'Zork არის Activision Publishing, Inc.-ის (Microsoft-ის კომპანია) სავაჭრო ნიშანი.',
+      licenseLinkText:
+        'Zork I–III-ის კოდი Microsoft-მა 2025 წელს გამოაქვეყნა MIT ლიცენზიით.',
+      githubLinkText: 'ნახვა GitHub-ზე',
+    },
+    subtitles: {
+      zork1: 'დიდი მიწისქვეშა იმპერია',
+      zork2: 'ფრობოზის ჯადოქარი',
+      zork3: 'დილეგის მბრძანებელი',
     },
   },
 }

@@ -54,6 +54,14 @@ export const FR_CORE: CoreLexicon = {
     jetez: 'throw',
     lance: 'throw',
     lancez: 'throw',
+    // spray (Zork III grue repellent: 'spray repellent on self'). 'vaporise' /
+    // 'pulverise' / 'asperge' are spray-specific, no combat collision.
+    vaporise: 'spray',
+    vaporisez: 'spray',
+    pulverise: 'spray', // pulvérise folded
+    pulverisez: 'spray',
+    asperge: 'spray',
+    aspergez: 'spray',
     // open/close
     ouvre: 'open',
     ouvrez: 'open',
@@ -260,6 +268,14 @@ export const FR_CORE: CoreLexicon = {
     { phrase: 'rentrez dans', to: 'enter' },
     { phrase: 'leve toi', to: 'stand' },
     { phrase: 'levez vous', to: 'stand' },
+    // knock (Zork III, "knock on door"). 'frapper'/'cogner' also mean HIT, but
+    // the prep distinguishes: ZIL is KNOCK ON/AT OBJECT vs bare ATTACK OBJECT,
+    // so 'frappe a la porte' → 'knock on porte' while 'frappe le troll' stays
+    // attack. The idiom consumes verb+prep; the door resolves as the object.
+    { phrase: 'frappe a', to: 'knock on' },
+    { phrase: 'frappez a', to: 'knock on' },
+    { phrase: 'cogne a', to: 'knock on' },
+    { phrase: 'cognez a', to: 'knock on' },
     ...FR_LAUNCH_IDIOMS,
   ],
   particleVerbs: [],

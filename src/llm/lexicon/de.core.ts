@@ -84,6 +84,11 @@ export const DE_CORE: CoreLexicon = {
     // a bare 'starte' emits 'launch' and the Z-parser finds the vehicle.
     starte: 'launch',
     start: 'launch',
+    // spray (Zork III grue repellent: 'spray repellent on self'). 'sprühe' /
+    // 'spritze' / 'besprühe' are spray-specific, no combat collision.
+    spruhe: 'spray', // sprühe folded
+    spritze: 'spray',
+    bespruhe: 'spray', // besprühe folded
     aktiviere: 'activate',
     // UAT verb traps (mirrors fr.core.ts)
     schwenke: 'wave',
@@ -208,6 +213,11 @@ export const DE_CORE: CoreLexicon = {
     { phrase: 'steige aus', to: 'exit' },
     { phrase: 'setz dich', to: 'sit' },
     { phrase: 'setze dich', to: 'sit' },
+    // knock (Zork III, "knock on door"). 'klopfen an' is knock-specific (hit =
+    // schlagen), and the idiom consumes verb+prep so the door resolves as the
+    // object: 'klopfe an die tur' → 'knock on tur'.
+    { phrase: 'klopfe an', to: 'knock on' },
+    { phrase: 'klopf an', to: 'knock on' },
   ],
   particleVerbs: [
     // seed (plan baseline)

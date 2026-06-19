@@ -178,6 +178,10 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
   // is templated).
   'Opening the brown sack reveals a clove of garlic, and a lunch.':
     "En ouvrant le sac marron, vous découvrez une gousse d'ail et un déjeuner.",
+  // UAT 2026-06-19: reveal-on-open of the mailbox (the first command players
+  // type) is runtime-composed and off-walkthrough, so both gates missed it.
+  'Opening the small mailbox reveals a leaflet.':
+    'En ouvrant la petite boîte aux lettres, vous découvrez un dépliant.',
   'Above the trophy case hangs an elvish sword of great antiquity.':
     'Au-dessus de la vitrine à trophées est accrochée une épée elfique de la plus haute antiquité.',
   'A battery-powered brass lantern is on the trophy case.':

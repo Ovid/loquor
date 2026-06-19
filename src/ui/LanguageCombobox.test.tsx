@@ -136,6 +136,8 @@ describe('LanguageCombobox', () => {
     )
     fireEvent.click(screen.getByRole('combobox'))
     expect(screen.queryByRole('option', { name: 'Off' })).toBeNull()
-    expect(screen.getAllByRole('option')).toHaveLength(4)
+    // Derived from the real option list (minus Off) so it can't drift as play
+    // languages are added.
+    expect(screen.getAllByRole('option')).toHaveLength(noOff.length)
   })
 })

@@ -12,6 +12,7 @@ import {
   ABSENCE_PAT,
   FAILURE_PAT,
 } from './grammar/patterns'
+import { DOWNLOAD_RETRY_MS } from './config'
 import { emptyView } from '../glkote-react/types'
 import type { ViewState, BufferLine, TurnResult } from '../glkote-react/types'
 import { ZORK1_SIG } from './grammar/index'
@@ -178,20 +179,29 @@ describe('useNaturalLanguage', () => {
     await reachOn(hook)
   })
 
-  it('load failure stays grammar-only and sets a notice', async () => {
+  it('load failure stays grammar-only and sets a notice (after one retry, F-8)', async () => {
     // The genuine (non-abort) load failure is now log.error'd by design (F7);
-    // own the log so it doesn't leak to stderr.
+    // own the log so it doesn't leak to stderr. A transient failure is retried
+    // once after a backoff (F-8) — logged as warn — before degrading; own that
+    // too. Fake timers drive the backoff deterministically.
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.useFakeTimers()
     try {
       const { hook } = setup({ engine: new FakeLlmEngine({ failLoad: true }) })
       act(() => hook.result.current.requestDownload())
-      await waitFor(() => expect(hook.result.current.state.phase).toBe('on'))
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(DOWNLOAD_RETRY_MS + 100)
+      })
+      expect(hook.result.current.state.phase).toBe('on')
       expect(hook.result.current.notice).toBeTruthy()
       expect(errSpy).toHaveBeenCalledWith(
         '[nl] model download failed:',
         expect.anything(),
       )
     } finally {
+      vi.useRealTimers()
+      warnSpy.mockRestore()
       errSpy.mockRestore()
     }
   })

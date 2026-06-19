@@ -2,13 +2,21 @@
 import type { ViewState } from '../glkote-react/types'
 
 /** Picker languages. 'off' disables the NL layer (locked decision 3). */
-export const NL_LANGUAGES = ['off', 'en', 'fr', 'de', 'es'] as const
+export const NL_LANGUAGES = ['off', 'en', 'fr', 'de', 'es', 'ka'] as const
 export type NlLanguage = (typeof NL_LANGUAGES)[number]
 export type ActiveLanguage = Exclude<NlLanguage, 'off'>
 
 export function isNlLanguage(v: unknown): v is NlLanguage {
   return (NL_LANGUAGES as readonly unknown[]).includes(v)
 }
+
+/** Languages with a DISPLAY corpus but no INPUT support yet (Phase 1). The
+ * command field raw-sends English for these — exactly as 'off' does — so the
+ * player reads Georgian while typing English. Phase 2 (Georgian input) removes
+ * 'ka' from this set, and it graduates to the normal nl.translate input path.
+ * Distinct from translate/corpus/index.ts's CORPUS_ONLY_LANGS (output: no LLM
+ * fallback) — same membership today, different jobs in different layers. */
+export const OUTPUT_ONLY_LANGS: ReadonlySet<NlLanguage> = new Set(['ka'])
 
 /** Device capability tier. `none` = NL not offered. */
 export type Tier = 'none' | 'small' | 'full'
@@ -30,6 +38,15 @@ export interface LoadProgress {
   total: number
   text: string
 }
+
+/**
+ * The abstain sentinel: the model emits `{"verb":"__UNKNOWN__"}` (and the grammar
+ * allows it) when no canonical command expresses the player's English, or when a
+ * pronoun's antecedent is ambiguous. Single source of truth shared by the engines,
+ * buildGrammar, and parseCommand — it lives here in the shared contract so the
+ * engine boundary need not import the dense inputTranslate parser just to read it.
+ */
+export const ABSTAIN = '__UNKNOWN__'
 
 /** The swappable LLM boundary. Real impl: engine.webllm.ts. Test: engine.fake.ts. */
 export interface LlmEngine {

@@ -36,6 +36,13 @@ function capitalizeFirstLetter(s: string): string {
   const i = s.search(/\p{L}/u)
   if (i < 0) return s
   const ch = String.fromCodePoint(s.codePointAt(i)!)
+  // Georgian (Mkhedruli) is unicameral in practice: Unicode 11.0 added a
+  // Mtavruli uppercase mapping, but applying it mid-text produces non-idiomatic
+  // titlecase-script letters (e.g. 'მ'.toUpperCase() → 'Მ'). Leave Georgian
+  // script unchanged so listing entries ('A {obj}' → '{obj.indef}', cap:true)
+  // stay correct Mkhedruli. Other unicameral scripts (Arabic, CJK, …) already
+  // round-trip through toUpperCase() unchanged, so they need no special case.
+  if (/\p{Script=Georgian}/u.test(ch)) return s
   return s.slice(0, i) + ch.toUpperCase() + s.slice(i + ch.length)
 }
 

@@ -21,7 +21,14 @@ describe('NlLanguagePicker', () => {
     fireEvent.click(btn)
     expect(btn).toHaveAttribute('aria-expanded', 'true')
     const labels = screen.getAllByRole('option').map(o => o.textContent)
-    expect(labels).toEqual(['Off', 'English', 'Français', 'Deutsch', 'Español'])
+    expect(labels).toEqual([
+      'Off',
+      'English',
+      'Français',
+      'Deutsch',
+      'Español',
+      'ქართული (beta)',
+    ])
   })
 
   it('names the listbox and tags non-English options with their language', () => {
@@ -237,6 +244,44 @@ describe('NlLanguagePicker', () => {
     expect(
       screen.queryByRole('button', { name: /improve|try the model/i }),
     ).toBeNull()
+  })
+
+  it('hides the model-upgrade affordance for an output-only language (spec §5)', () => {
+    // Georgian (ka) is output-only: there is no Georgian INPUT to improve, so
+    // the model-upgrade affordance is suppressed even though the state is
+    // grammar-only and canUpgrade is true.
+    render(
+      <NlLanguagePicker
+        state={{
+          phase: 'on',
+          language: 'ka',
+          model: 'grammar',
+          canUpgrade: true,
+        }}
+        onSelect={() => {}}
+        onUpgrade={() => {}}
+        hideUpgrade
+      />,
+    )
+    expect(
+      screen.queryByRole('button', { name: /improve|model anyway/i }),
+    ).toBeNull()
+  })
+
+  it('still shows the upgrade affordance for a grammar-only input language', () => {
+    render(
+      <NlLanguagePicker
+        state={{
+          phase: 'on',
+          language: 'fr',
+          model: 'grammar',
+          canUpgrade: true,
+        }}
+        onSelect={() => {}}
+        onUpgrade={() => {}}
+      />,
+    )
+    expect(screen.getByRole('button', { name: /improve/i })).toBeInTheDocument()
   })
 
   it('drops the visible "Language:" text but keeps the combobox accessible name', () => {

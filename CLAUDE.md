@@ -28,17 +28,23 @@ picker's "✦ improve"). A device that can't or won't run the model stays in
 grammar-only; English raw-sends, non-English abstains with a notice. (The old
 `unavailable` NL state is gone; the state now carries `canUpgrade` / `model`
 (`full | grammar`).) **Output translation v1 is implemented and tested** (Zork I,
-corpora for French/Spanish/German): a display-layer overlay (`src/translate/`)
-with a pre-translated corpus (strings/templates/objects) gated by a
-walkthrough-coverage test and a string-inventory test, plus an LLM fallback behind
-the shared engine gate. Sources of truth, in priority order:
+corpora for French/Spanish/German, plus **Georgian (`ka`)** as a Phase-1
+output-only language — read-Georgian / type-English, corpus-only with no LLM
+fallback since small models can't produce Georgian): a display-layer overlay
+(`src/translate/`) with a pre-translated corpus (strings/templates/objects) gated
+by a walkthrough-coverage test and a string-inventory test, plus an LLM fallback
+behind the shared engine gate (for fr/de/es only). Sources of truth, in priority
+order:
 
 1. `docs/superpowers/specs/2026-06-16-loquor-grammar-only-fallback-design.md` —
    the **current NL-activation design** (model as optional upgrade; immediate
    grammar-only activation). Its implementation plan,
    `docs/superpowers/plans/2026-06-16-loquor-grammar-only-fallback.md`, is
    executed. Supersedes the v2 download-gate where they conflict.
-2. `docs/superpowers/specs/2026-06-10-loquor-output-translation-design.md` — the
+2. `docs/superpowers/specs/2026-06-17-loquor-output-translation-georgian-design.md`
+   — the **Georgian (`ka`) Phase-1 output-translation design** (output-only,
+   type-English, corpus-only). Builds on the v1 output-translation design below.
+2b. `docs/superpowers/specs/2026-06-10-loquor-output-translation-design.md` — the
    **current output-translation design** (v1, Zork I; French/Spanish/German). Its
    implementation plan, `docs/superpowers/plans/2026-06-10-loquor-output-translation.md`,
    is executed.
@@ -164,6 +170,13 @@ npx vitest run -t "substring of test name"    # by name
   why it doesn't apply). Fixing German while Spanish is broken for the identical
   reason doesn't help the player. Watch especially for code that was written
   German-first (or English-first) and hardcodes one language's words/forms.
+  **Georgian (`ka`) is the exception: it is OUTPUT-ONLY (Phase 1).** It has a
+  display corpus but NO input lexicon and NO input LLM — it raw-sends English
+  from the command field (it is in `OUTPUT_ONLY_LANGS` / `CORPUS_ONLY_LANGS`).
+  So an *input*-side change (lexicon, prompt detection, few-shots, clause
+  transform) applies to EN/FR/DE/ES but **must not** be wired into `ka`; an
+  *output*-side change (corpus, display notices, a11y of translated text) does
+  include `ka`. Don't add `ka` to the input path until Phase 2 (Georgian input).
 
 ## Accessibility is mandatory — not a "nice to have"
 

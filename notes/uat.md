@@ -53,7 +53,7 @@ session loses time to something avoidable.
   into a running tree; combined with StrictMode double-mount and many reloads,
   the tab accumulates divergent client state. Symptom seen: a resumed German
   game where the picker rendered "German"/English chrome ("Points/Moves", `> go
-  north`) while the NL input was still German — a self-contradictory state the
+north`) while the NL input was still German — a self-contradictory state the
   code can't actually produce from one `nl.state`. It looked like a real
   "language reset on resume" bug; it was pure HMR/stale-tab corruption. A
   brand-new tab (`tabs_create_mcp` → navigate) resumed cleanly: "Deutsch ▾",
@@ -149,6 +149,25 @@ session loses time to something avoidable.
   authored by mirroring French § keys), so a missing es line usually means the
   same fr line is missing too — note it as a French follow-up even on an es-only
   branch.
+- **Runtime-COMPOSED lines are the other blind spot (UAT-ka, 2026-06-19).**
+  Beyond mid-sentence breaks, whole classes of line are assembled at runtime
+  from fragments and so are neither full-line z-strings (inventory gate) nor on
+  the golden path (coverage gate): **reveal-on-open** (`Opening the X reveals
+Y.`), the **multi-object `<obj>: <result>` prefix** from `take all`/`drop all`
+  (both the success `Taken.`/`Dropped.` AND the per-object failure reasons:
+  too-heavy, `The rug is extremely heavy…`, `…securely fastened…`), and the
+  **examine default** `There's nothing special about the {obj}.`. Probe them
+  directly on turn 1: `open mailbox`, `take all` (in a room with a takeable +
+  an un-takeable object like the Living Room rug/case), `examine <ordinary
+object>` — then read `loquorMisses()`. Georgian leaked on ALL of these while
+  fr/de/es covered the success cases (they template `{obj}: Taken.`); ka had
+  only `{obj}: Dropped.`. The failure-reason prefixes leaked in **every**
+  language.
+- **Fastest ka-specific-vs-universal classifier: switch the picker to French
+  mid-session.** The output overlay re-translates the EXISTING transcript on a
+  language switch, so the same English line either turns French (→ ka-only gap,
+  fr has the template/string) or stays English (→ universal gap, all corpora
+  miss it). No replaying turns needed.
 
 ## Output translation vs. INPUT (NL) translation — keep them separate (UAT-es-2)
 

@@ -54,6 +54,21 @@ const COPY: Record<ActiveLanguage, ModalCopy> = {
     accept: 'Descargar y mejorar',
     decline: 'Ahora no',
   },
+  // Georgian (ka): this modal is currently SUPPRESSED for output-only Georgian
+  // (Phase 1 raw-sends English — no input model is offered, spec §3a), so this
+  // entry is never shown today. Authored anyway so COPY[lang] stays a valid
+  // object and it is forward-compatible with Phase 2 (Georgian input). Draft
+  // pending native review (§8). Mkhedruli is unicameral — no capitalization (§4).
+  ka: {
+    heading: 'ბუნებრივ ენაზე შეყვანის გაუმჯობესება',
+    body: 'ძირითადი რეჟიმი უკვე იგებს გავრცელებულ ბრძანებებს. ეს არასავალდებულო გაუმჯობესება ჩამოტვირთავს ენობრივ მოდელს (დიდი, ერთჯერადი ჩამოტვირთვა) მესამე მხარის სერვერებიდან — მოდელის წონებს Hugging Face-დან და მცირე დამხმარე ბიბლიოთეკას GitHub-დან — რათა მან უფრო რთული წინადადებები გაიგოს. ამის შემდეგ ის მთლიანად თქვენს მოწყობილობაზე მუშაობს — ხაზგარეშე და კონფიდენციალურად — და ინახება ქეშში, ამიტომ ხელახლა აღარ ჩამოიტვირთება.',
+    warning:
+      'შესაძლოა თქვენი მოწყობილობა ამ მოდელს არ უჭერდეს მხარს და ჩამოტვირთვა დიდია და შეიძლება ჩაიშალოს. ასეთ შემთხვევაში თქვენ ძირითად რეჟიმში რჩებით — გავრცელებული ბრძანებები კვლავ მუშაობს.',
+    progressLabel: 'მოდელის ჩამოტვირთვის მიმდინარეობა',
+    cancel: 'გაუქმება',
+    accept: 'ჩამოტვირთვა და გაუმჯობესება',
+    decline: 'ახლა არა',
+  },
 }
 
 export function ModelDownloadModal({

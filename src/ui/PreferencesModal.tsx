@@ -47,6 +47,16 @@ export const PREFS_COPY: Record<ActiveLanguage, PrefsCopy> = {
     close: 'Hecho',
     openLabel: 'Preferencias',
   },
+  // Georgian (ka) — player-visible: the status-bar ⚙ aria-label and the prefs
+  // panel render in Georgian when Georgian is the active language. Draft pending
+  // native review (spec §8). Mkhedruli is unicameral — no capitalization (§4).
+  ka: {
+    heading: 'პარამეტრები',
+    debugLabel: 'გამართვის რეჟიმი',
+    debugHelp: 'ჩანაწერში თარგმნილი ბრძანებების ჩვენება (მაგ. „> up“).',
+    close: 'მზადაა',
+    openLabel: 'პარამეტრები',
+  },
 }
 
 /** Localized aria-label for the status-bar ⚙ button. */

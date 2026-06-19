@@ -114,6 +114,31 @@ describe('matchLine: builtin listing template (spec §5)', () => {
   })
 })
 
+describe('matchLine: cap leaves unicameral Georgian (Mkhedruli) unchanged', () => {
+  // Georgian Mkhedruli (U+10D0–U+10FF) is unicameral in practice, but Unicode
+  // 11.0 added a Mtavruli uppercase mapping (U+1C90–U+1CBF), so 'მ'.toUpperCase()
+  // → 'Მ'. The BUILTIN cap:true listing templates ('A {obj}' → '{obj.indef}')
+  // must NOT apply it — every inventory/contents line would otherwise render a
+  // jarring titlecase-script initial. Mkhedruli must round-trip unchanged.
+  const ka = compileCorpus({
+    strings: {},
+    objects: { sword: { indef: 'მახვილი' } },
+    templates: [],
+  })
+  it('"A {obj}" → indef with its Mkhedruli initial unchanged (no Mtavruli)', () => {
+    const out = matchLine(ka, 'A sword')
+    expect(out).toBe('მახვილი')
+    // Belt-and-braces: assert no Mtavruli (U+1C90–U+1CBF) char leaked in.
+    expect(out).not.toBeNull()
+    expect([...out!].some(ch => /\p{Script=Georgian}/u.test(ch))).toBe(true)
+    expect(
+      [...out!].some(
+        ch => ch.codePointAt(0)! >= 0x1c90 && ch.codePointAt(0)! <= 0x1cbf,
+      ),
+    ).toBe(false)
+  })
+})
+
 describe('matchLine: cap is code-point safe (review S3)', () => {
   // An astral-plane initial letter (Deseret 𐐨 → 𐐀) must not be split by charAt:
   // capitalize the whole code point. Latent for es/fr (BMP-only) but pins the fix.

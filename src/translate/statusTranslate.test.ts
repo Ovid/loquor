@@ -92,4 +92,21 @@ describe('translateStatus (spec §5 status bar)', () => {
     expect(r.status.right).toBe('Score : 0  Coups : 0')
     expect(r.misses).toEqual([])
   })
+  it('ka: Georgian score/turns labels, Arabic numerals, no right-side miss (spec §7)', () => {
+    const ck = compileCorpus({
+      strings: { 'West of House': 'სახლის დასავლეთით' },
+      objects: {},
+      templates: [],
+    })
+    const { status, misses } = translateStatus(
+      { location: 'West of House', right: 'Score: 12  Turns: 7' },
+      ck,
+      'ka',
+    )
+    expect(status.location).toBe('სახლის დასავლეთით')
+    expect(status.right).toContain('12')
+    expect(status.right).toContain('7')
+    expect(status.right).not.toMatch(/Score|Turns/)
+    expect(misses).toEqual([])
+  })
 })

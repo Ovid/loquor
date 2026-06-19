@@ -1,0 +1,255 @@
+Date: August 23, 2001       Version: Final     E-mail: wongd012@hawaii.rr.com
+
+   *********     *******     ********     ***   ***      *****************
+   *********    *********    *********    ***  ***       *****************
+         ***    ***   ***    ***   ***    *** ***          ***  ***  ***
+        ***     ***   ***    ***   ***    ******           ***  ***  ***
+       ***      ***   ***    *********    *****            ***  ***  ***
+      ***       ***   ***    ********     *****            ***  ***  ***
+     ***        ***   ***    *** ***      ******           ***  ***  ***
+    ***         ***   ***    ***  ***     *** ***          ***  ***  ***
+   *********    *********    ***   ***    ***  ***       *****************
+   *********     *******     ***    ***   ***   ***      *****************
+
+                        "It all comes down to this."
+
+           Complete walkthrough written by Darrell Wong (DKW 001).
+
+=============================================================================
+
+OBLIGATORY BORING DISCLAIMERS -
+I wrote this walkthrough as a service to fellow gamers who need help with this
+game.  I gave this FAQ to GameFAQs and nowhere else, and everything on their
+site is free for the viewing.  So if anyone tries to sell you this walkthrough,
+don't pay a cent.  And DEFINITELY never never ever try to claim it as your own
+and sell it.  That's plagiarism, you can get into serious trouble for it, and
+the risk of that is definitely not worth whatever laughable pittance you could
+get for my works.
+
+The Zork trilogy and everything related to it is copyrighted by Infocom.  All
+rights reserved.
+
+
+WHERE TO GET THIS GAME -
+This game is "abandonware", meaning that it is no longer commercially produced.
+ You can download it freely from www.gamingdepot.com.  (There are other sites,
+but I think this one's the most reliable.)  You'll also want the instructions,
+which are available at Infodoc.plover.net/manuals/index.html.
+
+
+INTRODUCTION -
+I never got anywhere with this game.  I remember playing this on an old
+portable PC.  It wasn't easy under the best of circumstances, but not knowing
+what to do was killer.  I never even saw about a quarter of the game (which is
+astonishing when you consider how small an area it is).  Etc., etc...well,
+can't think of anything more to add.  Enjoy the walkthrough!  :-)
+
+
+OBJECTIVE -
+After a long tumble down the Endless Stairs, you arrive at the final part of
+your adventure.  You've made it to the deepest, most mysterious part of the
+Great Underground Empire, where no adventurer has ever set foot before.  This
+is the domain of the Dungeon Master, a much more crafty and subtle adversary
+than the thief or wizard.  While he won't reveal himself to you, he will test
+you several times during your explorations...perhaps without you even realizing
+it.  You will need a sound mind as well as a strong body to meet his
+challenges.  Prove yourself worthy, and a wondrous reward awaits you at the
+end.  Fail, and you may never again see the light of day...
+
+This game is quite different from the previous two.  Collecting treasures and
+defeating a persistent enemy are *not* your main tasks.  In fact, you will
+collect only one treasure in the entire game.  As you progress through the
+Dungeon Master's land, he will give you various tests.  He won't tell you when;
+part of the challenge is realizing when this is happening.  As you complete
+these tests, you'll gradually accumulate items which serve as proof of your
+worthiness.  You must get them all, then confront the Dungeon Master at his
+inner sanctum.  There, the final test awaits.  At least one of your tests is
+nearly impossible, so be prepared.
+
+There are only 7 points to earn this time (and no ranks), and you will reach
+that plateau long before finishing the game.  So don't worry about your
+score...only your ultimate success or failure matters.
+
+
+GENERAL TIPS -
+Death is a much lesser threat in this game than it was in the last two, but
+it's still a good idea to save at least once in a while.  There are quite a few
+areas where doing the wrong thing will make the game impossible to finish, and
+you probably won't even know until much later.  In fact, if you're new to this
+game, it's probably advisable to have several save games, so if you
+inadvertently save *after* blundering...believe me, it happens... you can go
+back to an earlier point.
+
+Darkness isn't a problem at all in this game...if you follow the walkthrough. 
+As always, spend no more than one move in darkness and you'll stay out the
+grues' clutches.
+
+Don't worry about being weighed down.  All of the items are quite light, and a
+few of them are wearable (and thus don't count against your eight-item limit). 
+You will almost never have to drop anything.
+
+That's pretty much it.  Again, this is a *much* different game than the last
+two, so the best advice is to just follow the walkthrough.  Really.
+
+-----------------------------------------------------------------------------
+
+COMPLETE WALKTHROUGH -
+[Notes: For convenience, I use abbreviations for all directions, including up
+(U) and down (D).  I've included location notes so you know where you're
+supposed to be.  As with most text adventures of the Infocom era, many commands
+have to be typed in precisely to work (one of the main raps against the genre).
+ This is especially true for enter/exit commands and using items.  My
+walkthrough is designed to minimize the dangers and get all the tasks
+accomplished as quickly and smoothly as possible.  There aren't that many areas
+to visit and a few tasks have to be done in a certain order anyway, so you may
+as well stick with it.  As always, feel free to look around, although there
+isn't really all that much to see here that isn't vital to your quest.]
+
+As the game begins, you receive visions about the events leading up to your
+tumble down the Endless Stairs and the challenges that lie ahead of you.  You
+then receive a short greeting from a mysterious old man.  This is, of course,
+the Dungeon Master, and it looks like he just threw down the gauntlet.  With
+that, the final stage of your grand adventure begins.  You begin at the foot of
+the endless stairs, where, once again, that good 'ol brass lantern has somehow
+found its way to you.  GET LANTERN.  TURN ON LANTERN.  S.  S.  S.  S.  ENTER
+LAKE.  Cold...so cold, in fact, that you drop the lantern!  Don't worry,
+though; another light source is coming right up.  W.  S (Scenic Vista).  GET
+TORCH.  This torch, like the ivory torch in Zork 1, never stops burning. 
+Unless, of course, you foolishly drop it into the lake.  Stay here and wait
+until the indicator says "II".  (Go ahead and L AT TABLE in the meantime to get
+an idea of what it's actually for.)  TOUCH TABLE.  You're instantly zipped to
+another room...from Zork II!  Room 8, to be exact, west of the Carousel Room,
+and the location of a can of grue repellent, which was pretty useless then. 
+You need it now, though, so GET CAN.  Z.  You're zipped back to the Scenic
+Vista as quickly as you left.  Z.  The indicator will change to "III".  TOUCH
+TABLE.  And this, of course, is a different part of Zork III, which you'll
+arrive at normally later.  DROP TORCH.  Wait until you return again.  ("I"
+leads to the mine in Zork I, but there's nothing there that you need, and
+*never* touch the table when it shows "IV"!) You're done here, so return N. 
+Now things get a little tricky.  You have to take the southern path from the
+lake with the grue repellent *and* something from the bottom of the lake. 
+You'll drop the can as soon as you enter, so you'll have to dive to get it. 
+Unfortunately, the cold doesn't do wonders for your grip and it may take you
+more than one try to get both items.  Worse, you can only stay underwater for
+so long.  Plus there's a hungry fish lurking underwater, and sometimes a roc
+comes by and snatches you when you enter from the west bank...anyway, *save
+your game*, as if you haven't figured it out by now.  ENTER LAKE.  D.  You see
+the grue repellent, the lantern...and a shiny object.  GET CAN AND OBJECT.  If
+you don't get both the first time, try again.  Once you have them, U and S. 
+You can finally put the lake behind you(whew!).  By the way, leave the
+lantern...it's dead for good.  That's right, you only needed it to get to the
+lake.  (Told ya this game was different!)  Well, it gets dark up ahead, and
+you're without a light source; that's why you have that grue repellent.  SPRAY
+GRUE REPELLENT ON SELF.  S.  S.  E.  Salvation!  And you've also found an item
+you'll need later...much later.  DROP CAN.  GET KEY.  By now the repellent will
+have worn off.  Since you can't go back...OPEN COVER.  D (Aqueduct).  What do
+you know, this entire area is lit from an unknown source.  N.  N.  N (Damp
+Passage).  This is the room you dropped the torch in, and here it is.  GET
+TORCH.  W.  W.  SW.  Save here.  There's nothing of note in the Land of
+Shadow...except for a sinister figure that's going to confront you and attack. 
+Wander around (or just wait) until he does.  The sword from the junction will
+instantly appear in your hand.  Waste no time using it: ATTACK FIGURE WITH
+SWORD and repeat.  You'll almost certainly take some damage here, but attack
+relentlessly and you should disable the figure before he kills you.  If not,
+restore.  Keep attacking until he's "badly hurt and defenseless".  *Do not*
+finish him off; instead, GET HOOD.  Oh my god, it's...the Dungeon Master, as it
+turns out.  After you unmask him, he acknowledges defeat and vanishes, leaving
+the cloak behind.  Needless to say, you don't want to kill him; you can't
+confront him at the end if you do.  GET CLOAK.  You're done here, so make your
+way back to the Junction, then go W twice to the Cliff.  Hang onto that sword,
+by the way.  GET BREAD.  D.  Ah, a treasure chest.  But it's locked, and your
+key won't work for some reason (try it!).  Never fear, though; sit tight and
+wait, and help will show up.  It's a fellow adventurer, and he claims that he
+can open the chest.  Well, you obviously can't, so you may as well trust him. 
+TIE CHEST TO ROPE.  Wait until he returns, then GRAB ROPE.  Unfortunately, it
+seems that your trust was misplaced, as he keeps all the valuables from the
+chest.  Fortunately, it *wasn't*: he also gives you a staff, which is the ONLY
+thing you need from the chest.  No kidding; you'll find out why later.  At any
+rate, you're done here.  D.  D.  S (Flathead Ocean).  Save, then wait until a
+ship shows up.  SAY "HELLO SAILOR".  This is just what the sailor wanted to
+hear, and he shows his gratitude by tossing you a vial.  It *looks* empty, but
+actually contains an invisible liquid (which should give you a hint as to its
+purpose).  You must have this vial, and you only have one chance to call out to
+the sailor before he leaves, so restore if you mess up.  GET VIAL.  N.  NE.  SE
+(Barren Area).  By this time an earthquake should have struck; if not, wait
+until it does.  E.  S (Creepy Crawl).  E.  E.  S.  S (Great Door).  The door is
+unopenable, but the earthquake created a new way in.  E.  N.  PUSH GOLD MACHINE
+S.  (Nothing else in this room is of any use.)  OPEN STONE DOOR.  PUSH MACHINE
+E.  Here lie the crown jewels, just out of reach.  You will need to obtain
+*one* of them with the help of the machine (the sole treasure mentioned
+earlier).  TURN DIAL TO 776.  ENTER MACHINE.  PUSH BUTTON.  You're instantly
+blasted back in time to the year 776...and everything you're carrying, as well
+as the machine, vanishes!  You'll also notice that you're not alone, so stay
+put.  GET RING and wait until the guards leave.  Again, *do not* take the
+scepter or dagger.  OPEN DOOR.  W.  OPEN WOODEN DOOR.  N.  The time machine is
+here, allowing you to return to the present with the ring...with one slight
+precaution.  PUT RING UNDER SEAT.  This prevents it from vanishing.  Neither of
+the other crown jewels will fit, and they also do weird things to the time
+machine, which is why you can't take them.  TURN DIAL TO 948.  ENTER GOLD
+MACHINE.  PUSH BUTTON.  You're back, and this time the machine doesn't vanish. 
+GET OUT.  LOOK UNDER SEAT.  There's the ring; now to get everything else back. 
+OPEN DOOR.  S.  OPEN STONE DOOR.  E.  GET ALL.  You'll notice that the other
+crown jewels have vanished, and I'll leave it to you to ponder why. 
+Incidentally, if you want to play around with the time machine, go ahead.  Most
+of the years will just get you killed, however, and it's easy to permanently
+zap something you don't want to (including the machine itself), so save
+beforehand.  Okay, there's one more item you need, and getting it is a beast. 
+W.  S.  *Save*, then go D into the Royal Puzzle.  This puzzle is right up there
+with the marble board in Riven for absolute, utter unsolvability.  There's
+exactly one solution, and if you make ONE wrong move, you'll never succeed.  I
+mean, it's just flat-out impossible.  I don't see how anyone can solve it
+without knowing the exact solution beforehand.  Well, now that you know the bad
+news, here's the solution: PUSH S WALL.  E.  S.  E 2 times.  PUSH S WALL.  GET
+BOOK.  PUSH S WALL.  PUSH W WALL 2 times.  E.  S.  PUSH E WALL.  N 5 times. 
+PUSH E WALL.  W.  S 4 times.  E 2 times.  N 3 times.  PUSH W WALL.  E.  S 3
+times.  W 4 times.  N 3 times.  W.  N.  PUSH E WALL 3 times.  W 2 times.  S 2
+times.  E 2 times.  S.  PUSH E WALL.  W 3 times.  N 3 times.  E 2 times.  PUSH
+S WALL 2 times.  W.  S 2 times.  E 2 times.  N.  PUSH W WALL 2 times.  S.  W. 
+PUSH N WALL 3 times.  W.  N.  There's the ladder, right beneath the hole, and
+you can now *leave* the Royal Puzzle with the book!  U.  Congratulations,
+you've just completed what's undoubtedly the most absolutely impossible task in
+the entire Zork trilogy!  (Oh yeah, save save save.) By now there's just one
+part of ZORK III where you haven't been yet; not coincidentally, that's where
+you have to go now.  N.  W.  N.  N.  W.  W.  N (Junction).  E.  NE.  An old man
+should be here.  If not, leave the room and return.  When you see him, WAKE
+MAN, then GIVE BREAD.  He immediately jumps to life, pointing out a secret door
+before leaving.  Before you go further, check to see that you have each of the
+following: book, vial, staff, cloak, hood, sword, torch, key, amulet, ring. 
+(If you don't, well, you screwed up; nothing you can do but restart from the
+beginning.) Hmm...notice anything interesting about that particular list of
+items?  OPEN DOOR.  N.  N.  PUT SWORD IN BEAM.  S.  PUSH BUTTON.  N.  N.  A
+mirror bars your way, but your bit of swordsmanship (beamsmanship?) has opened
+up a panel below it.  N.  Hoo boy...here we see the biggest limitation of the
+text adventure.  I have no idea what this room even looks like.  Anyway, what
+you need to do is get the compass rose pointed south, then open up the panel in
+the back, which will allow you to exit to the north.  RAISE SHORT POLE.  PUSH
+WHITE PANEL.  G.  PUSH PINE PANEL.  That's all there is to it; the pine panel
+opens and you may proceed.  N.  You have to get past the guardians, and they
+have other ideas.  No problem; OPEN VIAL.  DRINK LIQUID.  Not only is this an
+invisible potion...it's an *invisibility* potion!  Clever, huh?  N.  N.  N. 
+The moment of truth; you are just oustide the Dungeon Master's inner sanctum. 
+KNOCK ON DOOR.  The DM answers the door and explains everything that led up to
+this moment.  In a nutshell, he was testing your strength (fighting the
+figure), compassion (not killing the figure after he was helpless), trust
+(following the friendly adventurer's instructions), unselfishness (not
+begrudging the adventurer the treasures in the chest), intelligence (figuring
+out how to recover the ring), temperance (not trying to take all the crown
+jewels) persistence (the Royal Puzzle), and generosity (giving the bread). 
+You've proven yourself worthy in every test and may now begin the final one,
+which the Dungeon Master himself will assist you with.  And with that, he lets
+you in.  N.  E or W.  N.  N (Parapet).  TURN DIAL TO 4.  PUSH BUTTON.  S.  OPEN
+DOOR.  S.  Pushing the button with the dial at 4 has caused a brass door to
+appear (otherwise the back wall will be empty), which you must unlock with the
+key that you've been carrying all this time...which you can't do just yet.  For
+the final part, you'll need the DM's help.  DUNGEON MASTER, GO TO PARAPET. 
+DUNGEON MASTER, TURN DIAL TO 1 (or any other number except 4; they all work). 
+DUNGEON MASTER, PUSH BUTTON.  UNLOCK BRONZE DOOR WITH KEY.  OPEN BRONZE DOOR. 
+Save your game for posterity if you want to before going S.
+
+Congratulations!  Your final task is complete, and all the wealth, knowledge,
+and magic of the Great Underground Empire is now yours!  In recognition of your
+triumph, the Dungeon Master also annoints you his successor.  The GUE is now
+your dominion, to use and develop as you see fit.  Perhaps someday you will
+create your own tests, tricks, and puzzles for the next adventurer who arrives
+at that ordinary-looking white house in the middle of the forest, imagining
+what might lie below...

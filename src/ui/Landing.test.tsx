@@ -137,7 +137,8 @@ describe('Landing', () => {
     expect(btn).toHaveTextContent('English')
     fireEvent.click(btn)
     expect(screen.queryByRole('option', { name: 'Off' })).toBeNull()
-    expect(screen.getAllByRole('option')).toHaveLength(4)
+    // en, fr, de, es, ka — every play language except Off.
+    expect(screen.getAllByRole('option')).toHaveLength(5)
   })
 
   it('maps a saved Off preference to English on the title screen', () => {
@@ -392,6 +393,54 @@ describe('Landing', () => {
     // The Loquor wordmark is the English brand, not French — so a French screen
     // reader doesn't mispronounce it (S1).
     expect(container.querySelector('.title')).toHaveAttribute('lang', 'en')
+  })
+
+  it('badges untranslated volumes only when a translation language is selected', () => {
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    // Default language English (the source) → no volume is badged.
+    expect(
+      screen.getByRole('radio', { name: /Wizard|Frobozz/i }).textContent,
+    ).not.toMatch(/anglais|English only|ინგლისურად|nur Englisch|inglés/i)
+    // Switch to French: Zork I has an fr corpus; Zork II/III do not.
+    fireEvent.click(screen.getByRole('combobox', { name: /language/i }))
+    fireEvent.click(screen.getByRole('option', { name: 'Français' }))
+    // Zork I IS translated → no badge.
+    expect(
+      screen.getByRole('radio', { name: /Empire Souterrain/i }).textContent,
+    ).not.toMatch(/anglais/i)
+    // Zork II is NOT translated → badge, and it's part of the accessible name.
+    expect(screen.getByRole('radio', { name: /Frobozz/i }).textContent).toMatch(
+      /en anglais/i,
+    )
+    // The badge is part of the radio's accessible name (joins numeral+subtitle).
+    expect(
+      screen.getByRole('radio', {
+        name: /Frobozz.*en anglais|en anglais.*Frobozz/i,
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('badges untranslated volumes in Georgian when ka is selected (review S5)', () => {
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    fireEvent.click(screen.getByRole('combobox', { name: /language/i }))
+    fireEvent.click(screen.getByRole('option', { name: 'ქართული (beta)' }))
+    // Zork I HAS a ka corpus → no "English only" (ინგლისურად) badge.
+    expect(
+      screen.getByRole('radio', { name: /იმპერია/ }).textContent,
+    ).not.toMatch(/ინგლისურად/)
+    // Zork II has no ka corpus → Georgian "English only" badge, part of name.
+    expect(screen.getByRole('radio', { name: /ფრობოზის/ }).textContent).toMatch(
+      /ინგლისურად/,
+    )
+    expect(
+      screen.getByRole('radio', {
+        name: /ფრობოზის.*ინგლისურად|ინგლისურად.*ფრობოზის/,
+      }),
+    ).toBeInTheDocument()
   })
 
   it('localizes the language picker accessible name (de)', () => {

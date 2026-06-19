@@ -8,10 +8,11 @@
 // `language` / `lex` from the returned `internal`.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ActiveLanguage, LlmEngine, NlLanguage } from './types'
+import { OUTPUT_ONLY_LANGS } from './types'
 import { readNlPref, writeNlPref } from './nlpref'
 import { pct as toPct, estimateRemainingSeconds } from './progress'
 import type { ProgressSample } from './progress'
-import { DOWNLOAD_STALL_MS } from './config'
+import { DOWNLOAD_STALL_MS, DOWNLOAD_RETRY_MS } from './config'
 import { modelDownloadFailed, modelDownloadStalled } from './notices'
 import { createLogger } from '../logger'
 
@@ -147,11 +148,12 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
     // Abort any previous in-flight download FIRST ([L2]): re-picking a
     // language must not stack a second concurrent engine.load on top of the
     // old one (double VRAM on exactly the devices the capability gate
-    // worries about). The engine releases the loser's resources.
-    abortRef.current?.abort()
+    // worries about). The engine releases the loser's resources. Route through
+    // abortInFlight so a pending F-8 retry timer (which shares stallTimerRef) is
+    // cleared too, not left to fire and null out the new download's watchdog (S2).
+    abortInFlight()
     const ac = new AbortController()
     abortRef.current = ac
-    dlSamplesRef.current = []
     setInternal({
       phase: 'downloading',
       language: pendingLangRef.current,
@@ -187,59 +189,84 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
         ac.abort()
       }, DOWNLOAD_STALL_MS)
     }
-    armStall()
-    engine
-      .load(p => {
-        if (stale()) return
-        armStall() // progress arrived — reset the no-progress timer
-        dlSamplesRef.current = [
-          ...dlSamplesRef.current,
-          { pct: toPct(p.loaded, p.total), t: Date.now() },
-        ].slice(-60)
-        setInternal({
-          phase: 'downloading',
-          language: pendingLangRef.current,
-          loaded: p.loaded,
-          total: p.total,
-          etaSeconds: estimateRemainingSeconds(dlSamplesRef.current),
+    // F-8: a transient (non-abort) load failure gets ONE automatic retry after a
+    // backoff before degrading to grammar-only. `retriesLeft` is per-download
+    // (this closure), so each fresh requestDownload starts with its own budget; a
+    // supersede/cancel makes the next attempt stale() and is never retried.
+    let retriesLeft = 1
+    const attempt = () => {
+      dlSamplesRef.current = [] // fresh ETA samples per attempt
+      armStall()
+      engine
+        .load(p => {
+          if (stale()) return
+          armStall() // progress arrived — reset the no-progress timer
+          dlSamplesRef.current = [
+            ...dlSamplesRef.current,
+            { pct: toPct(p.loaded, p.total), t: Date.now() },
+          ].slice(-60)
+          setInternal({
+            phase: 'downloading',
+            language: pendingLangRef.current,
+            loaded: p.loaded,
+            total: p.total,
+            etaSeconds: estimateRemainingSeconds(dlSamplesRef.current),
+          })
+        }, ac.signal)
+        .then(() => {
+          // clearStall AFTER the stale() guard ([I1]): the stall timer lives in a
+          // ref shared across the hook's lifetime, so a superseded load settling a
+          // microtask after the re-pick must NOT clear the live download's watchdog.
+          if (stale()) return
+          clearStall()
+          // The model is now loaded (hence cached) — mark installed directly so the
+          // probe effect needn't re-run on the phase change to discover it (S6).
+          setInstalled(true)
+          // Activate the language the player picked when they triggered the modal.
+          setInternal({
+            phase: 'on',
+            language: pendingLangRef.current,
+            model: 'full',
+          })
+          writeNlPref({ language: pendingLangRef.current })
         })
-      }, ac.signal)
-      .then(() => {
-        // clearStall AFTER the stale() guard ([I1]): the stall timer lives in a
-        // ref shared across the hook's lifetime, so a superseded load settling a
-        // microtask after the re-pick must NOT clear the live download's watchdog.
-        if (stale()) return
-        clearStall()
-        // The model is now loaded (hence cached) — mark installed directly so the
-        // probe effect needn't re-run on the phase change to discover it (S6).
-        setInstalled(true)
-        // Activate the language the player picked when they triggered the modal.
-        setInternal({
-          phase: 'on',
-          language: pendingLangRef.current,
-          model: 'full',
+        .catch(err => {
+          if (stale() || (err as Error).name === 'AbortError') {
+            // Aborted/superseded: whoever caused it (cancelDownload / a newer
+            // requestDownload) already set the correct state — don't revert it.
+            return
+          }
+          clearStall()
+          if (retriesLeft > 0) {
+            // Transient failure (F-8): retry once after a backoff rather than
+            // degrade immediately. The pending retry reuses stallTimerRef — the
+            // hook's single pending-timer slot — so abortInFlight / unmount
+            // cancel it exactly as they cancel the stall watchdog.
+            retriesLeft--
+            log.warn(
+              'model download failed — retrying once after backoff:',
+              err,
+            )
+            stallTimerRef.current = setTimeout(() => {
+              stallTimerRef.current = null
+              if (!stale()) attempt()
+            }, DOWNLOAD_RETRY_MS)
+            return
+          }
+          // F7: this is the app's single network-egress risk — a genuine
+          // (non-abort) load failure must reach the ring buffer / console, not
+          // just the player notice, or the cause is undiagnosable.
+          log.error('model download failed:', err)
+          setNotice(modelDownloadFailed(pendingLangRef.current))
+          setInternal({
+            phase: 'on',
+            language: pendingLangRef.current,
+            model: 'grammar',
+          })
         })
-        writeNlPref({ language: pendingLangRef.current })
-      })
-      .catch(err => {
-        if (stale() || (err as Error).name === 'AbortError') {
-          // Aborted/superseded: whoever caused it (cancelDownload / a newer
-          // requestDownload) already set the correct state — don't revert it.
-          return
-        }
-        clearStall()
-        // F7: this is the app's single network-egress risk — a genuine
-        // (non-abort) load failure must reach the ring buffer / console, not
-        // just the player notice, or the cause is undiagnosable.
-        log.error('model download failed:', err)
-        setNotice(modelDownloadFailed(pendingLangRef.current))
-        setInternal({
-          phase: 'on',
-          language: pendingLangRef.current,
-          model: 'grammar',
-        })
-      })
-  }, [engine, setNotice])
+    }
+    attempt()
+  }, [engine, setNotice, abortInFlight])
 
   const cancelDownload = useCallback(() => {
     abortInFlight()
@@ -277,10 +304,15 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
         return
       }
       // No model yet: grammar-only is active immediately; offer the upgrade modal
-      // ONCE (suppressed thereafter by the declined flag).
+      // ONCE (suppressed thereafter by the declined flag). Output-only languages
+      // (Georgian, Phase 1) get NO modal — they have no input LLM to upgrade to,
+      // and opening it here latched `modalOpen` true, masked only at render; a
+      // later switch away unmasked it as an unsolicited focus-trapping download
+      // ([I1]). The model-download egress must stay unreachable for ka.
       setInternal({ phase: 'on', language: lang, model: 'grammar' })
       pendingLangRef.current = lang
-      if (!readNlPref().declined) setModalOpen(true)
+      if (!readNlPref().declined && !OUTPUT_ONLY_LANGS.has(lang))
+        setModalOpen(true)
     },
     [hasVocab, installed, engine, abortInFlight],
   )

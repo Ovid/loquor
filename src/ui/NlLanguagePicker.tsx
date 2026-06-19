@@ -18,11 +18,16 @@ export function NlLanguagePicker({
   state,
   onSelect,
   onUpgrade,
+  hideUpgrade = false,
 }: {
   state: NlState
   onSelect: (lang: NlLanguage) => void
   /** Called when the player requests a model upgrade (grammar → full). */
   onUpgrade: () => void
+  /** Output-only languages (OUTPUT_ONLY_LANGS, e.g. Georgian) translate the
+   * DISPLAY but raw-send English input — there is no NL input to upgrade, so
+   * the model offer is meaningless. Suppress it. */
+  hideUpgrade?: boolean
 }) {
   // No vocab for this game → silently render nothing (no picker).
   if (state.phase === 'disabled') return null
@@ -35,7 +40,8 @@ export function NlLanguagePicker({
     )
   }
   const value: NlLanguage = state.phase === 'on' ? state.language : 'off'
-  const grammarOnly = state.phase === 'on' && state.model === 'grammar'
+  const grammarOnly =
+    state.phase === 'on' && state.model === 'grammar' && !hideUpgrade
 
   return (
     <span className="nl-toggle">
@@ -58,7 +64,7 @@ export function NlLanguagePicker({
           {state.installed ? 'installed' : 'not installed'}
         </span>
       )}
-      {state.phase === 'on' && state.model === 'grammar' && (
+      {state.phase === 'on' && state.model === 'grammar' && !hideUpgrade && (
         <>
           {' '}
           <span className="sep" aria-hidden="true">

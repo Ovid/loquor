@@ -116,6 +116,22 @@ export const ES_CORE: CoreLexicon = {
     embarcar: 'board',
     desembarca: 'disembark',
     desembarcar: 'disembark',
+    // launch the boat (Frigid River) — mirrors de 'starte' and the fr launch
+    // idioms. 'launch' is FIND VEHBIT, so a bare 'zarpa' emits 'launch' and the
+    // Z-parser finds the vehicle. 'zarpar' (to set sail) is unambiguous — unlike
+    // 'lanza' (= throw) — so no full-phrase idiom is needed.
+    zarpa: 'launch',
+    zarpad: 'launch',
+    zarpar: 'launch',
+    // spray (Zork III grue repellent: 'spray repellent on self'). 'rociar' /
+    // 'vaporizar' / 'pulverizar' are spray-specific, no combat collision.
+    rocia: 'spray', // rocía folded
+    rociad: 'spray',
+    rociar: 'spray',
+    vaporiza: 'spray',
+    vaporizar: 'spray',
+    pulveriza: 'spray',
+    pulverizar: 'spray',
     // light/extinguish
     enciende: 'light',
     encended: 'light',
@@ -314,6 +330,12 @@ export const ES_CORE: CoreLexicon = {
     { phrase: 'abre con llave', to: 'unlock' },
     { phrase: 'sube a bordo', to: 'board' }, // mirrors fr 'monte a bord'
     { phrase: 'prende fuego a', to: 'burn' }, // mirrors fr 'mets le feu a'
+    // knock (Zork III, "knock on door"). 'llamar a la puerta' is the idiomatic
+    // Spanish knock; the prep distinguishes it from 'golpea'→attack. The idiom
+    // consumes verb+prep so the door resolves as the object: 'llama a la
+    // puerta' → 'knock on puerta'.
+    { phrase: 'llama a', to: 'knock on' },
+    { phrase: 'llamad a', to: 'knock on' },
   ],
   particleVerbs: [],
   // NOTE (personal-`a` hazard, for the deterministic parser — Task 13):

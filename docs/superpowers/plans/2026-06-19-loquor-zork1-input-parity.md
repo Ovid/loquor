@@ -14,9 +14,10 @@
 
 The `notes/uat.md` Spanish catalogue is from **2026-06-15** and predates the German F16 / `distributePrepTail` work and several lexicon updates. Every bug below was re-characterized against the **shipping** lexicons before this plan was written. Findings that change scope:
 
-**Already fixed — DROPPED from scope (do NOT re-fix):**
-- `apaga las velas` → `extinguish candles` ✓ (`apaga: 'extinguish'` already in `es.core.ts:142`).
-- **Conjoined + trailing prep** `mete la antorcha y el destornillador en la cesta` → `put torch in cage` + `put screwdriver in cage` ✓. `splitClauses`/`fillElidedVerbs`/`distributePrepTail` already cover Spanish `y`. **The spec's "one genuine parser change" for this is obsolete.**
+**Already fixed — no FIX needed, but a regression PIN is still required (spec's forcing-function contract):**
+- `apaga las velas` → `extinguish candles` ✓ (`apaga: 'extinguish'` already in `es.core.ts:142`). Pin it (Task 2) so a regression fails `make test` — don't silently drop a spec friction item.
+- **Conjoined + trailing prep** `mete la antorcha y el destornillador en la cesta` → `put torch in cage` + `put screwdriver in cage` ✓ (characterized through the real pipeline). `splitClauses`/`fillElidedVerbs`/`distributePrepTail` already cover Spanish `y`, so no FIX is needed — **but the spec's N3/DoD mandates a pin on the `inputTranslate.ts` surface, and there is currently NO pin for it anywhere in `src/`.** Task 8b adds it (RED that may pass immediately = the regression guard the spec required; if it fails, the "already fixed" claim is wrong and the debug task is live).
+- `bote`→bottle **false friend is already fixed**: `bote` maps to `magic boat`/`punctured boat` (`es.zork1.ts:80,97`), not `botella` (bottle). So the spec's "boat false-friend" blocking row is satisfied; the only residual boat-*enter* issue (`entra en el bote`→miss) is an arity/prep matter handled in the Task 9 decision, not a false-friend.
 - `infla el plastico con la bomba` → `inflate valve with pump` ✓.
 
 **Confirmed broken (es) — the real work:**
@@ -28,7 +29,7 @@ The `notes/uat.md` Spanish catalogue is from **2026-06-15** and predates the Ger
 | Songbird | `da cuerda al canario` | `give rope to canary` | idioms `da cuerda a`/`dale cuerda a` exist but `al` (a+el) token defeats the match | `es.core.ts` data |
 | Boat exit | `sal del bote` | `miss` | `sal`→exit works but `del` (de+el) is unhandled | `es.core.ts` data |
 | Nouns | `abre la tapa`, `coge el jade`, `coge la calavera de cristal` | `miss` | `tapa`/`jade`/`calavera de cristal` surface forms absent | `es.zork1.ts` data |
-| Combat slot | `mata al ladron con el cuchillo` | `miss` | personal-`a` (`al ladron`) not stripped → noun resolution fails | **`parse.ts` (the one code change)** |
+| Combat slot | `mata al ladron con el cuchillo` | `miss` | the *prep-split* branch (`parse.ts:287`) resolves the object span `[al, ladron]` and fails because `al` isn't stripped there. NOTE: the simple `ataca al troll` case **already works** via the existing personal-`a`/leading-`to` block (`parse.ts:270-283`) — the bug is only when a `con`-instrument follows | **`parse.ts` (extend the existing block — the one code change)** |
 
 **Cross-language: fr/de already pass** songbird (`remonte`✓, `zieh…auf`✓), `echo`✓, boat-exit (`sors du bateau`✓, `steig aus dem boot`✓), quantifier-all (`prends tout`✓, `nimm alles`✓). So fr/de tasks below are **verification pins**, not fixes — unless a pin reveals a regression.
 
@@ -141,7 +142,15 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
     expect(es('deja todo')).toEqual({ kind: 'command', text: 'drop all' })
     expect(es('coge todo')).toEqual({ kind: 'command', text: 'take all' })
   })
+  it('regression guard: "apaga las velas" → extinguish candles (already fixed)', () => {
+    expect(es('apaga las velas', inScope('pair of candles'))).toEqual({
+      kind: 'command',
+      text: 'extinguish candles',
+    })
+  })
 ```
+
+(The `apaga` case already passes — this pin guards it, since the spec's contract is "a regression re-breaking any friction item fails `make test`." Confirm the candles emit/canonical in Step 2.)
 
 - [ ] **Step 2: Run it; verify it fails**
 
@@ -209,7 +218,7 @@ Expected: FAIL — received `{ kind: 'command', text: 'give rope to canary' }`.
     { phrase: 'da cuerda a', to: 'wind up' },
 ```
 
-with the `al`/`a la` variants added (longest-first ordering is handled by the parser's sort, but list the fused forms so they exist):
+with the `al`/`a la` variants added. (The parser sorts idioms by **string char-length** descending, `parse.ts:176-178` — `da cuerda al` (12 chars) sorts before bare `da cuerda a` (11), so the fused form is tried first for `al` input. List the fused forms explicitly so each exists; the test is the real guard.)
 
 ```ts
     { phrase: 'dale cuerda al', to: 'wind up' }, // fused a+el; players type 'al canario'
@@ -298,6 +307,8 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 - Modify: `src/llm/lexicon/es.zork1.ts`
 - Test: `src/llm/lexicon/parse.es-uat.test.ts`
 
+**CRITICAL — `lid` is NOT a canonical.** `zork1.vocab.ts:708-710` shows `lid` is a *synonym* of canonical `machine` (emit `machine`); `es.zork1.ts:79` already has `machine: ['maquina']`. A `lid:` key would fail `validate.test.ts` (every key must be a vocab canonical). So `tapa` **appends to `machine`**, and the assertion is `open machine` / `close machine`. (`notes/uat.md:247` confirms the workaround is `abre/cierra la máquina`→`open/close machine`.)
+
 - [ ] **Step 1: Write the failing test** — add a describe block to the es-UAT file:
 
 ```ts
@@ -308,10 +319,14 @@ describe('Spanish UAT — noun surfaces', () => {
       text: 'take skull',
     })
   })
-  it('"tapa" → the diamond-machine lid', () => {
-    expect(es('abre la tapa', inScope('lid'))).toEqual({
+  it('"tapa" → the diamond-machine lid (canonical is "machine")', () => {
+    expect(es('abre la tapa', inScope('machine'))).toEqual({
       kind: 'command',
-      text: 'open lid',
+      text: 'open machine',
+    })
+    expect(es('cierra la tapa', inScope('machine'))).toEqual({
+      kind: 'command',
+      text: 'close machine',
     })
   })
   it('"jade" → the jade figurine', () => {
@@ -323,10 +338,10 @@ describe('Spanish UAT — noun surfaces', () => {
 })
 ```
 
-- [ ] **Step 2: Run it; verify it fails AND confirm the exact canonical/emit**
+- [ ] **Step 2: Run it; verify it fails AND confirm the exact emits**
 
 Run: `npx vitest run src/llm/lexicon/parse.es-uat.test.ts -t "noun surfaces"`
-Expected: FAIL — all `miss`. **Before writing Step 3, confirm the real emit strings** by checking the vocab entry for each canonical (the test's expected `text` — `take skull`, `open lid`, `take figurine` — must match the vocab `emit`). Grep: `grep -n "crystal skull\|'lid'\|jade figurine" src/llm/grammar/zork1.vocab.ts` and adjust the expected `text` if the emit differs. The note `es.zork1.ts:64` warns the `jade` token equals the English `jade` adjective — verify adding it doesn't collide in `validate.test.ts` (Step 4).
+Expected: FAIL — all `miss`. Confirm the emits before Step 3: `grep -n "crystal skull\|'machine'\|jade figurine" src/llm/grammar/zork1.vocab.ts` — `crystal skull`→`skull`, `machine`→`machine`, `jade figurine`→`figurine` (all verified). The note `es.zork1.ts:64` warns the `jade` token equals the English `jade` adjective — Step 4 checks the collision gate.
 
 - [ ] **Step 3: Add the noun surfaces** — in `src/llm/lexicon/es.zork1.ts`:
 
@@ -335,13 +350,13 @@ Expected: FAIL — all `miss`. **Before writing Step 3, confirm the real emit st
   'crystal skull': ['craneo', 'calavera', 'craneo de cristal', 'calavera de cristal'],
 ```
 
-Add `tapa` under the diamond-machine lid canonical (confirm the canonical name from vocab — likely `lid`):
+Append `tapa` to the EXISTING `machine` entry (`lid` is `machine`'s synonym — do NOT create a `lid` key):
 
 ```ts
-  lid: ['tapa'], // diamond-machine lid (UAT: 'abre/cierra la tapa')
+  machine: ['maquina', 'tapa'], // 'tapa' = the diamond-machine lid (UAT: 'abre/cierra la tapa')
 ```
 
-Add `jade` under the figurine canonical (keep the existing entry, append `jade`):
+Append `jade` to the figurine entry:
 
 ```ts
   'jade figurine': ['figurilla', 'estatuilla', 'figurilla de jade', 'jade'],
@@ -351,7 +366,7 @@ Add `jade` under the figurine canonical (keep the existing entry, append `jade`)
 
 Run: `npx vitest run src/llm/lexicon/parse.es-uat.test.ts -t "noun surfaces"`
 Run: `npx vitest run src/llm/lexicon/validate.test.ts`
-Expected: both PASS. If `validate.test.ts` flags a `jade` collision (the adjective also belongs to another canonical), resolve by scene-scoping in the test (`inScope('jade figurine')`) — which the test already does — and confirm the collision gate accepts an ambiguous surface.
+Expected: both PASS. If `validate.test.ts` flags a NEW `jade` collision, this is the COLLISION GATE (not the parse test) — resolve by adding the precise `KNOWN_COLLISIONS` row the gate's `toEqual` expects (scene-scoping in the parse test does NOT satisfy the validate gate). Show that diff in the commit if needed.
 
 - [ ] **Step 5: Commit**
 
@@ -364,68 +379,82 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 6: Combat slot — strip the personal-`a` (the one parser change)
+## Task 6: Combat slot — extend the existing personal-`a` handling (the one parser change)
 
-`mata al ladron con el cuchillo` misses because the prep-split loop hits `al`→`to` with no object before it, fails, then `con`→`with` tries to resolve `al ladron` as a noun and fails. Spanish marks animate direct objects with `a`/`al`. When `a`/`al` is the **first token after the verb** (nothing before it), it is a personal-`a` marker, not a preposition — strip it so the object resolves.
+**Diagnose first (spec-mandated; do NOT pre-commit a mechanism).** `parse.ts:270-283` ALREADY has a personal-`a`/leading-`to` block: `<verb> a/al <noun>` with the *whole* remainder resolving as one noun emits `<verb> <noun>` (so `ataca al troll` → `attack troll` **already works**). The combat case misses only because an instrument follows (`con el cuchillo`): the whole-remainder block can't fire, so the clause falls to the **prep-split loop** (`parse.ts:287`), which tries `resolveNoun(['al', 'ladron'])` for the object span and fails — `al` is a prep, not stripped there. So the fix is to strip a leading personal-`a`/`al` from the **object span inside the prep-split branch**, reusing the existing concept — NOT a new top-level `tokens.slice(1)` that would shadow the 270-283 block.
 
 **Files:**
-- Modify: `src/llm/lexicon/parse.ts`
+- Modify: `src/llm/lexicon/parse.ts` (the prep-split object-span resolution)
 - Test: `src/llm/lexicon/parse.es-uat.test.ts`
 
-- [ ] **Step 1: Write the failing test** — add to the es-UAT file:
+- [ ] **Step 1: Write the characterization + failing test** — add to the es-UAT file:
 
 ```ts
 describe('Spanish UAT — personal-a', () => {
-  const combatScene = inScope('thief', 'rusty knife')
-  it('"mata al ladron con el cuchillo" → attack thief with knife', () => {
-    expect(es('mata al ladron con el cuchillo', combatScene)).toEqual({
-      kind: 'command',
-      text: 'attack thief with knife',
-    })
-  })
-  it('personal-a with no instrument: "ataca al troll" → attack troll', () => {
+  it('already-works: "ataca al troll" → attack troll (existing block)', () => {
     expect(es('ataca al troll', inScope('troll'))).toEqual({
       kind: 'command',
       text: 'attack troll',
     })
   })
+  it('"mata al ladron con el cuchillo" → attack thief with rusty knives', () => {
+    expect(
+      es('mata al ladron con el cuchillo', inScope('thief', 'rusty knife')),
+    ).toEqual({ kind: 'command', text: 'attack thief with rusty knives' })
+  })
 })
 ```
 
-- [ ] **Step 2: Run it; verify it fails AND confirm the knife emit**
+- [ ] **Step 2: Run it; verify the split (the diagnosis)**
 
 Run: `npx vitest run src/llm/lexicon/parse.es-uat.test.ts -t "personal-a"`
-Expected: FAIL — `miss`. Confirm the expected `text` matches the vocab: `grep -n "rusty knife\|nasty knife\|'thief'\|'troll'" src/llm/grammar/zork1.vocab.ts` — the `cuchillo`→`rusty knife` emit may be `knife` or `rusty knife`; set the expected `text` accordingly. Use the scene to pick the in-scope knife (the combat scene lists `rusty knife`, not the thief's `stiletto`).
+Expected: the `ataca al troll` case **PASSES already** (proves the 270-283 block handles the no-instrument case); the `mata … con el cuchillo` case **FAILS with `miss`** (proves the bug is the prep-split object span). Confirm the emit string: `grep -n "rusty knife\|nasty knife" src/llm/grammar/zork1.vocab.ts` shows `cuchillo`→`rusty knife` emits **`rusty knives`** (plural) and also `nasty knife`→`nasty knives`; the scene `inScope('thief','rusty knife')` scopes the ambiguous `cuchillo` to `rusty knives`. (If you scope `nasty knife` instead, expect `nasty knives`.)
 
-- [ ] **Step 3: Strip the leading personal-`a` in `parse.ts`** — after the verb is extracted and before the prep-split loop (just before the `// --- Prep split` comment near line 285), add:
+- [ ] **Step 3: Strip the leading personal-`a` in the prep-split object span** — in the prep-split loop (`parse.ts:287`), when resolving the object span before the prep, strip a leading folded `a`/`al`:
 
 ```ts
-  // Spanish personal-`a`: an animate DIRECT object is marked with a/al
-  // ('ataca al troll', 'mata al ladron'). When the verb is immediately
-  // followed by a folded 'a'/'al' (no object token before it), that token is
-  // the personal-`a` marker, NOT the indirect-object prep — strip it so the
-  // object resolves. Guarded to a/al only; a real prep ('con','en') is left
-  // for the prep-split below. (es.core.ts personal-`a` note.)
-  if (tokens.length >= 2 && (tokens[0] === 'a' || tokens[0] === 'al'))
-    tokens = tokens.slice(1)
+  for (let i = 1; i < tokens.length - 1; i++) {
+    const prep =
+      core.preps[tokens[i]] ??
+      (vocab.preps.includes(tokens[i]) ? tokens[i] : undefined)
+    if (!prep || !vocab.preps.includes(prep)) continue
+    // Spanish personal-`a`: a leading a/al on the object span marks an animate
+    // DIRECT object ('mata AL ladron con …'), not a prep — strip it so the
+    // object resolves. Same concept as the leading-to block at L270-283, which
+    // only covers the no-instrument case (whole remainder as one noun).
+    const objSpan = tokens.slice(0, i)
+    const objTokens =
+      objSpan.length > 1 && (objSpan[0] === 'a' || objSpan[0] === 'al')
+        ? objSpan.slice(1)
+        : objSpan
+    const obj = resolveNoun(objTokens, core, nouns, vocab, scene)
+    const ind = resolveNoun(tokens.slice(i + 1), core, nouns, vocab, scene)
+    if (obj && ind && verbArityOk(verb, vocab, 2))
+      return {
+        kind: 'command',
+        text: `${verb} ${obj.emit} ${prep} ${ind.emit}`,
+      }
+  }
 ```
 
-Note: `tokens` are already folded by `tokenize`; `al` survives as one token. This runs after verb extraction, so `tokens[0]` is the first post-verb token.
+(Guarded to `a`/`al` only and to a span with ≥1 token after stripping; French `au`/`aux` and German are untouched — they don't lead the object span with `a`/`al`.)
 
 - [ ] **Step 4: Run the es-UAT test AND the full lexicon suite (parse.ts is shared)**
 
 Run: `npx vitest run src/llm/lexicon/parse.es-uat.test.ts -t "personal-a"`
 Run: `npx vitest run src/llm/lexicon/`
-Expected: both PASS. The fr/de suites must stay green — fr/de don't lead with `a`/`al` as a personal marker, but verify no fr/de clause starts `a`/`al` post-verb in a way this would wrongly strip (the de F-suite and fr roundtrip cover this).
+Expected: both PASS. Confirm fr `donne au troll`→`give troll` (the 270-283 block) and a genuine indirect `da la espada al troll` still emit correctly — neither leads the object span with bare `a`/`al`, so the new strip leaves them alone.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add src/llm/lexicon/parse.ts src/llm/lexicon/parse.es-uat.test.ts
-git commit -m "fix(nl): strip leading Spanish personal-'a'/'al' before noun resolution
+git commit -m "fix(nl): strip leading personal-'a'/'al' in the prep-split object span
 
-Fixes the combat instrument slot (mata al ladron con el cuchillo) and any
-'<verb> al <animate>' command that previously missed.
+Combat instrument slot (mata al ladron con el cuchillo → attack thief with
+rusty knives) missed because the whole-remainder personal-a block (L270-283)
+can't fire when an instrument follows. Extend the same concept to the prep
+-split object span. fr/de leading-object spans are untouched.
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
@@ -500,6 +529,8 @@ Expected: PASS (verification, not red→green). If any FAILS, that's a real fr g
 
 (Songbird `zieh…auf` and boat-exit `steig aus dem boot` are already pinned as F25/F26 in that file.)
 
+- [ ] **Step 3b: Friction-tier cognate check (spec's ×3 requirement)** — the friction nouns/verbs (`tapa`, `jade`, `calavera de cristal`, the `del`/`todo` handling) are es-surface forms; the spec requires reasoning about the fr/de cognate for each. For each, either (a) characterize the fr/de equivalent (e.g. `couvercle`/`Deckel` for lid, `crâne de cristal`/`Kristallschädel`, `tout`/`alles` quantifier — already pinned) and add a pin if broken, or (b) record in the test file a one-line comment that it's an es-only surface gap with no fr/de cognate issue. Do NOT leave the friction tier's cross-language check unaddressed.
+
 - [ ] **Step 4: Run the de suite; verify PASS**
 
 Run: `npx vitest run src/llm/lexicon/parse.de-uat.test.ts`
@@ -546,11 +577,62 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
+## Task 8b: Conjoined + trailing prep — regression pin on the `inputTranslate.ts` surface (spec N3)
+
+Characterization shows this already works, but the spec's N3/DoD requires a pin, and there is currently **none anywhere in `src/`**. A `parse.*-uat` pin can't reach this — it must drive `splitClauses`→`fillElidedVerbs`→`distributePrepTail`.
+
+**Files:**
+- Test: `src/llm/inputTranslate.test.ts` (append; this is where the German `distributePrepTail` cases live).
+
+- [ ] **Step 1: Read the existing `distributePrepTail` test** to match the harness (it's German-only today).
+
+Run: `grep -n "distributePrepTail\|fillElidedVerbs\|splitClauses" src/llm/inputTranslate.test.ts | head`
+
+- [ ] **Step 2: Write the es pin** — drive the composition with ES_CORE + ES_ZORK1 + ZORK1_VOCAB and assert both conjuncts inherit the destination:
+
+```ts
+import { ES_CORE } from './lexicon/es.core'
+import { ES_ZORK1 } from './lexicon/es.zork1'
+// ...
+it('es conjoined+prep: distributes the destination across conjuncts', () => {
+  const line = 'mete la antorcha y el destornillador en la cesta'
+  const dist = distributePrepTail(
+    fillElidedVerbs(splitClauses(line), ES_CORE, ZORK1_VOCAB, ES_ZORK1),
+    ES_CORE,
+    ZORK1_VOCAB,
+  )
+  expect(dist).toEqual([
+    'mete la antorcha en la cesta',
+    'mete el destornillador en la cesta',
+  ])
+})
+```
+
+(This is the exact composition characterized 2026-06-19; the emit-level result is `put torch in cage` + `put screwdriver in cage` after `parseLexicon`.)
+
+- [ ] **Step 3: Run; verify PASS (regression guard) — or, if it FAILS, the "already fixed" claim is wrong**
+
+Run: `npx vitest run src/llm/inputTranslate.test.ts -t "conjoined"`
+Expected: PASS. If it fails, STOP — the spec's debug-first task is live: diagnose which function drops the 2nd object/destination (likely `prepTail` not recognizing es `en`, or the bare 2nd conjunct's `isForeignNoun` gap) and fix before pinning.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/llm/inputTranslate.test.ts
+git commit -m "test(nl): pin es conjoined+trailing-prep distribution (spec N3 coverage)
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
 ## Task 9: Decide `sube la cesta` and `entra en el bote` with Ovid (NO blind fix)
 
 Per CLAUDE.md's player-experience rule, these two are "talk to me first" — a natural command produces a wrong/missing result, but the fix is fragile (arity-conditional verb sense) and a workaround exists.
 
-- [ ] **Step 1: Write up the two cases for Ovid** — for each: the player input, what happens now (`sube la cesta`→`climb cage`; `entra en el bote`→`miss`), the working workaround (`levanta la cesta`→`raise cage`; `aborda`/`embarca`→board), why a blind fix is risky (`sube` bare = go up/climb, so a context-free `sube`→raise breaks navigation; boat-`enter` arity), and the options: (a) leave + document the workaround, (b) arity-conditional sense, (c) add `sube`→raise only when an object follows.
+**Scope note (state plainly to Ovid):** `sube la cesta` was in the spec's *closed, in-scope* friction list. Deferring it here is a **scope reduction** the spec didn't authorize, so it needs Ovid's explicit sign-off — do not treat it as settled. (`entra en el bote` is only lightly scoped by the spec's boat row.)
+
+- [ ] **Step 1: Write up the two cases for Ovid** — for each: the player input, what happens now (`sube la cesta`→`climb cage`; `entra en el bote`→`miss`), the working workaround (`levanta la cesta`→`raise cage`; `aborda`/`embarca`→board), why a blind fix is risky (`sube` bare = go up/climb, so a context-free `sube`→raise breaks navigation; boat-`enter` arity), and the options: (a) leave + document the workaround, (b) arity-conditional sense, (c) add `sube`→raise only when an object follows. **Explicitly ask Ovid to confirm removing `sube la cesta` from this branch's committed scope.**
 
 - [ ] **Step 2: Present to Ovid and wait for the call.** Do not implement until he chooses. Record the decision in `notes/uat.md` (Spanish catalogue) regardless of outcome.
 
@@ -562,7 +644,7 @@ Per CLAUDE.md's player-experience rule, these two are "talk to me first" — a n
 
 Per the spec's player-experience gate (S3): confirm what we're replacing before we replace it.
 
-- [ ] **Step 1: Run the app and capture Zork's native help.** `make dev`, start Zork I in English, type `help`, `info`, and `commands`; record the exact output.
+- [ ] **Step 1: Capture Zork's native help.** Preferred (agent-executable, no browser — the stack has no Playwright per CLAUDE.md): read the `HELP`/`INFO`/`COMMANDS` routine text from the **read-only vendored** `zork1/` `.zil` source (read only — never modify). Fallback if that's unclear: ask Ovid to run `! ` the dev app and paste the `help`/`info`/`commands` output. Record the exact text either way.
 
 - [ ] **Step 2: Compare to the planned localized block** (meta-commands list + escape hatch). List anything Zork's native help provides that the localized block would drop (scoring info, in-world hints, `$verify`).
 
@@ -616,6 +698,21 @@ Run: `npx vitest run src/llm/help.test.ts`
 Expected: FAIL — module not found.
 
 - [ ] **Step 4: Implement `src/llm/help.ts`** — `isHelpTrigger(word, lang)` (localized aliases per lang; English word `help` only for `ka`; `false` for `en`/`off`) and `helpResponse(lang)` returning the localized block: the meta-commands with per-language equivalents, plus the escape-hatch explanation naming `"wind up canary"`, `"enter boat"`, `"echo"`, `"kill thief with knife"` (fr/de/es); for `ka`, the "type commands in English" block with NO quoted-fallback instruction. Wire `isHelpTrigger` into the routing found in Step 1 so a hit renders `helpResponse(lang)` as a transcript block (via the existing aria-live notice/echo seam) and **does not** reach the game.
+
+- [ ] **Step 4b: Integration test — intercept ordering + a11y live-region (the spec's heaviest item)** — unit tests on `help.ts` alone don't prove the intercept actually prevents the game from seeing `help` or that the block is announced. Add an integration test on the routing surface found in Step 1 (`translatePipeline.ts`):
+
+```ts
+// es-mode 'ayuda' yields the help block and produces NO game command:
+//   assert the pipeline result is the help block (not a translate/raw-send)
+// en-mode 'help' passes through to the game (raw-send / native help):
+//   assert it is NOT intercepted
+// a11y: the help block is announced via the aria-live region — assert it
+//   lands in the same live region the one-time notices use (reuse the
+//   notices.test.ts live-region assertion: getByRole('status'|'log') or the
+//   region's test id), per CLAUDE.md (dynamic content must reach assistive tech).
+```
+
+Write these RED first (they fail until Step 4's wiring exists), then GREEN.
 
 - [ ] **Step 5: Run; verify PASS, then full suite**
 
@@ -748,9 +845,13 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Self-review notes
+## Self-review notes (post-pushback + alignment review, 2026-06-19)
 
-- **Spec coverage:** P1.1 (Tasks 1–9), P2.2 (Task 13), P3 (Tasks 10–12, 14). Escape-hatch passthrough pins (Task 8) and the cross-language verification (Task 7) cover the spec's S5/cognate requirements.
-- **Divergence from spec (ground truth):** the spec's "conjoined+prep = one genuine code change" is obsolete (already fixed); the real one code change is the personal-`a` strip (Task 6). `apaga` dropped (already fixed). Most "shared" bugs are es-only (fr/de pass). **This should be reconciled with the spec — flagged to Ovid.**
-- **Diagnose-first tasks** (5, 6, 13) include a Step that confirms the exact vocab `emit`/canonical before asserting, because the test's expected `text` must match the real vocab strings.
-- **Decision-gated tasks** (9, 10) do not write code until Ovid weighs in, per the player-experience rule.
+- **Spec coverage:** P1.1 (Tasks 1–9), conjoined+prep pin (Task 8b, spec N3), P2.2 (Task 13), P3 (Tasks 10–12, 14). Escape-hatch passthrough pins (Task 8), cross-language verification incl. friction tier (Task 7), and the help a11y live-region test (Task 11 Step 4b) cover the spec's S5/cognate/a11y requirements.
+- **Corrected factual errors found by review (verified against code):**
+  - Task 5: `lid` is NOT a canonical — it's a synonym of `machine`; `tapa` appends to `machine`, assertion is `open/close machine`.
+  - Task 6: the simple `ataca al troll` case already works (existing `parse.ts:270-283` block); the fix extends the prep-split object span, not a duplicate strip; the weapon emit is `rusty knives` (plural), not `knife`.
+  - Conjoined+prep was pinned nowhere — Task 8b adds the `inputTranslate.ts`-surface pin the spec's N3 mandates.
+- **Divergence from spec (ground truth), to reconcile with Ovid:** the spec's "conjoined+prep = one genuine code change" is obsolete (already works; now just pinned in 8b); the real one code change is the personal-`a` prep-split fix (Task 6). `apaga` and `bote`→bottle were already fixed (apaga now regression-pinned in Task 2; bote→boat confirmed). `sube la cesta` moved to a talk-first decision (Task 9) — **a scope reduction needing Ovid's explicit sign-off.**
+- **Diagnose-first tasks** (5, 6, 8b, 13) confirm the exact vocab `emit`/canonical before asserting.
+- **Decision-gated tasks** (9, 10) write no code until Ovid weighs in, per the player-experience rule; Task 10 now has an agent-executable `.zil`-read fallback (no browser).

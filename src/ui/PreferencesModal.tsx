@@ -1,6 +1,5 @@
-import { useRef } from 'react'
 import type { ActiveLanguage } from '../llm/types'
-import { useFocusTrap } from './useFocusTrap'
+import { Modal } from './Modal'
 
 interface PrefsCopy {
   heading: string
@@ -79,44 +78,35 @@ export function PreferencesModal({
   onToggleDebug: () => void
   onClose: () => void
 }) {
-  const dialogRef = useRef<HTMLDivElement>(null)
-
-  // Same focus contract as the download modal (WCAG 2.4.3 / 2.1.2): trap Tab,
-  // move focus in on open, restore to the ⚙ opener on close, Escape closes.
-  // Shared with the download modal via useFocusTrap so the two can't drift.
-  useFocusTrap(dialogRef, { active: open, onEscape: onClose })
-
-  if (!open) return null
+  // The shared <Modal> owns the dialog a11y contract + focus trap (WCAG 2.4.3 /
+  // 2.1.2): trap Tab, move focus in on open, restore to the ⚙ opener on close,
+  // Escape closes.
   const copy = PREFS_COPY[lang]
 
   return (
-    <div
-      className="modal-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="prefs-modal-title"
-      ref={dialogRef}
+    <Modal
+      open={open}
+      titleId="prefs-modal-title"
+      title={copy.heading}
+      onEscape={onClose}
     >
-      <div className="modal">
-        <h2 id="prefs-modal-title">{copy.heading}</h2>
-        <label className="prefs-row">
-          <input
-            type="checkbox"
-            checked={debug}
-            aria-describedby="prefs-debug-help"
-            onChange={onToggleDebug}
-          />{' '}
-          {copy.debugLabel}
-        </label>
-        <p id="prefs-debug-help" className="prefs-help">
-          {copy.debugHelp}
-        </p>
-        <div className="modal-actions">
-          <button className="sw" type="button" onClick={onClose}>
-            {copy.close}
-          </button>
-        </div>
+      <label className="prefs-row">
+        <input
+          type="checkbox"
+          checked={debug}
+          aria-describedby="prefs-debug-help"
+          onChange={onToggleDebug}
+        />{' '}
+        {copy.debugLabel}
+      </label>
+      <p id="prefs-debug-help" className="prefs-help">
+        {copy.debugHelp}
+      </p>
+      <div className="modal-actions">
+        <button className="sw" type="button" onClick={onClose}>
+          {copy.close}
+        </button>
       </div>
-    </div>
+    </Modal>
   )
 }

@@ -1,7 +1,6 @@
-import { useRef } from 'react'
 import type { ActiveLanguage, LoadProgress } from '../llm/types'
 import { pct as toPct, formatEta } from '../llm/progress'
-import { useFocusTrap } from './useFocusTrap'
+import { Modal } from './Modal'
 
 interface ModalCopy {
   heading: string
@@ -94,63 +93,50 @@ export function ModelDownloadModal({
   onDecline: () => void
   onCancel: () => void
 }) {
-  const dialogRef = useRef<HTMLDivElement>(null)
-
-  // Modal focus management (2.4.3 / 2.1.2): trap Tab within the dialog, restore
-  // focus on close, and route Escape (Cancel while downloading, else Not now).
-  // Shared with the landing overlay via useFocusTrap so the two can't drift (I2).
+  // The shared <Modal> owns the dialog a11y contract + focus trap (2.4.3 /
+  // 2.1.2); Escape routes to Cancel while downloading, else Not now.
   const downloading = progress !== null
-  useFocusTrap(dialogRef, {
-    active: open,
-    onEscape: () => (downloading ? onCancel : onDecline)(),
-  })
-
-  if (!open) return null
   const pct = progress ? toPct(progress.loaded, progress.total) : 0
   const eta = formatEta(etaSeconds, lang)
 
   const copy = COPY[lang]
 
   return (
-    <div
-      className="modal-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="nl-modal-title"
-      ref={dialogRef}
+    <Modal
+      open={open}
+      titleId="nl-modal-title"
+      title={copy.heading}
+      onEscape={() => (downloading ? onCancel : onDecline)()}
     >
-      <div className="modal">
-        <h2 id="nl-modal-title">{copy.heading}</h2>
-        <p>{copy.body}</p>
-        {warn && !downloading && (
-          <p className="modal-warn" role="note">
-            {copy.warning}
+      <p>{copy.body}</p>
+      {warn && !downloading && (
+        <p className="modal-warn" role="note">
+          {copy.warning}
+        </p>
+      )}
+      {downloading ? (
+        <>
+          <progress value={pct} max={100} aria-label={copy.progressLabel} />
+          <p aria-live="polite">
+            {/* Localized progressLabel + pct convey state; the engine's raw
+                progress.text is English ("downloading") and is intentionally
+                not rendered in this localized modal (review I3). */}
+            {pct}%{eta ? ` · ${eta}` : ''}
           </p>
-        )}
-        {downloading ? (
-          <>
-            <progress value={pct} max={100} aria-label={copy.progressLabel} />
-            <p aria-live="polite">
-              {/* Localized progressLabel + pct convey state; the engine's raw
-                  progress.text is English ("downloading") and is intentionally
-                  not rendered in this localized modal (review I3). */}
-              {pct}%{eta ? ` · ${eta}` : ''}
-            </p>
-            <button className="sw" type="button" onClick={onCancel}>
-              {copy.cancel}
-            </button>
-          </>
-        ) : (
-          <div className="modal-actions">
-            <button className="sw" type="button" onClick={onAccept}>
-              {copy.accept}
-            </button>
-            <button className="sw" type="button" onClick={onDecline}>
-              {copy.decline}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+          <button className="sw" type="button" onClick={onCancel}>
+            {copy.cancel}
+          </button>
+        </>
+      ) : (
+        <div className="modal-actions">
+          <button className="sw" type="button" onClick={onAccept}>
+            {copy.accept}
+          </button>
+          <button className="sw" type="button" onClick={onDecline}>
+            {copy.decline}
+          </button>
+        </div>
+      )}
+    </Modal>
   )
 }

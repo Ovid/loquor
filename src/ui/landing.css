@@ -18,6 +18,27 @@
   pointer-events: none;
 }
 
+/* ---------- Scroll-safe, top-reachable plate surface ---------- */
+/* The acute bug (responsive design 2026-06-19 §1): a fixed, hard-centered flex
+   container with no overflow clips the top of any child taller than the
+   viewport, stranding the corner controls. `.screen` is shared with the live
+   terminal (`.screen.term`, which re-lays-out to a stretched column), so scope
+   this to `:not(.term)` — never put it on base `.screen` or it lands on the
+   running game's root container.
+   `align-items:flex-start` + `overflow-y:auto` + `margin:auto` on the child is
+   the scroll-safe centering recipe: it centers when there's room and pins the
+   top scrollable-to when there isn't. `align-items:center` would clip the top
+   even with overflow; `align-items:safe center` has a support cliff and falls
+   back to plain `center` — do not use it. */
+.screen:not(.term) {
+  align-items: flex-start;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.screen:not(.term) .plate {
+  margin: auto;
+}
+
 /* ---------- Landing plate ---------- */
 .plate {
   width: min(680px, 92vw);
@@ -107,7 +128,7 @@
 /* ---------- Title ---------- */
 .title {
   font-family: 'IM Fell English SC', serif;
-  font-size: 4rem;
+  font-size: clamp(2.5rem, 9vw, 4rem);
   line-height: 0.95;
   letter-spacing: 2px;
   color: var(--brass);
@@ -151,7 +172,7 @@
 .tagline {
   font-family: 'IM Fell English', serif;
   font-style: italic;
-  font-size: 1.125rem;
+  font-size: clamp(1rem, 4vw, 1.125rem);
   color: var(--brass-soft);
   text-align: center;
   margin: 0 0 26px;
@@ -379,4 +400,17 @@
 .folio-footnote a:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
+}
+
+/* ---------- Phone breakpoint ---------- */
+/* Relax the plate's desktop padding and stop the 3-column volume grid from
+   cramping numerals + names on narrow viewports (responsive design §2). The
+   plate's own width is already fluid (min(680px, 92vw)). */
+@media (max-width: 520px) {
+  .plate {
+    padding: 28px 20px 28px;
+  }
+  .volumes {
+    grid-template-columns: 1fr;
+  }
 }

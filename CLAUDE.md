@@ -213,6 +213,46 @@ suite is the pattern) — an a11y regression should fail the suite, not ship. If
 change arguably degrades accessibility and the reason is a product/design
 decision, that falls squarely under the "talk to me first" rule below.
 
+## Responsive layout is a requirement — usable from 320px up
+
+**The UI must be genuinely usable on a phone.** Loquor is a text adventure people
+will open on whatever screen they have to hand; a layout that overflows, cramps,
+or clips its own controls on a narrow or short window is a **bug**, on the same
+footing as the accessibility requirements above — and the two overlap (see point
+3). The responsive pass **is built and must be preserved**; its design and locked
+decisions live in
+`docs/superpowers/specs/2026-06-19-loquor-responsive-design.md`.
+
+The standing requirements:
+
+1. **Usable from 320px wide up**, including short / landscape windows, in **both
+   themes**, across **all UI languages (en/fr/de/es)** and the **Georgian (ka)**
+   display. Something that reads fine at desktop width but overflows or clips at
+   320px is not done.
+2. **CSS-only, native, no new dependencies.** Adapt with media queries and fluid
+   units (`clamp`, `min`, `vw`) — **no JS layout logic** (`useMediaQuery`-style
+   width switching is an explicit non-goal). The phone breakpoint is a single
+   `@media (max-width: 520px)` block in `src/ui/landing.css`; the status-bar and
+   volume-picker wrap rules live in `src/ui/components.css`.
+3. **Keep the scroll-safe overlay/modal pattern.** The centered full-viewport
+   surfaces (`.screen:not(.term)`, `.modal-backdrop`) must stay scrollable and
+   top-safe: `overflow-y: auto` + `align-items: flex-start` + the child's
+   `margin: auto` (its top margin collapses when the content is taller than the
+   viewport, so the top stays reachable) + `overscroll-behavior: contain`. This
+   is **also an a11y fix** — without it the corner controls (the dismiss ✕, the
+   theme toggle) clip off-screen and a keyboard / screen-reader user cannot reach
+   them. **Never** hang the scroll rules on the bare `.screen` selector (it also
+   clothes the running game terminal), and **never** use `align-items: safe
+   center` (its browser-support cliff silently falls back to top-clipping). The
+   status bar and the volume picker must wrap / stack, not overflow.
+4. **There is no automated guard for the scroll fix** — jsdom has no layout
+   engine and the stack has no Playwright (adding one for one plate + a status bar
+   is a non-goal). The spec's manual checklist (320 / 375 / 520px + a short
+   landscape window, both themes) is therefore the **only** gate: a CSS refactor
+   can silently reintroduce top-clipping with every Vitest test still green.
+   Re-run that checklist whenever you touch `src/ui/landing.css` or
+   `src/ui/components.css`.
+
 ## Player experience overrides "product decisions" — talk to me first
 
 **"It's a product decision" is NOT a reason to defer, skip, or accept a behavior

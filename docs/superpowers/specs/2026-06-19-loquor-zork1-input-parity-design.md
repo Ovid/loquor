@@ -72,62 +72,151 @@ parser change**.
 | **Boat false-friend** `bote`→bottle | add `bote`→boat canonical; scene-scope disambiguates vs bottle | verify `bateau` | verify `boot` | `*.zork1.ts` |
 | **Boat exit** `sal del bote` → "move raft" | verb `sal`/`salir` → `exit` (+ verify enter/launch) | cognate | cognate | `*.core.ts` |
 | **Loud Room** `eco` → "look" | verb `eco` → `echo` | `écho` | `echo` | `*.core.ts` verbs |
-| **Combat weapon slot** `mata … con el cuchillo` → wrong weapon (stiletto) | ambiguity fix so `cuchillo` in the `con`-instrument slot resolves to knife, not the thief's stiletto | cognate | cognate | `*.zork1.ts` + scope rule in `parse.ts` |
-| **Conjoined + trailing prep** `mete X y Y en Z` → drops Y AND Z | **parser fix** in clause-split / elided-verb + trailing prep-phrase distribution | shared | shared | `parse.ts` |
+| **Combat weapon slot** `mata … con el cuchillo` → wrong weapon (stiletto) | **diagnose first** (see below), likely noun-lexicon: ensure `cuchillo` maps to the `knife`/`knives` canonical so the `con`-slot never resolves to the thief's `estilete` | cognate | cognate | `*.zork1.ts` (root cause TBD) |
+| **Conjoined + trailing prep** `mete X y Y en Z` → drops Y AND Z | **debug existing pipeline** (see below) — NOT a new feature | verify only | verify only | `inputTranslate.ts` |
 
 ### Friction bugs (a natural command fails; in-language workaround exists)
 
-`apaga` imperative unknown (infinitive works); `deja todo` → drop advertisement;
-`abre/cierra la tapa` (lid) mis-maps; `coge el jade` → egg; `coge la calavera de
-cristal` → "take crack" (the `de cristal` modifier breaks it); `sube la cesta` →
-"climb cage" (should raise). Most are one-line verb/noun lexicon additions.
-CLAUDE.md treats a failing *natural* command as player harm, so these are in
-scope. Each gets the same per-language cognate check.
+The complete, closed list (no "etc." — `notes/uat.md`'s trailing items resolved
+into this set; each carries a ×3 per-language cognate check):
 
-### Known implementation wrinkle
+1. `apaga` (imperative) unknown — the infinitive `apagar` works; add the
+   imperative form → `extinguish`.
+2. `deja todo` → "drop advertisement" — the `todo` quantifier mis-maps; fix the
+   "all" quantifier path.
+3. `abre la tapa` → "open cage" / `cierra la tapa` → "turn off candles" — `tapa`
+   (lid) mis-maps; fix the noun.
+4. `coge el jade` → "take jeweled egg" — `jade` mis-maps; fix the noun.
+5. `coge la calavera de cristal` → "take crack" — the `de cristal` modifier
+   breaks resolution; bare `calavera`→skull works, so the modified phrase must
+   resolve to the same canonical.
+6. `sube la cesta` → "climb cage" (should raise) — `sube`/`subir` overloads
+   "climb" vs "raise"; `levanta`→raise works.
+
+Most are one-line verb/noun lexicon additions, but **each requires the fr/de
+cognate check**, so the real cost is ≈3× the bullet count. CLAUDE.md treats a
+failing *natural* command as player harm, so these are in scope.
+
+### Known implementation wrinkle: fused prepositions
 
 Spanish `al` and `del` are fused `a+el` / `de+el` single tokens. Both the
 songbird idiom (`dar cuerda al`) and the boat-exit (`sal del bote`) depend on
-matching through the fused preposition. The plan must resolve this once — either
-idiom phrase variants (`dar cuerda a` / `dar cuerda al` / `dar cuerda a la`) or a
-fold-time split of `al`/`del` — and apply it consistently. (No fr/de analogue:
-French elides to `du`/`au` similarly and should be checked; German does not.)
+matching through the fused preposition. **`es.core.ts` deliberately omits `del`
+today** (it maps `al`→`to` but leaves `del` to the LLM, with a comment warning
+that any `del` addition must consider the personal-`a` collision — e.g. `huye
+del troll`). So the boat-exit fix *forces* that flagged decision. The plan MUST
+choose one approach explicitly and justify the `del`/personal-`a` interaction:
+either idiom/phrase variants (`dar cuerda al`, `sal del`) or a fold-time split of
+`al`/`del`.
+
+French has the analogous fusion `du` (`de+le`) / `au` (`à+le`). `fr.core.ts`
+has no general `du`/`au` prep entry (only the `à l'eau` boat idiom as a folded
+full phrase). The plan MUST either resolve `du`/`au` for the specific fr cognate
+commands in scope (boat, songbird) **or** state concretely why those commands
+don't traverse a fused prep. "Should be checked" is not an acceptable
+resolution. German does not fuse.
+
+### Combat weapon-slot: diagnose before fixing
+
+`coge el cuchillo`→"take nasty knives" is already CORRECT (object slot); the bug
+is *only* the `con <arma>` instrument slot (`parse.ts:285–299` splits
+`<verb> <obj> con <ind>`), which resolves `cuchillo` to the thief's `estilete`.
+The plan MUST first capture the `nl debug` `{stage, result}` for `mata al ladrón
+con el cuchillo` to find *why* the instrument slot resolves differently from the
+object slot, then state the concrete rule (most likely: a noun-lexicon entry so
+`cuchillo` lands on the `knife`/`knives` canonical and never reaches the stiletto
+disambiguation). Do not pre-commit to a mechanism before the root cause is known.
+
+### Conjoined + trailing prep: a debug, not a build
+
+`mete la antorcha y el destornillador en la cesta` → only "put torch" (drops the
+2nd object AND the `en la cesta` destination). **The mechanism the spec earlier
+implied building already exists and ships:** clause splitting, verb-gapping, and
+trailing-prep distribution all live in `src/llm/inputTranslate.ts`
+(`splitClauses`, `fillElidedVerbs`, `prepTail`, `distributePrepTail`) — and
+`distributePrepTail` was written *for the German* `lege A und B in die Vitrine`
+(UAT F16). So:
+
+- The fix is **debugging why the es case drops the object/destination**, not
+  writing a new distribution feature. Likely root cause inside `inputTranslate.ts`:
+  the second bare object `el destornillador` failing to gap (article/`isForeignNoun`
+  path), or `prepTail` not recognizing Spanish `en`, or a fold/casing interaction.
+- The plan MUST first reproduce the es failure as a failing test against
+  `inputTranslate.ts`, diagnose which function drops it, *then* propose a change.
+- German is **verify-only** (the F16 fix should already cover it — listing it as
+  "needs the same fix" would double-count); French likewise verify.
+
+This is the single genuine code change in P1.1. It is a pipeline debug of
+existing multi-clause code, not a one-line data edit — the "mostly data" framing
+applies to everything *except* this.
 
 ### Regression pins (the forcing function)
 
-New files, mirroring the existing `src/llm/lexicon/parse.de-uat.test.ts`:
+- Single-clause bugs (songbird, boat false-friend, `eco`, combat slot, the
+  friction set) → new `src/llm/lexicon/parse.es-uat.test.ts` and
+  `parse.fr-uat.test.ts` (+ append to `parse.de-uat.test.ts`), mirroring the
+  existing de pin-file. Pure `parse()` assertions, no browser.
+- The **conjoined + trailing prep** bug exercises the multi-clause pipeline, so
+  its pin goes to the `inputTranslate.ts` test surface
+  (`src/llm/inputTranslate.test.ts` or a new `inputTranslate.es-uat.test.ts`) —
+  a `parse.*-uat` pin would not exercise the clause-split path at all.
 
-- `src/llm/lexicon/parse.es-uat.test.ts`
-- `src/llm/lexicon/parse.fr-uat.test.ts`
-- append cases to `parse.de-uat.test.ts`
+Each blocking/friction bug → one pinned assertion (foreign input → expected
+canonical). A regression that re-breaks any of these fails `make test`.
 
-Each blocking/friction bug → one pinned `parse()` assertion (foreign input →
-expected canonical command). **Pure parse-level; no browser.** A regression that
-re-breaks any of these fails `make test`.
+### Escape-hatch passthrough pins (ties P1.1 to P3)
+
+The P3 signpost is only honest if the quoted-English workaround it advertises
+actually works for the exact commands that need it. Pin the passthrough of each
+blocking bug's documented workaround → correct canonical: `"wind up canary"`,
+`"enter boat"` / `"launch"` / `"get out of boat"`, `"echo"`, `"kill thief with
+knife"`. These guarantee the signposted hatch lets the player finish even if a
+native fix regresses.
 
 ## P2.2 — Disambiguation templates (fr/de/es + ka)
 
-Two specific templates render garbled (es), and are **entirely absent in `ka`**
-(`ka` has 23 templates vs ~188 for fr/de/es), so `ka` leaks **raw English**:
+**Correction from the v1 draft:** these two templates are NOT garbled existing
+templates — they are **absent from all four corpora** (only `Which book do you
+mean, the {obj} or the {obj2}?` exists). So at runtime they fall back to the LLM
+(fr/de/es) or leak **raw English** (`ka`, which is corpus-only with no LLM). The
+es artifacts in `notes/uat.md` — the structurally-wrong `¿Qué quieres poner la
+cera?` and the `tesones` plural — are **LLM-fallback output of an absent
+template**, not defects in an existing string (the note itself records that the
+line "ALSO logs a miss because the raw EN disambig line isn't a corpus string").
+The leak therefore affects *every* language; `ka` is merely worst (no fallback).
 
-1. `What do you want to put the {obj} in?` — es renders the structurally-wrong
-   `¿Qué quieres poner la cera?` (the `{obj}` slot is mangled).
-2. `Which of the {obj}s do you mean?` — es renders the `tesones` pluralization
-   bug (should be `tesoros`).
+The two lines to **author** as new templates:
 
-Fix/add both templates in `zork1.{es,fr,de,ka}.templates.ts`. (es was authored by
-mirroring fr, so the same gap is likely shared — fix all.) Pin in
-`zork1.{es,fr,ka}.uat.test.ts`; add the de assertion to its corpus suite.
+1. `What do you want to put the {obj} in?` (the incomplete-`put` object prompt).
+2. `Which of the {obj}s do you mean?` (the multi-candidate prompt; the es LLM
+   fallback mis-pluralized it as `tesones`).
 
-### Georgian caveat (native-review track)
+Add both to `zork1.{es,fr,de,ka}.templates.ts` with correct `{obj}`-slot and
+plural handling per language. Pin in `zork1.{es,fr,ka}.uat.test.ts`; de has no
+`.uat.test.ts` (see Testing/DoD N4) so its assertion goes to the corpus
+completeness suite.
+
+### Georgian caveat (native-review track) — verifiable, not smuggled
 
 Georgian noun **case forms inside templates** are a known hard problem — it is
 *why* `ka` has so few templates, and last branch's `ka` additions had to
-drop/rephrase object names to dodge it (the §4 case issue). Any `ka`
-disambiguation text added here is a **native-review draft line**, marked as such
-in-file, **not** a finalized translation. This fits the existing
-`notes/georgian-native-review-followup.md` gate (native review BLOCKS the
-`(beta)` marker); it does not block this branch.
+drop/rephrase object names to dodge it (the §4 case issue). The branch's whole
+forcing function is "every change pinned, a regression fails `make test`," and an
+unverifiable hand-authored Georgian string would break that contract. So:
+
+- This branch ships the `ka` **plumbing** with confidence: the template *keys*
+  present (no raw-English leak), the `help` intercept wired for the English
+  `help` trigger, the "type in English" notice/placeholder routing.
+- Any `ka` template/help **text** whose correctness can't be verified here is a
+  **native-review draft**, and is enforced — not merely "marked in-file." Each
+  such line carries a `// NATIVE-REVIEW-DRAFT (ka §4 case forms)` marker, and a
+  test asserts the marker is present on every provisional `ka` line so a draft
+  cannot silently be treated as finalized. Removing the marker (after native
+  review) is the explicit hand-off.
+- The text correctness itself is tracked in
+  `notes/georgian-native-review-followup.md` (native review BLOCKS the `(beta)`
+  marker); it does not block this branch, because what this branch *asserts* is
+  presence + the draft marker, not Georgian correctness.
 
 ## P3 — Passive escape-hatch signposting
 
@@ -138,20 +227,40 @@ a *valid command the game accepts but that does the wrong thing*, so there is no
 error line to catch, and detection would require fragile per-language matching of
 game error output.)
 
+The passive signposts front-load disclosure to *before* the player hits a wall
+(the one-time notice can scroll away; the placeholder gets tuned out). That's
+accepted: the on-demand `help` command is the durable recovery, and the
+escape-hatch passthrough pins above guarantee the advertised commands actually
+work — so a player who reaches `help` can always finish. **P3.1 (the `help`
+intercept) is the heaviest single item in this branch** — routing + content
+authored in 4 languages + the native-help audit (S3) + a11y — not a one-liner
+like the lexicon edits; size the plan accordingly.
+
 Three pieces:
 
 1. **Localized `help` command.** A new Loquor-level intercept (sibling to meta
-   routing in `src/llm/inputTranslate.ts`) triggered by the English word `help`
-   and the localized aliases `ayuda` / `aide` / `hilfe`. It renders a localized
-   transcript block listing the meta-commands with their per-language equivalents
-   **plus** the quoted-English escape-hatch explanation, and **never reaches the
-   game** (it overrides Zork's stock terse English help — a deliberate,
-   pro-player override: ours is localized and more useful). Announced via the
-   existing aria-live notice region.
-   - For `ka`: the trigger is the English word `help` only (no input alias — `ka`
-     has no lexicon); the block is **Georgian text** whose content is "type
-     commands in English," **not** the quoted-English fallback message (a `ka`
-     player already types English).
+   routing in `src/llm/inputTranslate.ts`) triggered by the localized aliases
+   `ayuda` / `aide` / `hilfe`. It renders a localized transcript block listing the
+   meta-commands with their per-language equivalents **plus** the quoted-English
+   escape-hatch explanation (naming the *specific* high-value escape commands —
+   `"wind up canary"`, `"enter boat"`, `"echo"`, `"kill thief with knife"` — not
+   just the generic "wrap in quotes" rule, per S5). Announced via the existing
+   aria-live notice region.
+   - **Audit native help first (player-experience gate).** `help` is NOT in
+     `META_COMMANDS` today, so it currently reaches Zork and prints Zork's own
+     `HELP`/`INFO` output. Before overriding it, the plan MUST read what Zork I's
+     native help actually contains and either fold the useful parts into the
+     localized block or document precisely what is dropped and confirm it's not
+     player-valuable. Per CLAUDE.md this override is a "talk to me first"
+     player-experience decision, not self-approved.
+   - **English-mode stays native.** When the picker is English (or off), `help`
+     passes through to Zork unchanged — an English player gets no localization
+     benefit from shadowing native help. Only the localized aliases (and, for
+     `ka`, the English word `help`) intercept.
+   - For `ka`: the trigger is the English word `help` (no input alias — `ka` has
+     no lexicon); the block is **Georgian text** whose content is "type commands
+     in English," **not** the quoted-English fallback message (a `ka` player
+     already types English).
 2. **One-time activation notice.** When a language is picked, reuse the existing
    one-time-notice mechanism (`src/llm/notices.ts`) to surface the escape-hatch
    hint once. (For `ka`: the "type in English" message.)
@@ -168,8 +277,17 @@ alone. No new fixed-position overlays.
 ## Testing / definition of done
 
 - `make all` green (lint + format + typecheck + test).
-- Every blocking + friction P1.1 bug pinned in `parse.{es,fr,de}-uat.test.ts`.
-- P2.2 templates pinned in `zork1.{es,fr,ka}.uat.test.ts` + de corpus suite.
+- Single-clause P1.1 bugs pinned in `parse.{es,fr,de}-uat.test.ts`; the
+  conjoined+prep bug pinned on the `inputTranslate.ts` test surface (N3 — a
+  `parse.*-uat` pin would never reach the multi-clause path).
+- Escape-hatch passthrough of each blocking bug's quoted-English workaround
+  pinned (the P1.1 "passthrough pins" set).
+- P2.2 templates pinned in `zork1.{es,fr,ka}.uat.test.ts`. **de has no
+  `.uat.test.ts` by design** (its UAT is analytical-cognate, per non-goals), so
+  its de assertion goes to the corpus completeness suite — a deliberate
+  asymmetry, not an omission.
+- `ka` provisional template/help lines carry the `NATIVE-REVIEW-DRAFT` marker,
+  and a test asserts the marker's presence (S4).
 - P3: help-block content, activation notice, placeholder, and a11y name/role
   tests, for fr/de/es + ka.
 - Manual responsive checklist **not** required: P3 reuses existing components

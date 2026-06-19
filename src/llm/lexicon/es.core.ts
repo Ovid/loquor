@@ -317,6 +317,7 @@ export const ES_CORE: CoreLexicon = {
     oye: 'listen to',
     esconde: 'hide',
     esconder: 'hide',
+    eco: 'echo', // Loud Room puzzle solution; 'echo' is a game verb (fr/de pass the English word through)
   },
   verbIdioms: [
     { phrase: 'echa un vistazo a', to: 'examine' },

@@ -41,19 +41,34 @@ side padding already adapts).
 ### 1. Scrollable, top-safe overlay/modal containers
 
 The single root cause of the acute bug is centered fixed containers with no
-overflow. Fix it once, in a pattern shared by `.screen` and `.modal-backdrop`:
+overflow. Fix it once, in a pattern applied to the **plate surfaces and the
+modal backdrop** — `.screen:not(.term)` and `.modal-backdrop`:
 
 - `overflow-y: auto` so content taller than the viewport scrolls. (`body` stays
   `overflow:hidden`; these containers own their own scroll.)
-- Stop hard-centering. Use vertical padding + `margin:auto` on the child (or
-  `align-items: safe center`) so that when the child is *taller* than the
-  viewport it pins to the top with breathing room above instead of clipping
-  upward off-screen. Both corner controls stay on-screen and scrollable-to.
+- Stop hard-centering. Set the container to `overflow-y: auto` with
+  `align-items: flex-start; justify-content: center` and give the child
+  `margin: auto`: when it fits, `margin:auto` centers it; when it is *taller*
+  than the viewport the top margin collapses against the scroll origin so the
+  top stays reachable instead of clipping upward off-screen. Both corner
+  controls stay on-screen and scrollable-to. (Do **not** use
+  `align-items: safe center` — the `safe` keyword has a browser-support cliff,
+  and where it is unsupported the declaration falls back to plain `center`,
+  silently reintroducing the exact top-clipping bug. The `margin:auto` pattern
+  has universal support.)
 - `overscroll-behavior: contain` so scrolling the overlay doesn't chain-scroll
   the inert game behind it.
 
+**Scope note:** `.screen` is shared by three consumers — the landing plate, the
+in-game Change-story overlay (`.screen.overlay`), and the **live game terminal**
+(`.screen.term`, which overrides the layout to a stretched column). The scroll
+fix must target only the plate surfaces, hence `.screen:not(.term)` — never the
+base `.screen` selector, which would put the rules on the running game's root
+container.
+
 This covers the initial landing, the in-game Change story overlay, and both
-modals with one rule pattern — no per-overlay special-casing.
+modals with one rule pattern — no per-overlay special-casing, and the terminal
+is untouched.
 
 ### 2. One phone breakpoint — `@media (max-width: 520px)`
 
@@ -108,6 +123,12 @@ the stack has no Playwright. Therefore:
   structure change beyond, at most, a wrapper around the centered child; confirm
   no test asserts the old centering (none currently do) and the focus-trap tests
   still pass.
+- **Known accepted gap: there is no automated regression guard for the scroll
+  fix.** jsdom has no layout engine and the stack has no Playwright (adding one
+  for a single plate + status bar is an explicit non-goal). The manual checklist
+  below is therefore the *only* gate against the scroll trap reappearing — a
+  future CSS refactor could silently reintroduce top-clipping with every Vitest
+  test still green. This is accepted, not overlooked.
 - **Manual acceptance**, both themes, at **320 / 375 / 520px** and one short
   landscape window:
   1. Change story overlay scrolls; the ✕ is reachable and Escape dismisses.
@@ -118,8 +139,9 @@ the stack has no Playwright. Therefore:
 
 ## Files in scope
 
-- `src/ui/landing.css` — `.screen`, `.plate`, `.volumes`, `.title`, `.tagline`,
-  new `@media (max-width: 520px)` block.
+- `src/ui/landing.css` — `.screen:not(.term)` (scroll fix; **not** base
+  `.screen`, which also clothes the terminal), `.plate`, `.volumes`, `.title`,
+  `.tagline`, new `@media (max-width: 520px)` block.
 - `src/ui/components.css` — `.modal-backdrop` overflow, `.statusbar` / `.meta`
   wrap.
 - `src/ui/Landing.tsx` — only if a wrapper element is needed for the top-safe

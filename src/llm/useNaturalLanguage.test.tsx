@@ -1961,16 +1961,29 @@ describe('NL v2 pipeline stages (spec §4)', () => {
     expect(generateSpy).not.toHaveBeenCalled()
   })
 
-  it('does not echo when a translated stage returns the typed line verbatim (Zork III review #1)', async () => {
-    // 'mailbox' is not a parser dictionary word (canonical/emit tokens never
-    // are — F-Z), so 'open mailbox' misses stage-4 passthrough and reaches the
-    // LLM. When the model hands back the player's OWN words, no translation
-    // actually happened: the engine's '>' echo already shows the line, so the
-    // nl-source "(you) …" line would be a pure duplicate. Suppress it.
+  it("'open mailbox' is stage-4 passthrough — emit words are dictionary words now (no echo, no LLM)", async () => {
+    // REGRESSION NOTE: this case used to "cover" the Zork-III-review #1
+    // verbatim-echo suppression by feeding 'open mailbox' to the LLM and
+    // having the model hand back the player's own words. That stopped being
+    // true once noun EMIT words joined vocabWordSet (commit "include noun emit
+    // words in vocab passthrough set"): 'mailbox' is the mailbox noun's emit
+    // word, so 'open mailbox' is now ALL-VOCAB and short-circuits at stage 4 —
+    // it never reaches the model at all. Both the old assertions still held
+    // (passthrough also doesn't echo), so the test passed for the wrong reason
+    // with a now-false "reaches the LLM" comment.
+    //
+    // It is RETARGETED to assert the true post-fix behavior: a verbatim send,
+    // no nl-source echo, and — proven by the generate spy — the model is never
+    // consulted. The verbatim-echo suppression itself can no longer be reached
+    // through the pipeline (every emit/canonical token is now a passthrough
+    // word, so an English line whose LLM result equals the typed line is
+    // structurally impossible — it would have passed through at stage 4); that
+    // is documented as an unreachable defensive guard in translatePipeline.test.ts.
     const engine = new FakeLlmEngine({
       cached: true,
       completions: { 'open mailbox': '{"verb":"open","object":"mailbox"}' },
     })
+    const generateSpy = vi.spyOn(engine, 'generate')
     const { hook, echoLocal, sendLine } = setup({ engine })
     await reachOn(hook)
     act(() =>
@@ -1983,6 +1996,7 @@ describe('NL v2 pipeline stages (spec §4)', () => {
     })
     expect(sendLine).toHaveBeenCalledWith('open mailbox')
     expect(echoLocal).not.toHaveBeenCalled()
+    expect(generateSpy).not.toHaveBeenCalled() // stage-4 passthrough, never the LLM
   })
 
   it("stage 4 collision guard: fr picker + a lexicon word ('examine') does NOT pass through — routes via the lexicon", async () => {

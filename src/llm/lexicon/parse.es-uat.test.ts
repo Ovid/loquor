@@ -45,4 +45,13 @@ describe('Spanish UAT — verbs', () => {
       text: 'extinguish candles',
     })
   })
+  it('Boat exit: "sal del bote" → exit (the boat resolves via scene)', () => {
+    expect(es('sal del bote', inScope('magic boat'))).toEqual({
+      kind: 'command',
+      text: 'exit raft',
+    })
+    // Without scene context 'bote' is ambiguous (magic boat + punctured boat);
+    // the shared dict word 'boat' disambiguates → 'exit boat' (ground truth).
+    expect(es('sal del bote')).toEqual({ kind: 'command', text: 'exit boat' })
+  })
 })

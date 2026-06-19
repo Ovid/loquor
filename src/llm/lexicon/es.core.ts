@@ -359,9 +359,7 @@ export const ES_CORE: CoreLexicon = {
     con: 'with',
     en: 'in',
     a: 'to',
-    // `al` = a+el contraction. `del` (de+el) is deliberately ABSENT: it falls
-    // to the LLM. Any future `del` addition must consider the personal-`a`
-    // interaction above ('huye del troll' vs prep-split misfires).
+    // `al` = a+el contraction.
     al: 'to',
     sobre: 'on',
     bajo: 'under',
@@ -392,6 +390,11 @@ export const ES_CORE: CoreLexicon = {
     'esas',
     'estos',
     'estas',
+    'del', // fused de+el; stripped as an article (mirrors fr 'du'), so 'sal del bote' → exit boat
+    // NOTE: stripping 'del' also drops the genitive sense ('coge la llave del
+    // cajon' loses "from"), but the boat-exit win outweighs that rare case.
+    // Personal-`a` note (see preps block above): 'huye del troll' works
+    // because 'del' is stripped before object lookup, not split as a prep.
   ],
   pronounsDirect: ['lo', 'la', 'los', 'las'],
   pronounsContainer: [

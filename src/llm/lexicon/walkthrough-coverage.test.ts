@@ -32,7 +32,10 @@ const head = (s: string) => s.split(' ')[0]
 
 /** Zork I winning commands, parsed from the clean ">..." walkthrough. */
 function zork1Commands(): string[] {
-  const txt = readFileSync(resolve(repoRoot, 'docs/walkthrough-zork-i.txt'), 'utf8')
+  const txt = readFileSync(
+    resolve(repoRoot, 'docs/walkthrough-zork-i.txt'),
+    'utf8',
+  )
   return txt
     .split('\n')
     .filter(l => l.startsWith('>'))
@@ -46,7 +49,12 @@ function synonymClosure(): Map<string, Set<string>> {
   for (const n of [1, 2, 3]) {
     const zil = readFileSync(resolve(repoRoot, `zork${n}/gsyntax.zil`), 'utf8')
     for (const m of zil.matchAll(/^<SYNONYM\s+([^>]+)>/gim))
-      groups.push(m[1].trim().split(/\s+/).map(w => w.toLowerCase()))
+      groups.push(
+        m[1]
+          .trim()
+          .split(/\s+/)
+          .map(w => w.toLowerCase()),
+      )
   }
   const map = new Map<string, Set<string>>()
   for (const g of groups)
@@ -105,19 +113,49 @@ function equivalents(verb: string): Set<string> {
 /** Magic words / proper-noun puzzles: the solution IS a specific English word
  * or name (Loud Room "echo", Cyclops "Ulysses"). Language-independent by
  * design — a player types them verbatim in any language. */
-const WORDPLAY = new Set(['echo', 'ulysses', 'odysseus', 'xyzzy', 'plugh', 'frobozz', 'zork'])
+const WORDPLAY = new Set([
+  'echo',
+  'ulysses',
+  'odysseus',
+  'xyzzy',
+  'plugh',
+  'frobozz',
+  'zork',
+])
 
-const GAMES: { name: string; sig: string; vocab: Vocab; commands: () => string[] }[] = [
-  { name: 'zork1', sig: ZORK1_SIG, vocab: ZORK1_VOCAB, commands: zork1Commands },
-  { name: 'zork2', sig: ZORK2_SIG, vocab: ZORK2_VOCAB, commands: () => [...ZORK2_COMMANDS] },
-  { name: 'zork3', sig: ZORK3_SIG, vocab: ZORK3_VOCAB, commands: () => [...ZORK3_COMMANDS] },
+const GAMES: {
+  name: string
+  sig: string
+  vocab: Vocab
+  commands: () => string[]
+}[] = [
+  {
+    name: 'zork1',
+    sig: ZORK1_SIG,
+    vocab: ZORK1_VOCAB,
+    commands: zork1Commands,
+  },
+  {
+    name: 'zork2',
+    sig: ZORK2_SIG,
+    vocab: ZORK2_VOCAB,
+    commands: () => [...ZORK2_COMMANDS],
+  },
+  {
+    name: 'zork3',
+    sig: ZORK3_SIG,
+    vocab: ZORK3_VOCAB,
+    commands: () => [...ZORK3_COMMANDS],
+  },
 ]
 
 /** Verbs that ARE real vocab verbs in a game (so a reachability gap is real,
  * not a typo/flavor word the parser never knew). */
 function vocabVerbHeads(v: Vocab): Set<string> {
   return new Set(
-    [...v.verbsOnly, ...v.verbs1, ...v.verbs2, ...v.verbSynonyms].map(x => tr(head(x))),
+    [...v.verbsOnly, ...v.verbs1, ...v.verbs2, ...v.verbSynonyms].map(x =>
+      tr(head(x)),
+    ),
   )
 }
 
@@ -148,22 +186,32 @@ describe('walkthrough-reachability gate', () => {
         return ![...equivalents(v)].some(e => reach.has(tr(e)))
       })
       const pinned = KNOWN_GAPS[lang][name] ?? []
-      expect(blockers.sort(), `${name}/${lang} unreachable winning verbs`).toEqual(
-        [...pinned].sort(),
-      )
+      expect(
+        blockers.sort(),
+        `${name}/${lang} unreachable winning verbs`,
+      ).toEqual([...pinned].sort())
     })
   })
 
   // The knock fix is a verb+prep idiom (collision-safe with "hit"): pin that it
   // emits a real "knock on <door>" command, not just that the head is reachable.
   describe('knock idioms emit a valid knock command (Zork III door)', () => {
-    const scene: Scene = { inScope: [{ canonical: 'bronze door' }], antecedent: null }
+    const scene: Scene = {
+      inScope: [{ canonical: 'bronze door' }],
+      antecedent: null,
+    }
     it.each([
       ['fr', 'frappe a la porte'],
       ['de', 'klopfe an die tur'],
       ['es', 'llama a la puerta'],
     ] as [LexLang, string][])('%s: "%s" → knock on door', (lang, input) => {
-      const r = parseLexicon(input, coreLexicon(lang), nounLexicon(lang, ZORK3_SIG)!, ZORK3_VOCAB, scene)
+      const r = parseLexicon(
+        input,
+        coreLexicon(lang),
+        nounLexicon(lang, ZORK3_SIG)!,
+        ZORK3_VOCAB,
+        scene,
+      )
       expect(r.kind).toBe('command')
       expect(r.kind === 'command' && r.text).toMatch(/^knock on .*door$/)
     })

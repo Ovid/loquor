@@ -433,9 +433,9 @@ describe('Landing', () => {
       screen.getByRole('radio', { name: /იმპერია/ }).textContent,
     ).not.toMatch(/ინგლისურად/)
     // Zork II has no ka corpus → Georgian "English only" badge, part of name.
-    expect(
-      screen.getByRole('radio', { name: /ფრობოზის/ }).textContent,
-    ).toMatch(/ინგლისურად/)
+    expect(screen.getByRole('radio', { name: /ფრობოზის/ }).textContent).toMatch(
+      /ინგლისურად/,
+    )
     expect(
       screen.getByRole('radio', {
         name: /ფრობოზის.*ინგლისურად|ინგლისურად.*ფრობოზის/,

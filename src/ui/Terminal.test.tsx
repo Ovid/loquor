@@ -456,9 +456,7 @@ describe('Terminal', () => {
           () => expect(screen.getByRole('log')).toHaveTextContent(/\S/),
           { timeout: 8000 },
         )
-        expect(
-          screen.queryByText(/ქართული თარგმანი ჯერ სატესტოა/),
-        ).toBeNull()
+        expect(screen.queryByText(/ქართული თარგმანი ჯერ სატესტოა/)).toBeNull()
       } finally {
         nlOverride = null
       }

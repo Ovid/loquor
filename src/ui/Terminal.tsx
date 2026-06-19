@@ -172,8 +172,7 @@ export function Terminal({
   // claim would be misleading; the Landing "English only" badge is the honest
   // cue there instead. The corpus appears once the story signature resolves at
   // boot, so the notice surfaces alongside the first translated output.
-  const showBetaNotice =
-    outLang === 'ka' && corpusFor(signature, 'ka') !== null
+  const showBetaNotice = outLang === 'ka' && corpusFor(signature, 'ka') !== null
 
   // Live download progress for the modal — derived from NL state during render
   // (no separate state or effect needed).
@@ -271,8 +270,8 @@ export function Terminal({
               // BOTH so they don't drift (review S4).
               <p className="nl-notice">
                 <span lang="ka">
-                  ქართული თარგმანი ჯერ სატესტოა — ზოგი ტექსტი შეიძლება ინგლისურად
-                  გამოჩნდეს.
+                  ქართული თარგმანი ჯერ სატესტოა — ზოგი ტექსტი შეიძლება
+                  ინგლისურად გამოჩნდეს.
                 </span>{' '}
                 <span lang="en">
                   Georgian is a beta translation; some text may still appear in

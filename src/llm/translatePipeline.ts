@@ -40,6 +40,7 @@ import {
   unquote,
   isVocabPassthrough,
 } from './inputTranslate'
+import { isHelpTrigger, helpResponse } from './help'
 import { parseLexicon } from './lexicon/parse'
 import type { CoreLexicon, NounLexicon } from './lexicon/types'
 import { parseDirection } from './directions'
@@ -629,6 +630,20 @@ export function createTranslate(
       if (quoted) {
         lastCommandRef.current = null
         sendTracked(quoted)
+        return 'ok'
+      }
+
+      // LOCALIZED HELP (Task 11): Zork I has no native help verb, so a bare
+      // localized help word ("ayuda"/"aide"/"hilfe", or "help" in a non-English
+      // picker / ka) is intercepted and answered with a localized cheat-sheet via
+      // the SAME aria-live notice seam the other NL notices use — it reaches the
+      // game NOT at all (no sendTracked, no turn burned). English "help" is NOT a
+      // trigger (isHelpTrigger false for en), so it falls through to the Z-parser's
+      // own response. Placed beside the quoted-escape (both are pre-clause line
+      // escapes that bypass translation) so it sits with the existing meta-routing.
+      if (isHelpTrigger(line, activeLang)) {
+        lastCommandRef.current = null
+        setNotice(helpResponse(activeLang))
         return 'ok'
       }
 

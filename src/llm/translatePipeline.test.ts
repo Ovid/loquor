@@ -625,4 +625,48 @@ describe('createTranslate grammar-only + demotion', () => {
     // EN abstain raw-sends to the Z-parser → the field should clear, not restore.
     expect(await t('frobnicate the gadget')).toBeNull()
   })
+
+  // Task 11: localized help is a line-level escape that answers via the notice
+  // seam (the role=status aria-live region in Terminal) and reaches the game NOT
+  // at all. English help is NOT intercepted — it falls through to the Z-parser.
+  it('es "ayuda" yields the help block via setNotice and sends NO game command', async () => {
+    const engine = new FakeLlmEngine({ default: 'X' }) // never reached
+    const setNotice = vi.fn()
+    const sendLine = vi.fn()
+    const sendCanonical = vi.fn()
+    const t = makeTranslate({
+      engine,
+      internalOn: on('es', 'full'),
+      setNotice,
+      sendLine,
+      sendCanonical,
+      demote: vi.fn(),
+      educatedRef: { current: false },
+      lex: { core: coreLexicon('es'), nouns: null, words: new Set() },
+    })
+    expect(await t('ayuda')).toBeNull()
+    // The drain clears the notice (setNotice(null)) before running the line, so
+    // the help block is the LAST setNotice call — assert on that, not the count.
+    const block = setNotice.mock.calls.at(-1)?.[0] as string
+    expect(block).toMatch(/"wind up canary"/)
+    expect(block.toLowerCase()).toContain('ayuda')
+    expect(sendLine).not.toHaveBeenCalled() // no game command
+    expect(sendCanonical).not.toHaveBeenCalled()
+  })
+
+  it('en "help" is NOT intercepted — it passes through to the game (sendLine)', async () => {
+    const engine = new FakeLlmEngine({ default: 'X' }) // abstain → EN raw-send
+    const setNotice = vi.fn()
+    const sendLine = vi.fn()
+    const t = makeTranslate({
+      engine,
+      internalOn: on('en', 'grammar'),
+      setNotice,
+      sendLine,
+      demote: vi.fn(),
+      educatedRef: { current: false },
+    })
+    await t('help')
+    expect(sendLine).toHaveBeenCalledWith('help') // reaches the Z-parser
+  })
 })

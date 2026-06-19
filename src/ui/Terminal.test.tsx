@@ -9,6 +9,7 @@ import {
 } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { Terminal } from './Terminal'
+import { helpResponse } from '../llm/help'
 import { WebLlmEngine } from '../llm/engine.webllm'
 import { ZMachine } from '../zmachine/engine'
 import type { UseNaturalLanguage } from '../llm/useNaturalLanguage'
@@ -129,6 +130,30 @@ describe('Terminal', () => {
       expect(
         within(status).getByText(/Je n’ai pas compris/),
       ).toBeInTheDocument()
+    } finally {
+      nlOverride = null
+    }
+  })
+
+  it('announces the localized help block in the role=status region (Task 11 a11y)', async () => {
+    // The help intercept surfaces helpResponse(lang) through the same `notice`
+    // channel as the abstain notices, so it lands in the role=status aria-live
+    // region — a screen-reader user hears the cheat-sheet, per the a11y mandate.
+    nlOverride = {
+      state: { phase: 'on', language: 'es', model: 'grammar', canUpgrade: true },
+      notice: helpResponse('es'),
+    }
+    try {
+      render(
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
+      )
+      const status = await screen.findByRole('status', {}, { timeout: 8000 })
+      expect(within(status).getByText(/Ayuda —/)).toBeInTheDocument()
     } finally {
       nlOverride = null
     }

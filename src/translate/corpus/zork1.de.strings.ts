@@ -130,6 +130,10 @@ export const ZORK1_DE_STRINGS: Readonly<Record<string, string>> = {
     'Auf dem Tisch liegt ein länglicher brauner Sack, der nach scharfen Paprikaschoten riecht.',
   'Opening the brown sack reveals a clove of garlic, and a lunch.':
     'Beim Öffnen des braunen Sacks kommen eine Knoblauchzehe und ein Mittagessen zum Vorschein.',
+  // UAT 2026-06-19: reveal-on-open of the mailbox (the first command players
+  // type) is runtime-composed and off-walkthrough, so both gates missed it.
+  'Opening the small mailbox reveals a leaflet.':
+    'Beim Öffnen des Briefkastens kommt ein Prospekt zum Vorschein.',
   'Above the trophy case hangs an elvish sword of great antiquity.':
     'Über der Trophäenvitrine hängt ein elfisches Schwert von hohem Alter.',
   'A battery-powered brass lantern is on the trophy case.':

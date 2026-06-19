@@ -56,4 +56,14 @@ describe('Zork I × Georgian — UAT-2026-06-19 composed-line fixes', () => {
       out,
     )
   })
+
+  // C: "open mailbox" — the FIRST command most players type — printed its
+  // reveal-on-open in English. The line is runtime-composed (off the
+  // walkthrough, not a full-line z-string), so both gates miss it. Shared with
+  // fr/de/es. Pinned here mirroring the buoy/sack reveal lines.
+  it('C: "Opening the small mailbox reveals a leaflet." composes', () => {
+    expect(matchLine(c, 'Opening the small mailbox reveals a leaflet.')).toBe(
+      'პატარა საფოსტო ყუთის გახსნა ფურცელს ავლენს.',
+    )
+  })
 })

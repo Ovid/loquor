@@ -155,6 +155,12 @@ export const ZORK1_KA_STRINGS: Record<string, string> = {
     'მაგიდაზე წაგრძელებული ყავისფერი ტომარაა, მწარე წიწაკის სუნით.',
   'Opening the brown sack reveals a clove of garlic, and a lunch.':
     'ყავისფერი ტომრის გახსნა ავლენს ნივრის კბილსა და სადილს.',
+  // The leaflet (ფურცელი) is the DATIVE object of ავლენს ("reveals"), the
+  // mailbox in the GENITIVE (ყუთის გახსნა, "the opening of the mailbox") — both
+  // cases, so pinned (mirrors the buoy/sack reveals). UAT 2026-06-19: this — the
+  // first command most players type — leaked English (shared with fr/de/es).
+  'Opening the small mailbox reveals a leaflet.':
+    'პატარა საფოსტო ყუთის გახსნა ფურცელს ავლენს.',
   'Above the trophy case hangs an elvish sword of great antiquity.':
     'ჯილდოების ვიტრინის ზემოთ ჩამოკიდებულია უძველესი ელფური მახვილი.',
   'A battery-powered brass lantern is on the trophy case.':

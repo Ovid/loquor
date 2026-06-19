@@ -152,6 +152,16 @@ fallback exists — and a ka player is _always_ typing English. Both are in
 
 ## Recommended next branch (pick ONE coherent slice)
 
+> **IN PROGRESS (2026-06-19, branch `ovid/zork1-input-parity`):** this slice is
+> being built. Design:
+> `docs/superpowers/specs/2026-06-19-loquor-zork1-input-parity-design.md`. Scope
+> locked there: P1.1 **blocking + friction** tiers for fr/de/es (cosmetic tier
+> deferred); P2.2 disambiguation templates for fr/de/es **+ ka**; P3 passive
+> signposting (localized `help` + one-time notice + placeholder, no on-failure
+> detection) for fr/de/es **+ ka output text**. ka stays out of the **input**
+> layer (Phase 2). fr/de done by analytical cognate + parse-level unit pins, not
+> driven browser UAT (deferred). ka template/help lines are native-review drafts.
+
 **Recommendation: "Zork I input parity for fr/de/es"** — P1.1 (puzzle-verb
 blockers) + P2.2 (disambiguation) + P3 (help / quoted-fallback signposting),
 each pinned in the per-language UAT suites. This is the slice that makes Zork I

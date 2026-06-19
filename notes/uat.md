@@ -384,3 +384,37 @@ la boya`) distribute the verb reliably; `mete X en la vitrina` (one obj + prep) 
 - **Switching language retranslates the EXISTING transcript** (output-translation
   is a display overlay), so FR→DE→ES on one screen re-renders prior output —
   handy for checking all three corpora without replaying turns.
+
+## Responsive / narrow-viewport UAT — how to actually get a small viewport (UAT-responsive, 2026-06-19)
+
+- **`resize_window` is a silent no-op on this macOS Chrome.** It returns
+  "Successfully resized…" every time but `window.innerWidth` never changes
+  (stayed frozen at 1400→1750); `outerWidth/outerHeight` read `0`. Don't trust
+  the success string — always re-read `innerWidth` after, and after ~2 no-ops
+  stop fighting it. The window also drifted to 80% zoom on its own (DPR 2.0→1.6),
+  inflating `innerWidth`.
+- **The reliable path is human-in-the-loop, two levers:** (1) ask Ovid to **drag
+  the Chrome window narrow** — macOS Chrome bottoms out at **~500 CSS px** wide
+  (enough to fire `@media (max-width:520px)`); (2) to go narrower than 500, ask
+  him to **zoom the browser IN with `Cmd +`** — real browser page-zoom shrinks
+  the CSS layout viewport and _does_ re-fire width media queries. 150% zoom on a
+  500px window → **innerWidth 333** (≈ the 320 breakpoint floor), DPR 3. Reset
+  with `Cmd 0`. Measure `innerWidth` + `matchMedia('(max-width:NNNpx)').matches`
+  after each step to confirm.
+- **Things that DON'T work for narrowing:** the `computer` tool's `key` action
+  for `cmd+0` / `cmd+plus` (browser-chrome shortcuts aren't delivered to the
+  page); and `document.documentElement.style.zoom` (CSS root-zoom does NOT change
+  `innerWidth` or fire width media queries — `matchMedia` stayed false).
+- **getBoundingClientRect on a multi-glyph title gives FALSE-POSITIVE overlaps.**
+  A `range.selectNodeContents(title)` ink box for "LOQUOR" reported its right edge
+  (253) overlapping the top-right toggle (left 243) by 10px — but the actual "R"
+  glyph sits _below_ the pill; the box's top spans the whole line so it
+  mathematically intersects empty space the toggle lives in. **Confirm corner
+  control vs. title collisions with a `zoom` screenshot of the corner**, not the
+  bounding box. (Left side "L" with a true 16px gap was the honest clear case.)
+- The scroll-trap fix is **height-driven** (content taller than viewport →
+  `.screen:not(.term)`/`.modal-backdrop` scroll, top stays reachable via
+  `overflow-y:auto` + `align-items:flex-start` + child `margin:auto` collapsing
+  its top margin to 0). You can verify it without a literal wide-short landscape
+  window: any case where `scrollHeight > clientHeight` (overlay at 643px AND at
+  428px both scrolled, ✕ reachable) exercises the same mechanism.

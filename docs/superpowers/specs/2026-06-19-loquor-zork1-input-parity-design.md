@@ -279,6 +279,91 @@ Three pieces:
 3. **Input placeholder hint.** A localized hint on the command field that quoted
    English works as a fallback. (For `ka`: "type in English".)
 
+### Task 10 — native-help audit (zork1 ground truth)
+
+**Headline finding: Zork I has NO `help`, `info`, or `commands` verb. There is
+no native help content to drop.** The spec premise above (lines ~261–263: "`help`
+… currently reaches Zork and prints Zork's own `HELP`/`INFO` output") is
+**incorrect** and should be read with this correction. Overriding `help` for
+fr/de/es/ka removes *nothing player-valuable* — it replaces an error message.
+
+What actually happens today, verified against the vendored read-only source
+`/workspace/zork1/*.zil`:
+
+- **`help` / `info` / `commands` are not in the vocabulary.** No `<SYNTAX HELP …>`,
+  `<SYNTAX INFO …>`, no `V-HELP`/`V-INFO`/`V-COMMANDS` routine, and they are not
+  buzzwords (`gsyntax.zil:9,11`). Typing `help` falls through the parser to the
+  unknown-word path and prints:
+
+  > `I don't know the word "help".`
+
+  (`gparser.zil:670-673`.) Same for `info`. So the localized override *improves*
+  on the status quo for fr/de/es/ka — and the English-stays-native rule (line 268)
+  means English players keep that same `I don't know the word "help"` behavior,
+  which is the current behavior, no regression.
+
+- **`commands` is a near-miss, not help.** There IS a `COMMAND` verb
+  (`gsyntax.zil:142` → `V-COMMAND`, `gverbs.zil:359`), but it is the *in-world*
+  "order a creature to do something" verb (e.g. `thief, give me the egg`), not a
+  meta listing of commands. The bare word `commands` (plural) is not that verb and
+  prints the unknown-word error. Nothing to fold.
+
+What Zork I DOES provide, behind *other* verbs the localized block should name so
+players can reach it (none of this is lost — these verbs keep working; the audit
+only confirms the block lists them):
+
+- **`version`** (`<SYNTAX VERSION = V-VERSION>` `gsyntax.zil:67`, routine
+  `gverbs.zil:98-121`) — prints the title/credits/release banner:
+
+  > `ZORK I: The Great Underground Empire`
+  > `Infocom interactive fiction - a fantasy story`
+  > `Copyright (c) 1981, 1982, 1983, 1984, 1985, 1986 Infocom, Inc. All rights reserved.`
+  > `ZORK is a registered trademark of Infocom, Inc.`
+  > `Release <N> / Serial number <NNNNNN>`
+
+- **`$verify`** (`<SYNTAX $VERIFY = V-VERIFY>` `gsyntax.zil:69`, routine
+  `gverbs.zil:123-128`) — disk-integrity check, prints `Verifying disk...` then
+  `The disk is correct.` / `** Disk Failure **`.
+
+- **`score`** (`gsyntax.zil:61` → `V-SCORE` `1actions.zil:4026-4044`) — e.g.
+  `Your score is 25 (total of 350 points), in 42 moves. This gives you the rank of
+  Amateur Adventurer.`
+
+- **`diagnose`** (`gsyntax.zil:47` → `V-DIAGNOSE` `1actions.zil:3993`) — health.
+
+- **`save` / `restore` / `restart` / `quit`** (`gsyntax.zil:52-59`) — the standard
+  meta verbs.
+
+#### Dropped-items list + per-item recommendation
+
+Because there is no native help text, nothing is dropped by the override itself.
+The audit question becomes: which of the verbs above should the localized help
+block *name* so a fr/de/es/ka player can reach them. Per item:
+
+| Item | Native? | Recommendation |
+|------|---------|----------------|
+| Zork native `help`/`info`/`commands` text | **none exists** (unknown-word error) | **Acceptable drop** — there is nothing to drop. Override is strictly an improvement. |
+| `score` / `diagnose` (scoring + in-world health) | yes, via own verbs | **Fold reference into block** — list these meta-commands (already planned: "meta-commands with their per-language equivalents"). Not lost, but the block is where a non-English player learns they exist. |
+| `save` / `restore` / `restart` / `quit` | yes, via own verbs | **Fold reference into block** — these are the durable-progress commands; a non-English player must be told the localized words for them. Most player-valuable item to include. |
+| `version` (title/credits/release) | yes | **Acceptable to omit from block, but cheap to list** — recommend a one-line mention; low value mid-play but it is the only way to read release/serial. |
+| `$verify` (disk integrity) | yes | **Acceptable drop from block** — a 1980s floppy-integrity check, meaningless for a browser story file loaded from `public/games/`. Not player-valuable here; omit. |
+| In-world `command` verb (`thief, give me…`) | yes (different verb) | **Not help** — leave alone; it is real gameplay, unaffected by the `help` intercept. |
+
+**NEEDS OVID DECISION:** none. Nothing player-valuable is silently lost — the
+override replaces an `I don't know the word "help"` error, and the genuinely
+useful meta-verbs (`save`/`restore`/`restart`/`quit`/`score`/`diagnose`) survive
+and are *recommended for inclusion* in the localized block (they were already in
+scope as "meta-commands with per-language equivalents"). The decision is therefore
+self-approvable under the "clear, low-risk, unambiguously pro-player" clause.
+
+**For the next task (P3.1 implementer):** fold into the localized help block, with
+per-language equivalents, at minimum: `save`, `restore`, `restart`, `quit`,
+`score`, `diagnose` (and ideally `look`/`inventory`/`verbose`/`brief`). One-line
+mention of `version` is nice-to-have. Skip `$verify`. Keep the quoted-English
+escape-hatch examples as already specified. For `ka`, the block stays "type
+commands in English" with the same meta-command list (English words, since `ka`
+raw-sends English).
+
 ### Accessibility
 
 Per CLAUDE.md (a11y is a hard requirement): any new control gets an accessible

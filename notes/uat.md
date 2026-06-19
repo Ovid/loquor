@@ -249,7 +249,9 @@ lámpara`→`extinguish light`. (Refines the older "apagar velas works" note —
 - **`coge el jade` → `take jeweled egg`** (fail); use `coge la figurilla` →
   `take figurine`.
 - **`sube la cesta` → `climb cage`** (does not raise); use `levanta la cesta` →
-  `raise cage`. (`baja la cesta` → `lower cage` works.)
+  `raise cage`. (`baja la cesta` → `lower cage` works.) **[DEFERRED Ovid
+  2026-06-19 — `sube` bare = go up/climb, arity-conditional sense is fragile;
+  workaround: `levanta la cesta`→`raise cage`]**
 - **`coge la calavera de cristal` → `take crack`** (the `de cristal` modifier
   breaks it); bare `coge la calavera` → `take skull`.
 - `subir` (bare "up") stayed deterministic (`up`) this run but is still the flaky
@@ -311,6 +313,9 @@ NEW bugs:
 
 - **`sal del bote` → "move raft"** (should be exit/leave boat) → «Mover el bote no
   revela nada». Boat-exit broken in es. Workaround: `"get out of boat"` passthrough ✓.
+- **`entra en el bote` → `miss`** (boat *enter* fails; enter-arity is a separate,
+  lower-value fix). Workarounds: `aborda`/`embarca`→board ✓. **[DEFERRED Ovid
+  2026-06-19 — do not re-file as new; workaround: `aborda`/`embarca`→board]**
 - **`mata al ladrón con el cuchillo` → "attack thief with stiletto"** → «No tienes el
   estilete». The instrument-slot noun "cuchillo" mis-maps to the thief's _estilete_,
   even though `coge el cuchillo` → "take nasty knives" is CORRECT and `deja el

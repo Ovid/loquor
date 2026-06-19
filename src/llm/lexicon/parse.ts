@@ -289,7 +289,19 @@ export function parseLexicon(
       core.preps[tokens[i]] ??
       (vocab.preps.includes(tokens[i]) ? tokens[i] : undefined)
     if (!prep || !vocab.preps.includes(prep)) continue
-    const obj = resolveNoun(tokens.slice(0, i), core, nouns, vocab, scene)
+    // Spanish personal-`a`: a leading `a`/`al` on the object span marks an
+    // animate DIRECT object ('mata AL ladron con el cuchillo'), not a prep —
+    // strip it so the object resolves. Same concept as the leading-to block
+    // above, which only covers the no-instrument case (whole remainder as one
+    // noun); here an instrument follows, so that block can't fire. Guarded to
+    // `a`/`al` and to ≥1 token after stripping; FR `au`/`aux` and German never
+    // lead the object span with `a`/`al`, so they're untouched.
+    const objSpan = tokens.slice(0, i)
+    const objTokens =
+      objSpan.length > 1 && (objSpan[0] === 'a' || objSpan[0] === 'al')
+        ? objSpan.slice(1)
+        : objSpan
+    const obj = resolveNoun(objTokens, core, nouns, vocab, scene)
     const ind = resolveNoun(tokens.slice(i + 1), core, nouns, vocab, scene)
     if (obj && ind && verbArityOk(verb, vocab, 2))
       return {

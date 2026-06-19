@@ -80,3 +80,17 @@ describe('Spanish UAT — noun surfaces', () => {
     })
   })
 })
+
+describe('Spanish UAT — personal-a', () => {
+  it('already-works: "ataca al troll" → attack troll (existing block)', () => {
+    expect(es('ataca al troll', inScope('troll'))).toEqual({
+      kind: 'command',
+      text: 'attack troll',
+    })
+  })
+  it('"mata al ladron con el cuchillo" → attack thief with rusty knives', () => {
+    expect(
+      es('mata al ladron con el cuchillo', inScope('thief', 'rusty knife')),
+    ).toEqual({ kind: 'command', text: 'attack thief with rusty knives' })
+  })
+})

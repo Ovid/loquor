@@ -461,6 +461,43 @@ describe('Terminal', () => {
         nlOverride = null
       }
     })
+
+    it('shows a bilingual "no Georgian for this story" cue on a corpus-less game ([I4])', async () => {
+      // Zork II has no ka corpus → display stays English. An in-game switch to ka
+      // would otherwise yield silent all-English; the inverse cue explains why
+      // (the Landing "English only" badge is invisible to a mid-session switcher).
+      const zork2 = new Uint8Array(readFileSync('public/games/zork2.z3'))
+      nlOverride = {
+        state: {
+          phase: 'on',
+          language: 'ka',
+          model: 'grammar',
+          canUpgrade: true,
+        },
+      }
+      try {
+        render(
+          <Terminal
+            storyBytes={zork2}
+            storyTitle="Zork II"
+            onChangeStory={() => {}}
+            themeToggle={null}
+          />,
+        )
+        const ka = await screen.findByText(
+          /ამ ისტორიისთვის ქართული თარგმანი ჯერ არ არის/,
+          {},
+          { timeout: 8000 },
+        )
+        expect(ka).toHaveAttribute('lang', 'ka')
+        const en = screen.getByText(/Georgian isn’t available for this story/)
+        expect(en).toHaveAttribute('lang', 'en')
+        // It is NOT the beta notice (corpus present) — the two are exclusive.
+        expect(screen.queryByText(/ქართული თარგმანი ჯერ სატესტოა/)).toBeNull()
+      } finally {
+        nlOverride = null
+      }
+    })
   })
 
   describe('preferences', () => {

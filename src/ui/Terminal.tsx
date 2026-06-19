@@ -174,6 +174,16 @@ export function Terminal({
   // boot, so the notice surfaces alongside the first translated output.
   const showBetaNotice = outLang === 'ka' && corpusFor(signature, 'ka') !== null
 
+  // The inverse cue ([I4]): Georgian is active but THIS story has no Georgian
+  // corpus (Zork II/III in Phase 1), so it shows fully in English. The honest
+  // "English only" badge lives on the Landing plate, which a mid-session in-game
+  // switcher never sees — so without this an in-game switch to ka on Zork II/III
+  // silently yields all-English with no explanation. Gated on a resolved
+  // signature so it can't flash before boot (corpusFor is null for every game
+  // until the signature loads). Mutually exclusive with showBetaNotice.
+  const showNoCorpusNotice =
+    outLang === 'ka' && signature !== '' && corpusFor(signature, 'ka') === null
+
   // Live download progress for the modal — derived from NL state during render
   // (no separate state or effect needed).
   const dlProgress: LoadProgress | null =
@@ -275,6 +285,22 @@ export function Terminal({
                 </span>{' '}
                 <span lang="en">
                   Georgian is a beta translation; some text may still appear in
+                  English.
+                </span>
+              </p>
+            )}
+            {showNoCorpusNotice && (
+              // Bilingual, like the beta notice: each half carries its own lang
+              // so a screen reader voices the English half with English phonemes
+              // (3.1.2). Draft pending native review (§8) — same status as the
+              // beta notice / landing caveat; apply any wording fix consistently.
+              <p className="nl-notice">
+                <span lang="ka">
+                  ამ ისტორიისთვის ქართული თარგმანი ჯერ არ არის — თამაში
+                  ინგლისურად გამოჩნდება.
+                </span>{' '}
+                <span lang="en">
+                  Georgian isn’t available for this story yet; it is shown in
                   English.
                 </span>
               </p>

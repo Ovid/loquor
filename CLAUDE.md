@@ -170,6 +170,13 @@ npx vitest run -t "substring of test name"    # by name
   why it doesn't apply). Fixing German while Spanish is broken for the identical
   reason doesn't help the player. Watch especially for code that was written
   German-first (or English-first) and hardcodes one language's words/forms.
+  **Georgian (`ka`) is the exception: it is OUTPUT-ONLY (Phase 1).** It has a
+  display corpus but NO input lexicon and NO input LLM — it raw-sends English
+  from the command field (it is in `OUTPUT_ONLY_LANGS` / `CORPUS_ONLY_LANGS`).
+  So an *input*-side change (lexicon, prompt detection, few-shots, clause
+  transform) applies to EN/FR/DE/ES but **must not** be wired into `ka`; an
+  *output*-side change (corpus, display notices, a11y of translated text) does
+  include `ka`. Don't add `ka` to the input path until Phase 2 (Georgian input).
 
 ## Accessibility is mandatory — not a "nice to have"
 

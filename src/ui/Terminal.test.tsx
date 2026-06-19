@@ -309,10 +309,11 @@ describe('Terminal', () => {
             themeToggle={null}
           />,
         )
-        // Wait for the line-input request (input enabled) — the field carries
-        // the classic placeholder because NL INPUT is off for output-only ka.
+        // Wait for the line-input request (input enabled). NL INPUT is off for
+        // output-only ka, but the field localizes its hint to "type in English"
+        // (Georgian) so the player knows it raw-sends English (P3).
         const input = await screen.findByPlaceholderText(
-          'type a command…',
+          /ინგლისურ/,
           {},
           { timeout: 8000 },
         )
@@ -322,6 +323,37 @@ describe('Terminal', () => {
         expect(translate).not.toHaveBeenCalled()
       } finally {
         sendLine.mockRestore()
+        nlOverride = null
+      }
+    })
+
+    it('ka: the command field exposes a localized "type in English" name (P3, a11y)', async () => {
+      nlOverride = {
+        state: {
+          phase: 'on',
+          language: 'ka',
+          model: 'grammar',
+          canUpgrade: true,
+        },
+      }
+      try {
+        render(
+          <Terminal
+            storyBytes={bytes}
+            storyTitle="Zork I"
+            onChangeStory={() => {}}
+            themeToggle={null}
+          />,
+        )
+        // The sole input must have a correct, localized accessible name for a
+        // Georgian screen-reader user: it raw-sends English, said in Georgian.
+        const input = await screen.findByRole(
+          'textbox',
+          { name: /ინგლისურ/ },
+          { timeout: 8000 },
+        )
+        expect(input).toHaveAttribute('lang', 'ka')
+      } finally {
         nlOverride = null
       }
     })
@@ -349,11 +381,7 @@ describe('Terminal', () => {
         // renders in GEORGIAN here (ka output is translated by the now-authored
         // corpus), so don't wait on the English 'West of House' — wait on the
         // language-agnostic input affordance instead.
-        await screen.findByPlaceholderText(
-          'type a command…',
-          {},
-          { timeout: 8000 },
-        )
+        await screen.findByPlaceholderText(/ინგლისურ/, {}, { timeout: 8000 })
         expect(screen.queryByRole('dialog')).toBeNull()
       } finally {
         nlOverride = null

@@ -34,6 +34,23 @@ describe('CommandInput', () => {
     )
   })
 
+  it('reflects an output-only (ka) "type in English" name/placeholder', () => {
+    // Georgian is output-only (raw-sends English): the field accepts English, so
+    // its accessible name must say so in Georgian rather than show generic copy.
+    render(
+      <CommandInput
+        onSubmit={() => {}}
+        label="თამაშის ბრძანება — აკრიფეთ ინგლისურად"
+        placeholder="აკრიფეთ ინგლისურად"
+        lang="ka"
+      />,
+    )
+    const input = screen.getByRole('textbox', {
+      name: 'თამაშის ბრძანება — აკრიფეთ ინგლისურად',
+    })
+    expect(input).toHaveAttribute('lang', 'ka')
+  })
+
   it('submits a non-empty command and clears the field', () => {
     const onSubmit = vi.fn()
     render(<CommandInput onSubmit={onSubmit} />)

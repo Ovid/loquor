@@ -145,6 +145,9 @@ export function Terminal({
   const outLang = nl.state.phase === 'on' ? nl.state.language : 'off'
   const outputOnly = outLang !== 'off' && OUTPUT_ONLY_LANGS.has(outLang)
   const nlInputOn = nl.state.phase === 'on' && !outputOnly
+  // The NL layer is engaged at all (incl. output-only ka) — drives the localized
+  // command-field copy. Distinct from nlInputOn, which gates the translate path.
+  const nlOn = nl.state.phase === 'on'
 
   // Output translation (display overlay — spec §3): the language the player
   // picked drives the overlay (including output-only languages); passthrough
@@ -318,14 +321,16 @@ export function Terminal({
           </div>
           <CommandInput
             inputRef={inputRef}
-            // When an NL language is on, the field accepts plain language — say
-            // so in the label/placeholder, or the headline feature stays hidden
-            // behind classic-parser copy (S3). Localized; English when off.
-            label={nlInputOn ? commandLabel(activeLang) : 'Game command'}
+            // When the NL layer is on, localize the field's name + placeholder so
+            // the headline feature isn't hidden behind classic copy (S3): English
+            // invites plain English; fr/de/es invite plain language; an
+            // OUTPUT-ONLY language (ka) raw-sends English, so its localized copy
+            // says "type in English". Only 'off' keeps the classic copy.
+            label={nlOn ? commandLabel(activeLang) : 'Game command'}
             placeholder={
-              nlInputOn ? commandPlaceholder(activeLang) : 'type a command…'
+              nlOn ? commandPlaceholder(activeLang) : 'type a command…'
             }
-            lang={nlInputOn ? nlLang : undefined}
+            lang={nlLang}
             restore={restore ?? undefined}
             onSubmit={text => {
               // The Loud Room echo is re-voiced per clause via recordEcho as the

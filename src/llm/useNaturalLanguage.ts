@@ -22,6 +22,7 @@ import {
   type LiveState,
   type QueuedLine,
 } from './translatePipeline'
+import { makeActivationNotice } from './notices'
 
 export type { QueuedLine }
 
@@ -132,6 +133,13 @@ export function useNaturalLanguage(
   const educatedRef = useRef(false)
   const prevGrammarKeyRef = useRef<string | null>(null)
 
+  // One-time escape-hatch nudge per language (P3): fires the moment a language is
+  // first activated, pointing fr/de/es at the quoted-English fallback (ka at
+  // "type in English"). The latch is per-language and survives re-renders/re-picks
+  // of the same language; English is silent (it raw-sends).
+  const activationNoticeRef = useRef(makeActivationNotice())
+  const prevActiveLangRef = useRef<NlLanguage | null>(null)
+
   const hasVocab = vocab !== null
   // Capability no longer disables NL (hasVocab is the sole prerequisite); it only
   // gates whether the model UPGRADE may be ATTEMPTED. A `none` device still gets
@@ -179,6 +187,20 @@ export function useNaturalLanguage(
     if (key !== null && key !== prevGrammarKeyRef.current)
       educatedRef.current = false
     prevGrammarKeyRef.current = key
+  }, [internal])
+
+  // Surface the one-time escape-hatch nudge on entry into an active language. Fire
+  // only on a genuine language CHANGE (not every render of the same active
+  // language), and let the per-language latch decide whether this language was
+  // already nudged. Downloading/off phases carry no active language, so picking a
+  // language, switching, or coming back up from a download all funnel through here.
+  useEffect(() => {
+    const active: NlLanguage = internal.phase === 'on' ? internal.language : 'off'
+    if (active === prevActiveLangRef.current) return
+    prevActiveLangRef.current = active
+    if (active === 'off') return
+    const msg = activationNoticeRef.current(active)
+    if (msg) setNotice(msg)
   }, [internal])
 
   const state: NlState = useMemo(() => {

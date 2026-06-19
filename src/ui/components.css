@@ -421,3 +421,19 @@
   outline: 2px solid var(--brass);
   outline-offset: 2px;
 }
+
+/* ---------- Phone breakpoint: wrap the status bar ---------- */
+/* Desktop keeps a single non-wrapping row so .loc keeps its constrained ellipsis
+   truncation. On phones the up-to-five-control cluster would overflow, so let the
+   bar and the meta cluster wrap; on its own wrapped line .loc is full-width and
+   still ellipsizes if the room name is long (responsive design §2). */
+@media (max-width: 520px) {
+  .statusbar {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  .meta {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+}

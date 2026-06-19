@@ -401,3 +401,16 @@
   outline: 2px solid var(--brass);
   outline-offset: 2px;
 }
+
+/* ---------- Phone breakpoint ---------- */
+/* Relax the plate's desktop padding and stop the 3-column volume grid from
+   cramping numerals + names on narrow viewports (responsive design §2). The
+   plate's own width is already fluid (min(680px, 92vw)). */
+@media (max-width: 520px) {
+  .plate {
+    padding: 28px 20px 28px;
+  }
+  .volumes {
+    grid-template-columns: 1fr;
+  }
+}

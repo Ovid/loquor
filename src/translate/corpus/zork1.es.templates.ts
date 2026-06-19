@@ -105,6 +105,17 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
     en: '{obj}: Your load is too heavy, especially in light of your condition.',
     out: '{obj.bare}: Tu carga es demasiado pesada, sobre todo dado tu estado.',
   },
+  // Object-specific `take all` failure reasons (UAT 2026-06-19: the Living Room
+  // rug/trophy case leaked English on `take all`). Reason reused from each
+  // standalone string pin.
+  {
+    en: '{obj}: The rug is extremely heavy and cannot be carried.',
+    out: '{obj.bare}: La alfombra es sumamente pesada y no puede transportarse.',
+  },
+  {
+    en: '{obj}: The trophy case is securely fastened to the wall.',
+    out: '{obj.bare}: La vitrina está firmemente sujeta a la pared.',
+  },
 
   // ── take/drop/have family ────────────────────────────────────────────────
   {

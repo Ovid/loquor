@@ -71,6 +71,18 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
   // caseless nominative-label position as Dropped (mirrors the standalone
   // 'Taken.' → 'აღებულია.' pin). UAT 2026-06-19: this leaked English.
   { en: '{obj}: Taken.', out: '{obj.indef}: აღებულია.' },
+  // ...and the per-object FAILURE reasons `take all` can print (gverbs.zil
+  // ITAKE). The "<obj>:" label is the caseless nominative; the reason is reused
+  // verbatim from its standalone string pin. UAT 2026-06-19: these leaked
+  // English (the success analogs were templated, these reasons were not).
+  {
+    en: '{obj}: The rug is extremely heavy and cannot be carried.',
+    out: '{obj.indef}: ხალიჩა უაღრესად მძიმეა და მისი ზიდვა შეუძლებელია.',
+  },
+  {
+    en: '{obj}: The trophy case is securely fastened to the wall.',
+    out: '{obj.indef}: ჯილდოების ვიტრინა მყარადაა კედელზე დამაგრებული.',
+  },
 
   // ── Container header (gverbs.zil:1835 PRINT-CONT). {obj} is the NOMINATIVE
   //    subject of "შეიცავს" (contains) — no case marker, so it composes

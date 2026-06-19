@@ -66,4 +66,18 @@ describe('Zork I × Georgian — UAT-2026-06-19 composed-line fixes', () => {
       'პატარა საფოსტო ყუთის გახსნა ფურცელს ავლენს.',
     )
   })
+
+  // D: `take all` per-object failure reasons leaked English (the "<obj>:" label
+  // is the caseless nominative, the reason is reused from its standalone pin).
+  it('D: "<obj>: <take-all failure reason>" composes', () => {
+    expect(
+      matchLine(c, 'carpet: The rug is extremely heavy and cannot be carried.'),
+    ).toBe('ხალიჩა: ხალიჩა უაღრესად მძიმეა და მისი ზიდვა შეუძლებელია.')
+    expect(
+      matchLine(
+        c,
+        'trophy case: The trophy case is securely fastened to the wall.',
+      ),
+    ).toBe('ჯილდოების ვიტრინა: ჯილდოების ვიტრინა მყარადაა კედელზე დამაგრებული.')
+  })
 })

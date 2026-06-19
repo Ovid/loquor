@@ -30,4 +30,14 @@ describe.each(CORPORA)('composed-line UAT fixes — %s', (_lang, corpus) => {
   it('C: "Opening the small mailbox reveals a leaflet." translates', () => {
     translated('Opening the small mailbox reveals a leaflet.')
   })
+
+  // D: `take all` lists each object's outcome; the per-object FAILURE reasons
+  // (carpet/trophy case) had no "{obj}: <reason>" template, so the whole line
+  // missed and leaked English — in every language. Pin both observed reasons.
+  it('D: "<obj>: The rug is extremely heavy and cannot be carried." translates', () => {
+    translated('carpet: The rug is extremely heavy and cannot be carried.')
+  })
+  it('D: "<obj>: The trophy case is securely fastened to the wall." translates', () => {
+    translated('trophy case: The trophy case is securely fastened to the wall.')
+  })
 })

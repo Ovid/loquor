@@ -134,6 +134,15 @@ describe('German UAT — verbs (notes/uat-de-findings.md)', () => {
   })
 })
 
+describe('German cross-language pins (parity with es fixes)', () => {
+  // Songbird (zieh…auf) and boat-exit (steig aus dem boot) are already pinned
+  // as F25/F26 above — not duplicated here.
+  it('parity: "echo" → echo (Loud Room), "nimm alles" → take all', () => {
+    expect(de('echo')).toEqual({ kind: 'command', text: 'echo' })
+    expect(de('nimm alles')).toEqual({ kind: 'command', text: 'take all' })
+  })
+})
+
 describe('German UAT — contested noun remap (notes/uat-de-findings.md)', () => {
   it('F3: "lies den Zettel" reads the leaflet, not the (absent) manual', () => {
     expect(de('lies den zettel')).toEqual({

@@ -339,6 +339,9 @@ export const ES_CORE: CoreLexicon = {
     { phrase: 'llamad a', to: 'knock on' },
   ],
   particleVerbs: [],
+  // "all" quantifier — Spanish 'todo' family. fr ('tout'…) and de ('alles'…)
+  // already have this; ES_CORE lacked it, so 'deja todo' missed (UAT-es-3).
+  quantifiersAll: ['todo', 'todos', 'toda', 'todas', 'all'],
   // NOTE (personal-`a` hazard, for the deterministic parser — Task 13):
   // Spanish marks animate DIRECT objects with `a`/`al` ('ataca al troll',
   // 'sigue al ladron') — the same surface form as the indirect-object prep

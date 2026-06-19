@@ -22,4 +22,14 @@ describe('Spanish UAT — verbs', () => {
   it('Loud Room: "eco" → echo (the puzzle solution)', () => {
     expect(es('eco')).toEqual({ kind: 'command', text: 'echo' })
   })
+  it('"deja todo" / "coge todo" → drop/take all', () => {
+    expect(es('deja todo')).toEqual({ kind: 'command', text: 'drop all' })
+    expect(es('coge todo')).toEqual({ kind: 'command', text: 'take all' })
+  })
+  it('regression guard: "apaga las velas" → extinguish candles (already fixed)', () => {
+    expect(es('apaga las velas', inScope('pair of candles'))).toEqual({
+      kind: 'command',
+      text: 'extinguish candles',
+    })
+  })
 })

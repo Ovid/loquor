@@ -361,9 +361,27 @@ export async function runClause(
   return { result: parseCommand(raw, vocab), raw, stage: 'llm' }
 }
 
+/** The co-owned live pipeline state: the SAME refs the hook allocates, mutated
+ * IN PLACE by the clause loop / F-A drain so a translate call sees (and advances)
+ * live state across its await points. Grouped (F-3) so TranslateDeps carries one
+ * clearly-owned bag of mutable state instead of nine loose refs — the hook is the
+ * allocating owner, createTranslate the in-place mutator. */
+export interface PipelineRefs {
+  trackerRef: MutableRefObject<TextSceneTracker | null>
+  translatingRef: MutableRefObject<boolean>
+  queueRef: MutableRefObject<QueuedLine[]>
+  queueIdRef: MutableRefObject<number>
+  lastCommandRef: MutableRefObject<string | null>
+  inSequenceRef: MutableRefObject<boolean>
+  epochRef: MutableRefObject<number>
+  liveRef: MutableRefObject<LiveState>
+  /** First-abstain education latch (once per grammar-only stint). */
+  educatedRef: MutableRefObject<boolean>
+}
+
 /** Everything the per-line + drain orchestration reads for one translate call:
  * the per-run values (off-check phase, vocab/grammar, the generate wrapper, the
- * watchdog), the injected game callbacks, the SAME mutable refs the hook holds
+ * watchdog), the injected game callbacks, the co-owned live `refs` the hook holds
  * (so the drain mutates live state), and the React state setters. */
 export interface TranslateDeps {
   internal: Internal
@@ -382,18 +400,11 @@ export interface TranslateDeps {
    * (loudEcho / UAT F6). Optional — omitted by tests/contexts with no overlay. */
   recordEcho?: (canonical: string, source: string) => void
   awaitTurn: () => Promise<TurnResult>
-  trackerRef: MutableRefObject<TextSceneTracker | null>
-  translatingRef: MutableRefObject<boolean>
-  queueRef: MutableRefObject<QueuedLine[]>
-  queueIdRef: MutableRefObject<number>
-  lastCommandRef: MutableRefObject<string | null>
-  inSequenceRef: MutableRefObject<boolean>
-  epochRef: MutableRefObject<number>
-  liveRef: MutableRefObject<LiveState>
+  /** The co-owned live pipeline state (grouped, F-3): the hook allocates these
+   * refs and createTranslate mutates them in place across its await points. */
+  refs: PipelineRefs
   /** Flip the active language full → grammar after a clause-time load failure. */
   demote: () => void
-  /** First-abstain education latch (once per grammar-only stint). */
-  educatedRef: MutableRefObject<boolean>
   setPending: Dispatch<SetStateAction<boolean>>
   setNotice: Dispatch<SetStateAction<string | null>>
   syncQueue: () => void
@@ -420,6 +431,14 @@ export function createTranslate(
     sendCanonical,
     recordEcho,
     awaitTurn,
+    demote,
+    setPending,
+    setNotice,
+    syncQueue,
+  } = deps
+  // The co-owned live refs (F-3) — destructured to the same local names the
+  // clause loop / drain already use, so grouping them changed only the seam.
+  const {
     trackerRef,
     translatingRef,
     queueRef,
@@ -428,12 +447,8 @@ export function createTranslate(
     inSequenceRef,
     epochRef,
     liveRef,
-    demote,
     educatedRef,
-    setPending,
-    setNotice,
-    syncQueue,
-  } = deps
+  } = deps.refs
 
   return async (english: string) => {
     const tracker = trackerRef.current

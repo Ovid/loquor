@@ -142,11 +142,23 @@ Still open:
 poner la cera?` (es) was confirmed LLM-fallback territory — a bad LLM response,
   not a missing corpus entry. (NB: the `What do you want to put X in?` prompt was
   the OPPOSITE — a genuine missing corpus entry, now fixed above.)
-- **Disambiguation ANSWERS aren't translated** (separate, likely out of P2.2
-  scope): a target-language noun answer (`buzon`→mailbox) bypasses `nl.translate`
-  (bare-noun continuation) and raw-sends → "I don't know the word". A non-English
-  player still can't complete a disambiguation in-language even now that the prompt
-  renders. Own follow-up.
+- **Disambiguation ANSWERS aren't translated** (separate; **diagnosed
+  2026-06-20, NOT a lexicon fix — needs a routing/turn-boundary fix**). When the
+  game is mid-orphan-prompt ("What do you want to put the X in?"), the player's
+  next line is **raw-sent, bypassing `nl.translate` entirely** — proven in the
+  browser: typing `mira` (a known verb → `look`) mid-prompt printed
+  `No conozco la palabra «mira»` and produced **no `[nl] clause` log**, while the
+  same `mira` at a normal prompt translates fine. So the answer never reaches the
+  parser. A parse-level "bare noun → canonical" fix WAS prototyped (resolve a
+  verbless span via `resolveNoun` at `parse.ts`'s `if (!verb)` — `buzon`→`mailbox`,
+  unit-confirmed) but it is **necessary-not-sufficient**: at a normal prompt it only
+  turns `buzon` from `No conozco «buzon»` into `mailbox` → `¡No había ningún verbo
+en esa frase!` (Zork's bare-noun reply), and it can't help mid-prompt because the
+  input is bypassed before parsing. Reverted (negligible standalone value). The
+  real fix is in the input QUEUE / turn-boundary handling (`translatePipeline.ts` /
+  the Terminal queue): route the mid-orphan-prompt continuation through
+  `nl.translate` instead of raw-sending. Own follow-up — it is genuinely
+  complicated (Ovid's "do it if not complicated" guard → deferred).
 
 ### P2.3 — Anaphora "it"
 

@@ -541,14 +541,19 @@ wasm`, no grammar-only `· basic` chip / `✦ improve` button) but the **inferen
 > template, the multi-candidate `Which {raw} do you mean…`, was already shipped
 > for ka and was not reached live (needs two ambiguous objects).**
 >
-> **Compounding (separate, likely out of P2.2 scope):** a disambiguation **answer**
-> typed in the target language is **not translated** — `buzon` (mailbox) → no
-> `[nl] clause` log, raw-sent → `No conozco la palabra «buzon».`. So even past the
-> English prompt, a non-English player cannot _answer_ a disambiguation in their
-> language (bare-noun continuation bypasses `nl.translate`). Together these break
-> the disambiguation flow for non-English players, undercutting the branch goal
-> "completable without ever secretly switching to English." Logged as a follow-up,
-> not auto-fixed.
+> **Compounding (separate; diagnosed 2026-06-20, a ROUTING fix not a lexicon
+> one):** a disambiguation **answer** typed in the target language is **not
+> translated** — `buzon` (mailbox) → no `[nl] clause` log, raw-sent → `No conozco
+la palabra «buzon».`. Sharpened diagnosis: when the game is mid-orphan-prompt the
+> next line **bypasses `nl.translate` and raw-sends** — even `mira` (a known verb →
+> `look`) printed `No conozco la palabra «mira»` mid-prompt while translating fine
+> at a normal prompt. A parse-level "bare noun → canonical" fix (`parse.ts`
+> `if (!verb)` → `resolveNoun`) was prototyped and **reverted**: it correctly makes
+> `buzon`→`mailbox` at a NORMAL prompt (→ Zork's `¡No había ningún verbo en esa
+frase!`) but can't help the answer, which is bypassed before parsing. The real
+> fix lives in the input-queue / turn-boundary handling (`translatePipeline.ts` /
+> the Terminal queue). Logged as a follow-up in `notes/next.md` (P2.2); deferred as
+> genuinely complicated, not auto-fixed.
 
 ### P3 signposting — localized `help` and one-time escape-hatch notice
 

@@ -140,7 +140,12 @@ describe('Terminal', () => {
     // channel as the abstain notices, so it lands in the role=status aria-live
     // region — a screen-reader user hears the cheat-sheet, per the a11y mandate.
     nlOverride = {
-      state: { phase: 'on', language: 'es', model: 'grammar', canUpgrade: true },
+      state: {
+        phase: 'on',
+        language: 'es',
+        model: 'grammar',
+        canUpgrade: true,
+      },
       notice: helpResponse('es'),
     }
     try {

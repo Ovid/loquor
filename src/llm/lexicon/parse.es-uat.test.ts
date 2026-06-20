@@ -58,10 +58,12 @@ describe('Spanish UAT — verbs', () => {
 
 describe('Spanish UAT — noun surfaces', () => {
   it('"calavera de cristal" → crystal skull (the modifier must not break it)', () => {
-    expect(es('coge la calavera de cristal', inScope('crystal skull'))).toEqual({
-      kind: 'command',
-      text: 'take skull',
-    })
+    expect(es('coge la calavera de cristal', inScope('crystal skull'))).toEqual(
+      {
+        kind: 'command',
+        text: 'take skull',
+      },
+    )
   })
   it('"tapa" → the diamond-machine lid (canonical is "machine")', () => {
     expect(es('abre la tapa', inScope('machine'))).toEqual({

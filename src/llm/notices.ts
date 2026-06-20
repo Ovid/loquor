@@ -268,7 +268,9 @@ function escapeHatchOnActivation(lang: ActiveLanguage): string | null {
  * re-notify). The hook owns one instance; mirrors the once-per-stint education
  * latch (`educatedRef`) but keyed per language. Re-picking a different language
  * still gets its own one-time notice. */
-export function makeActivationNotice(): (lang: ActiveLanguage) => string | null {
+export function makeActivationNotice(): (
+  lang: ActiveLanguage,
+) => string | null {
   const shown = new Set<ActiveLanguage>()
   return lang => {
     if (shown.has(lang)) return null

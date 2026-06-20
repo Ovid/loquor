@@ -46,7 +46,12 @@ export const ES_ZORK1: NounLexicon = {
   'control panel': ['panel de control', 'tablero', 'panel'],
   crack: ['grieta', 'rendija'],
   // crystal skull: 'calavera de cristal' mirrors the existing 'craneo de cristal'
-  'crystal skull': ['craneo', 'calavera', 'craneo de cristal', 'calavera de cristal'],
+  'crystal skull': [
+    'craneo',
+    'calavera',
+    'craneo de cristal',
+    'calavera de cristal',
+  ],
   'crystal trident': ['tridente'],
   cyclops: ['ciclope'],
   dam: ['presa', 'represa', 'dique'],

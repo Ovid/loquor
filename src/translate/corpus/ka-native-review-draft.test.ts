@@ -78,7 +78,10 @@ describe('ka provisional Georgian strings carry a NATIVE-REVIEW-DRAFT marker', (
     // The new entry's `out` is the only Georgian string of the generalized
     // disambiguation template. Locate it by its language-neutral {raw} echo.
     const idx = lines.findIndex(
-      line => GEORGIAN.test(line) && line.includes('{raw}') && line.includes('{obj.indef}'),
+      line =>
+        GEORGIAN.test(line) &&
+        line.includes('{raw}') &&
+        line.includes('{obj.indef}'),
     )
     expect(
       idx,

@@ -275,7 +275,9 @@ describe('useNaturalLanguage', () => {
   it('command translation echoes English then sends the canonical command', async () => {
     const engine = new FakeLlmEngine({
       cached: true,
-      completions: { 'open the rusty mailbox': '{"verb":"open","object":"mailbox"}' },
+      completions: {
+        'open the rusty mailbox': '{"verb":"open","object":"mailbox"}',
+      },
     })
     const { hook, echoLocal, sendLine } = setup({ engine })
     await reachOn(hook)
@@ -648,7 +650,9 @@ describe('useNaturalLanguage', () => {
     const engine = new FakeLlmEngine({
       cached: true,
       generateDelayMs: 50,
-      completions: { 'open the rusty mailbox': '{"verb":"open","object":"mailbox"}' },
+      completions: {
+        'open the rusty mailbox': '{"verb":"open","object":"mailbox"}',
+      },
       default: '{"verb":"__UNKNOWN__"}',
     })
     const { hook, sendLine } = setup({ engine })
@@ -867,7 +871,9 @@ describe('useNaturalLanguage', () => {
     localStorage.setItem('loquor.nl', JSON.stringify({ enabled: true }))
     const engine = new FakeLlmEngine({
       cached: true,
-      completions: { 'open the rusty mailbox': '{"verb":"open","object":"mailbox"}' },
+      completions: {
+        'open the rusty mailbox': '{"verb":"open","object":"mailbox"}',
+      },
       default: '{"verb":"__UNKNOWN__"}',
     })
     const { hook, sendLine } = setup({ engine })
@@ -1492,7 +1498,9 @@ describe('input queue (NL v2 §11, F-A)', () => {
     const engine = new FakeLlmEngine({
       cached: true,
       generateDelayMs: 50,
-      completions: { 'open the rusty mailbox': '{"verb":"open","object":"mailbox"}' },
+      completions: {
+        'open the rusty mailbox': '{"verb":"open","object":"mailbox"}',
+      },
       default: '{"verb":"__UNKNOWN__"}',
     })
     const { hook, sendLine } = setup({ engine })
@@ -1527,7 +1535,9 @@ describe('input queue (NL v2 §11, F-A)', () => {
     const engine = new FakeLlmEngine({
       cached: true,
       generateDelayMs: 50,
-      completions: { 'open the rusty mailbox': '{"verb":"open","object":"mailbox"}' },
+      completions: {
+        'open the rusty mailbox': '{"verb":"open","object":"mailbox"}',
+      },
       default: '{"verb":"__UNKNOWN__"}',
     })
     const { hook } = setup({ engine })
@@ -1564,7 +1574,9 @@ describe('input queue (NL v2 §11, F-A)', () => {
     const engine = new FakeLlmEngine({
       cached: true,
       generateDelayMs: 50,
-      completions: { 'open the rusty mailbox': '{"verb":"open","object":"mailbox"}' },
+      completions: {
+        'open the rusty mailbox': '{"verb":"open","object":"mailbox"}',
+      },
       default: '{"verb":"__UNKNOWN__"}',
     })
     const { hook } = setup({ engine })
@@ -1609,7 +1621,9 @@ describe('input queue (NL v2 §11, F-A)', () => {
     const engine = new FakeLlmEngine({
       cached: true,
       generateDelayMs: 50,
-      completions: { 'open the rusty mailbox': '{"verb":"open","object":"mailbox"}' },
+      completions: {
+        'open the rusty mailbox': '{"verb":"open","object":"mailbox"}',
+      },
       default: '{"verb":"__UNKNOWN__"}',
     })
     const { hook } = setup({ engine, getContext, sendLine })
@@ -1705,7 +1719,9 @@ describe('input queue (NL v2 §11, F-A)', () => {
     const engine = new FakeLlmEngine({
       cached: true,
       generateDelayMs: 50,
-      completions: { 'open the rusty mailbox': '{"verb":"open","object":"mailbox"}' },
+      completions: {
+        'open the rusty mailbox': '{"verb":"open","object":"mailbox"}',
+      },
       default: '{"verb":"__UNKNOWN__"}',
     })
     const { hook } = setup({ engine, getContext, sendLine })
@@ -1813,7 +1829,9 @@ describe('input queue (NL v2 §11, F-A)', () => {
     const engine = new FakeLlmEngine({
       cached: true,
       generateDelayMs: 50,
-      completions: { 'open the rusty mailbox': '{"verb":"open","object":"mailbox"}' },
+      completions: {
+        'open the rusty mailbox': '{"verb":"open","object":"mailbox"}',
+      },
       default: '{"verb":"__UNKNOWN__"}',
     })
     const { hook, sendLine } = setup({ engine })
@@ -1845,7 +1863,9 @@ describe('input queue (NL v2 §11, F-A)', () => {
     const engine = new FakeLlmEngine({
       cached: true,
       generateDelayMs: 50,
-      completions: { 'open the rusty mailbox': '{"verb":"open","object":"mailbox"}' },
+      completions: {
+        'open the rusty mailbox': '{"verb":"open","object":"mailbox"}',
+      },
       default: '{"verb":"__UNKNOWN__"}',
     })
     const echoLocal = vi.fn()
@@ -2184,7 +2204,9 @@ describe('EngineGate integration (output-translation spec §6)', () => {
     // task releases, the input waiter runs and the translation completes.
     const engine = new FakeLlmEngine({
       cached: true,
-      completions: { 'open the rusty mailbox': '{"verb":"open","object":"mailbox"}' },
+      completions: {
+        'open the rusty mailbox': '{"verb":"open","object":"mailbox"}',
+      },
       default: '{"verb":"__UNKNOWN__"}',
     })
     const sharedGate = new EngineGate()

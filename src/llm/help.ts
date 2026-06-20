@@ -39,7 +39,8 @@ export function isHelpTrigger(line: string, lang: NlLanguage): boolean {
 // The escape-hatch examples stay ENGLISH (quoting bypasses translation and sends
 // the unquoted text verbatim to the Z-parser, so the examples must be the literal
 // English the game accepts) — shared across fr/de/es so they can't drift.
-const ESCAPE_EXAMPLES = '"wind up canary", "enter boat", "echo", "kill thief with knife"'
+const ESCAPE_EXAMPLES =
+  '"wind up canary", "enter boat", "echo", "kill thief with knife"'
 
 /** The localized help block, surfaced via the existing aria-live notice seam. */
 export function helpResponse(lang: ActiveLanguage): string {

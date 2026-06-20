@@ -195,7 +195,8 @@ export function useNaturalLanguage(
   // already nudged. Downloading/off phases carry no active language, so picking a
   // language, switching, or coming back up from a download all funnel through here.
   useEffect(() => {
-    const active: NlLanguage = internal.phase === 'on' ? internal.language : 'off'
+    const active: NlLanguage =
+      internal.phase === 'on' ? internal.language : 'off'
     if (active === prevActiveLangRef.current) return
     prevActiveLangRef.current = active
     if (active === 'off') return

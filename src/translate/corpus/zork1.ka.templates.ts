@@ -49,6 +49,22 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
     out: 'სიტყვასთან „{raw}“ ვერ გამოიყენებ რამდენიმე ირიბ დამატებას.',
   },
 
+  // ── Parser object-disambiguation prompt (gparser.zil WHICH-PRINT, ~1146-1166):
+  //    the REAL string is "Which <noun> do you mean, the X or the Y?" where
+  //    <noun> is the player's TYPED noun word (English — ka players type
+  //    English), captured here as {raw} (verbatim, NOT corpus-translated). The
+  //    two candidates are corpus objects in a "this OR that" choice; the natural
+  //    Georgian keeps each in the bare NOMINATIVE citation form (§4: caseless
+  //    listing position, no case marker), so {obj.indef}/{obj2.indef} compose
+  //    safely either way the parser orders the pair. fr/de/es route this to the
+  //    LLM fallback; ka has none, so this template is what prevents the raw-
+  //    English leak for Georgian players. NATIVE-REVIEW-DRAFT (ka §4 case forms):
+  //    provisional wording pending native review.
+  {
+    en: 'Which {raw} do you mean, the {obj} or the {obj2}?',
+    out: 'რომელ {raw}-ს გულისხმობ — {obj.indef} თუ {obj2.indef}?',
+  },
+
   // ── Presence & listings — {obj} is the NOMINATIVE subject of არის, or a bare
   //    listing entry (no case marker). These are the productive caseless slots.
   // gverbs.zil DESCRIBE-OBJECT / PRINT-CONT; thief treasure listing.

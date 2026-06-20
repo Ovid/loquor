@@ -81,3 +81,43 @@ describe('Zork I × Georgian — UAT-2026-06-19 composed-line fixes', () => {
     ).toBe('ჯილდოების ვიტრინა: ჯილდოების ვიტრინა მყარადაა კედელზე დამაგრებული.')
   })
 })
+
+describe('Zork I × Georgian — object disambiguation (UAT-2026-06-20)', () => {
+  const c = compileCorpus(ZORK1_KA)
+
+  // The real parser string (gparser.zil WHICH-PRINT) is "Which <noun> do you
+  // mean, the X or the Y?" where <noun> is the player's TYPED noun word (English
+  // — ka players type English). fr/de/es route this to the LLM fallback (no raw
+  // leak); ka has NO LLM fallback, so before this fix ANY disambiguation leaked
+  // raw English. The <noun> is captured as {raw} (verbatim, NOT corpus-
+  // translated); the candidate objects translate via the corpus; the frame is
+  // Georgian.
+  it('disambiguation: non-"book" "Which <noun> do you mean…" renders Georgian', () => {
+    const out = matchLine(
+      c,
+      'Which lamp do you mean, the brass lantern or the broken lantern?',
+    )
+    expect(out).not.toBeNull()
+    // no leaked English frame
+    expect(out).not.toContain('Which')
+    expect(out).not.toContain('do you mean')
+    expect(out).not.toContain(' or the ')
+    // candidate objects rendered via the corpus (Georgian)
+    expect(out).toContain('სპილენძის ფარანი') // brass lantern
+    expect(out).toContain('გატეხილი ფარანი') // broken lantern
+    // typed noun word kept verbatim (English) — it's the player's own input
+    expect(out).toContain('lamp')
+  })
+
+  it('disambiguation: a different typed noun + object pair also composes', () => {
+    const out = matchLine(
+      c,
+      'Which knife do you mean, the nasty knife or the rusty knife?',
+    )
+    expect(out).not.toBeNull()
+    expect(out).not.toContain('Which')
+    expect(out).toContain('საზიზღარი დანა') // nasty knife
+    expect(out).toContain('დაჟანგული დანა') // rusty knife
+    expect(out).toContain('knife')
+  })
+})

@@ -39,3 +39,16 @@ prove **nothing about linguistic correctness or naturalness**. Only a Georgian s
 Run the app in Georgian, play through, and capture any awkward line. The corpus-miss logger
 (`logMiss`, surfaced via `window.loquorMisses()`) and the UAT regression file
 (`zork1.ka.uat.test.ts`) are the seams to record confirmed findings as regression pins.
+
+## Known ka raw-English leaks (deferred)
+
+- **Parser orphan prompt** `What do you want to <verb> the <typed-tokens> <prep>?`
+  (`zork1/gparser.zil` ~758-774). Unlike the disambiguation prompt (now templated as
+  `Which {raw} do you mean, the {obj} or the {obj2}?`), this prompt echoes an **unbounded**
+  run of the player's typed tokens between the verb and the preposition, so it is **not
+  cleanly templatable** (a single `{raw}` cannot safely span an arbitrary noun phrase while
+  also binding a trailing preposition reliably). ka has no LLM fallback (corpus-only), so this
+  prompt currently **leaks raw English** for Georgian players. fr/de/es translate it via the
+  LLM fallback (it is in `zork1.extraction-ignore.ts` `'What do you want to'`). Left to a future
+  bounded-verb-set template or an input-phase fix. Do **not** add it to the extraction-ignore
+  routing as a ka special case.

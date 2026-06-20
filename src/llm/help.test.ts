@@ -8,8 +8,8 @@ describe('localized help', () => {
     expect(isHelpTrigger('hilfe', 'de')).toBe(true)
     expect(isHelpTrigger('help', 'ka')).toBe(true) // ka: English word only
   })
-  it('English mode does NOT intercept (native help passes through)', () => {
-    expect(isHelpTrigger('help', 'en')).toBe(false)
+  it('English mode DOES intercept too — Zork has no native help to fall through to', () => {
+    expect(isHelpTrigger('help', 'en')).toBe(true)
   })
   it('accepts the English "help" word in fr/de/es too (player reflex)', () => {
     expect(isHelpTrigger('help', 'fr')).toBe(true)
@@ -54,6 +54,22 @@ describe('localized help', () => {
         expect(block).toContain(verb)
       }
     }
+  })
+  it('en help names the meta verbs + the quoted-escape (bypasses LLM mistranslation)', () => {
+    const block = helpResponse('en')
+    for (const verb of [
+      'save',
+      'restore',
+      'restart',
+      'quit',
+      'score',
+      'diagnose',
+      'version',
+    ]) {
+      expect(block).toContain(verb)
+    }
+    expect(block).toMatch(/"wind up canary"/) // the quoted-escape example
+    expect(block.toLowerCase()).toContain('help') // self-reference
   })
   it('ka help says type in English, NOT the quoted-fallback message', () => {
     const block = helpResponse('ka')

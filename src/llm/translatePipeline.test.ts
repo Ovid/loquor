@@ -628,7 +628,8 @@ describe('createTranslate grammar-only + demotion', () => {
 
   // Task 11: localized help is a line-level escape that answers via the notice
   // seam (the role=status aria-live region in Terminal) and reaches the game NOT
-  // at all. English help is NOT intercepted — it falls through to the Z-parser.
+  // at all. English help is intercepted too — Zork has no native help to fall
+  // through to (and a model would otherwise mistranslate it, e.g. help → look).
   it('es "ayuda" yields the help block via setNotice and sends NO game command', async () => {
     const engine = new FakeLlmEngine({ default: 'X' }) // never reached
     const setNotice = vi.fn()
@@ -654,19 +655,24 @@ describe('createTranslate grammar-only + demotion', () => {
     expect(sendCanonical).not.toHaveBeenCalled()
   })
 
-  it('en "help" is NOT intercepted — it passes through to the game (sendLine)', async () => {
-    const engine = new FakeLlmEngine({ default: 'X' }) // abstain → EN raw-send
+  it('en "help" IS intercepted too — Zork has no native help; shows the English block, no game command', async () => {
+    const engine = new FakeLlmEngine({ default: 'X' }) // never reached
     const setNotice = vi.fn()
     const sendLine = vi.fn()
+    const sendCanonical = vi.fn()
     const t = makeTranslate({
       engine,
       internalOn: on('en', 'grammar'),
       setNotice,
       sendLine,
+      sendCanonical,
       demote: vi.fn(),
       educatedRef: { current: false },
     })
-    await t('help')
-    expect(sendLine).toHaveBeenCalledWith('help') // reaches the Z-parser
+    expect(await t('help')).toBeNull()
+    const block = setNotice.mock.calls.at(-1)?.[0] as string
+    expect(block.toLowerCase()).toContain('help')
+    expect(sendLine).not.toHaveBeenCalled() // does NOT reach the Z-parser
+    expect(sendCanonical).not.toHaveBeenCalled()
   })
 })

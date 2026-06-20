@@ -7,18 +7,21 @@
 // verbose/brief, a one-line version mention), plus the quoted-English escape
 // hatch. It does NOT send anything to the game.
 //
-// EN-LANG IS PASSTHROUGH: English `help` is left to fall through to the Z-parser
-// (its native "I don't know the word help" is the English baseline; we don't
-// intercept it). ka is OUTPUT-ONLY (raw-sends English): it only ever sees the
-// English word `help`, and its block has NO quoted-fallback instruction since
+// EN IS INTERCEPTED TOO: Zork I has NO native help (Task 10), so English `help`
+// was NOT a useful passthrough — it either earned "I don't know the word help" or,
+// with a model on, got mistranslated by the LLM (observed: help → look, silently
+// re-displaying the room). So English `help` now gets the English cheat-sheet like
+// every other language. ka is OUTPUT-ONLY (raw-sends English): it only ever sees
+// the English word `help`, and its block has NO quoted-fallback instruction since
 // quoting is meaningless when there is no input LLM.
 import type { ActiveLanguage, NlLanguage } from './types'
 import { fold } from './lexicon/fold'
 
 /** The localized word that triggers help, per language. fr/de/es also accept the
- * English `help` (a player's reflex). en is intentionally absent — English help
- * passes through to the game. ka sees only `help` (it raw-sends English). */
+ * English `help` (a player's reflex); en triggers on `help`; ka sees only `help`
+ * (it raw-sends English). Only `off` (NL disabled) has no entry. */
 const HELP_ALIASES: Partial<Record<NlLanguage, ReadonlySet<string>>> = {
+  en: new Set(['help']),
   fr: new Set(['aide', 'help']),
   de: new Set(['hilfe', 'help']),
   es: new Set(['ayuda', 'help']),
@@ -27,7 +30,7 @@ const HELP_ALIASES: Partial<Record<NlLanguage, ReadonlySet<string>>> = {
 
 /** True when the typed line is a bare localized help word for the active language.
  * Bare-word match only (diacritic-folded), so a real intent containing the word
- * ("help me open the door") still reaches the normal pipeline. False for en/off. */
+ * ("help me open the door") still reaches the normal pipeline. False only for off. */
 export function isHelpTrigger(line: string, lang: NlLanguage): boolean {
   const aliases = HELP_ALIASES[lang]
   if (!aliases) return false
@@ -77,12 +80,11 @@ export function helpResponse(lang: ActiveLanguage): string {
       ].join('\n')
     case 'en':
     default:
-      // English never reaches here (isHelpTrigger is false for en); kept for the
-      // exhaustive ActiveLanguage type. Mirrors the meta list without a quoted
-      // escape (English play sends verbatim anyway).
       return [
-        'Help — type plain commands; the game understands them directly.',
+        'Help — type commands in plain English; I translate anything the parser does not accept directly.',
         'Special commands: save, restore, restart, quit, score, diagnose, look, inventory, verbose / brief. "version" shows the game version.',
+        `To send a command exactly as typed (bypassing translation), wrap it in quotes, e.g. ${ESCAPE_EXAMPLES}.`,
+        'Type help to see this message again.',
       ].join('\n')
   }
 }

@@ -513,6 +513,6 @@ working** in the shipping lexicon before this branch touched them — the catalo
 was stale. Each has been regression-pinned so the passing state is now locked:
 
 - **Conjoined objects + trailing prep phrase** (`mete la antorcha y el destornillador
-  en la cesta`): `distributePrepTail` already handled this. Pinned commit fd3559c.
+en la cesta`): `distributePrepTail` already handled this. Pinned commit fd3559c.
 - **`apaga` imperative** (`apaga las velas`→extinguish candles): already worked.
   Pinned in commit 51cdc47 alongside `apagar`.

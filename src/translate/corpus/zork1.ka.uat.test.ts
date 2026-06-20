@@ -120,6 +120,40 @@ describe('Zork I × Georgian — object disambiguation (UAT-2026-06-20)', () => 
     expect(out).toContain('დაჟანგული დანა') // rusty knife
     expect(out).toContain('knife')
   })
+
+  // The golden-path case (I2): the 4 dam-control buttons share SYNONYM BUTTON,
+  // are permanently co-located in the Maintenance Room, and WHICH-PRINT lists
+  // ALL FOUR — "the A, the B, the C, or the D?". The 2-candidate (" or ")
+  // template can't match it, so `push button` on the dam puzzle leaked raw
+  // English for ka (no LLM net) until the 4-candidate template + obj3/obj4 slots.
+  it('disambiguation: the 4 dam buttons (4-candidate) render Georgian, no leak', () => {
+    const out = matchLine(
+      c,
+      'Which button do you mean, the yellow button, the brown button, the red button, or the blue button?',
+    )
+    expect(out).not.toBeNull()
+    expect(out).not.toContain('Which')
+    expect(out).not.toContain('do you mean')
+    expect(out).not.toContain(', or the ')
+    expect(out).toContain('ყვითელი ღილაკი') // yellow button
+    expect(out).toContain('ყავისფერი ღილაკი') // brown button
+    expect(out).toContain('წითელი ღილაკი') // red button
+    expect(out).toContain('ლურჯი ღილაკი') // blue button
+    expect(out).toContain('button') // typed noun kept verbatim (English)
+  })
+
+  // The 3-candidate form ("the A, the B, or the C?") for completeness.
+  it('disambiguation: a 3-candidate prompt renders Georgian, no leak', () => {
+    const out = matchLine(
+      c,
+      'Which button do you mean, the yellow button, the brown button, or the red button?',
+    )
+    expect(out).not.toBeNull()
+    expect(out).not.toContain('do you mean')
+    expect(out).toContain('ყვითელი ღილაკი')
+    expect(out).toContain('ყავისფერი ღილაკი')
+    expect(out).toContain('წითელი ღილაკი')
+  })
 })
 
 describe('Zork I × Georgian — incomplete-put prompt (UAT-2026-06-20)', () => {
@@ -139,5 +173,16 @@ describe('Zork I × Georgian — incomplete-put prompt (UAT-2026-06-20)', () => 
     expect(adv).not.toContain('advertisement')
     // object-agnostic: a different echoed noun yields the same Georgian
     expect(matchLine(c, 'What do you want to put the leaflet in?')).toBe(adv)
+  })
+
+  // PREP-PRINT reprints whatever preposition the matched PUT syntax carries, and
+  // gsyntax.zil defines PUT … ON/UNDER/BEHIND too (I1). Those drop the prep and
+  // ask generically (მოთავსება); without them ka leaked raw English on the prep.
+  it('on/under/behind put-prompts render Georgian, no raw-English leak', () => {
+    for (const prep of ['on', 'under', 'behind']) {
+      const out = matchLine(c, `What do you want to put the lamp ${prep}?`)
+      expect(out).toBe('სად გსურთ მისი მოთავსება?')
+      expect(out).not.toContain('What do you want')
+    }
   })
 })

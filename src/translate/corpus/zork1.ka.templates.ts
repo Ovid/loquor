@@ -64,6 +64,27 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
     en: 'Which {raw} do you mean, the {obj} or the {obj2}?',
     out: 'რომელ {raw}-ს გულისხმობ — {obj.indef} თუ {obj2.indef}?',
   },
+  // ── …and the 3+/4-candidate forms WHICH-PRINT prints for more than two
+  //    matches: "the A, the B, or the C?" / "the A, the B, the C, or the D?"
+  //    (Oxford comma before the final "or"). Zork I's largest co-located
+  //    same-noun set is the 4 dam-control buttons (yellow/brown/red/blue, all in
+  //    the Maintenance Room, SYNONYM BUTTON SWITCH), so `push button` there is a
+  //    GUARANTEED 4-candidate prompt on the dam puzzle — a golden-path raw-English
+  //    leak for ka (no LLM net) until these match (I2). Each button is in the ka
+  //    object corpus, so the slots resolve. The candidates stay in the bare
+  //    NOMINATIVE citation form (caseless listing position, §4); Georgian has no
+  //    articles, so no "the" repeats, and "თუ" ("or") precedes the last. fr/de/es
+  //    route 3+/4-candidate prompts to the LLM (which renders them cleanly without
+  //    embedding the English noun), so they keep only the 2-candidate book pin.
+  //    NATIVE-REVIEW-DRAFT (ka §4 case forms): provisional wording pending review.
+  {
+    en: 'Which {raw} do you mean, the {obj}, the {obj2}, or the {obj3}?',
+    out: 'რომელ {raw}-ს გულისხმობ — {obj.indef}, {obj2.indef} თუ {obj3.indef}?',
+  },
+  {
+    en: 'Which {raw} do you mean, the {obj}, the {obj2}, the {obj3}, or the {obj4}?',
+    out: 'რომელ {raw}-ს გულისხმობ — {obj.indef}, {obj2.indef}, {obj3.indef} თუ {obj4.indef}?',
+  },
 
   // ── Parser incomplete-`put` prompt (gparser.zil): "What do you want to put the
   //    {obj} in?" — printed when the player names an object but no destination.

@@ -177,6 +177,31 @@ describe('compileCorpus: repeated-slot contract (review S9)', () => {
   it('still allows distinct {obj} and {obj2} in one template', () => {
     expect(() => compileCorpus(corpusWith('{obj} and {obj2}'))).not.toThrow()
   })
+  it('resolves up to four distinct object slots (3+/4-candidate disambiguation)', () => {
+    // WHICH-PRINT renders "the A, the B, the C, or the D?" for 4 candidates
+    // (the 4 dam buttons), so the matcher must carry obj/obj2/obj3/obj4.
+    const c4 = compileCorpus({
+      strings: {},
+      objects: {
+        'glass bottle': { indef: 'une bouteille' },
+        'brass lantern': { indef: 'une lampe' },
+        lunch: { indef: 'un casse-croûte' },
+        garlic: { indef: 'une gousse d’ail' },
+      },
+      templates: [
+        {
+          en: 'the {obj}, the {obj2}, the {obj3}, or the {obj4}?',
+          out: '{obj.indef}, {obj2.indef}, {obj3.indef} ou {obj4.indef} ?',
+        },
+      ],
+    })
+    expect(
+      matchLine(
+        c4,
+        'the glass bottle, the brass lantern, the lunch, or the garlic?',
+      ),
+    ).toBe('une bouteille, une lampe, un casse-croûte ou une gousse d’ail ?')
+  })
 })
 
 describe('matchLine: glued input-prompt residue (UAT-4)', () => {

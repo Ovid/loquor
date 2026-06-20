@@ -371,8 +371,14 @@ describe('Terminal', () => {
         expect(sendLine).not.toHaveBeenCalledWith('help')
         expect(translate).not.toHaveBeenCalled()
         // The localized Georgian help block surfaces via the role=status notice.
+        // showHelp sets the notice AFTER this async submit, and the role=status
+        // live-region is always mounted (even empty) — so await the help TEXT
+        // appearing, not the region element (which resolves immediately and would
+        // race the state update).
         const status = await screen.findByRole('status', {}, { timeout: 8000 })
-        expect(within(status).getByText(/დახმარება/)).toBeInTheDocument()
+        expect(
+          await within(status).findByText(/დახმარება/, {}, { timeout: 8000 }),
+        ).toBeInTheDocument()
       } finally {
         sendLine.mockRestore()
         nlOverride = null

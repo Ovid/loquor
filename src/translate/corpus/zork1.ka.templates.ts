@@ -79,6 +79,25 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
     en: 'What do you want to put the {raw} in?',
     out: 'რაში გსურთ მისი ჩადება?',
   },
+  // …and the sibling prepositions the orphan reprints (gparser.zil PREP-PRINT):
+  // gsyntax.zil defines PUT … ON/UNDER/BEHIND too, so `put lamp on` / `put X
+  // under` / `put X behind` reach the same prompt with a different prep (I1).
+  // "ჩადება" (insert) is specific to "in", so these caseless variants drop the
+  // prep and ask generically with "მოთავსება" (place) — like the examine-default
+  // line. Without these, ka (no LLM net) leaks raw English on those preps.
+  // NATIVE-REVIEW-DRAFT (ka §4 case forms): provisional wording pending review.
+  {
+    en: 'What do you want to put the {raw} on?',
+    out: 'სად გსურთ მისი მოთავსება?',
+  },
+  {
+    en: 'What do you want to put the {raw} under?',
+    out: 'სად გსურთ მისი მოთავსება?',
+  },
+  {
+    en: 'What do you want to put the {raw} behind?',
+    out: 'სად გსურთ მისი მოთავსება?',
+  },
 
   // ── Presence & listings — {obj} is the NOMINATIVE subject of არის, or a bare
   //    listing entry (no case marker). These are the productive caseless slots.

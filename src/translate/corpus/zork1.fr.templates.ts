@@ -103,8 +103,26 @@ export const ZORK1_FR_TEMPLATES: readonly Template[] = [
   // lexicon-emit synonym absent from the object table — so bind {raw} (any token)
   // and drop the object on the out side (« le », unmarked default). Vous-form to
   // match the rest of this corpus.
+  // The orphan reprints whatever preposition the matched PUT syntax carries
+  // (gparser.zil PREP-PRINT): gsyntax.zil defines PUT … IN/ON/UNDER/BEHIND, so
+  // `put lamp on` / `put X under` / `put X behind` reach the same prompt with a
+  // sibling prep (I1). The out side already DROPS the prep ("Où voulez-vous le
+  // mettre ?" = "where do you want to put it?"), so every variant renders the
+  // same — they just need their own en keys to match.
   {
     en: 'What do you want to put the {raw} in?',
+    out: 'Où voulez-vous le mettre ?',
+  },
+  {
+    en: 'What do you want to put the {raw} on?',
+    out: 'Où voulez-vous le mettre ?',
+  },
+  {
+    en: 'What do you want to put the {raw} under?',
+    out: 'Où voulez-vous le mettre ?',
+  },
+  {
+    en: 'What do you want to put the {raw} behind?',
     out: 'Où voulez-vous le mettre ?',
   },
 

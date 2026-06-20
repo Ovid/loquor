@@ -175,14 +175,9 @@ describe('Zork I × Georgian — incomplete-put prompt (UAT-2026-06-20)', () => 
     expect(matchLine(c, 'What do you want to put the leaflet in?')).toBe(adv)
   })
 
-  // PREP-PRINT reprints whatever preposition the matched PUT syntax carries, and
-  // gsyntax.zil defines PUT … ON/UNDER/BEHIND too (I1). Those drop the prep and
-  // ask generically (მოთავსება); without them ka leaked raw English on the prep.
-  it('on/under/behind put-prompts render Georgian, no raw-English leak', () => {
-    for (const prep of ['on', 'under', 'behind']) {
-      const out = matchLine(c, `What do you want to put the lamp ${prep}?`)
-      expect(out).toBe('სად გსურთ მისი მოთავსება?')
-      expect(out).not.toContain('What do you want')
-    }
-  })
+  // NB: the on/under/behind put-prompt variants were removed (UAT 2026-06-20).
+  // This Zork I never emits them — `put X on` resolves to the WEAR verb ("You
+  // can't wear the {obj}.", pinned in composed-lines.uat.test.ts) and `put X
+  // under` / `put X behind` are unparsed ("That sentence isn't one I
+  // recognize."). Only the bare `put X` orphan (defaulting to "in", above) fires.
 })

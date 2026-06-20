@@ -67,26 +67,12 @@ export const ZORK1_DE_TEMPLATES: readonly Template[] = [
   // lexicon-emit synonym absent from the object table — so bind {raw} (any token)
   // and drop the object on the out side („es“, generic neuter). Informal du, like
   // the rest of this corpus.
-  // The orphan reprints whatever preposition the matched PUT syntax carries
-  // (gparser.zil PREP-PRINT): gsyntax.zil defines PUT … IN/ON/UNDER/BEHIND, so
-  // `put lamp on` / `put X under` / `put X behind` reach the same prompt with a
-  // sibling prep (I1). The out side already DROPS the prep („Wohin möchtest du
-  // es legen?“ = "where do you want to put it?"), so every variant renders the
-  // same — they just need their own en keys to match.
+  // NB (UAT 2026-06-20): only the bare `put X` orphan (defaulting to "in") is
+  // reachable. `put X on` resolves to the WEAR verb and `put X under` / `behind`
+  // are unparsed, so the on/under/behind orphan prompts are never emitted — those
+  // templates were removed as unreachable dead code.
   {
     en: 'What do you want to put the {raw} in?',
-    out: 'Wohin möchtest du es legen?',
-  },
-  {
-    en: 'What do you want to put the {raw} on?',
-    out: 'Wohin möchtest du es legen?',
-  },
-  {
-    en: 'What do you want to put the {raw} under?',
-    out: 'Wohin möchtest du es legen?',
-  },
-  {
-    en: 'What do you want to put the {raw} behind?',
     out: 'Wohin möchtest du es legen?',
   },
 

@@ -61,26 +61,12 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
   // for the leaflet), so we bind {raw} (any token), not {obj} (table-only), and
   // DROP the object on the out side («lo», the unmarked default clitic — no
   // agreeing slot) so every object renders and none leaks.
-  // The orphan reprints whatever preposition the matched PUT syntax carries
-  // (gparser.zil PREP-PRINT): gsyntax.zil defines PUT … IN/ON/UNDER/BEHIND, so
-  // `put lamp on` / `put X under` / `put X behind` reach the same prompt with a
-  // sibling prep (I1). The out side already DROPS the prep («¿Dónde quieres
-  // ponerlo?» = "where do you want to put it?"), so every variant renders the
-  // same — they just need their own en keys to match.
+  // NB (UAT 2026-06-20): only the bare `put X` orphan (defaulting to "in") is
+  // reachable. `put X on` resolves to the WEAR verb and `put X under` / `behind`
+  // are unparsed, so the on/under/behind orphan prompts are never emitted — those
+  // templates were removed as unreachable dead code.
   {
     en: 'What do you want to put the {raw} in?',
-    out: '¿Dónde quieres ponerlo?',
-  },
-  {
-    en: 'What do you want to put the {raw} on?',
-    out: '¿Dónde quieres ponerlo?',
-  },
-  {
-    en: 'What do you want to put the {raw} under?',
-    out: '¿Dónde quieres ponerlo?',
-  },
-  {
-    en: 'What do you want to put the {raw} behind?',
     out: '¿Dónde quieres ponerlo?',
   },
 

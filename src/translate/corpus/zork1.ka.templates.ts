@@ -65,6 +65,21 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
     out: 'რომელ {raw}-ს გულისხმობ — {obj.indef} თუ {obj2.indef}?',
   },
 
+  // ── Parser incomplete-`put` prompt (gparser.zil): "What do you want to put the
+  //    {obj} in?" — printed when the player names an object but no destination.
+  //    The object slot is the player's ECHOED (English) noun, possibly a
+  //    lexicon-emit synonym, so it binds {raw} (verbatim). Naming the object would
+  //    put it in a CASE (the locative "in X" → X-ში, §4) we cannot compose onto a
+  //    citation form, so the `out` DROPS the object (like the examine-default
+  //    line) and asks caselessly with მისი ("its"/"it"). fr/de/es route this to
+  //    the LLM fallback; ka has none, so without this template Georgian leaks raw
+  //    English (UAT 2026-06-20). NATIVE-REVIEW-DRAFT (ka §4 case forms):
+  //    provisional wording pending native review.
+  {
+    en: 'What do you want to put the {raw} in?',
+    out: 'რაში გსურთ მისი ჩადება?',
+  },
+
   // ── Presence & listings — {obj} is the NOMINATIVE subject of არის, or a bare
   //    listing entry (no case marker). These are the productive caseless slots.
   // gverbs.zil DESCRIBE-OBJECT / PRINT-CONT; thief treasure listing.

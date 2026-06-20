@@ -121,3 +121,23 @@ describe('Zork I × Georgian — object disambiguation (UAT-2026-06-20)', () => 
     expect(out).toContain('knife')
   })
 })
+
+describe('Zork I × Georgian — incomplete-put prompt (UAT-2026-06-20)', () => {
+  const c = compileCorpus(ZORK1_KA)
+
+  // The parser's "What do you want to put the X in?" (incomplete put). fr/de/es
+  // route this to the LLM fallback (when warm); ka has NO LLM, so before this
+  // template ANY incomplete put leaked raw English. X is the player's echoed
+  // (English) noun captured as {raw}; naming it would need a locative case (§4),
+  // so the out DROPS the object and asks caselessly (NATIVE-REVIEW-DRAFT).
+  it('renders Georgian (object dropped, no raw-English leak) for any noun', () => {
+    const adv = matchLine(c, 'What do you want to put the advertisement in?')
+    expect(adv).not.toBeNull()
+    expect(adv).toBe('რაში გსურთ მისი ჩადება?')
+    // the leaked-English frame is gone
+    expect(adv).not.toContain('What do you want')
+    expect(adv).not.toContain('advertisement')
+    // object-agnostic: a different echoed noun yields the same Georgian
+    expect(matchLine(c, 'What do you want to put the leaflet in?')).toBe(adv)
+  })
+})

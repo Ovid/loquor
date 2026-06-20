@@ -40,4 +40,18 @@ describe.each(CORPORA)('composed-line UAT fixes — %s', (_lang, corpus) => {
   it('D: "<obj>: The trophy case is securely fastened to the wall." translates', () => {
     translated('trophy case: The trophy case is securely fastened to the wall.')
   })
+
+  // E: incomplete `put X` (no destination) → the parser asks "What do you want
+  // to put the {obj} in?" (gparser.zil). Off-walkthrough, runtime-composed, so
+  // both gates miss it; it leaked RAW English in every language (UAT 2026-06-20
+  // — es/fr confirmed live, ka has no LLM fallback at all). The object slot is
+  // the player's ECHOED noun, which can be a lexicon-emit synonym that is NOT an
+  // object-table key ("advertisement" for the leaflet) — so the template must
+  // bind {raw} (any token), not {obj} (table-only), or that synonym still leaks.
+  it('E: "What do you want to put the {obj} in?" translates (advertisement synonym)', () => {
+    translated('What do you want to put the advertisement in?')
+  })
+  it('E: "What do you want to put the {obj} in?" translates (known object)', () => {
+    translated('What do you want to put the leaflet in?')
+  })
 })

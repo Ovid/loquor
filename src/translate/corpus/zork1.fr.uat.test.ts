@@ -192,3 +192,26 @@ describe('Zork I × French — book-disambiguation prompt (UAT F3)', () => {
     ).toBe('De quel livre parlez-vous, le livre noir ou les allumettes ?')
   })
 })
+
+// French mirror of the es incomplete-`put` prompt finding (UAT 2026-06-20). The
+// parser's "What do you want to put the X in?" (incomplete put) leaked RAW
+// English — no corpus template, and the LLM fallback only fires when the WebLLM
+// engine is warm (it often isn't, since the lexicon resolves commands
+// deterministically). X is the player's echoed noun, possibly a lexicon-emit
+// synonym absent from the object table, so the template binds {raw} and drops the
+// object on the out side.
+describe('Zork I × French — incomplete-put prompt (UAT 2026-06-20)', () => {
+  const c = compileCorpus(ZORK1_FR)
+
+  it('renders the lexicon-emit synonym ("advertisement") in French', () => {
+    expect(matchLine(c, 'What do you want to put the advertisement in?')).toBe(
+      'Où voulez-vous le mettre ?',
+    )
+  })
+
+  it('renders a known object ("leaflet") the same caseless way', () => {
+    expect(matchLine(c, 'What do you want to put the leaflet in?')).toBe(
+      'Où voulez-vous le mettre ?',
+    )
+  })
+})

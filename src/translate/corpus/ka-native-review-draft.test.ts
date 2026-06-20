@@ -93,4 +93,24 @@ describe('ka provisional Georgian strings carry a NATIVE-REVIEW-DRAFT marker', (
       `the disambiguation template Georgian line (${rel}:${idx + 1}) needs a ${MARKER} marker`,
     ).toBe(true)
   })
+
+  // The incomplete-`put` prompt draft entry added 2026-06-20 (UAT). Its `out`
+  // drops the object (no {raw}/{obj.indef} slot), so it is not the disambiguation
+  // entry above — locate it by its distinctive Georgian wording and assert a
+  // marker governs it too.
+  it('zork1.ka.templates.ts: the incomplete-put prompt draft entry is marked', () => {
+    const rel = './zork1.ka.templates.ts'
+    const lines = read(rel)
+    const idx = lines.findIndex(
+      line => GEORGIAN.test(line) && line.includes('რაში გსურთ მისი ჩადება'),
+    )
+    expect(
+      idx,
+      'expected the incomplete-put prompt Georgian `out` line in ' + rel,
+    ).toBeGreaterThanOrEqual(0)
+    expect(
+      markerGoverns(lines, idx),
+      `the incomplete-put prompt Georgian line (${rel}:${idx + 1}) needs a ${MARKER} marker`,
+    ).toBe(true)
+  })
 })

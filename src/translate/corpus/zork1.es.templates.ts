@@ -53,6 +53,18 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
     en: 'Which book do you mean, the {obj} or the {obj2}?',
     out: '¿A qué libro te refieres, {obj.def} o {obj2.def}?',
   },
+  // Parser incomplete-`put` prompt (gparser.zil): "What do you want to put the
+  // {obj} in?" — printed when the player names an object but no destination.
+  // Off-walkthrough, runtime-composed, so both gates miss it; it leaked RAW
+  // English (UAT 2026-06-20). The named object is the player's ECHOED noun, which
+  // can be a lexicon-emit synonym that is NOT an object-table key («advertisement»
+  // for the leaflet), so we bind {raw} (any token), not {obj} (table-only), and
+  // DROP the object on the out side («lo», the unmarked default clitic — no
+  // agreeing slot) so every object renders and none leaks.
+  {
+    en: 'What do you want to put the {raw} in?',
+    out: '¿Dónde quieres ponerlo?',
+  },
 
   // ── Presence & listings ─────────────────────────────────────────────────
   { en: 'There is a {obj} here.', out: 'Hay {obj.indef} aquí.' },

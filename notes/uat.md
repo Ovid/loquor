@@ -637,3 +637,49 @@ not warm → output LLM fallback never runs; no corpus template). Under-delivery
 spec P2.2 #1, not pinned, flagged for Ovid. The ka multi-candidate "Which … do you
 mean" template (the part that DID ship) was not reachable at West of House (needs
 two ambiguous objects) — left to unit pins + a deep-gameplay pass (⚠️ DEFERRED).
+
+## Review-fix verification UAT (2026-06-20, branch `ovid/zork1-input-parity`)
+
+Verified the agentic-review fixes (`notes/uat-run.md`). I3 ✅ (ka cmd-input has NO
+`lang`, es has `lang="es"` — input `lang` follows INPUT language), help intercept
+✅ (en/es/ka live, no turn burned, `role=status` aria-live, S2 escape examples
+present), I4 (model cached → upgrade modal unreproducible; trust unit pins).
+
+### ⭐ The on/under/behind put-orphan prompts DO NOT EXIST in this Zork I (I1)
+
+The I1 review fix templated `What do you want to put the {raw} on/under/behind?` in
+all four corpora, assuming `put X on` reprints the prep. **Browser UAT (plain
+English) proved the parser never emits those prompts:** `put lamp on` resolves to
+the WEAR verb → `You can't wear the brass lantern.`; `put lamp under` / `put lamp
+behind` are unparsed → `That sentence isn't one I recognize.` Only the **bare
+`put X`** orphan fires (defaulting to "in") → `What do you want to put the lamp
+in?` — reached by OMITTING the prep, NOT by typing `put X in` (a dangling `in` is
+also "that sentence isn't one I recognize"). So the on/under/behind templates were
+unreachable dead code (removed, commit 4fb4912). The REAL player-facing leaks those
+inputs produce — `You can't wear the {obj}.` and (closed container) `The {obj}
+isn't open.` — leaked raw English in **ka only** (fr/de/es template them); fixed
+with ka corpus templates (commit c3c50d9). **Lesson:** a green unit suite can pin a
+template's TRANSLATION without proving the game ever emits the English string —
+always confirm the trigger live before trusting "fixed".
+
+### I2a 4-button disambiguation — ✅ verified live (the deep-gameplay pass)
+
+Reached the Maintenance Room and confirmed `push button` → the ka 4-candidate
+prompt `რომელ button-ს გულისხმობ — ლურჯი ღილაკი, წითელი ღილაკი, ყავისფერი ღილაკი
+თუ ყვითელი ღილაკი?` (typed noun `button` kept English, all 4 colors Georgian,
+joined by `თუ`, no raw-English frame, `loquorMisses()`=0). Confirmed BOTH by the
+language-switch retranslation classifier (works even mid-disambiguation: type
+`push button` in English, switch picker to ka, the pending prompt retranslates in
+place) AND a fresh live `push button` in ka.
+
+**Dam-buttons route (from a West-of-House save, ~17 turns, ONE troll fight):**
+Living Room → `take sword` + `turn on lamp` (grue-safety!) → `move rug` → `open
+trap door` → `down` (Cellar) → `north` (Troll Room) → `kill troll with sword`
+(died in 1 hit this run) → `east` (E-W Passage) → `east` (Round Room) → `north`
+(North-South Passage) → `northeast` (Deep Canyon) → `east` (Dam) → `north` (Dam
+Lobby) → `north` (Maintenance Room). The 4 buttons all answer to `button`. **Do
+NOT press the BLUE button** (floods the room, drowns you) — to abandon the
+disambiguation safely, type a non-button command like `look`. I2b (2-candidate) was
+not independently reachable (needs two same-noun objects in scope, late-game); the
+2-candidate template is the strictly-simpler sibling of the verified 4-candidate
+and is unit-pinned — covered by extension.

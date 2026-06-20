@@ -173,6 +173,12 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
   //    "The X is closed." covers grating / trap door / tube. ────────────────
   { en: 'The {obj} opens.', out: '{obj.indef} იღება.' },
   { en: 'The {obj} is closed.', out: '{obj.indef} დახურულია.' },
+  // "isn't open" (gverbs.zil, e.g. `put X in <closed container>` → the trophy
+  // case) is the same caseless nominative predicate as "is closed"; fr/de/es
+  // collapse both to "first you'd have to open it", and ka reuses the already-
+  // reviewed 'დახურულია' string here too. Leaked raw English in ka before this
+  // (UAT 2026-06-20: `put lamp in case` with the case shut).
+  { en: "The {obj} isn't open.", out: '{obj.indef} დახურულია.' },
 
   // ── Examine default (gverbs.zil V-EXAMINE). fr/de/es bind {obj} inside the
   //    sentence, but "about the X" needs the object in a CASE (genitive/
@@ -186,6 +192,19 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
   {
     en: "There's nothing special about the {obj}.",
     out: 'ამაში განსაკუთრებული არაფერია.',
+  },
+
+  // ── Wearing (gverbs.zil V-WEAR). `put X on` resolves to the WEAR verb, so
+  //    trying to wear a non-clothing object (`put lamp on` → the brass lantern)
+  //    prints this — NOT the orphan put-prompt the I1 fix assumed (UAT
+  //    2026-06-20). {obj} is the direct object of "wear", which §4 would case;
+  //    like the examine-default and rug lines, the `out` DROPS the object and
+  //    renders caselessly with მისი ("it"). Leaked raw English in ka (no LLM
+  //    net); fr/de/es already template it.
+  //    NATIVE-REVIEW-DRAFT (ka §4 case forms): provisional wording pending review.
+  {
+    en: "You can't wear the {obj}.",
+    out: 'მისი ჩაცმა შეუძლებელია.',
   },
 
   // ── Score (numerals stay Arabic; no object slot) ──────────────────────────

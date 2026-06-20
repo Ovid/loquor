@@ -54,4 +54,19 @@ describe.each(CORPORA)('composed-line UAT fixes — %s', (_lang, corpus) => {
   it('E: "What do you want to put the {obj} in?" translates (known object)', () => {
     translated('What do you want to put the leaflet in?')
   })
+
+  // F: WEAR-verb failure "You can't wear the {obj}." — emitted when `put X on`
+  // resolves to the wear verb (UAT 2026-06-20: `put lamp on` → this line, not the
+  // orphan put-prompt the I1 fix assumed). Off-walkthrough, runtime-composed; it
+  // leaked RAW English in ka (no LLM net) while fr/de/es already template it.
+  it('F: "You can\'t wear the {obj}." translates', () => {
+    translated("You can't wear the brass lantern.")
+  })
+
+  // G: closed-container "The {obj} isn't open." — emitted by `put X in <closed
+  // container>` (UAT 2026-06-20: `put lamp in case` with the case shut). Same
+  // blind spot; leaked RAW English in ka, templated already in fr/de/es.
+  it('G: "The {obj} isn\'t open." translates', () => {
+    translated("The trophy case isn't open.")
+  })
 })

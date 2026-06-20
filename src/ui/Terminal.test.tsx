@@ -410,7 +410,11 @@ describe('Terminal', () => {
           { name: /ინგლისურ/ },
           { timeout: 8000 },
         )
-        expect(input).toHaveAttribute('lang', 'ka')
+        // ...but the input VALUE is English (ka raw-sends), so the field's `lang`
+        // must NOT be 'ka' — tagging the value Georgian voices typed/echoed
+        // English with Georgian phonemes (a11y regression I3). The localized name
+        // above is driven separately by activeLang and stays correct.
+        expect(input).not.toHaveAttribute('lang', 'ka')
       } finally {
         nlOverride = null
       }

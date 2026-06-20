@@ -331,7 +331,14 @@ export function Terminal({
             placeholder={
               nlOn ? commandPlaceholder(activeLang) : 'type a command…'
             }
-            lang={nlLang}
+            // The field's VALUE is what `lang` governs for a screen reader, and
+            // the value is in the INPUT language — not the display language. For
+            // an OUTPUT-ONLY language (ka) the player types English, so tag the
+            // input English (undefined), not 'ka' — otherwise typed/echoed
+            // English is voiced with Georgian phonemes. fr/de/es type their own
+            // language, so nlInputOn carries nlLang there. (The localized
+            // placeholder/label copy is driven by activeLang above, unaffected.)
+            lang={nlInputOn ? nlLang : undefined}
             restore={restore ?? undefined}
             onSubmit={text => {
               // The Loud Room echo is re-voiced per clause via recordEcho as the

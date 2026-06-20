@@ -187,6 +187,9 @@ quoted-passthrough escape hatch to progress, e.g. `"take gold"`):
 - `dar cuerda al canario` → `give rope to canary` (idiom `dar cuerda a X` = "wind up X"
   taken literally, `cuerda`="rope"). **The songbird puzzle's solution verb — unsolvable
   in es without `"wind up canary"` passthrough. Highest-value input-NL fix.** (es-3)
+  **[RESOLVED 2026-06-20 — fused `al`/`a la` wind-up idiom added to es lexicon;
+  `dar cuerda al canario` → "wind up canary" now resolves correctly. Pinned in
+  `src/llm/lexicon/parse.es-uat.test.ts` (commit a993524)]**
 - `subir` is non-deterministic (`stage:"llm"`): usually `up`, but once
   `{"verb":"move","object":"trail"}` → "move trail" at Forest Path. Not in the
   deterministic `direction` lexicon, so it rides the heuristic stage. (`bajar`→down OK.)
@@ -196,6 +199,8 @@ quoted-passthrough escape hatch to progress, e.g. `"take gold"`):
   it to bottle). Use `"enter boat"` / `"launch"` passthrough on the river.
 - `eco` → `look` (should be the game's `echo`; this is the Loud Room solution!). Use
   `"echo"` passthrough, then `coger barra de platino`.
+  **[RESOLVED 2026-06-20 — `eco`→echo mapping added to es lexicon; pinned in
+  `src/llm/lexicon/parse.es-uat.test.ts` (commit 878a40c)]**
 - `Ulises` → `look` (cyclops magic word); the ENGLISH `Ulysses` works (it's a
   game verbSynonym, recognized even in es mode). Type `Ulysses`.
 - **CORRECTION (2026-06-15): the pot of gold IS gettable and the game CAN be won.**
@@ -238,22 +243,38 @@ destornillador en la cesta` → only `put torch` (drops the 2nd object AND the
   `deja la calavera, las velas, las cerillas, el ajo y la lámpara` distributed
   `drop` to all 5; `coge el carbón, el destornillador y la antorcha` likewise.
   Movement chains (`norte, oeste, norte, oeste, norte y este`) also fine.
+  **[STALE — catalogue entry was wrong; `distributePrepTail` already handled
+  this case in the shipping lexicon. Regression-pinned in
+  `src/llm/lexicon/parse.es-uat.test.ts` (commit fd3559c)]**
 - **Imperative `apaga` is UNKNOWN** ("No conozco la palabra «apaga»"); the
   **infinitive** works: `apagar las velas`→`extinguish candles`, `apagar la
 lámpara`→`extinguish light`. (Refines the older "apagar velas works" note —
   it's the infinitive that's needed; the imperative is missing.)
-- **`deja todo` → `drop advertisement`** ("todo"/all mis-maps); drop explicitly.
+  **[STALE — `apaga` (imperative) was already working; catalogue was out of
+  date. Regression-pinned alongside `apagar` in
+  `src/llm/lexicon/parse.es-uat.test.ts` (commit 51cdc47)]**
+- **`deja todo` / `coge todo` → wrong object** ("todo"/all mis-maps).
+  **[RESOLVED 2026-06-20 — `es` `quantifiersAll` entries added; `deja todo`
+  and `coge todo` now route to `drop all`/`take all`. Pinned in
+  `src/llm/lexicon/parse.es-uat.test.ts` (commit 51cdc47)]**
 - **`abre la tapa` → `open cage`; `cierra la tapa` → `turn off candles`** (lid
   mis-maps). Use `abre/cierra la máquina` → `open/close machine` for the diamond
   machine.
+  **[RESOLVED 2026-06-20 — noun surface `tapa`→machine added to es lexicon.
+  Pinned in `src/llm/lexicon/parse.es-uat.test.ts` (commit 422a0ee)]**
 - **`coge el jade` → `take jeweled egg`** (fail); use `coge la figurilla` →
   `take figurine`.
+  **[RESOLVED 2026-06-20 — noun surfaces `jade` and `calavera de cristal`
+  (multi-word) added to es lexicon. `coge el jade`→take jade figurine,
+  `coge la calavera de cristal`→take crystal skull now work. Pinned in
+  `src/llm/lexicon/parse.es-uat.test.ts` (commit 422a0ee)]**
 - **`sube la cesta` → `climb cage`** (does not raise); use `levanta la cesta` →
   `raise cage`. (`baja la cesta` → `lower cage` works.) **[DEFERRED Ovid
   2026-06-19 — `sube` bare = go up/climb, arity-conditional sense is fragile;
   workaround: `levanta la cesta`→`raise cage`]**
 - **`coge la calavera de cristal` → `take crack`** (the `de cristal` modifier
   breaks it); bare `coge la calavera` → `take skull`.
+  **[RESOLVED 2026-06-20 — see `jade`/`tapa` fix above (commit 422a0ee)]**
 - `subir` (bare "up") stayed deterministic (`up`) this run but is still the flaky
   one — verify after each. `vitrina`→case, `pulsera`→bracelet, `figurilla`→jade,
   `baúl`→trunk, `bomba`→pump, `frota el espejo`→"rub reflection", `gira el
@@ -313,7 +334,10 @@ NEW bugs:
 
 - **`sal del bote` → "move raft"** (should be exit/leave boat) → «Mover el bote no
   revela nada». Boat-exit broken in es. Workaround: `"get out of boat"` passthrough ✓.
-- **`entra en el bote` → `miss`** (boat *enter* fails; enter-arity is a separate,
+  **[RESOLVED 2026-06-20 — `del`-as-article handling (mirroring fr `du`) added so
+  `sal del bote` parses correctly as `exit boat`. Pinned in
+  `src/llm/lexicon/parse.es-uat.test.ts` (commit 27442e6)]**
+- **`entra en el bote` → `miss`** (boat _enter_ fails; enter-arity is a separate,
   lower-value fix). Workarounds: `aborda`/`embarca`→board ✓. **[DEFERRED Ovid
   2026-06-19 — do not re-file as new; workaround: `aborda`/`embarca`→board]**
 - **`mata al ladrón con el cuchillo` → "attack thief with stiletto"** → «No tienes el
@@ -321,6 +345,11 @@ NEW bugs:
   even though `coge el cuchillo` → "take nasty knives" is CORRECT and `deja el
 cuchillo` → "drop knife" is CORRECT. So the bug is specific to the `con <arma>`
   instrument slot. Workaround: `"kill thief with knife"` passthrough ✓.
+  **[RESOLVED 2026-06-20 — personal-`a` stripping in the prep-split object span
+  fixed in `src/llm/lexicon/parse.ts` (shared code change); `mata al ladron con
+  el cuchillo` → "attack thief with rusty knives" now correct. This is the ONE
+  genuine shared parse.ts change in the branch. Pinned in
+  `src/llm/lexicon/parse.es-uat.test.ts` (commit 8b65679)]**
 
 CONFIRMED-GOOD this run (several BETTER than prior notes feared):
 
@@ -423,3 +452,67 @@ la boya`) distribute the verb reliably; `mete X en la vitrina` (one obj + prep) 
   its top margin to 0). You can verify it without a literal wide-short landscape
   window: any case where `scrollHeight > clientHeight` (overlay at 643px AND at
   428px both scrolled, ✕ reachable) exercises the same mechanism.
+
+## Input-parity branch findings (branch `ovid/zork1-input-parity`, 2026-06-19/20)
+
+### Escape-hatch passthrough bug (Task 8) — `vocabWordSet` emit omission
+
+Pinning the advertised quoted-English escape (`"kill thief with knife"`) surfaced a
+**real bug**: `vocabWordSet` did not include noun `emit` words (only `match` words
+were added), so the canonical English noun in the passthrough command (`knife`,
+`torch`, etc.) failed the vocab gate and was rejected. Fix: added `addWords(n.emit)`
+alongside `addWords(n.match)` in `vocabWordSet`. Side-effects of that fix (all
+committed atomically):
+
+- Newly-visible **emit/match lexicon collisions** for several es nouns (where the
+  display form differs from the canonical) had to be recorded in `KNOWN_COLLISIONS`
+  so the collision-detector test stayed green.
+- The **open-mailbox passthrough test fixture** was wrong (it was testing a no-op
+  path that no longer existed); corrected to the actual passing case.
+- The fix made the `isIdentityEcho` English-echo-suppression guard in
+  `translatePipeline.ts` **permanently unreachable dead code** — it was a defensive
+  check for "the passthrough verb+noun matches the raw input exactly, so don't
+  double-echo", but with emit words now in the vocab set the passthrough never
+  reaches `isIdentityEcho`'s branch. The guard is **harmless** and was flagged for
+  the owner but left in place (optional cleanup). Commits: 2ef4d25, 73a3f2d,
+  5d99784, b767e94, f93a075.
+
+### fr/de cross-language verification (Task 7)
+
+Both fr and de were found to already pass the shared puzzle-verb cases (songbird,
+echo/Loud Room, boat-exit, quantifier-all). Regression pins added in
+`src/llm/lexicon/parse.fr-uat.test.ts` and `src/llm/lexicon/parse.de-uat.test.ts`
+(commit 76dce58) to lock the passing state. No new lexicon changes needed.
+
+### P2.2 disambiguation templates — DIVERGED from plan (ka-only)
+
+The plan called for per-language disambiguation templates for fr/de/es/ka. On
+investigation, the fr/de/es prompts are **deliberately LLM-fallback-routed** — no
+raw English leaks for those three languages. Only **ka (corpus-only, no LLM)** had
+raw English leaking through. Additionally, `Which of the {obj}s do you mean?` (the
+plural form) does not exist in Zork I; the real wording is `Which {raw} do you mean,
+the {obj} or the {obj2}?`. Fix was **ka-only**: generalized ka's disambiguation
+template to match the real Zork I wording. A new test enforces the
+`NATIVE-REVIEW-DRAFT` marker on ka lines (commits 89b1d3f, ef12bce). The orphan
+`What do you want to …?` prompt remains a known ka limitation (unbounded object
+slot; no fix this branch). **fr/de/es got no disambiguation template changes —
+they did not need them.**
+
+### P3 signposting — localized `help` and one-time escape-hatch notice
+
+Zork I has **no native help/info/commands** (they print "I don't know the word") —
+the localized `help` command override is therefore strictly an improvement (verified
+by audit in the spec). The help override + one-time escape-hatch activation notice +
+localized input placeholder (a11y) were added for fr/de/es/ka (commits e7b4f03,
+662015e, 41dc1ab). These are passive; no on-failure detection was implemented.
+
+### Stale catalogue items (already working before this branch)
+
+The following items in the UAT-es-3 catalogue above were confirmed **already
+working** in the shipping lexicon before this branch touched them — the catalogue
+was stale. Each has been regression-pinned so the passing state is now locked:
+
+- **Conjoined objects + trailing prep phrase** (`mete la antorcha y el destornillador
+  en la cesta`): `distributePrepTail` already handled this. Pinned commit fd3559c.
+- **`apaga` imperative** (`apaga las velas`→extinguish candles): already worked.
+  Pinned in commit 51cdc47 alongside `apagar`.

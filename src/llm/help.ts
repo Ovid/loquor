@@ -42,8 +42,10 @@ export function isHelpTrigger(line: string, lang: NlLanguage): boolean {
 // The escape-hatch examples stay ENGLISH (quoting bypasses translation and sends
 // the unquoted text verbatim to the Z-parser, so the examples must be the literal
 // English the game accepts) — shared across fr/de/es so they can't drift.
-const ESCAPE_EXAMPLES =
-  '"wind up canary", "enter boat", "echo", "kill thief with knife"'
+// ESCAPE_EXAMPLE is the canonical single example, reused by notices.ts's one-line
+// activation nudge so the two can't drift apart (S2).
+export const ESCAPE_EXAMPLE = '"wind up canary"'
+const ESCAPE_EXAMPLES = `${ESCAPE_EXAMPLE}, "enter boat", "echo", "kill thief with knife"`
 
 /** The localized help block, surfaced via the existing aria-live notice seam. */
 export function helpResponse(lang: ActiveLanguage): string {

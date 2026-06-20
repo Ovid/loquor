@@ -15,6 +15,7 @@
 // they are not quote-escapes, which would need to stay English (m4).
 import type { ActiveLanguage } from './types'
 import type { LexLang } from './lexicon/types'
+import { ESCAPE_EXAMPLE } from './help'
 
 // en + the input-lexicon languages (fr/de/es) are MANDATORY — a new notice that
 // forgets one fails the build instead of silently shipping English (review S1).
@@ -232,11 +233,11 @@ export function commandLabel(lang: ActiveLanguage): string {
   )
 }
 
-// The escape-hatch examples stay ENGLISH (quoting bypasses translation and sends
+// The escape-hatch example stays ENGLISH (quoting bypasses translation and sends
 // the unquoted text verbatim to the Z-parser, so the example must be the literal
-// English the game accepts). Mirrors help.ts's ESCAPE_EXAMPLES; one short example
-// here keeps the activation nudge to a single line.
-const ESCAPE_EXAMPLE = '"wind up canary"'
+// English the game accepts). ESCAPE_EXAMPLE is imported from help.ts (top of
+// file) so the canonical example can't drift between the help block and this
+// one-line activation nudge (S2).
 
 /** One-time escape-hatch nudge surfaced when a language is picked (P3). fr/de/es
  * point the player at the quoted-English fallback; ka — which is OUTPUT-ONLY and

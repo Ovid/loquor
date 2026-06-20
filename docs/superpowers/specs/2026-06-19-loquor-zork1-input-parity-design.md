@@ -200,8 +200,23 @@ The leak therefore affects *every* language; `ka` is merely worst (no fallback).
 The two lines to **author** as new templates:
 
 1. `What do you want to put the {obj} in?` (the incomplete-`put` object prompt).
-2. `Which of the {obj}s do you mean?` (the multi-candidate prompt; the es LLM
-   fallback mis-pluralized it as `tesones`).
+2. The multi-candidate disambiguation prompt; the es LLM fallback mis-pluralized
+   it as `tesones`.
+
+> **Correction (post-implementation, review I1/I2).** `Which of the {obj}s do
+> you mean?` was a **phantom** — that exact phrase appears nowhere in Zork I's
+> parser. The real string is `gparser.zil` **WHICH-PRINT**: `Which <noun> do you
+> mean, the X or the Y?`, where `<noun>` is the player's TYPED noun (so it binds
+> `{raw}`), and the candidate list grows with the number of matches:
+> `the A, the B, or the C?` (3) and `the A, the B, the C, or the D?` (4). Zork I's
+> largest co-located same-noun set is the **4 dam-control buttons** (`push
+> button` in the Maintenance Room), so the 2-candidate form alone leaves the dam
+> puzzle leaking for `ka` (no LLM net). As built: `ka` carries 2-, 3-, and
+> 4-candidate templates (the matcher was extended to `{obj3}`/`{obj4}` for this);
+> `fr/de/es` keep only the 2-candidate book pin and route 3+/4-candidate prompts
+> to the LLM (a `{raw}`-noun corpus template would bake the English noun into
+> their output). Likewise, `put` reprints whatever preposition the matched syntax
+> carries (`PREP-PRINT`), so `in`/`on`/`under`/`behind` each need a key.
 
 Add both to `zork1.{es,fr,de,ka}.templates.ts` with correct `{obj}`-slot and
 plural handling per language. Pin in `zork1.{es,fr,ka}.uat.test.ts`; de has no
@@ -269,6 +284,15 @@ Three pieces:
      passes through to Zork unchanged — an English player gets no localization
      benefit from shadowing native help. Only the localized aliases (and, for
      `ka`, the English word `help`) intercept.
+     > **Correction (post-implementation, commit `109c06b`; review Plan
+     > Alignment).** This rule was **reversed for English** during UAT. Since
+     > Zork I has NO native help (Task 10), English `help` was never a useful
+     > passthrough — it earned `I don't know the word "help."`, or, with a model
+     > on, the LLM mistranslated bare `help` → `look` and silently re-displayed
+     > the room. So English `help` now **also** intercepts to the English
+     > cheat-sheet (`HELP_ALIASES.en`, `help.ts`). Only `off` (NL disabled) keeps
+     > the classic passthrough. The lines below (~316) that assert "English keeps
+     > the `I don't know the word "help"` behavior" are superseded by this.
    - For `ka`: the trigger is the English word `help` (no input alias — `ka` has
      no lexicon); the block is **Georgian text** whose content is "type commands
      in English," **not** the quoted-English fallback message (a `ka` player

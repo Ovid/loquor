@@ -498,6 +498,58 @@ template to match the real Zork I wording. A new test enforces the
 slot; no fix this branch). **fr/de/es got no disambiguation template changes —
 they did not need them.**
 
+> **CORRECTION (UAT 2026-06-20): the "no raw English leaks for fr/de/es" claim is
+> FALSE for the `What do you want to put the {obj} in?` prompt** (spec P2.2
+> template #1). Browser-verified: typing `mete el folleto` (→ `put advertisement`,
+> input translation correct) makes Zork emit that prompt, and it renders **raw
+> English in es AND fr** (confirmed universal via the language-switch retranslation
+> classifier — the line stays English in both), logged in `loquorMisses()`. Root
+> cause is in the console: `[xlate] output translation failed (engine not loaded);
+will retry once when the engine is idle: What do you want to put the advertisement
+in?`. The WebLLM **weights are cached** (`caches.keys()` → `webllm/model|config|
+wasm`, no grammar-only `· basic` chip / `✦ improve` button) but the **inference
+> engine is not warm** — and because the improved lexicon resolves every command
+> deterministically (stage:`lexicon`, never `llm`), no input ever loads the engine,
+> so the queued output-fallback retry never fires and the leak is **permanent for
+> that session**. This is the irony the spec foresaw: relying on the LLM for an
+> uncovered output line fails exactly when the deterministic path is working well;
+> a **corpus template** (engine-independent, as the spec's P2.2 originally
+> prescribed for all four languages) is the correct fix. **This is an
+> under-delivery against spec P2.2, not a regression** — the leak pre-existed (see
+> UAT-es-3 "What do you want to put the torch in?" at line ~294) and P2.2 #1 set out
+> to fix it but only shipped the ka multi-candidate template. NOT pinned by any
+> test, which is why the green suite missed it. Flagged for Ovid (player-experience
+> decision per CLAUDE.md — the "route to LLM" choice leaves a documented player
+> harm); /paad:vibe ready to author the es/fr/de corpus template + ka
+> NATIVE-REVIEW-DRAFT on his go-ahead.
+>
+> **RESOLVED 2026-06-20 (Ovid go-ahead → /paad:vibe, TDD).** Authored a
+> deterministic corpus template `What do you want to put the {raw} in?` in
+> `zork1.{es,fr,de,ka}.templates.ts`. Bound `{raw}` (not `{obj}`) because the
+> echoed noun can be a lexicon-emit synonym absent from the object table
+> (`advertisement` for the leaflet) — an `{obj}` slot would still leak it — and
+> dropped the object on the out side (gender/number-neutral; ka dodges the §4
+> locative case). es `¿Dónde quieres ponerlo?` / fr `Où voulez-vous le mettre ?`
+> (vous) / de `Wohin möchtest du es legen?` (du) / ka `რაში გსურთ მისი ჩადება?`
+> (NATIVE-REVIEW-DRAFT). Pins: cross-language no-leak in
+> `composed-lines.uat.test.ts` (the de home), exact-string in
+> `zork1.{es,fr,ka}.uat.test.ts`, marker in `ka-native-review-draft.test.ts`.
+> `make all` green (1215). Live-verified in a fresh tab across es/fr/de/ka,
+> `loquorMisses()` = 0. (`{obj}` "name the object" rendering for table objects is
+> a possible nicety follow-up; the uniform object-drop matches ka and never
+> leaks.) **The `{raw}`-bound template only covers `put X in?`; the OTHER P2.2
+> template, the multi-candidate `Which {raw} do you mean…`, was already shipped
+> for ka and was not reached live (needs two ambiguous objects).**
+>
+> **Compounding (separate, likely out of P2.2 scope):** a disambiguation **answer**
+> typed in the target language is **not translated** — `buzon` (mailbox) → no
+> `[nl] clause` log, raw-sent → `No conozco la palabra «buzon».`. So even past the
+> English prompt, a non-English player cannot _answer_ a disambiguation in their
+> language (bare-noun continuation bypasses `nl.translate`). Together these break
+> the disambiguation flow for non-English players, undercutting the branch goal
+> "completable without ever secretly switching to English." Logged as a follow-up,
+> not auto-fixed.
+
 ### P3 signposting — localized `help` and one-time escape-hatch notice
 
 Zork I has **no native help/info/commands** (they print "I don't know the word") —
@@ -544,3 +596,39 @@ was stale. Each has been regression-pinned so the passing state is now locked:
 en la cesta`): `distributePrepTail` already handled this. Pinned commit fd3559c.
 - **`apaga` imperative** (`apaga las velas`→extinguish candles): already worked.
   Pinned in commit 51cdc47 alongside `apagar`.
+
+## Input-parity verification UAT (2026-06-20, HEAD cd913f8, suite 1201✓)
+
+Black-box browser run against `2026-06-19-loquor-zork1-input-parity-design.md`.
+Method: drive real target-language input at West of House and read the authoritative
+console `[nl] clause` `result.text` (the `>` line echoes the _source_, not the
+canonical) + screenshots; meta-UI (help/notice/placeholder) read off the DOM.
+
+**P1.1 input puzzle-verbs — ALL PASS (es, via stage:`lexicon`):**
+`da cuerda al canario`→`wind up canary`; `sal del bote`→`exit boat`; `eco`→`echo`;
+`mata al ladron con el cuchillo`→`attack thief with knife` (personal-`a` stripped:
+object=`thief` not `al ladron`; emits generic `knife` off-scope, scoped `rusty
+knives` in the attic); `deja todo`→`drop all`; `coge todo`→`take all`; `abre/cierra
+la tapa`→`open/close machine`; `coge el jade`→`take figurine`; `coge la calavera de
+cristal`→`take skull`; conjoined+prep `mete la antorcha y el destornillador en la
+cesta`→ two clauses `put torch in cage`+`put screwdriver in cage`.
+
+**Escape-hatch passthrough — ALL PASS:** quoted `"wind up canary"`, `"echo"`,
+`"kill thief with knife"`, `"enter boat"` reach the game with the English canonical
+intact (vocabWordSet emit-omission bug confirmed gone).
+
+**P3 signposting — ALL PASS (es/fr/de/ka):** localized `ayuda`/`aide`/`hilfe`/`help`
+each render the full localized help block (meta-commands save/restore/restart/quit/
+score/diagnose/look/inventory/verbose/brief/version with per-language glosses; the
+four named escape commands for fr/de/es; "type in English" for ka) via the
+`role="status"` aria-live `.nl-status` region, **no turn burned** (moves unchanged).
+Activation notices (es "Consejo…", ka "…for help type help") + localized
+placeholders + input aria-labels confirmed for all four. **ka `help`** (cd913f8) is
+the headline fix — verified working in a fresh tab.
+
+**P2.2 disambiguation — 1 FAIL + 1 follow-up** (see the CORRECTION block above):
+`What do you want to put the {obj} in?` leaks **raw English in es/fr/ka** (engine
+not warm → output LLM fallback never runs; no corpus template). Under-delivery vs
+spec P2.2 #1, not pinned, flagged for Ovid. The ka multi-candidate "Which … do you
+mean" template (the part that DID ship) was not reachable at West of House (needs
+two ambiguous objects) — left to unit pins + a deep-gameplay pass (⚠️ DEFERRED).

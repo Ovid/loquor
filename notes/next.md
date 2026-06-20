@@ -129,11 +129,24 @@ the {obj2}?`. Fixed for ka with a generalized template (commit 89b1d3f).
 
 Still open:
 
-- **Orphan `What do you want to …?`** leaks English in ka (unbounded object slot;
-  no fix — see follow-ups).
+- **Orphan `What do you want to …?`** — **RESOLVED 2026-06-20 (UAT + /paad:vibe).**
+  The "no raw-English leak for fr/de/es" claim above was WRONG for this prompt: UAT
+  found it leaks RAW English in es/fr/ka (not garbled-LLM — `engine not loaded`, so
+  no LLM ran; a missing corpus entry, not "LLM territory"). Fixed with a
+  deterministic template `What do you want to put the {raw} in?` in all four
+  corpora (`{raw}`-bound, object dropped — the echoed noun can be a lexicon-emit
+  synonym like `advertisement` that an `{obj}` slot would miss). ka is a
+  NATIVE-REVIEW-DRAFT. Pinned (composed-lines + per-lang + marker); `make all`
+  green; live-verified es/fr/de/ka. See `notes/uat.md` CORRECTION/RESOLVED block.
 - fr/de/es: no action needed for `Which … do you mean?`; the garbled `¿Qué quieres
 poner la cera?` (es) was confirmed LLM-fallback territory — a bad LLM response,
-  not a missing corpus entry.
+  not a missing corpus entry. (NB: the `What do you want to put X in?` prompt was
+  the OPPOSITE — a genuine missing corpus entry, now fixed above.)
+- **Disambiguation ANSWERS aren't translated** (separate, likely out of P2.2
+  scope): a target-language noun answer (`buzon`→mailbox) bypasses `nl.translate`
+  (bare-noun continuation) and raw-sends → "I don't know the word". A non-English
+  player still can't complete a disambiguation in-language even now that the prompt
+  renders. Own follow-up.
 
 ### P2.3 — Anaphora "it"
 

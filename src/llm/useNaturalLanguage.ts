@@ -205,11 +205,19 @@ export function useNaturalLanguage(
     const active: NlLanguage =
       internal.phase === 'on' ? internal.language : 'off'
     if (active === prevActiveLangRef.current) return
+    // Defer while the upgrade modal is open (I4): picking a non-cached language
+    // activates grammar-only ('on') AND opens the modal in the same tick, but
+    // accepting the upgrade calls requestDownload → setNotice(null), which would
+    // wipe the nudge before the player reads it (and the per-language latch would
+    // never re-fire). Leave prevActiveLangRef unset so this re-runs once the modal
+    // resolves — decline keeps grammar 'on', accept settles to full 'on' — and
+    // the nudge fires then. (No modal at all → fires immediately, as before.)
+    if (modalOpen) return
     prevActiveLangRef.current = active
     if (active === 'off') return
     const msg = activationNoticeRef.current(active)
     if (msg) setNotice(msg)
-  }, [internal])
+  }, [internal, modalOpen])
 
   const state: NlState = useMemo(() => {
     if (!hasVocab) return { phase: 'disabled' } // silent: this game has no vocab

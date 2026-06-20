@@ -457,6 +457,32 @@ describe('useNaturalLanguage', () => {
     expect(readNlPref().language).toBe('de')
   })
 
+  it('preserves the activation nudge across the upgrade-accept path (I4)', async () => {
+    // Picking a non-cached language opens the upgrade modal AND activates
+    // grammar-only. Accepting the upgrade calls requestDownload → setNotice(null),
+    // which used to wipe the one-time activation nudge before the player could
+    // read it (and the per-language latch never re-fired). The nudge must survive
+    // to the settled 'on' state.
+    const { hook } = setup() // not cached → grammar-only + modal
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({
+        phase: 'off',
+        installed: false,
+      }),
+    )
+    act(() => hook.result.current.setLanguage('de'))
+    expect(hook.result.current.modalOpen).toBe(true)
+    act(() => hook.result.current.requestDownload())
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({
+        phase: 'on',
+        model: 'full',
+      }),
+    )
+    // The German escape-hatch nudge ("Tipp: …") is present, not eaten.
+    expect(hook.result.current.notice).toMatch(/^Tipp:/)
+  })
+
   it('boot restore: a stored language reactivates against a cached model', async () => {
     localStorage.setItem(
       'loquor.nl',

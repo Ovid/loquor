@@ -506,6 +506,34 @@ by audit in the spec). The help override + one-time escape-hatch activation noti
 localized input placeholder (a11y) were added for fr/de/es/ka (commits e7b4f03,
 662015e, 41dc1ab). These are passive; no on-failure detection was implemented.
 
+#### Georgian `help` was DEAD — intercept never wired for ka (UAT 2026-06-20)
+
+**Found in browser UAT (Ovid's headline ask).** en/fr/de/es `help` worked, but
+typing `help` in **ka** printed `არ ვიცი სიტყვა „help".` ("I don't know the word
+help") — and the ka activation notice _itself_ tells the player
+`დახმარებისთვის აკრიფეთ help` ("for help, type help"), so a Georgian player who
+followed the on-screen instruction hit a dead end. Root cause: the localized help
+intercept (`isHelpTrigger`→`helpResponse`) lives **inside `nl.translate`**
+(`translatePipeline.ts:645`), but ka is OUTPUT-ONLY — `Terminal.tsx` routes its
+input through the raw-send `else` branch (`engineRef.current.sendLine`), so it
+**never calls `nl.translate`** and never reaches the intercept. `help.ts` had a `ka`
+alias + `helpResponse('ka')` block, but they were **unreachable dead code**. The
+spec's "Georgian caveat" claim that _"the `help` intercept [is] wired for the English
+`help` trigger"_ was false. `make test` stayed green because `Terminal.test.tsx`
+pins _"ka raw-sends English, never `nl.translate`"_ — the unit tests verified the
+building blocks existed while a wiring test verified they were disconnected (a
+"tested-in" bug).
+
+**Fix (TDD):** a Loquor-level help intercept at the `Terminal` boundary for the
+OUTPUT-ONLY case — `else if (outputOnly && isHelpTrigger(text, activeLang))
+nl.showHelp(activeLang)` — before the raw-send. New hook seam `showHelp(lang)` =
+`setNotice(helpResponse(lang))` (reuses the same role=status aria-live notice
+channel as the in-pipeline help). Every other ka command still raw-sends (the
+existing `open mailbox` test passes unchanged — no rewrite needed). Verified in a
+fresh tab: `help` → Georgian help block, **moves unchanged** (no turn burned);
+`open mailbox` → game opens it, **moves +1**. New pin:
+`Terminal.test.tsx` "ka: the help word is intercepted to the Georgian help block".
+
 ### Stale catalogue items (already working before this branch)
 
 The following items in the UAT-es-3 catalogue above were confirmed **already

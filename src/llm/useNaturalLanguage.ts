@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
+  ActiveLanguage,
   CapabilityResult,
   LlmEngine,
   NlLanguage,
   NlState,
   ViewContext,
 } from './types'
+import { helpResponse } from './help'
 import { EngineGate } from '../shared/engineGate'
 import type { ViewState, TurnResult } from '../glkote-react/types'
 import type { Vocab } from './grammar/types'
@@ -71,6 +73,11 @@ export interface UseNaturalLanguage {
   observe: (view: ViewState) => void
   /** True while a compound sequence is mid-flight (Terminal's observe effect defers to the hook). */
   isSequencing: () => boolean
+  /** Surface the localized help block via the shared `notice` aria-live seam.
+   * Drives the Loquor-level help intercept for OUTPUT-ONLY languages (ka),
+   * which raw-send English and so never reach the in-pipeline help intercept
+   * (translatePipeline). en/fr/de/es get help from inside translate instead. */
+  showHelp: (lang: ActiveLanguage) => void
 }
 
 /**
@@ -338,6 +345,14 @@ export function useNaturalLanguage(
 
   const isSequencing = useCallback(() => inSequenceRef.current, [])
 
+  // The localized help block reuses the same `notice` channel the abstain /
+  // activation notices use (one aria-live region). Centralizing it here lets the
+  // OUTPUT-ONLY raw-send path (ka, which never calls translate) show help too.
+  const showHelp = useCallback(
+    (lang: ActiveLanguage) => setNotice(helpResponse(lang)),
+    [],
+  )
+
   return {
     state,
     pending,
@@ -352,5 +367,6 @@ export function useNaturalLanguage(
     queued,
     observe,
     isSequencing,
+    showHelp,
   }
 }

@@ -160,6 +160,14 @@ fallback exists — and a ka player is _always_ typing English.
   (silent room re-display) or abstained → "I don't know the word help". So English
   `help` now intercepts too, showing `helpResponse('en')` (which gained the
   quoted-escape line). Found via UAT (Ovid). Commit <this>.
+  **Follow-up fix 2 (UAT 2026-06-20):** the ka `help` block was DEAD — `help.ts`
+  had the `ka` alias + `helpResponse('ka')`, but ka is OUTPUT-ONLY and raw-sends,
+  so `Terminal` never called `nl.translate` (where the intercept lives) and `help`
+  reached the parser → "I don't know the word help" — while the ka activation
+  notice tells the player to type `help`. Fixed with a Loquor-level intercept at
+  the `Terminal` boundary for the output-only case (`outputOnly &&
+isHelpTrigger` → new `nl.showHelp` seam); other ka commands still raw-send.
+  Pinned in `Terminal.test.tsx`. So P3.1 is only NOW actually done for ka.
 - **P3.2 — On-failure in-language hint:** NOT done. When a command fails
   in-language, surface in-language help pointing to the `"english"` escape hatch.
   Deferred — on-failure detection was out of scope for the passive-signposting

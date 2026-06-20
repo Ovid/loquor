@@ -332,6 +332,53 @@ describe('Terminal', () => {
       }
     })
 
+    it('ka: the help word is intercepted to the Georgian help block, not raw-sent (P3.1)', async () => {
+      // ka raw-sends English for play, but the activation notice instructs the
+      // player to type `help` (`დახმარებისთვის აკრიფეთ help`). The localized
+      // help intercept lives inside nl.translate, which ka never calls — so
+      // `help` must be intercepted at the Loquor (Terminal) boundary BEFORE the
+      // raw-send, or it reaches the parser and earns "I don't know the word
+      // help". Every OTHER ka command still raw-sends (asserted above).
+      const sendLine = vi.spyOn(ZMachine.prototype, 'sendLine')
+      const translate = vi.fn(async () => null)
+      nlOverride = {
+        state: {
+          phase: 'on',
+          language: 'ka',
+          model: 'grammar',
+          canUpgrade: true,
+        },
+        translate,
+      }
+      try {
+        render(
+          <Terminal
+            storyBytes={bytes}
+            storyTitle="Zork I"
+            onChangeStory={() => {}}
+            themeToggle={null}
+          />,
+        )
+        const input = await screen.findByPlaceholderText(
+          /ინგლისურ/,
+          {},
+          { timeout: 8000 },
+        )
+        fireEvent.change(input, { target: { value: 'help' } })
+        fireEvent.submit(input)
+        // Not sent to the game (no turn burned) and never routed through the NL
+        // input pipeline (ka has none).
+        expect(sendLine).not.toHaveBeenCalledWith('help')
+        expect(translate).not.toHaveBeenCalled()
+        // The localized Georgian help block surfaces via the role=status notice.
+        const status = await screen.findByRole('status', {}, { timeout: 8000 })
+        expect(within(status).getByText(/დახმარება/)).toBeInTheDocument()
+      } finally {
+        sendLine.mockRestore()
+        nlOverride = null
+      }
+    })
+
     it('ka: the command field exposes a localized "type in English" name (P3, a11y)', async () => {
       nlOverride = {
         state: {

@@ -22,6 +22,7 @@ import {
   commandPlaceholder,
 } from '../llm/notices'
 import { useNaturalLanguage } from '../llm/useNaturalLanguage'
+import { isHelpTrigger } from '../llm/help'
 import { useOutputTranslation } from '../translate/useOutputTranslation'
 import { corpusFor } from '../translate/corpus/index'
 import { loudEchoToken } from '../translate/loudEcho'
@@ -347,6 +348,14 @@ export function Terminal({
                       key: (r?.key ?? 0) + 1,
                     }))
                 })
+              // OUTPUT-ONLY (ka) raw-sends English and never reaches the
+              // in-pipeline help intercept (it lives inside nl.translate). But
+              // the activation notice tells a ka player to type `help`, so it
+              // MUST be intercepted HERE to the localized Georgian help block —
+              // otherwise it raw-sends to the parser and earns "I don't know the
+              // word help". Every other ka command still raw-sends below.
+              else if (outputOnly && isHelpTrigger(text, activeLang))
+                nl.showHelp(activeLang)
               else if (engineRef.current) engineRef.current.sendLine(text)
               // Practically unreachable (engine is set synchronously and input is
               // disabled until a line request), but warn rather than silently

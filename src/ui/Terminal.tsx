@@ -7,6 +7,7 @@ import { CommandInput } from './CommandInput'
 import { NlLanguagePicker } from './NlLanguagePicker'
 import { ModelDownloadModal } from './ModelDownloadModal'
 import { PreferencesModal, prefsOpenLabel } from './PreferencesModal'
+import { LANDING_STRINGS } from './landingStrings'
 import { useDebug } from './useDebug'
 import {
   useGameEngine,
@@ -220,6 +221,7 @@ export function Terminal({
       <StatusBar
         status={xl.status}
         onChangeStory={onChangeStory}
+        changeStoryLabel={LANDING_STRINGS[activeLang].changeStory}
         themeToggle={themeToggle}
         inert={bgInert}
         nlToggle={

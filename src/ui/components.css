@@ -310,8 +310,10 @@
 }
 .nl-caret {
   margin-left: 5px;
-  /* No font-size override: inherit the bar's text size so the ▾ matches the
-     "Change story" caret exactly (both are ▾ in .meta). */
+  /* No font-size override: inherit the bar's text size so the ▾ sits at the
+     same scale as the other .meta controls. The caret stays here because this
+     IS a dropdown (a select-only combobox); the "Change story" button dropped
+     its caret since it opens an overlay, not a menu. */
   color: var(--brass-soft);
   transition: color 0.2s;
 }

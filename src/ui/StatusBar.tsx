@@ -4,6 +4,7 @@ import type { StatusLine } from '../glkote-react/types'
 export function StatusBar({
   status,
   onChangeStory,
+  changeStoryLabel = 'Change story',
   themeToggle,
   nlToggle,
   prefsToggle,
@@ -11,6 +12,8 @@ export function StatusBar({
 }: {
   status: StatusLine | null
   onChangeStory: () => void
+  /** Localized label for the picker opener (defaults to English). */
+  changeStoryLabel?: string
   themeToggle: ReactNode
   nlToggle?: ReactNode
   /** The ⚙ Preferences opener, rendered between the picker and theme toggle. */
@@ -33,7 +36,7 @@ export function StatusBar({
           ·
         </span>
         <button className="sw" type="button" onClick={onChangeStory}>
-          Change story <span aria-hidden="true">▾</span>
+          {changeStoryLabel}
         </button>
         {nlToggle}
         {prefsToggle}

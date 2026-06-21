@@ -515,9 +515,7 @@ describe('useNaturalLanguage', () => {
       }),
     )
     act(() => hook.result.current.setLanguage('ka'))
-    await waitFor(() =>
-      expect(hook.result.current.announce).toMatch(/^რჩევა/),
-    )
+    await waitFor(() => expect(hook.result.current.announce).toMatch(/^რჩევა/))
     // The inline notice channel was never written for ka's tip.
     expect(hook.result.current.notice).toBeNull()
     // Switching away never strands the tip in the inline notice region (the

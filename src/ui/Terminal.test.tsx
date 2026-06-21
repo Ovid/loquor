@@ -765,7 +765,12 @@ describe('Terminal', () => {
         )
         // Switch to English: the bar (and its content) must vanish.
         nlOverride = {
-          state: { phase: 'on', language: 'en', model: 'full', canUpgrade: true },
+          state: {
+            phase: 'on',
+            language: 'en',
+            model: 'full',
+            canUpgrade: true,
+          },
         }
         rerender(
           <Terminal

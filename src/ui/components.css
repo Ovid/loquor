@@ -109,6 +109,32 @@
   outline-offset: 2px;
 }
 
+/* ---------- Georgian bottom status bar (ka only) ---------- */
+/* Mirrors .statusbar tokens but reads as quieter ambient chrome: a TOP border
+   (it sits at the column's bottom), a smaller font, dimmer text. Pinned to the
+   bottom by the .screen.term flex column — NO position:fixed (responsive spec's
+   scroll-safe rule). ka-only; absent (not empty) for en/fr/de/es, so <main>
+   (flex:1) reclaims the space and there is no layout change for them. */
+.bottombar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 3px 12px;
+  background: var(--status-grad);
+  border-top: 1px solid var(--rule);
+  padding: 6px 18px;
+  /* --text-dim alone clears WCAG AA (>=4.5:1) in BOTH themes (same basis as
+     .nl-thinking) — do NOT add opacity, which dropped the light theme to 3.45:1
+     (1.4.3). The smaller font is the "quieter" cue, not reduced contrast. */
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  transition: background 0.5s;
+}
+.bottombar-icon {
+  color: var(--brass-soft);
+}
+
 /* ---------- Scrollback ---------- */
 .scroll {
   flex: 1;
@@ -442,5 +468,9 @@
   .meta {
     flex-wrap: wrap;
     row-gap: 6px;
+  }
+  .bottombar {
+    padding: 5px 12px;
+    row-gap: 3px;
   }
 }

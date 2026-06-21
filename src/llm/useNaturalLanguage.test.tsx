@@ -483,6 +483,43 @@ describe('useNaturalLanguage', () => {
     expect(hook.result.current.notice).toMatch(/^Tipp:/)
   })
 
+  it('clears a prior language’s activation notice when switching languages', async () => {
+    // Repro: pick a language whose one-time activation nudge writes nl.notice,
+    // then switch to a language with NO activation notice (English raw-sends).
+    // The nudge must not strand in the live status region — left there it shows
+    // stale, in the wrong language, above the prompt (e.g. a Georgian tip while
+    // the player has switched to English).
+    const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({
+        phase: 'off',
+        installed: true,
+      }),
+    )
+    act(() => hook.result.current.setLanguage('fr'))
+    await waitFor(() => expect(hook.result.current.notice).toMatch(/^Astuce/))
+    act(() => hook.result.current.setLanguage('en'))
+    expect(hook.result.current.notice).toBeNull()
+  })
+
+  it('clears the Georgian activation tip when switching ka → en (reported repro)', async () => {
+    // The exact reported case: ka is OUTPUT-ONLY (no modal, no input LLM), so its
+    // "რჩევა: …" activation tip writes nl.notice the moment it's picked. Switching
+    // to English (whose activation notice is null) must clear it — otherwise the
+    // Georgian tip strands above the prompt while the player reads English.
+    const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({
+        phase: 'off',
+        installed: true,
+      }),
+    )
+    act(() => hook.result.current.setLanguage('ka'))
+    await waitFor(() => expect(hook.result.current.notice).toMatch(/^რჩევა/))
+    act(() => hook.result.current.setLanguage('en'))
+    expect(hook.result.current.notice).toBeNull()
+  })
+
   it('boot restore: a stored language reactivates against a cached model', async () => {
     localStorage.setItem(
       'loquor.nl',

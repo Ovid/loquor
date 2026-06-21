@@ -289,6 +289,16 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
   const setLanguage = useCallback(
     (lang: NlLanguage) => {
       if (!hasVocab) return // hasVocab is the sole NL prerequisite
+      // A deliberate language switch resets the transient-notice context: clear
+      // the previous language's notice so it can't strand in the live status
+      // region — stale, in the wrong language, above the prompt (e.g. a Georgian
+      // activation tip still showing after switching to English, whose own
+      // activation notice is null and so never overwrites it). The new language's
+      // one-time nudge is surfaced afterward by the activation effect. Cleared
+      // here (the user action), NOT in that effect: the effect also fires on the
+      // download→on transition, where it would wrongly wipe a just-set
+      // download-failure / queue-cleared notice that shares this same channel.
+      setNotice(null)
       // A new pick supersedes any download in progress ([C1]). Without this, an
       // in-flight load resolving after the pick would re-enable NL (and persist
       // a language) against the player's explicit choice — most visibly 'off'.
@@ -314,7 +324,7 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
       if (!readNlPref().declined && !OUTPUT_ONLY_LANGS.has(lang))
         setModalOpen(true)
     },
-    [hasVocab, installed, engine, abortInFlight],
+    [hasVocab, installed, engine, abortInFlight, setNotice],
   )
 
   const requestUpgrade = useCallback(() => {

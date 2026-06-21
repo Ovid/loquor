@@ -7,6 +7,7 @@ import {
   makeActivationNotice,
   commandPlaceholder,
   commandLabel,
+  GEORGIAN_ACTIVATION_TIP,
 } from './notices'
 
 describe('basic-mode download notices', () => {
@@ -67,6 +68,13 @@ describe('escape-hatch activation notice (P3)', () => {
     // English" (Georgian display text) with NO quoted-escape instruction.
     expect(ka).toMatch(/ინგლისურ/) // "English" stem in Georgian
     expect(ka).not.toContain('"') // no quote-escape example for ka
+  })
+
+  it('exposes the ka activation tip as the shared GEORGIAN_ACTIVATION_TIP const', () => {
+    // The bottom bar renders this string visibly while the latch announces it
+    // once — they must be the SAME string so they cannot drift (spec Decision 6).
+    const notice = makeActivationNotice()
+    expect(notice('ka')).toBe(GEORGIAN_ACTIVATION_TIP)
   })
 
   it('fires only once per language — the second activation returns null', () => {

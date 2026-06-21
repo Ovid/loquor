@@ -39,17 +39,40 @@ real Georgian input is Phase 2 (not built).
 
 ## Decisions (locked in brainstorming)
 
-1. **Remove the English half entirely** from both the beta and no-corpus
-   notices. They become Georgian-only (`lang="ka"`). A Georgian screen reader
-   voices `lang="ka"` text correctly; this is consistent with the rest of the
-   all-Georgian display. **Accepted tradeoff:** an English-TTS user who selects
-   Georgian output loses that one English warning — but they have already opted
-   into an all-Georgian screen, so this is consistent, not a regression.
+1. **Remove the English half from the BETA notice only — the no-corpus notice
+   stays bilingual.** The two notices are NOT symmetric:
+   - **Beta notice** fires when the screen IS Georgian (corpus present). It
+     becomes Georgian-only (`lang="ka"`); a Georgian screen reader voices it
+     correctly and it's consistent with the all-Georgian display. This is the
+     player-reported clutter, and removing English here is safe.
+   - **No-corpus notice** (Zork II/III) fires precisely when the screen has
+     **fallen back to English** (`corpusFor === null`). Its message is "Georgian
+     isn't available — shown in English," and its audience is a player who wanted
+     Georgian and got English (possibly an English reader). Telling them *only in
+     Georgian* that the game is in English is self-defeating, and wrapping an
+     all-English screen's notice in `lang="ka"` makes a screen reader pronounce
+     English with Georgian phonemes (WCAG 3.1.2 — the actual point behind the
+     original review-I1 bilingual-span rationale). So the no-corpus notice
+     **keeps its `lang="ka"` + `lang="en"` bilingual form.** (Adversarial-review
+     finding [1].)
 2. **New bottom status bar** holds the persistent `ka` mode info. It mirrors the
    top `StatusBar`'s brass/rule styling but reads quieter (smaller, dimmer).
 3. **The activation tip becomes permanent bar content**, not a one-time inline
    nudge — so a player who forgets always has the type-English / `help`
    reference, and it can never scroll away or be missed. (`ka` only — see below.)
+   This is a deliberate UX call we discussed: the type-English requirement is a
+   known Phase-1 limitation (real Georgian input is Phase 2), and making the
+   reference permanent-but-quiet beats a one-time nudge that can be missed. It is
+   recorded here (not an un-had "talk to me first" — the rationale was reviewed
+   and endorsed) so the tradeoff is explicit. **Mechanism — do NOT reinvent
+   "fire once":** keep `ka`'s tip flowing through the existing
+   `makeActivationNotice` once-per-language latch (`notices.ts` /
+   `useNaturalLanguage.ts:204-220`) to drive the **one-shot AT announcement** on
+   `ka` entry (this is the tested mechanism guarded against the re-announce bug
+   that commit `3ac3508` fixed); render the **persistent visible** bar text from
+   a SEPARATE static element. The latch handles "announce once on entry"; the
+   static element handles "always visible." Don't delete the latch and rebuild
+   one-shot logic from scratch. (Adversarial-review finding [2].)
 4. **Transient messages stay inline** above the input, unchanged: `…thinking`,
    abstain/timeout, "ran N of M", and `help` responses.
 5. **`ka`-only rendering.** The bar is absent (not empty) for en/fr/de/es —
@@ -87,37 +110,52 @@ gates:
 - **`ka` + this game has a `ka` corpus** (`corpusFor(signature,'ka') !== null`):
   the **beta notice** (Georgian only) **plus** the **type-English / `help`
   guidance** (the relocated activation-tip text).
-- **`ka` + no `ka` corpus** (Zork II/III, `corpusFor === null`, signature
-  resolved): the **no-corpus notice** only. The type-English guidance is omitted
-  — the display *is* English there, so "type in English" is moot.
+- **`ka` + no `ka` corpus** (Zork II/III, `signature !== '' && corpusFor ===
+  null`): the **no-corpus notice** (bilingual — see Decision 1). The type-English
+  guidance is omitted — the display *is* English there, so "type in English" is
+  moot.
+
+**Preserve the boot-flash guard.** The no-corpus branch MUST keep the existing
+`signature !== ''` condition (`Terminal.tsx:189-190`): `corpusFor` returns null
+for every game until the signature resolves at boot, so without the guard the
+bar would flash the no-corpus notice during the boot window before the corpus is
+known. Don't lose this in reimplementation. (Adversarial-review finding [5].)
 
 ### What moves where
 
 | Notice | Today | After |
 | --- | --- | --- |
-| Beta notice (ka+en) | inline `nl-status`, bilingual | **bottom bar**, Georgian-only |
-| No-corpus notice (ka+en) | inline `nl-status`, bilingual | **bottom bar**, Georgian-only |
-| Activation tip (ka) | transient `nl.notice`, one-time | **bottom bar**, persistent |
+| Beta notice (ka) | inline `nl-status`, bilingual | **bottom bar**, Georgian-only |
+| No-corpus notice (ka) | inline `nl-status`, bilingual | **bottom bar**, **still bilingual** (Decision 1) |
+| Activation tip (ka) | transient `nl.notice`, one-time inline | **bottom bar** (persistent visible) + one-shot AT announcement via the existing latch (Decision 3) |
 | `…thinking`, abstain, "ran N of M", `help` reply | inline `nl-status` | **unchanged** (inline) |
 | All en/fr/de/es notices (incl. their one-time activation nudges) | inline | **unchanged** (inline) |
 
-The `ka` activation tip no longer writes the `nl.notice` channel. For `ka`, that
-channel then carries only `help` responses (still inline). fr/de/es/en continue
-to use `nl.notice` for their activation nudge, abstain, timeout, etc. — **no
-change**.
+The `ka` activation tip's **persistent visible** copy moves to the bar; its
+**one-shot announcement** still rides the existing `makeActivationNotice` latch
+on entry (Decision 3). The inline `nl.notice` region for `ka` otherwise carries
+only `help` responses. fr/de/es/en continue to use `nl.notice` for their
+activation nudge, abstain, timeout, etc. — **no change**. If the one-shot
+announcement and a `help` reply could co-occupy the same live region in one
+render (player types `help` immediately on entry), the plan must keep them from
+clobbering each other — simplest is a dedicated one-shot announcement region
+separate from the inline `help`/abstain region. (Adversarial-review finding [6].)
 
 ### Accessibility
 
-- The bar is a **labeled static region** — a `<footer>` (or a region with an
-  explicit `aria-label`, e.g. "Georgian mode") — **not** a chattering live
-  region, since its content is persistent.
+- The bar is a **labeled static region** — a **`<footer>`** (mirroring the top
+  bar's `<header>` banner) with an **explicit `aria-label`** (e.g. "Georgian mode
+  information"). It is **not** a live region itself — its content is persistent,
+  and a persistent live region chatters on every re-render (finding [7]: pin the
+  element + name, don't leave it to the plan).
 - **Critical-onboarding announcement:** because the type-English instruction is
-  must-read, on `ka` activation it *also* fires **once** through a polite live
-  region so a screen-reader user hears it on entry. After that the bar is a
-  quiet, navigable, always-available reference. (Implementation: reuse the
-  existing `role="status"` polite region for the one-shot announcement, or a
-  dedicated one — the plan decides; the requirement is "announced once on entry,
-  not re-announced on every render".)
+  must-read, on `ka` activation it *also* fires **once** so a screen-reader user
+  hears it on entry. This rides the existing `makeActivationNotice` once-per-
+  language latch (Decision 3) into a **dedicated** polite live region — NOT the
+  static `<footer>`, and NOT the inline `nl.notice` region that carries `help`/
+  abstain (finding [6]). The latch already guarantees "announced once on entry,
+  not re-announced on every render" (the property commit `3ac3508` protects);
+  reusing it avoids rebuilding that subtle behavior.
 - **Contrast:** WCAG 2.2 AA in **both** themes (the dim styling must still pass).
 - **Responsive:** usable from 320px — the bar wraps to 1–3 short lines at the
   very bottom; no overflow, no clipping, in both themes.
@@ -128,8 +166,20 @@ change**.
 Mirrors `.statusbar` tokens (brass text, `--rule` border — a **top** border
 since it sits at the bottom, `--status-grad` or a dimmer variant), at a smaller
 font / lower emphasis than the top bar so it reads as ambient chrome. Honors
-`prefers-reduced-motion` for any transition. CSS-only, no new dependencies; the
-phone behavior lives with the existing `@media (max-width: 520px)` rules.
+`prefers-reduced-motion` for any transition. CSS-only, no new dependencies.
+
+**New CSS is required — existing rules do NOT cover this.** The current
+`@media (max-width: 520px)` block (`components.css:437-446`) styles only
+`.statusbar`/`.meta`; the new bar needs its own base rules AND its own wrap rules
+in that media block (finding [3]). Two `ka`-specific space concerns the rules
+must address, because the bar is **always present** during `ka` play (unlike the
+absent-for-everyone-else case):
+- On a narrow/short window the bar competes with the top bar + scrollback +
+  inline notices + input for height. It must wrap to at most a few short lines
+  and never push the input off-screen or clip the top of content (the responsive
+  spec's locked "top of content stays reachable" rule).
+- Keep it visually compact (smaller font, tight padding) so the persistent strip
+  costs minimal play area on a phone.
 
 ## Out of scope
 
@@ -141,23 +191,35 @@ phone behavior lives with the existing `@media (max-width: 520px)` rules.
 
 ## Testing
 
-1. `ka` active + corpus game → bottom bar present; Georgian-only; **no English
-   substring**; contains the type-English / `help` guidance.
-2. `ka` active + no-corpus game (Zork II/III) → bar shows the no-corpus notice;
-   no type-English guidance.
+1. `ka` active + corpus game → bottom bar present; beta notice is **Georgian-
+   only** (**no English substring**); bar contains the type-English / `help`
+   guidance.
+2. `ka` active + no-corpus game (Zork II/III) → bar shows the no-corpus notice,
+   **still bilingual** (asserts BOTH the `lang="ka"` and the `lang="en"` halves
+   are present); no type-English guidance.
 3. en/fr/de/es active → **no `<footer>` bottom bar** in the tree; their inline
    notice flow (activation nudge, abstain, thinking) asserts unchanged.
-4. a11y: the bar exposes a correct accessible name/role; a one-time polite
-   announcement fires on `ka` entry and is not re-announced on re-render;
+4. a11y: the `<footer>` exposes its accessible name (`aria-label`); the one-shot
+   announcement fires on `ka` entry through its dedicated live region and is
+   **not re-announced on re-render**; the static `<footer>` is not a live region;
    decorative glyph is `aria-hidden`.
 5. Transients (`…thinking`, abstain, "ran N of M", `help` reply) still render
    inline above the input, not in the bar.
 6. Switching `ka` → en mid-session removes the bar (and its content) with no
    stray remnant; en → `ka` shows it.
+7. Boot-flash guard: before the signature resolves (`signature === ''`), the
+   no-corpus branch does NOT render — the bar shows no premature no-corpus notice
+   during boot (finding [5]).
+8. Mid-session **story switch** while `ka` is active flips bar content: a
+   corpus game → a no-corpus game moves beta+tip → bilingual no-corpus notice
+   (and vice-versa), with no stale content from the prior game (finding [5]).
 
 ## Manual checklist (no automated layout guard — jsdom has no layout engine)
 
 Per the responsive spec: verify at **320 / 375 / 520px** and a short landscape
 window, in **both themes**, that the bottom bar wraps without overflow/clipping
-and the top-of-content stays reachable. Re-run whenever `landing.css` /
-`components.css` change.
+and the top-of-content stays reachable. **Exercise the `ka` case specifically** —
+the bar only renders under Georgian, and on a phone it is *always present*,
+permanently shrinking the play area, so the squeeze (top bar + scrollback +
+inline notices + input + persistent bar) must be checked under `ka`, not just the
+default English layout. Re-run whenever `landing.css` / `components.css` change.

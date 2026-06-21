@@ -484,7 +484,7 @@ describe('Terminal', () => {
   })
 
   describe('Georgian beta notice (spec §5)', () => {
-    it('announces a bilingual beta notice on first Georgian activation', async () => {
+    it('shows a Georgian-only beta notice + the tip in the bottom bar (no English half)', async () => {
       nlOverride = {
         state: {
           phase: 'on',
@@ -502,28 +502,28 @@ describe('Terminal', () => {
             themeToggle={null}
           />,
         )
-        // The notice surfaces once the story signature resolves at boot (it is
-        // gated on the game actually having a Georgian corpus), so wait for the
-        // text, not just the live region.
-        await screen.findByText(
+        // The footer surfaces once the signature resolves and the corpus is
+        // consulted at boot — wait for the Georgian beta text.
+        const ka = await screen.findByText(
           /ქართული თარგმანი ჯერ სატესტოა/,
           {},
           { timeout: 8000 },
         )
-        const status = screen.getByRole('status')
-        expect(status).toHaveTextContent(/Georgian is a beta translation/)
-        // Each half carries its own lang so a screen reader voices the English
-        // sentence with English phonemes, not Georgian (review I1).
-        const ka = screen.getByText(/ქართული თარგმანი ჯერ სატესტოა/)
         expect(ka).toHaveAttribute('lang', 'ka')
-        const en = screen.getByText(/Georgian is a beta translation/)
-        expect(en).toHaveAttribute('lang', 'en')
+        const bar = screen.getByRole('contentinfo', {
+          name: /Georgian mode information/i,
+        })
+        expect(bar).toContainElement(ka)
+        // Decision 1: the English half is GONE from the beta notice.
+        expect(bar).not.toHaveTextContent(/Georgian is a beta translation/)
+        // The relocated tip is permanent visible content in the bar.
+        expect(bar).toHaveTextContent(/რჩევა: ბრძანებები აკრიფეთ ინგლისურად/)
       } finally {
         nlOverride = null
       }
     })
 
-    it('does not show the beta notice for French', async () => {
+    it('renders no bottom bar for French', async () => {
       nlOverride = {
         state: { phase: 'on', language: 'fr', model: 'full', canUpgrade: true },
       }
@@ -536,8 +536,16 @@ describe('Terminal', () => {
             themeToggle={null}
           />,
         )
-        const status = await screen.findByRole('status', {}, { timeout: 8000 })
-        expect(status).not.toHaveTextContent(/beta translation/)
+        // Wait for boot output so the corpus/signature has resolved.
+        await waitFor(
+          () => expect(screen.getByRole('log')).toHaveTextContent(/\S/),
+          { timeout: 8000 },
+        )
+        expect(
+          screen.queryByRole('contentinfo', {
+            name: /Georgian mode information/i,
+          }),
+        ).toBeNull()
       } finally {
         nlOverride = null
       }
@@ -577,10 +585,7 @@ describe('Terminal', () => {
       }
     })
 
-    it('shows a bilingual "no Georgian for this story" cue on a corpus-less game ([I4])', async () => {
-      // Zork II has no ka corpus → display stays English. An in-game switch to ka
-      // would otherwise yield silent all-English; the inverse cue explains why
-      // (the Landing "English only" badge is invisible to a mid-session switcher).
+    it('shows the bilingual no-corpus cue in the bottom bar, with no tip ([I4])', async () => {
       const zork2 = new Uint8Array(readFileSync('public/games/zork2.z3'))
       nlOverride = {
         state: {
@@ -605,10 +610,178 @@ describe('Terminal', () => {
           { timeout: 8000 },
         )
         expect(ka).toHaveAttribute('lang', 'ka')
-        const en = screen.getByText(/Georgian isn’t available for this story/)
+        const bar = screen.getByRole('contentinfo', {
+          name: /Georgian mode information/i,
+        })
+        expect(bar).toContainElement(ka)
+        // Stays bilingual (Decision 1).
+        const en = within(bar).getByText(
+          /Georgian isn’t available for this story/,
+        )
         expect(en).toHaveAttribute('lang', 'en')
-        // It is NOT the beta notice (corpus present) — the two are exclusive.
-        expect(screen.queryByText(/ქართული თარგმანი ჯერ სატესტოა/)).toBeNull()
+        // No type-English tip — the display IS English here.
+        expect(bar).not.toHaveTextContent(/რჩევა: ბრძანებები აკრიფეთ/)
+        // Not the beta notice — mutually exclusive.
+        expect(bar).not.toHaveTextContent(/ქართული თარგმანი ჯერ სატესტოა/)
+      } finally {
+        nlOverride = null
+      }
+    })
+  })
+
+  describe('Georgian bottom status bar (spec 2026-06-21)', () => {
+    const ka = {
+      phase: 'on' as const,
+      language: 'ka' as const,
+      model: 'grammar' as const,
+      canUpgrade: true,
+    }
+
+    it('fires the one-shot tip in a dedicated live region, not role=status (item 4)', async () => {
+      nlOverride = {
+        state: ka,
+        announce: 'რჩევა: ბრძანებები აკრიფეთ ინგლისურად; ტექსტი ქართულად ჩანს.',
+      }
+      try {
+        render(
+          <Terminal
+            storyBytes={bytes}
+            storyTitle="Zork I"
+            onChangeStory={() => {}}
+            themeToggle={null}
+          />,
+        )
+        // Wait for the bar (requires signature resolution), then check the
+        // dedicated announce region. The bar appears at the same render cycle
+        // that populates the sr-only div (both gated on showBetaNotice).
+        const bar = await screen.findByRole(
+          'contentinfo',
+          { name: /Georgian mode information/i },
+          { timeout: 8000 },
+        )
+        // The dedicated sr-only live region must carry the tip.
+        const tip = screen.getByText(
+          'რჩევა: ბრძანებები აკრიფეთ ინგლისურად; ტექსტი ქართულად ჩანს.',
+          { selector: '[aria-live]' },
+        )
+        // Dedicated polite live region, Georgian-voiced.
+        expect(tip).toHaveAttribute('aria-live', 'polite')
+        expect(tip).toHaveAttribute('lang', 'ka')
+        // NOT inside the inline role=status region (that carries help/abstain).
+        const status = screen.getByRole('status')
+        expect(status).not.toContainElement(tip)
+        // The static footer is NOT a live region (finding [7]).
+        expect(bar).not.toHaveAttribute('aria-live')
+      } finally {
+        nlOverride = null
+      }
+    })
+
+    it('keeps transient NL notices inline, not in the bar (item 5)', async () => {
+      nlOverride = {
+        state: ka,
+        notice: 'დახმარება — ბრძანებები აკრიფეთ ინგლისურად.',
+      }
+      try {
+        render(
+          <Terminal
+            storyBytes={bytes}
+            storyTitle="Zork I"
+            onChangeStory={() => {}}
+            themeToggle={null}
+          />,
+        )
+        const notice = await screen.findByText(
+          /დახმარება — ბრძანებები აკრიფეთ/,
+          {},
+          { timeout: 8000 },
+        )
+        // The help reply lives in the inline role=status region…
+        const status = screen.getByRole('status')
+        expect(status).toContainElement(notice)
+        // …and the activation tip never leaks INTO that inline region (finding
+        // [6], both sides): it rides the dedicated announce region, so a help
+        // reply and the tip can never co-occupy / clobber each other.
+        expect(status).not.toHaveTextContent(/^რჩევა/)
+        // …not in the bottom bar. Wait for the bar (signature must resolve first).
+        const bar = await screen.findByRole(
+          'contentinfo',
+          { name: /Georgian mode information/i },
+          { timeout: 8000 },
+        )
+        expect(bar).not.toContainElement(notice)
+      } finally {
+        nlOverride = null
+      }
+    })
+
+    it('suppresses the one-shot tip announcement on a no-corpus ka game (finding [6])', async () => {
+      // Zork II has no ka corpus → the display is English. Announcing "type in
+      // English; text appears in Georgian" would be locally wrong, so the
+      // announce region's content is corpus-gated even though the latch fired
+      // nl.announce on ka entry. The bilingual no-corpus footer still shows.
+      const zork2 = new Uint8Array(readFileSync('public/games/zork2.z3'))
+      nlOverride = {
+        state: ka,
+        announce: 'რჩევა: ბრძანებები აკრიფეთ ინგლისურად; ტექსტი ქართულად ჩანს.',
+      }
+      try {
+        render(
+          <Terminal
+            storyBytes={zork2}
+            storyTitle="Zork II"
+            onChangeStory={() => {}}
+            themeToggle={null}
+          />,
+        )
+        // Wait for the no-corpus footer to confirm boot + corpus resolution.
+        await screen.findByText(
+          /ამ ისტორიისთვის ქართული თარგმანი ჯერ არ არის/,
+          {},
+          { timeout: 8000 },
+        )
+        // The tip is announced NOWHERE — neither the dedicated region nor the bar.
+        expect(screen.queryByText(/^რჩევა: ბრძანებები აკრიფეთ/)).toBeNull()
+      } finally {
+        nlOverride = null
+      }
+    })
+
+    it('removes the bar when switching ka → en (item 6)', async () => {
+      nlOverride = { state: ka }
+      try {
+        const { rerender } = render(
+          <Terminal
+            storyBytes={bytes}
+            storyTitle="Zork I"
+            onChangeStory={() => {}}
+            themeToggle={null}
+          />,
+        )
+        await screen.findByRole(
+          'contentinfo',
+          { name: /Georgian mode information/i },
+          { timeout: 8000 },
+        )
+        // Switch to English: the bar (and its content) must vanish.
+        nlOverride = {
+          state: { phase: 'on', language: 'en', model: 'full', canUpgrade: true },
+        }
+        rerender(
+          <Terminal
+            storyBytes={bytes}
+            storyTitle="Zork I"
+            onChangeStory={() => {}}
+            themeToggle={null}
+          />,
+        )
+        await waitFor(() =>
+          expect(
+            screen.queryByRole('contentinfo', {
+              name: /Georgian mode information/i,
+            }),
+          ).toBeNull(),
+        )
       } finally {
         nlOverride = null
       }

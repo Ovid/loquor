@@ -27,18 +27,19 @@ and that.
 
 ---
 
-## Current state (2026-06-19)
+## Current state (2026-06-20, post `ovid/zork1-input-parity`)
 
-| Lang   | Read (output corpus)                                                                 | Type (input)                                                                      |
-| ------ | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
-| **fr** | ~complete — deathless run ≈1 baseline miss                                           | NL (LLM + grammar-only); open input-NL bugs                                       |
-| **de** | ~complete                                                                            | NL; open items (`notes/uat-de-findings.md`)                                       |
-| **es** | complete — endgame verified clean (UAT-es-4)                                         | NL; **documented bug catalogue** (`notes/uat.md`)                                 |
-| **ka** | gates green, but **composed-line blind spot** (4 fixed this branch; class is bigger) | **type-English only** (Phase 1). Phase 2 = Georgian grammar-only input (own spec) |
+| Lang   | Read (output corpus)                                                               | Type (input)                                                                              |
+| ------ | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| **fr** | ~complete — deathless run ≈1 baseline miss                                         | NL (LLM + grammar-only); puzzle verbs regression-pinned; driven UAT catalogue pending     |
+| **de** | ~complete                                                                          | NL; puzzle verbs regression-pinned; open items (`notes/uat-de-findings.md`)               |
+| **es** | complete — endgame verified clean (UAT-es-4)                                       | NL; **blocking+friction bugs FIXED** this branch; deferred: `sube la cesta`, `entra bote` |
+| **ka** | gates green, but **composed-line blind spot** (4 fixed prior branch; class bigger) | **type-English only** (Phase 1). Phase 2 = Georgian grammar-only input (own spec)         |
 
 The headline asymmetry: **output is nearly there for fr/de/es and structurally
-sound for ka; INPUT is where playability actually breaks** — puzzle-solving verbs
-mis-map, and Georgian has no native input at all yet.
+sound for ka; INPUT is where playability actually breaks** — es puzzle-verb
+blockers are now fixed; fr/de regression-pinned but lack driven UAT passes;
+Georgian has no native input at all yet.
 
 ---
 
@@ -46,31 +47,36 @@ mis-map, and Georgian has no native input at all yet.
 
 ### P1.1 — Input-NL puzzle-verb bugs (fr/de/es) that gate Zork I solutions
 
+**STATUS: RESOLVED for es blocking+friction tier (branch `ovid/zork1-input-parity`);
+fr/de regression-pinned (already passing). See DONE block below for full
+accounting. Remaining open: deferred items and driven fr/de UAT catalogues.**
+
 The corpus-miss equivalent for INPUT: a foreign command mis-maps to the wrong
 canonical, so the puzzle can't be solved without the `"english"` quoted
-fallback. Confirmed, still open (catalogue in `notes/uat.md`, "Spanish INPUT-NL
-bug catalogue" + UAT-es-4):
+fallback. Catalogue in `notes/uat.md` ("Spanish INPUT-NL bug catalogue" + UAT-es-4).
 
-- **Songbird (highest value).** `dar cuerda al canario` → `give rope to canary`
-  (idiom `dar cuerda a` = "wind up", taken literally). The brass **bauble**
-  treasure is unreachable without `"wind up canary"`. Likely the same shape in
-  fr/de.
-- **Boat false-friend.** `bote` → `bottle`; `sal del bote` → "move raft";
-  inflate works (`infla el plástico`) but enter/launch need `"enter boat"` /
-  `"launch"`.
-- **Loud Room.** `eco` → `look` (should be the game's `echo`, the solution).
-- **Combat instrument slot.** `mata … con el cuchillo` → "attack … with
-  stiletto" (wrong weapon).
-- **Conjoined objects + trailing prep phrase** drops the 2nd object AND the
-  destination (`mete la antorcha y el destornillador en la cesta` → only "put
-  torch").
-- Cyclops magic word, `subir` flakiness, lid/`todo`/`apaga` imperative gaps, etc.
+Fixed on `ovid/zork1-input-parity` (all pinned in `src/llm/lexicon/parse.es-uat.test.ts`):
 
-**Do:** treat `notes/uat.md` as the work-list; fix in the lexicon/idioms/parser;
-pin each as a regression in the per-language `zork1.<lang>.uat.test.ts`. **A fix
-in one language is usually a fix in all** (CLAUDE.md) — check the cognate in the
-other two. fr/de need their own driven-in-language UAT passes to build the
-equivalent catalogues (the es one is the most complete today).
+- **Songbird.** `dar cuerda al canario` → "wind up canary" — fused `al`/`a la`
+  wind-up idiom (commit a993524).
+- **Boat exit.** `sal del bote` → "exit boat" — `del`-as-article (commit 27442e6).
+- **Loud Room.** `eco` → "echo" (commit 878a40c).
+- **Combat instrument slot.** personal-`a` stripping in prep-split span;
+  `mata al ladron con el cuchillo` → "attack thief with rusty knives"
+  (commit 8b65679 — shared `parse.ts` change).
+- **Quantifier all.** `deja/coge todo` via es `quantifiersAll` (commit 51cdc47).
+- **Noun surfaces.** `tapa`→machine, `jade`→jade figurine, `calavera de cristal`
+  (multi-word) (commit 422a0ee).
+- **Conjoined+trailing-prep** (`mete X y Y en Z`): was STALE — already worked via
+  `distributePrepTail`; regression-pinned (commit fd3559c).
+- **`apaga` imperative**: was STALE — already worked; regression-pinned (commit
+  51cdc47).
+
+Still open / deferred:
+
+- `sube la cesta`→climb cage, `entra en el bote` (see DEFERRED block below).
+- Cosmetic tier (`libro`→page, `oro`→pot, `subir` flakiness).
+- fr/de driven-in-language UAT catalogues (browser UAT passes not yet done).
 
 ### P1.2 — Georgian has no native input (Phase 2)
 
@@ -111,10 +117,48 @@ French-switch classifier now recorded in `notes/uat.md`.)
 
 ### P2.2 — Dynamic disambiguation prompts (all langs)
 
-`What do you want to put the {obj} in?` / `Which {obj} do you mean?` render
-garbled — es: «¿Qué quieres poner la cera?», and the `tesones` pluralization bug.
-Off-golden-path, so the gates miss it; **likely shared fr/de/ka**. Fix the
-disambiguation templates per language and pin them.
+**STATUS: PARTIALLY DONE — ka-only (branch `ovid/zork1-input-parity`). fr/de/es
+DIVERGED: no template changes made (LLM fallback routes them; no raw-English leak).
+See DONE block for accounting.**
+
+`What do you want to put the {obj} in?` / `Which {obj} do you mean?` — on
+investigation, fr/de/es disambiguation prompts are deliberately LLM-fallback-routed
+and do not leak raw English. Only **ka (corpus-only)** leaked. `Which of the {obj}s`
+doesn't exist in Zork I; the real prompt is `Which {raw} do you mean, the {obj} or
+the {obj2}?`. Fixed for ka with a generalized template (commit 89b1d3f).
+
+Still open:
+
+- **Orphan `What do you want to …?`** — **RESOLVED 2026-06-20 (UAT + /paad:vibe).**
+  The "no raw-English leak for fr/de/es" claim above was WRONG for this prompt: UAT
+  found it leaks RAW English in es/fr/ka (not garbled-LLM — `engine not loaded`, so
+  no LLM ran; a missing corpus entry, not "LLM territory"). Fixed with a
+  deterministic template `What do you want to put the {raw} in?` in all four
+  corpora (`{raw}`-bound, object dropped — the echoed noun can be a lexicon-emit
+  synonym like `advertisement` that an `{obj}` slot would miss). ka is a
+  NATIVE-REVIEW-DRAFT. Pinned (composed-lines + per-lang + marker); `make all`
+  green; live-verified es/fr/de/ka. See `notes/uat.md` CORRECTION/RESOLVED block.
+- fr/de/es: no action needed for `Which … do you mean?`; the garbled `¿Qué quieres
+poner la cera?` (es) was confirmed LLM-fallback territory — a bad LLM response,
+  not a missing corpus entry. (NB: the `What do you want to put X in?` prompt was
+  the OPPOSITE — a genuine missing corpus entry, now fixed above.)
+- **Disambiguation ANSWERS aren't translated** (separate; **diagnosed
+  2026-06-20, NOT a lexicon fix — needs a routing/turn-boundary fix**). When the
+  game is mid-orphan-prompt ("What do you want to put the X in?"), the player's
+  next line is **raw-sent, bypassing `nl.translate` entirely** — proven in the
+  browser: typing `mira` (a known verb → `look`) mid-prompt printed
+  `No conozco la palabra «mira»` and produced **no `[nl] clause` log**, while the
+  same `mira` at a normal prompt translates fine. So the answer never reaches the
+  parser. A parse-level "bare noun → canonical" fix WAS prototyped (resolve a
+  verbless span via `resolveNoun` at `parse.ts`'s `if (!verb)` — `buzon`→`mailbox`,
+  unit-confirmed) but it is **necessary-not-sufficient**: at a normal prompt it only
+  turns `buzon` from `No conozco «buzon»` into `mailbox` → `¡No había ningún verbo
+en esa frase!` (Zork's bare-noun reply), and it can't help mid-prompt because the
+  input is bypassed before parsing. Reverted (negligible standalone value). The
+  real fix is in the input QUEUE / turn-boundary handling (`translatePipeline.ts` /
+  the Terminal queue): route the mid-orphan-prompt continuation through
+  `nl.translate` instead of raw-sending. Own follow-up — it is genuinely
+  complicated (Ovid's "do it if not complicated" guard → deferred).
 
 ### P2.3 — Anaphora "it"
 
@@ -125,15 +169,34 @@ disambiguation templates per language and pin them.
 
 ## P3 — UX / signposting (make the escape hatch discoverable)
 
-Without these, a player whose command fails has no idea the quoted-English
-fallback exists — and a ka player is _always_ typing English. Both are in
-`notes/TODO.md`:
+**STATUS: P3.1 DONE (branch `ovid/zork1-input-parity`). P3.2 not implemented
+(out of scope this branch — passive-only signposting was the plan).**
 
-- **P3.1 — In-game `help` command:** list the special/meta commands **with their
-  per-language equivalents**, and explain the quoted-English fallback. Highest
-  value for ka (type-English) and any failed command.
-- **P3.2 — On-failure in-language hint:** when a command fails in-language,
-  surface in-language help pointing to the `"english"` escape hatch.
+Without these, a player whose command fails has no idea the quoted-English
+fallback exists — and a ka player is _always_ typing English.
+
+- **P3.1 — In-game `help` command:** DONE for **all** languages incl. **en**.
+  Localized `help` override for en/fr/de/es/ka; one-time escape-hatch activation
+  notice; localized input placeholder (a11y). Zork I has no native help (prints
+  "I don't know the word"), so the override is strictly an improvement (audited in
+  spec). Commits e7b4f03, 662015e, 41dc1ab. **Follow-up fix:** English `help` was
+  initially excluded on the false premise that it "passes through to native help"
+  — but there is none, and with a model on the LLM mistranslated `help`→`look`
+  (silent room re-display) or abstained → "I don't know the word help". So English
+  `help` now intercepts too, showing `helpResponse('en')` (which gained the
+  quoted-escape line). Found via UAT (Ovid). Commit <this>.
+  **Follow-up fix 2 (UAT 2026-06-20):** the ka `help` block was DEAD — `help.ts`
+  had the `ka` alias + `helpResponse('ka')`, but ka is OUTPUT-ONLY and raw-sends,
+  so `Terminal` never called `nl.translate` (where the intercept lives) and `help`
+  reached the parser → "I don't know the word help" — while the ka activation
+  notice tells the player to type `help`. Fixed with a Loquor-level intercept at
+  the `Terminal` boundary for the output-only case (`outputOnly &&
+isHelpTrigger` → new `nl.showHelp` seam); other ka commands still raw-send.
+  Pinned in `Terminal.test.tsx`. So P3.1 is only NOW actually done for ka.
+- **P3.2 — On-failure in-language hint:** NOT done. When a command fails
+  in-language, surface in-language help pointing to the `"english"` escape hatch.
+  Deferred — on-failure detection was out of scope for the passive-signposting
+  pass. Own branch when wanted.
 
 ---
 
@@ -152,11 +215,76 @@ fallback exists — and a ka player is _always_ typing English. Both are in
 
 ## Recommended next branch (pick ONE coherent slice)
 
+> **DONE (branch `ovid/zork1-input-parity`, merged 2026-06-20):** P1.1 blocking
+>
+> - friction tiers for es (and fr/de regression pins); P2.2 ka-only
+>   disambiguation template; P3 passive signposting. 1199 tests green.
+>   Design: `docs/superpowers/specs/2026-06-19-loquor-zork1-input-parity-design.md`;
+>   plan: `docs/superpowers/plans/2026-06-19-loquor-zork1-input-parity.md`.
+>
+> **What was actually done (vs. plan):**
+>
+> - **P1.1 (es input fixes):** `eco`→echo (Loud Room), `deja/coge todo`
+>   (quantifiersAll), `dar cuerda al canario`→wind-up idiom (songbird), `sal del
+bote` via `del`-as-article (boat exit), noun surfaces `tapa`/`jade`/`calavera
+de cristal`, personal-`a` stripping in prep-split object span (`mata al ladron
+con el cuchillo`). The personal-`a` fix is the **one shared `parse.ts` change**.
+>   All pinned in `src/llm/lexicon/parse.es-uat.test.ts`.
+> - **P1.1 (fr/de):** verified by analytical cognate — fr/de already pass all
+>   shared puzzle verbs. Regression pins added in `parse.fr-uat.test.ts` and
+>   `parse.de-uat.test.ts` (commit 76dce58). No new lexicon changes needed.
+> - **P2.2 (DIVERGED — ka-only, not fr/de/es):** investigation found fr/de/es
+>   disambiguation prompts are deliberately LLM-fallback-routed (no raw-English
+>   leak). Only ka (corpus-only) leaked raw English. `Which of the {obj}s` does not
+>   exist in Zork I; real wording is `Which {raw} do you mean, the {obj} or the
+{obj2}?`. Fix: ka-only generalized template (commit 89b1d3f). New test enforces
+>   `NATIVE-REVIEW-DRAFT` marker on ka lines (commit ef12bce). **fr/de/es got no
+>   disambiguation template changes.**
+> - **P3 (signposting):** localized `help` override (fr/de/es/ka), one-time
+>   escape-hatch activation notice, localized input placeholder (a11y). Zork I has
+>   no native help — override is strictly an improvement. (Commits e7b4f03,
+>   662015e, 41dc1ab.)
+> - **Escape-hatch passthrough bug (Task 8):** pinning `"kill thief with knife"`
+>   surfaced a real bug — `vocabWordSet` omitted `emit` nouns; fixed with
+>   `addWords(n.emit)`. Side-effects: emit/match collisions added to
+>   `KNOWN_COLLISIONS`; open-mailbox test fixture corrected; `isIdentityEcho`
+>   guard in `translatePipeline.ts` is now permanently unreachable dead code
+>   (harmless; flagged, left in place — see follow-ups below).
+> - **Stale catalogue items confirmed already-working:** conjoined+trailing-prep
+>   (`distributePrepTail` already handled it) and `apaga` imperative — both
+>   regression-pinned, no code fix needed.
+>
+> **DEFERRED out of this branch (Ovid sign-off, 2026-06-19):**
+>
+> - **`sube la cesta` → `climb cage`** (P1.1 friction). `sube` bare = go up/climb,
+>   so a context-free `sube`→raise breaks navigation; arity-conditional sense is
+>   fragile. Workaround: `levanta la cesta`→`raise cage`. Revisit with a safe
+>   arity-aware design.
+> - **`entra en el bote`** (boat _enter_, `miss`). Workaround: `aborda`/`embarca`→
+>   board. Enter-arity is a separate, lower-value fix.
+> - **Cosmetic tier** (`libro`→page, `oro`→pot, `subir` flakiness).
+> - **Driven fr/de UAT catalogues** (browser-in-language runs).
+> - **ka native review** of the new draft template/help lines.
+> - **ka Phase-2 input** (Georgian grammar-only input — own spec/plan).
+>
+> **Follow-ups the owner may want to act on:**
+>
+> - **Dead `isIdentityEcho` guard** in `translatePipeline.ts` — now unreachable
+>   after the `addWords(n.emit)` fix. Optional cleanup: delete the guard and its
+>   unit test assertion, or leave as harmless defensive code. Low priority.
+> - **Orphan `What do you want to …?` prompt leaks English in ka.** The unbounded
+>   object slot in Zork I's "What do you want to put X in?" prompt can't be
+>   templated without enumerating every object; no fix this branch.
+> - **ka `NATIVE-REVIEW-DRAFT` lines** (disambiguation template + help text +
+>   composed-line fixes from this and prior branches) need a Georgian native
+>   reviewer pass before the `(beta)` marker can drop.
+
 **Recommendation: "Zork I input parity for fr/de/es"** — P1.1 (puzzle-verb
 blockers) + P2.2 (disambiguation) + P3 (help / quoted-fallback signposting),
 each pinned in the per-language UAT suites. This is the slice that makes Zork I
 genuinely _completable_ in fr/de/es without secret English, and it's bounded
 data/parser work with clear forcing-function tests.
+**STATUS: DONE — see above.**
 
 Strong alternative if you want the safety net first: **P2.1 composed-line
 inventory gate** — turns the whole "leaks English on an off-path composed line"

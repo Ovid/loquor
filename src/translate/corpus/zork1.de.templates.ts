@@ -61,6 +61,20 @@ export const ZORK1_DE_TEMPLATES: readonly Template[] = [
     en: 'Which book do you mean, the {obj} or the {obj2}?',
     out: 'Welches Buch meinst du, {obj.def} oder {obj2.def}?',
   },
+  // Parser incomplete-`put` prompt (gparser.zil): "What do you want to put the
+  // {obj} in?". Off-walkthrough, runtime-composed; leaked RAW English (UAT
+  // 2026-06-20). The named object is the player's echoed noun — possibly a
+  // lexicon-emit synonym absent from the object table — so bind {raw} (any token)
+  // and drop the object on the out side („es“, generic neuter). Informal du, like
+  // the rest of this corpus.
+  // NB (UAT 2026-06-20): only the bare `put X` orphan (defaulting to "in") is
+  // reachable. `put X on` resolves to the WEAR verb and `put X under` / `behind`
+  // are unparsed, so the on/under/behind orphan prompts are never emitted — those
+  // templates were removed as unreachable dead code.
+  {
+    en: 'What do you want to put the {raw} in?',
+    out: 'Wohin möchtest du es legen?',
+  },
 
   // ── Presence & listings ──────────────────────────────────────────────────
   { en: 'There is a {obj} here.', out: 'Hier ist {obj.indef}.' },

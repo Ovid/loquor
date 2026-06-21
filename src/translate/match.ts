@@ -21,7 +21,11 @@ export interface CompiledCorpus {
   templates: CompiledTemplate[]
 }
 
-const SLOT = /\{(obj2?|num2?|raw)\}/g
+// {obj}…{obj4}: up to four object slots — WHICH-PRINT lists as many candidates
+// as share a noun, and Zork I's max co-located same-noun set is the 4 dam buttons
+// ("the A, the B, the C, or the D?"). {obj2}/{obj3}/{obj4} are the 2nd–4th
+// occurrences (a slot may still appear at most once each).
+const SLOT = /\{(obj[234]?|num2?|raw)\}/g
 
 function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -85,7 +89,7 @@ export function compileCorpus(corpus: TranslationCorpus): CompiledCorpus {
             `appear at most once (use {obj2}/{num2} for a second occurrence).`,
         )
       seen.add(slot)
-      if (slot === 'obj' || slot === 'obj2') src += `(?<${slot}>${objAlt})`
+      if (/^obj[234]?$/.test(slot)) src += `(?<${slot}>${objAlt})`
       else if (slot === 'num' || slot === 'num2') src += `(?<${slot}>-?\\d+)`
       else {
         rawCount++
@@ -112,7 +116,7 @@ export function compileCorpus(corpus: TranslationCorpus): CompiledCorpus {
   return { strings: corpus.strings, objects: corpus.objects, templates }
 }
 
-const OUT_REF = /\{(obj2?)\.([A-Za-z]+)\}|\{(num2?)\}|\{(raw)\}/g
+const OUT_REF = /\{(obj[234]?)\.([A-Za-z]+)\}|\{(num2?)\}|\{(raw)\}/g
 
 /** Given a NORMALIZED English line, return its translation or null (miss). */
 export function matchLine(c: CompiledCorpus, line: string): string | null {

@@ -81,3 +81,103 @@ describe('Zork I × Georgian — UAT-2026-06-19 composed-line fixes', () => {
     ).toBe('ჯილდოების ვიტრინა: ჯილდოების ვიტრინა მყარადაა კედელზე დამაგრებული.')
   })
 })
+
+describe('Zork I × Georgian — object disambiguation (UAT-2026-06-20)', () => {
+  const c = compileCorpus(ZORK1_KA)
+
+  // The real parser string (gparser.zil WHICH-PRINT) is "Which <noun> do you
+  // mean, the X or the Y?" where <noun> is the player's TYPED noun word (English
+  // — ka players type English). fr/de/es route this to the LLM fallback (no raw
+  // leak); ka has NO LLM fallback, so before this fix ANY disambiguation leaked
+  // raw English. The <noun> is captured as {raw} (verbatim, NOT corpus-
+  // translated); the candidate objects translate via the corpus; the frame is
+  // Georgian.
+  it('disambiguation: non-"book" "Which <noun> do you mean…" renders Georgian', () => {
+    const out = matchLine(
+      c,
+      'Which lamp do you mean, the brass lantern or the broken lantern?',
+    )
+    expect(out).not.toBeNull()
+    // no leaked English frame
+    expect(out).not.toContain('Which')
+    expect(out).not.toContain('do you mean')
+    expect(out).not.toContain(' or the ')
+    // candidate objects rendered via the corpus (Georgian)
+    expect(out).toContain('სპილენძის ფარანი') // brass lantern
+    expect(out).toContain('გატეხილი ფარანი') // broken lantern
+    // typed noun word kept verbatim (English) — it's the player's own input
+    expect(out).toContain('lamp')
+  })
+
+  it('disambiguation: a different typed noun + object pair also composes', () => {
+    const out = matchLine(
+      c,
+      'Which knife do you mean, the nasty knife or the rusty knife?',
+    )
+    expect(out).not.toBeNull()
+    expect(out).not.toContain('Which')
+    expect(out).toContain('საზიზღარი დანა') // nasty knife
+    expect(out).toContain('დაჟანგული დანა') // rusty knife
+    expect(out).toContain('knife')
+  })
+
+  // The golden-path case (I2): the 4 dam-control buttons share SYNONYM BUTTON,
+  // are permanently co-located in the Maintenance Room, and WHICH-PRINT lists
+  // ALL FOUR — "the A, the B, the C, or the D?". The 2-candidate (" or ")
+  // template can't match it, so `push button` on the dam puzzle leaked raw
+  // English for ka (no LLM net) until the 4-candidate template + obj3/obj4 slots.
+  it('disambiguation: the 4 dam buttons (4-candidate) render Georgian, no leak', () => {
+    const out = matchLine(
+      c,
+      'Which button do you mean, the yellow button, the brown button, the red button, or the blue button?',
+    )
+    expect(out).not.toBeNull()
+    expect(out).not.toContain('Which')
+    expect(out).not.toContain('do you mean')
+    expect(out).not.toContain(', or the ')
+    expect(out).toContain('ყვითელი ღილაკი') // yellow button
+    expect(out).toContain('ყავისფერი ღილაკი') // brown button
+    expect(out).toContain('წითელი ღილაკი') // red button
+    expect(out).toContain('ლურჯი ღილაკი') // blue button
+    expect(out).toContain('button') // typed noun kept verbatim (English)
+  })
+
+  // The 3-candidate form ("the A, the B, or the C?") for completeness.
+  it('disambiguation: a 3-candidate prompt renders Georgian, no leak', () => {
+    const out = matchLine(
+      c,
+      'Which button do you mean, the yellow button, the brown button, or the red button?',
+    )
+    expect(out).not.toBeNull()
+    expect(out).not.toContain('do you mean')
+    expect(out).toContain('ყვითელი ღილაკი')
+    expect(out).toContain('ყავისფერი ღილაკი')
+    expect(out).toContain('წითელი ღილაკი')
+  })
+})
+
+describe('Zork I × Georgian — incomplete-put prompt (UAT-2026-06-20)', () => {
+  const c = compileCorpus(ZORK1_KA)
+
+  // The parser's "What do you want to put the X in?" (incomplete put). fr/de/es
+  // route this to the LLM fallback (when warm); ka has NO LLM, so before this
+  // template ANY incomplete put leaked raw English. X is the player's echoed
+  // (English) noun captured as {raw}; naming it would need a locative case (§4),
+  // so the out DROPS the object and asks caselessly (NATIVE-REVIEW-DRAFT).
+  it('renders Georgian (object dropped, no raw-English leak) for any noun', () => {
+    const adv = matchLine(c, 'What do you want to put the advertisement in?')
+    expect(adv).not.toBeNull()
+    expect(adv).toBe('რაში გსურთ მისი ჩადება?')
+    // the leaked-English frame is gone
+    expect(adv).not.toContain('What do you want')
+    expect(adv).not.toContain('advertisement')
+    // object-agnostic: a different echoed noun yields the same Georgian
+    expect(matchLine(c, 'What do you want to put the leaflet in?')).toBe(adv)
+  })
+
+  // NB: the on/under/behind put-prompt variants were removed (UAT 2026-06-20).
+  // This Zork I never emits them — `put X on` resolves to the WEAR verb ("You
+  // can't wear the {obj}.", pinned in composed-lines.uat.test.ts) and `put X
+  // under` / `put X behind` are unparsed ("That sentence isn't one I
+  // recognize."). Only the bare `put X` orphan (defaulting to "in", above) fires.
+})

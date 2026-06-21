@@ -9,6 +9,7 @@ import {
 } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { Terminal } from './Terminal'
+import { helpResponse } from '../llm/help'
 import { WebLlmEngine } from '../llm/engine.webllm'
 import { ZMachine } from '../zmachine/engine'
 import type { UseNaturalLanguage } from '../llm/useNaturalLanguage'
@@ -129,6 +130,35 @@ describe('Terminal', () => {
       expect(
         within(status).getByText(/Je n’ai pas compris/),
       ).toBeInTheDocument()
+    } finally {
+      nlOverride = null
+    }
+  })
+
+  it('announces the localized help block in the role=status region (Task 11 a11y)', async () => {
+    // The help intercept surfaces helpResponse(lang) through the same `notice`
+    // channel as the abstain notices, so it lands in the role=status aria-live
+    // region — a screen-reader user hears the cheat-sheet, per the a11y mandate.
+    nlOverride = {
+      state: {
+        phase: 'on',
+        language: 'es',
+        model: 'grammar',
+        canUpgrade: true,
+      },
+      notice: helpResponse('es'),
+    }
+    try {
+      render(
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
+      )
+      const status = await screen.findByRole('status', {}, { timeout: 8000 })
+      expect(within(status).getByText(/Ayuda —/)).toBeInTheDocument()
     } finally {
       nlOverride = null
     }
@@ -284,10 +314,11 @@ describe('Terminal', () => {
             themeToggle={null}
           />,
         )
-        // Wait for the line-input request (input enabled) — the field carries
-        // the classic placeholder because NL INPUT is off for output-only ka.
+        // Wait for the line-input request (input enabled). NL INPUT is off for
+        // output-only ka, but the field localizes its hint to "type in English"
+        // (Georgian) so the player knows it raw-sends English (P3).
         const input = await screen.findByPlaceholderText(
-          'type a command…',
+          /ინგლისურ/,
           {},
           { timeout: 8000 },
         )
@@ -297,6 +328,94 @@ describe('Terminal', () => {
         expect(translate).not.toHaveBeenCalled()
       } finally {
         sendLine.mockRestore()
+        nlOverride = null
+      }
+    })
+
+    it('ka: the help word is intercepted to the Georgian help block, not raw-sent (P3.1)', async () => {
+      // ka raw-sends English for play, but the activation notice instructs the
+      // player to type `help` (`დახმარებისთვის აკრიფეთ help`). The localized
+      // help intercept lives inside nl.translate, which ka never calls — so
+      // `help` must be intercepted at the Loquor (Terminal) boundary BEFORE the
+      // raw-send, or it reaches the parser and earns "I don't know the word
+      // help". Every OTHER ka command still raw-sends (asserted above).
+      const sendLine = vi.spyOn(ZMachine.prototype, 'sendLine')
+      const translate = vi.fn(async () => null)
+      nlOverride = {
+        state: {
+          phase: 'on',
+          language: 'ka',
+          model: 'grammar',
+          canUpgrade: true,
+        },
+        translate,
+      }
+      try {
+        render(
+          <Terminal
+            storyBytes={bytes}
+            storyTitle="Zork I"
+            onChangeStory={() => {}}
+            themeToggle={null}
+          />,
+        )
+        const input = await screen.findByPlaceholderText(
+          /ინგლისურ/,
+          {},
+          { timeout: 8000 },
+        )
+        fireEvent.change(input, { target: { value: 'help' } })
+        fireEvent.submit(input)
+        // Not sent to the game (no turn burned) and never routed through the NL
+        // input pipeline (ka has none).
+        expect(sendLine).not.toHaveBeenCalledWith('help')
+        expect(translate).not.toHaveBeenCalled()
+        // The localized Georgian help block surfaces via the role=status notice.
+        // showHelp sets the notice AFTER this async submit, and the role=status
+        // live-region is always mounted (even empty) — so await the help TEXT
+        // appearing, not the region element (which resolves immediately and would
+        // race the state update).
+        const status = await screen.findByRole('status', {}, { timeout: 8000 })
+        expect(
+          await within(status).findByText(/დახმარება/, {}, { timeout: 8000 }),
+        ).toBeInTheDocument()
+      } finally {
+        sendLine.mockRestore()
+        nlOverride = null
+      }
+    })
+
+    it('ka: the command field exposes a localized "type in English" name (P3, a11y)', async () => {
+      nlOverride = {
+        state: {
+          phase: 'on',
+          language: 'ka',
+          model: 'grammar',
+          canUpgrade: true,
+        },
+      }
+      try {
+        render(
+          <Terminal
+            storyBytes={bytes}
+            storyTitle="Zork I"
+            onChangeStory={() => {}}
+            themeToggle={null}
+          />,
+        )
+        // The sole input must have a correct, localized accessible name for a
+        // Georgian screen-reader user: it raw-sends English, said in Georgian.
+        const input = await screen.findByRole(
+          'textbox',
+          { name: /ინგლისურ/ },
+          { timeout: 8000 },
+        )
+        // ...but the input VALUE is English (ka raw-sends), so the field's `lang`
+        // must NOT be 'ka' — tagging the value Georgian voices typed/echoed
+        // English with Georgian phonemes (a11y regression I3). The localized name
+        // above is driven separately by activeLang and stays correct.
+        expect(input).not.toHaveAttribute('lang', 'ka')
+      } finally {
         nlOverride = null
       }
     })
@@ -324,11 +443,7 @@ describe('Terminal', () => {
         // renders in GEORGIAN here (ka output is translated by the now-authored
         // corpus), so don't wait on the English 'West of House' — wait on the
         // language-agnostic input affordance instead.
-        await screen.findByPlaceholderText(
-          'type a command…',
-          {},
-          { timeout: 8000 },
-        )
+        await screen.findByPlaceholderText(/ინგლისურ/, {}, { timeout: 8000 })
         expect(screen.queryByRole('dialog')).toBeNull()
       } finally {
         nlOverride = null

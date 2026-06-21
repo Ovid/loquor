@@ -22,6 +22,7 @@ import {
   commandPlaceholder,
 } from '../llm/notices'
 import { useNaturalLanguage } from '../llm/useNaturalLanguage'
+import { isHelpTrigger } from '../llm/help'
 import { useOutputTranslation } from '../translate/useOutputTranslation'
 import { corpusFor } from '../translate/corpus/index'
 import { loudEchoToken } from '../translate/loudEcho'
@@ -145,6 +146,9 @@ export function Terminal({
   const outLang = nl.state.phase === 'on' ? nl.state.language : 'off'
   const outputOnly = outLang !== 'off' && OUTPUT_ONLY_LANGS.has(outLang)
   const nlInputOn = nl.state.phase === 'on' && !outputOnly
+  // The NL layer is engaged at all (incl. output-only ka) — drives the localized
+  // command-field copy. Distinct from nlInputOn, which gates the translate path.
+  const nlOn = nl.state.phase === 'on'
 
   // Output translation (display overlay — spec §3): the language the player
   // picked drives the overlay (including output-only languages); passthrough
@@ -318,13 +322,22 @@ export function Terminal({
           </div>
           <CommandInput
             inputRef={inputRef}
-            // When an NL language is on, the field accepts plain language — say
-            // so in the label/placeholder, or the headline feature stays hidden
-            // behind classic-parser copy (S3). Localized; English when off.
-            label={nlInputOn ? commandLabel(activeLang) : 'Game command'}
+            // When the NL layer is on, localize the field's name + placeholder so
+            // the headline feature isn't hidden behind classic copy (S3): English
+            // invites plain English; fr/de/es invite plain language; an
+            // OUTPUT-ONLY language (ka) raw-sends English, so its localized copy
+            // says "type in English". Only 'off' keeps the classic copy.
+            label={nlOn ? commandLabel(activeLang) : 'Game command'}
             placeholder={
-              nlInputOn ? commandPlaceholder(activeLang) : 'type a command…'
+              nlOn ? commandPlaceholder(activeLang) : 'type a command…'
             }
+            // The field's VALUE is what `lang` governs for a screen reader, and
+            // the value is in the INPUT language — not the display language. For
+            // an OUTPUT-ONLY language (ka) the player types English, so tag the
+            // input English (undefined), not 'ka' — otherwise typed/echoed
+            // English is voiced with Georgian phonemes. fr/de/es type their own
+            // language, so nlInputOn carries nlLang there. (The localized
+            // placeholder/label copy is driven by activeLang above, unaffected.)
             lang={nlInputOn ? nlLang : undefined}
             restore={restore ?? undefined}
             onSubmit={text => {
@@ -342,6 +355,14 @@ export function Terminal({
                       key: (r?.key ?? 0) + 1,
                     }))
                 })
+              // OUTPUT-ONLY (ka) raw-sends English and never reaches the
+              // in-pipeline help intercept (it lives inside nl.translate). But
+              // the activation notice tells a ka player to type `help`, so it
+              // MUST be intercepted HERE to the localized Georgian help block —
+              // otherwise it raw-sends to the parser and earns "I don't know the
+              // word help". Every other ka command still raw-sends below.
+              else if (outputOnly && isHelpTrigger(text, activeLang))
+                nl.showHelp(activeLang)
               else if (engineRef.current) engineRef.current.sendLine(text)
               // Practically unreachable (engine is set synchronously and input is
               // disabled until a line request), but warn rather than silently

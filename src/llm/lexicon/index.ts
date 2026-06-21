@@ -105,14 +105,20 @@ export const KNOWN_COLLISIONS: Record<
       'inscription', // FR inscription = EN 'inscription' (prayer/engravings)
       'jade', // 'figurine de jade' token vs the 'jade' adjective; same word
       'l',
+      'machine', // FR machine = EN 'machine' (lubricated machine); emit word
       'pot', // FR pot (pot d or) vs 'pot of gold' synonym 'pot'
       'sandwich', // FR sandwich = EN 'sandwich' (lunch); the normal FR word
+      'sceptre', // FR sceptre = EN 'sceptre' (egyptian sceptre); emit word
       'table', // FR table = EN 'table' (kitchen table / attic table)
       'trident', // FR trident = EN 'trident' (crystal trident); same word
+      'troll', // proper noun kept as-is vs the 'troll' emit; same word
+      'tube', // FR tube = EN 'tube' (tube of gunk); emit word
+      'zorkmid', // currency proper noun vs the 'zorkmid' emit; same word
     ],
     [ZORK2_SIG]: [
       'a',
       'air', // FR air = EN 'air' ('blast of air' synonym); same word
+      'aquarium', // FR aquarium = EN 'aquarium'; emit word, same object
       'brochure', // FR brochure = EN 'brochure' (bank brochure); same word
       'cage', // FR cage = EN 'cage' (mangled/steel cages); same word
       'cube', // FR cube = EN 'cube' (large stone cube); same word
@@ -128,7 +134,10 @@ export const KNOWN_COLLISIONS: Record<
       'passage', // FR passage vs EN 'passage' (synonym of 'tunnel') — both lexicon-mapped
       'piece', // FR piece (coin, 'piece d or') vs 'bank brochure' synonym 'piece'
       'portrait', // FR portrait = EN 'portrait' (flathead portrait); same word
+      'receptacle', // FR receptacle = EN 'receptacle'; emit word, same object
+      'robot', // FR robot = EN 'robot'; emit word, same object
       'rose', // FR rose = EN 'rose' (perfect rose); same word
+      'roses', // FR roses = EN 'roses' (the roses emit, plural); same word
       'serpent', // FR serpent = EN 'serpent' (sea serpents); same word
       'sphere', // FR sphere = EN 'sphere' (crystal spheres); same word
       'statuette', // FR statuette = EN 'statuette' (golden dragon); same word
@@ -144,13 +153,16 @@ export const KNOWN_COLLISIONS: Record<
       'examine',
       'grue', // proper noun kept as-is vs 'lurking grue' synonym 'grue'
       'l',
+      'parapet', // FR parapet = EN 'parapet'; emit word, same object
       'passage', // FR passage vs EN 'passage' (synonym of 'tunnel') — both lexicon-mapped
       'rose', // 'rose des vents' token vs 'compass rose' synonym 'rose'
       'statue', // FR statue = EN 'statue' (guardians of zork); same word
+      'zorkmid', // currency proper noun vs the 'zorkmid' emit; same word
     ],
   },
   de: {
     [ZORK1_SIG]: [
+      'altar', // DE Altar = EN 'altar'; emit word, same object
       'an',
       'diagnose',
       'gold', // DE Gold ('topf voll gold') vs 'pot of gold' synonym 'gold'
@@ -161,9 +173,13 @@ export const KNOWN_COLLISIONS: Record<
       'nest', // DE Nest = EN 'nest' ("bird's nest" synonym); same word
       'sack', // DE Sack vs 'brown sack' synonym 'sack'
       'sand', // DE Sand = EN 'sand'; same word, same object
+      'troll', // proper noun kept as-is vs the 'troll' emit; same word
+      'tube', // DE Tube = EN 'tube' (tube of gunk); emit word, same object
+      'zorkmid', // currency proper noun vs the 'zorkmid' emit; same word
     ],
     [ZORK2_SIG]: [
       'an',
+      'aquarium', // DE Aquarium = EN 'aquarium'; emit word, same object
       'baby', // 'baby seeschlange' token vs the EN 'baby' adjective; same object
       'diagnose',
       'grab',
@@ -187,11 +203,13 @@ export const KNOWN_COLLISIONS: Record<
       'hole', // holen imperative vs the 'hole' canonical's dictionary word
       'in',
       'statue', // DE Statue = EN 'statue' (guardians of zork); same word
+      'zorkmid', // currency proper noun vs the 'zorkmid' emit; same word
     ],
   },
   es: {
     [ZORK1_SIG]: [
       'a',
+      'altar', // ES altar = EN 'altar'; emit word, same object
       'come',
       'control', // 'panel de control' token vs the EN 'control' synonym; same object
       'examine',
@@ -199,6 +217,8 @@ export const KNOWN_COLLISIONS: Record<
       'jade', // 'figurilla de jade' token vs the 'jade' adjective; same word
       'manual', // ES manual = EN 'manual' (zork owner's manual); same word
       'panel', // ES panel = EN 'panel' (control panel synonym); same object
+      'pedestal', // ES pedestal = EN 'pedestal'; emit word, same object
+      'zorkmid', // currency proper noun vs the 'zorkmid' emit; same word
     ],
     [ZORK2_SIG]: [
       'a',
@@ -209,6 +229,7 @@ export const KNOWN_COLLISIONS: Record<
       'examine',
       'grue', // proper noun kept as-is vs 'lurking grue' / repellent 'grue'
       'menhir', // ES menhir = EN 'menhir'; same word, same object
+      'robot', // ES robot = EN 'robot'; emit word, same object
       'triangular', // 'boton triangular' token vs the EN 'triangular' adjective; same object
       'violin', // ES violín (folded) = EN 'violin' (fancy violin); same object
       'zorkmid', // currency proper noun vs the 'zorkmid' bills adjective
@@ -220,6 +241,7 @@ export const KNOWN_COLLISIONS: Record<
       'examine',
       'grue', // proper noun kept as-is vs 'lurking grue' synonym 'grue'
       'panel', // ES panel = EN 'panel' (the panel canonicals); same objects
+      'zorkmid', // currency proper noun vs the 'zorkmid' emit; same word
     ],
   },
 }

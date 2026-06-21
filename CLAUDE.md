@@ -177,6 +177,26 @@ npx vitest run -t "substring of test name"    # by name
   transform) applies to EN/FR/DE/ES but **must not** be wired into `ka`; an
   *output*-side change (corpus, display notices, a11y of translated text) does
   include `ka`. Don't add `ka` to the input path until Phase 2 (Georgian input).
+- **Deterministic (non-LLM) behavior must work for EVERY applicable language —
+  not just the ones that happen to be easy.** A deterministic path — a corpus
+  template/string, a lexicon entry, a prompt intercept, a clause transform, a
+  meta-alias — that resolves a case for one language MUST resolve it for all the
+  languages it applies to, **unless there is a specific, stated reason it should
+  not** (write the reason in the code/commit, don't leave it implicit). The trap
+  to watch for: EN/FR/DE/ES have an **LLM fallback** that silently papers over a
+  missing deterministic path, so a gap there is invisible in testing — but `ka`
+  has **NO LLM net**, so the deterministic path is its *only* safety. A template
+  that exists for one language and not `ka` is a **guaranteed raw-English leak**
+  for Georgian players (this is exactly how the 3+/4-candidate disambiguation and
+  the `put on/under/behind` prompts leaked). So treat `ka` (and any future no-LLM
+  language) as the language that most NEEDS the deterministic coverage, never the
+  one to skip. **"Its LLM will probably catch it" is NOT a valid reason to omit
+  the deterministic path** — it is precisely the reasoning that ships the `ka`
+  leak. A *legitimate* "specific reason" is narrow and concrete: the deterministic
+  behavior would be **wrong or worse** for that language (e.g. a shared-slot
+  corpus template that would bake one language's word into another's output, so
+  that language is better served by deferring to its LLM) — and even then, a
+  no-LLM language like `ka` still needs the correct deterministic version.
 
 ## Accessibility is mandatory — not a "nice to have"
 

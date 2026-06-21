@@ -45,7 +45,13 @@ export const ES_ZORK1: NounLexicon = {
   // reviewed collision. 'tablero' as the alternative.
   'control panel': ['panel de control', 'tablero', 'panel'],
   crack: ['grieta', 'rendija'],
-  'crystal skull': ['craneo', 'calavera', 'craneo de cristal'],
+  // crystal skull: 'calavera de cristal' mirrors the existing 'craneo de cristal'
+  'crystal skull': [
+    'craneo',
+    'calavera',
+    'craneo de cristal',
+    'calavera de cristal',
+  ],
   'crystal trident': ['tridente'],
   cyclops: ['ciclope'],
   dam: ['presa', 'represa', 'dique'],
@@ -63,7 +69,7 @@ export const ES_ZORK1: NounLexicon = {
   'huge diamond': ['diamante'],
   // 'figurilla de jade': the 'jade' token = the EN 'jade' adjective — same
   // object, reviewed collision (fr precedent).
-  'jade figurine': ['figurilla', 'estatuilla', 'figurilla de jade'],
+  'jade figurine': ['figurilla', 'estatuilla', 'figurilla de jade', 'jade'],
   'jewel-encrusted egg': ['huevo'],
   'kitchen table': ['mesa', 'mesa de la cocina'],
   'kitchen window': ['ventana', 'ventana de la cocina'],
@@ -76,7 +82,7 @@ export const ES_ZORK1: NounLexicon = {
   // avoidable collision (de precedent), so the plain Spanish words instead.
   lunch: ['almuerzo', 'comida', 'bocadillo'],
   'lurking grue': ['grue'], // untranslatable proper noun — kept as-is by policy
-  machine: ['maquina'],
+  machine: ['maquina', 'tapa'], // 'tapa' = the diamond-machine lid (UAT: 'abre/cierra la tapa')
   'magic boat': ['bote', 'barca', 'balsa'], // the inflatable plastic boat
   matchbook: ['cerillas', 'fosforos', 'caja de cerillas'],
   mirror: ['espejo', 'reflejo'],

@@ -187,6 +187,9 @@ quoted-passthrough escape hatch to progress, e.g. `"take gold"`):
 - `dar cuerda al canario` → `give rope to canary` (idiom `dar cuerda a X` = "wind up X"
   taken literally, `cuerda`="rope"). **The songbird puzzle's solution verb — unsolvable
   in es without `"wind up canary"` passthrough. Highest-value input-NL fix.** (es-3)
+  **[RESOLVED 2026-06-20 — fused `al`/`a la` wind-up idiom added to es lexicon;
+  `dar cuerda al canario` → "wind up canary" now resolves correctly. Pinned in
+  `src/llm/lexicon/parse.es-uat.test.ts` (commit a993524)]**
 - `subir` is non-deterministic (`stage:"llm"`): usually `up`, but once
   `{"verb":"move","object":"trail"}` → "move trail" at Forest Path. Not in the
   deterministic `direction` lexicon, so it rides the heuristic stage. (`bajar`→down OK.)
@@ -196,6 +199,8 @@ quoted-passthrough escape hatch to progress, e.g. `"take gold"`):
   it to bottle). Use `"enter boat"` / `"launch"` passthrough on the river.
 - `eco` → `look` (should be the game's `echo`; this is the Loud Room solution!). Use
   `"echo"` passthrough, then `coger barra de platino`.
+  **[RESOLVED 2026-06-20 — `eco`→echo mapping added to es lexicon; pinned in
+  `src/llm/lexicon/parse.es-uat.test.ts` (commit 878a40c)]**
 - `Ulises` → `look` (cyclops magic word); the ENGLISH `Ulysses` works (it's a
   game verbSynonym, recognized even in es mode). Type `Ulysses`.
 - **CORRECTION (2026-06-15): the pot of gold IS gettable and the game CAN be won.**
@@ -238,20 +243,38 @@ destornillador en la cesta` → only `put torch` (drops the 2nd object AND the
   `deja la calavera, las velas, las cerillas, el ajo y la lámpara` distributed
   `drop` to all 5; `coge el carbón, el destornillador y la antorcha` likewise.
   Movement chains (`norte, oeste, norte, oeste, norte y este`) also fine.
+  **[STALE — catalogue entry was wrong; `distributePrepTail` already handled
+  this case in the shipping lexicon. Regression-pinned in
+  `src/llm/lexicon/parse.es-uat.test.ts` (commit fd3559c)]**
 - **Imperative `apaga` is UNKNOWN** ("No conozco la palabra «apaga»"); the
   **infinitive** works: `apagar las velas`→`extinguish candles`, `apagar la
 lámpara`→`extinguish light`. (Refines the older "apagar velas works" note —
   it's the infinitive that's needed; the imperative is missing.)
-- **`deja todo` → `drop advertisement`** ("todo"/all mis-maps); drop explicitly.
+  **[STALE — `apaga` (imperative) was already working; catalogue was out of
+  date. Regression-pinned alongside `apagar` in
+  `src/llm/lexicon/parse.es-uat.test.ts` (commit 51cdc47)]**
+- **`deja todo` / `coge todo` → wrong object** ("todo"/all mis-maps).
+  **[RESOLVED 2026-06-20 — `es` `quantifiersAll` entries added; `deja todo`
+  and `coge todo` now route to `drop all`/`take all`. Pinned in
+  `src/llm/lexicon/parse.es-uat.test.ts` (commit 51cdc47)]**
 - **`abre la tapa` → `open cage`; `cierra la tapa` → `turn off candles`** (lid
   mis-maps). Use `abre/cierra la máquina` → `open/close machine` for the diamond
   machine.
+  **[RESOLVED 2026-06-20 — noun surface `tapa`→machine added to es lexicon.
+  Pinned in `src/llm/lexicon/parse.es-uat.test.ts` (commit 422a0ee)]**
 - **`coge el jade` → `take jeweled egg`** (fail); use `coge la figurilla` →
   `take figurine`.
+  **[RESOLVED 2026-06-20 — noun surfaces `jade` and `calavera de cristal`
+  (multi-word) added to es lexicon. `coge el jade`→take jade figurine,
+  `coge la calavera de cristal`→take crystal skull now work. Pinned in
+  `src/llm/lexicon/parse.es-uat.test.ts` (commit 422a0ee)]**
 - **`sube la cesta` → `climb cage`** (does not raise); use `levanta la cesta` →
-  `raise cage`. (`baja la cesta` → `lower cage` works.)
+  `raise cage`. (`baja la cesta` → `lower cage` works.) **[DEFERRED Ovid
+  2026-06-19 — `sube` bare = go up/climb, arity-conditional sense is fragile;
+  workaround: `levanta la cesta`→`raise cage`]**
 - **`coge la calavera de cristal` → `take crack`** (the `de cristal` modifier
   breaks it); bare `coge la calavera` → `take skull`.
+  **[RESOLVED 2026-06-20 — see `jade`/`tapa` fix above (commit 422a0ee)]**
 - `subir` (bare "up") stayed deterministic (`up`) this run but is still the flaky
   one — verify after each. `vitrina`→case, `pulsera`→bracelet, `figurilla`→jade,
   `baúl`→trunk, `bomba`→pump, `frota el espejo`→"rub reflection", `gira el
@@ -311,11 +334,22 @@ NEW bugs:
 
 - **`sal del bote` → "move raft"** (should be exit/leave boat) → «Mover el bote no
   revela nada». Boat-exit broken in es. Workaround: `"get out of boat"` passthrough ✓.
+  **[RESOLVED 2026-06-20 — `del`-as-article handling (mirroring fr `du`) added so
+  `sal del bote` parses correctly as `exit boat`. Pinned in
+  `src/llm/lexicon/parse.es-uat.test.ts` (commit 27442e6)]**
+- **`entra en el bote` → `miss`** (boat _enter_ fails; enter-arity is a separate,
+  lower-value fix). Workarounds: `aborda`/`embarca`→board ✓. **[DEFERRED Ovid
+  2026-06-19 — do not re-file as new; workaround: `aborda`/`embarca`→board]**
 - **`mata al ladrón con el cuchillo` → "attack thief with stiletto"** → «No tienes el
   estilete». The instrument-slot noun "cuchillo" mis-maps to the thief's _estilete_,
   even though `coge el cuchillo` → "take nasty knives" is CORRECT and `deja el
 cuchillo` → "drop knife" is CORRECT. So the bug is specific to the `con <arma>`
   instrument slot. Workaround: `"kill thief with knife"` passthrough ✓.
+  **[RESOLVED 2026-06-20 — personal-`a` stripping in the prep-split object span
+  fixed in `src/llm/lexicon/parse.ts` (shared code change); `mata al ladron con
+  el cuchillo` → "attack thief with rusty knives" now correct. This is the ONE
+  genuine shared parse.ts change in the branch. Pinned in
+  `src/llm/lexicon/parse.es-uat.test.ts` (commit 8b65679)]**
 
 CONFIRMED-GOOD this run (several BETTER than prior notes feared):
 
@@ -418,3 +452,234 @@ la boya`) distribute the verb reliably; `mete X en la vitrina` (one obj + prep) 
   its top margin to 0). You can verify it without a literal wide-short landscape
   window: any case where `scrollHeight > clientHeight` (overlay at 643px AND at
   428px both scrolled, ✕ reachable) exercises the same mechanism.
+
+## Input-parity branch findings (branch `ovid/zork1-input-parity`, 2026-06-19/20)
+
+### Escape-hatch passthrough bug (Task 8) — `vocabWordSet` emit omission
+
+Pinning the advertised quoted-English escape (`"kill thief with knife"`) surfaced a
+**real bug**: `vocabWordSet` did not include noun `emit` words (only `match` words
+were added), so the canonical English noun in the passthrough command (`knife`,
+`torch`, etc.) failed the vocab gate and was rejected. Fix: added `addWords(n.emit)`
+alongside `addWords(n.match)` in `vocabWordSet`. Side-effects of that fix (all
+committed atomically):
+
+- Newly-visible **emit/match lexicon collisions** for several es nouns (where the
+  display form differs from the canonical) had to be recorded in `KNOWN_COLLISIONS`
+  so the collision-detector test stayed green.
+- The **open-mailbox passthrough test fixture** was wrong (it was testing a no-op
+  path that no longer existed); corrected to the actual passing case.
+- The fix made the `isIdentityEcho` English-echo-suppression guard in
+  `translatePipeline.ts` **permanently unreachable dead code** — it was a defensive
+  check for "the passthrough verb+noun matches the raw input exactly, so don't
+  double-echo", but with emit words now in the vocab set the passthrough never
+  reaches `isIdentityEcho`'s branch. The guard is **harmless** and was flagged for
+  the owner but left in place (optional cleanup). Commits: 2ef4d25, 73a3f2d,
+  5d99784, b767e94, f93a075.
+
+### fr/de cross-language verification (Task 7)
+
+Both fr and de were found to already pass the shared puzzle-verb cases (songbird,
+echo/Loud Room, boat-exit, quantifier-all). Regression pins added in
+`src/llm/lexicon/parse.fr-uat.test.ts` and `src/llm/lexicon/parse.de-uat.test.ts`
+(commit 76dce58) to lock the passing state. No new lexicon changes needed.
+
+### P2.2 disambiguation templates — DIVERGED from plan (ka-only)
+
+The plan called for per-language disambiguation templates for fr/de/es/ka. On
+investigation, the fr/de/es prompts are **deliberately LLM-fallback-routed** — no
+raw English leaks for those three languages. Only **ka (corpus-only, no LLM)** had
+raw English leaking through. Additionally, `Which of the {obj}s do you mean?` (the
+plural form) does not exist in Zork I; the real wording is `Which {raw} do you mean,
+the {obj} or the {obj2}?`. Fix was **ka-only**: generalized ka's disambiguation
+template to match the real Zork I wording. A new test enforces the
+`NATIVE-REVIEW-DRAFT` marker on ka lines (commits 89b1d3f, ef12bce). The orphan
+`What do you want to …?` prompt remains a known ka limitation (unbounded object
+slot; no fix this branch). **fr/de/es got no disambiguation template changes —
+they did not need them.**
+
+> **CORRECTION (UAT 2026-06-20): the "no raw English leaks for fr/de/es" claim is
+> FALSE for the `What do you want to put the {obj} in?` prompt** (spec P2.2
+> template #1). Browser-verified: typing `mete el folleto` (→ `put advertisement`,
+> input translation correct) makes Zork emit that prompt, and it renders **raw
+> English in es AND fr** (confirmed universal via the language-switch retranslation
+> classifier — the line stays English in both), logged in `loquorMisses()`. Root
+> cause is in the console: `[xlate] output translation failed (engine not loaded);
+will retry once when the engine is idle: What do you want to put the advertisement
+in?`. The WebLLM **weights are cached** (`caches.keys()` → `webllm/model|config|
+wasm`, no grammar-only `· basic` chip / `✦ improve` button) but the **inference
+> engine is not warm** — and because the improved lexicon resolves every command
+> deterministically (stage:`lexicon`, never `llm`), no input ever loads the engine,
+> so the queued output-fallback retry never fires and the leak is **permanent for
+> that session**. This is the irony the spec foresaw: relying on the LLM for an
+> uncovered output line fails exactly when the deterministic path is working well;
+> a **corpus template** (engine-independent, as the spec's P2.2 originally
+> prescribed for all four languages) is the correct fix. **This is an
+> under-delivery against spec P2.2, not a regression** — the leak pre-existed (see
+> UAT-es-3 "What do you want to put the torch in?" at line ~294) and P2.2 #1 set out
+> to fix it but only shipped the ka multi-candidate template. NOT pinned by any
+> test, which is why the green suite missed it. Flagged for Ovid (player-experience
+> decision per CLAUDE.md — the "route to LLM" choice leaves a documented player
+> harm); /paad:vibe ready to author the es/fr/de corpus template + ka
+> NATIVE-REVIEW-DRAFT on his go-ahead.
+>
+> **RESOLVED 2026-06-20 (Ovid go-ahead → /paad:vibe, TDD).** Authored a
+> deterministic corpus template `What do you want to put the {raw} in?` in
+> `zork1.{es,fr,de,ka}.templates.ts`. Bound `{raw}` (not `{obj}`) because the
+> echoed noun can be a lexicon-emit synonym absent from the object table
+> (`advertisement` for the leaflet) — an `{obj}` slot would still leak it — and
+> dropped the object on the out side (gender/number-neutral; ka dodges the §4
+> locative case). es `¿Dónde quieres ponerlo?` / fr `Où voulez-vous le mettre ?`
+> (vous) / de `Wohin möchtest du es legen?` (du) / ka `რაში გსურთ მისი ჩადება?`
+> (NATIVE-REVIEW-DRAFT). Pins: cross-language no-leak in
+> `composed-lines.uat.test.ts` (the de home), exact-string in
+> `zork1.{es,fr,ka}.uat.test.ts`, marker in `ka-native-review-draft.test.ts`.
+> `make all` green (1215). Live-verified in a fresh tab across es/fr/de/ka,
+> `loquorMisses()` = 0. (`{obj}` "name the object" rendering for table objects is
+> a possible nicety follow-up; the uniform object-drop matches ka and never
+> leaks.) **The `{raw}`-bound template only covers `put X in?`; the OTHER P2.2
+> template, the multi-candidate `Which {raw} do you mean…`, was already shipped
+> for ka and was not reached live (needs two ambiguous objects).**
+>
+> **Compounding (separate; diagnosed 2026-06-20, a ROUTING fix not a lexicon
+> one):** a disambiguation **answer** typed in the target language is **not
+> translated** — `buzon` (mailbox) → no `[nl] clause` log, raw-sent → `No conozco
+la palabra «buzon».`. Sharpened diagnosis: when the game is mid-orphan-prompt the
+> next line **bypasses `nl.translate` and raw-sends** — even `mira` (a known verb →
+> `look`) printed `No conozco la palabra «mira»` mid-prompt while translating fine
+> at a normal prompt. A parse-level "bare noun → canonical" fix (`parse.ts`
+> `if (!verb)` → `resolveNoun`) was prototyped and **reverted**: it correctly makes
+> `buzon`→`mailbox` at a NORMAL prompt (→ Zork's `¡No había ningún verbo en esa
+frase!`) but can't help the answer, which is bypassed before parsing. The real
+> fix lives in the input-queue / turn-boundary handling (`translatePipeline.ts` /
+> the Terminal queue). Logged as a follow-up in `notes/next.md` (P2.2); deferred as
+> genuinely complicated, not auto-fixed.
+
+### P3 signposting — localized `help` and one-time escape-hatch notice
+
+Zork I has **no native help/info/commands** (they print "I don't know the word") —
+the localized `help` command override is therefore strictly an improvement (verified
+by audit in the spec). The help override + one-time escape-hatch activation notice +
+localized input placeholder (a11y) were added for fr/de/es/ka (commits e7b4f03,
+662015e, 41dc1ab). These are passive; no on-failure detection was implemented.
+
+#### Georgian `help` was DEAD — intercept never wired for ka (UAT 2026-06-20)
+
+**Found in browser UAT (Ovid's headline ask).** en/fr/de/es `help` worked, but
+typing `help` in **ka** printed `არ ვიცი სიტყვა „help".` ("I don't know the word
+help") — and the ka activation notice _itself_ tells the player
+`დახმარებისთვის აკრიფეთ help` ("for help, type help"), so a Georgian player who
+followed the on-screen instruction hit a dead end. Root cause: the localized help
+intercept (`isHelpTrigger`→`helpResponse`) lives **inside `nl.translate`**
+(`translatePipeline.ts:645`), but ka is OUTPUT-ONLY — `Terminal.tsx` routes its
+input through the raw-send `else` branch (`engineRef.current.sendLine`), so it
+**never calls `nl.translate`** and never reaches the intercept. `help.ts` had a `ka`
+alias + `helpResponse('ka')` block, but they were **unreachable dead code**. The
+spec's "Georgian caveat" claim that _"the `help` intercept [is] wired for the English
+`help` trigger"_ was false. `make test` stayed green because `Terminal.test.tsx`
+pins _"ka raw-sends English, never `nl.translate`"_ — the unit tests verified the
+building blocks existed while a wiring test verified they were disconnected (a
+"tested-in" bug).
+
+**Fix (TDD):** a Loquor-level help intercept at the `Terminal` boundary for the
+OUTPUT-ONLY case — `else if (outputOnly && isHelpTrigger(text, activeLang))
+nl.showHelp(activeLang)` — before the raw-send. New hook seam `showHelp(lang)` =
+`setNotice(helpResponse(lang))` (reuses the same role=status aria-live notice
+channel as the in-pipeline help). Every other ka command still raw-sends (the
+existing `open mailbox` test passes unchanged — no rewrite needed). Verified in a
+fresh tab: `help` → Georgian help block, **moves unchanged** (no turn burned);
+`open mailbox` → game opens it, **moves +1**. New pin:
+`Terminal.test.tsx` "ka: the help word is intercepted to the Georgian help block".
+
+### Stale catalogue items (already working before this branch)
+
+The following items in the UAT-es-3 catalogue above were confirmed **already
+working** in the shipping lexicon before this branch touched them — the catalogue
+was stale. Each has been regression-pinned so the passing state is now locked:
+
+- **Conjoined objects + trailing prep phrase** (`mete la antorcha y el destornillador
+en la cesta`): `distributePrepTail` already handled this. Pinned commit fd3559c.
+- **`apaga` imperative** (`apaga las velas`→extinguish candles): already worked.
+  Pinned in commit 51cdc47 alongside `apagar`.
+
+## Input-parity verification UAT (2026-06-20, HEAD cd913f8, suite 1201✓)
+
+Black-box browser run against `2026-06-19-loquor-zork1-input-parity-design.md`.
+Method: drive real target-language input at West of House and read the authoritative
+console `[nl] clause` `result.text` (the `>` line echoes the _source_, not the
+canonical) + screenshots; meta-UI (help/notice/placeholder) read off the DOM.
+
+**P1.1 input puzzle-verbs — ALL PASS (es, via stage:`lexicon`):**
+`da cuerda al canario`→`wind up canary`; `sal del bote`→`exit boat`; `eco`→`echo`;
+`mata al ladron con el cuchillo`→`attack thief with knife` (personal-`a` stripped:
+object=`thief` not `al ladron`; emits generic `knife` off-scope, scoped `rusty
+knives` in the attic); `deja todo`→`drop all`; `coge todo`→`take all`; `abre/cierra
+la tapa`→`open/close machine`; `coge el jade`→`take figurine`; `coge la calavera de
+cristal`→`take skull`; conjoined+prep `mete la antorcha y el destornillador en la
+cesta`→ two clauses `put torch in cage`+`put screwdriver in cage`.
+
+**Escape-hatch passthrough — ALL PASS:** quoted `"wind up canary"`, `"echo"`,
+`"kill thief with knife"`, `"enter boat"` reach the game with the English canonical
+intact (vocabWordSet emit-omission bug confirmed gone).
+
+**P3 signposting — ALL PASS (es/fr/de/ka):** localized `ayuda`/`aide`/`hilfe`/`help`
+each render the full localized help block (meta-commands save/restore/restart/quit/
+score/diagnose/look/inventory/verbose/brief/version with per-language glosses; the
+four named escape commands for fr/de/es; "type in English" for ka) via the
+`role="status"` aria-live `.nl-status` region, **no turn burned** (moves unchanged).
+Activation notices (es "Consejo…", ka "…for help type help") + localized
+placeholders + input aria-labels confirmed for all four. **ka `help`** (cd913f8) is
+the headline fix — verified working in a fresh tab.
+
+**P2.2 disambiguation — 1 FAIL + 1 follow-up** (see the CORRECTION block above):
+`What do you want to put the {obj} in?` leaks **raw English in es/fr/ka** (engine
+not warm → output LLM fallback never runs; no corpus template). Under-delivery vs
+spec P2.2 #1, not pinned, flagged for Ovid. The ka multi-candidate "Which … do you
+mean" template (the part that DID ship) was not reachable at West of House (needs
+two ambiguous objects) — left to unit pins + a deep-gameplay pass (⚠️ DEFERRED).
+
+## Review-fix verification UAT (2026-06-20, branch `ovid/zork1-input-parity`)
+
+Verified the agentic-review fixes (`notes/uat-run.md`). I3 ✅ (ka cmd-input has NO
+`lang`, es has `lang="es"` — input `lang` follows INPUT language), help intercept
+✅ (en/es/ka live, no turn burned, `role=status` aria-live, S2 escape examples
+present), I4 (model cached → upgrade modal unreproducible; trust unit pins).
+
+### ⭐ The on/under/behind put-orphan prompts DO NOT EXIST in this Zork I (I1)
+
+The I1 review fix templated `What do you want to put the {raw} on/under/behind?` in
+all four corpora, assuming `put X on` reprints the prep. **Browser UAT (plain
+English) proved the parser never emits those prompts:** `put lamp on` resolves to
+the WEAR verb → `You can't wear the brass lantern.`; `put lamp under` / `put lamp
+behind` are unparsed → `That sentence isn't one I recognize.` Only the **bare
+`put X`** orphan fires (defaulting to "in") → `What do you want to put the lamp
+in?` — reached by OMITTING the prep, NOT by typing `put X in` (a dangling `in` is
+also "that sentence isn't one I recognize"). So the on/under/behind templates were
+unreachable dead code (removed, commit 4fb4912). The REAL player-facing leaks those
+inputs produce — `You can't wear the {obj}.` and (closed container) `The {obj}
+isn't open.` — leaked raw English in **ka only** (fr/de/es template them); fixed
+with ka corpus templates (commit c3c50d9). **Lesson:** a green unit suite can pin a
+template's TRANSLATION without proving the game ever emits the English string —
+always confirm the trigger live before trusting "fixed".
+
+### I2a 4-button disambiguation — ✅ verified live (the deep-gameplay pass)
+
+Reached the Maintenance Room and confirmed `push button` → the ka 4-candidate
+prompt `რომელ button-ს გულისხმობ — ლურჯი ღილაკი, წითელი ღილაკი, ყავისფერი ღილაკი
+თუ ყვითელი ღილაკი?` (typed noun `button` kept English, all 4 colors Georgian,
+joined by `თუ`, no raw-English frame, `loquorMisses()`=0). Confirmed BOTH by the
+language-switch retranslation classifier (works even mid-disambiguation: type
+`push button` in English, switch picker to ka, the pending prompt retranslates in
+place) AND a fresh live `push button` in ka.
+
+**Dam-buttons route (from a West-of-House save, ~17 turns, ONE troll fight):**
+Living Room → `take sword` + `turn on lamp` (grue-safety!) → `move rug` → `open
+trap door` → `down` (Cellar) → `north` (Troll Room) → `kill troll with sword`
+(died in 1 hit this run) → `east` (E-W Passage) → `east` (Round Room) → `north`
+(North-South Passage) → `northeast` (Deep Canyon) → `east` (Dam) → `north` (Dam
+Lobby) → `north` (Maintenance Room). The 4 buttons all answer to `button`. **Do
+NOT press the BLUE button** (floods the room, drowns you) — to abandon the
+disambiguation safely, type a non-button command like `look`. I2b (2-candidate) was
+not independently reachable (needs two same-noun objects in scope, late-game); the
+2-candidate template is the strictly-simpler sibling of the verified 4-candidate
+and is unit-pinned — covered by extension.

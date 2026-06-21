@@ -446,6 +446,61 @@ describe('createTranslate grammar-only + demotion', () => {
     expect(sendLine).toHaveBeenCalledWith('open trapdoor')
   })
 
+  it('EN: a real LLM translation (result differs from the typed line) echoes once — the identity guard does NOT over-suppress (Zork III review #1)', async () => {
+    // The verbatim-echo suppression (translatePipeline.ts: `translated =
+    // TRANSLATED_STAGES.has(stage) && !(activeLang === 'en' &&
+    // isIdentityEcho(line, result.text))`) must fire ONLY when the model hands
+    // back the player's OWN words. Here 'pop the mailbox' is non-vocab ('pop'
+    // is not a parser word), so it reaches stage 7; the fake returns the
+    // canonical 'open mailbox', which DIFFERS from the typed line. So the clause
+    // genuinely translated → the nl-source line MUST echo exactly once and the
+    // send is tagged canonical. This pins the reachable half of the guard: an
+    // inverted condition (suppressing a real translation) fails here.
+    const engine = new FakeLlmEngine({
+      default: '{"verb":"open","object":"mailbox"}',
+    })
+    const sendCanonical = vi.fn()
+    const sendLine = vi.fn()
+    let echoCount = 0
+    let echoedWith: string | null = null
+    const t = makeTranslate({
+      engine,
+      internalOn: on('en', 'full'),
+      setNotice: vi.fn(),
+      demote: vi.fn(),
+      educatedRef: { current: false },
+      sendLine,
+      sendCanonical,
+      echoLocal: (text: string) => {
+        echoCount++
+        echoedWith = text
+      },
+    })
+    await t('pop the mailbox')
+    expect(engine.generateCalls).toBe(1) // genuinely reached the model (stage 7)
+    expect(echoCount).toBe(1) // a REAL translation → echo the source once
+    expect(echoedWith).toBe('pop the mailbox')
+    expect(sendCanonical).toHaveBeenCalledWith('open mailbox')
+    expect(sendLine).not.toHaveBeenCalled() // a translated send never goes raw
+  })
+
+  // UNREACHABLE-GUARD NOTE (Zork III review #1, verbatim-echo suppression):
+  // the `&& !(activeLang === 'en' && isIdentityEcho(line, result.text))` half of
+  // the `translated` flag cannot be exercised by any black-box test through this
+  // pipeline. For the English identity branch to fire, an LLM/translated stage
+  // must return `result.text` equal (normalized) to the typed `line`. But
+  // `parseCommand` builds `result.text` only from VOCAB tokens (verb canonical +
+  // noun emit words), and since the emit-words fix every emit/canonical token is
+  // in `vocabWordSet` — so any line whose words equal `result.text` is ALL-VOCAB
+  // and short-circuits at stage 4 (vocab passthrough) before ever reaching the
+  // model. Empirically confirmed: deleting the `isIdentityEcho` half of the guard
+  // fails ZERO tests across the whole src/llm suite. The guard is therefore a
+  // defensive no-op against a model returning the player's exact words — kept
+  // because it is cheap and correct, but it has no live coverage and (per the
+  // "no production change" constraint) cannot be unit-tested without exporting
+  // `isIdentityEcho`. Documented here so a future reader does not "restore"
+  // coverage that the pipeline ordering makes impossible.
+
   it('an output-only active language (ka) never invokes the input LLM — the drain bails ([I3])', async () => {
     // ka has no input lexicon and raw-sends English. If the player switches to ka
     // mid-drain, the queue must be abandoned (like 'off'), NOT fall through to
@@ -569,5 +624,55 @@ describe('createTranslate grammar-only + demotion', () => {
     })
     // EN abstain raw-sends to the Z-parser → the field should clear, not restore.
     expect(await t('frobnicate the gadget')).toBeNull()
+  })
+
+  // Task 11: localized help is a line-level escape that answers via the notice
+  // seam (the role=status aria-live region in Terminal) and reaches the game NOT
+  // at all. English help is intercepted too — Zork has no native help to fall
+  // through to (and a model would otherwise mistranslate it, e.g. help → look).
+  it('es "ayuda" yields the help block via setNotice and sends NO game command', async () => {
+    const engine = new FakeLlmEngine({ default: 'X' }) // never reached
+    const setNotice = vi.fn()
+    const sendLine = vi.fn()
+    const sendCanonical = vi.fn()
+    const t = makeTranslate({
+      engine,
+      internalOn: on('es', 'full'),
+      setNotice,
+      sendLine,
+      sendCanonical,
+      demote: vi.fn(),
+      educatedRef: { current: false },
+      lex: { core: coreLexicon('es'), nouns: null, words: new Set() },
+    })
+    expect(await t('ayuda')).toBeNull()
+    // The drain clears the notice (setNotice(null)) before running the line, so
+    // the help block is the LAST setNotice call — assert on that, not the count.
+    const block = setNotice.mock.calls.at(-1)?.[0] as string
+    expect(block).toMatch(/"wind up canary"/)
+    expect(block.toLowerCase()).toContain('ayuda')
+    expect(sendLine).not.toHaveBeenCalled() // no game command
+    expect(sendCanonical).not.toHaveBeenCalled()
+  })
+
+  it('en "help" IS intercepted too — Zork has no native help; shows the English block, no game command', async () => {
+    const engine = new FakeLlmEngine({ default: 'X' }) // never reached
+    const setNotice = vi.fn()
+    const sendLine = vi.fn()
+    const sendCanonical = vi.fn()
+    const t = makeTranslate({
+      engine,
+      internalOn: on('en', 'grammar'),
+      setNotice,
+      sendLine,
+      sendCanonical,
+      demote: vi.fn(),
+      educatedRef: { current: false },
+    })
+    expect(await t('help')).toBeNull()
+    const block = setNotice.mock.calls.at(-1)?.[0] as string
+    expect(block.toLowerCase()).toContain('help')
+    expect(sendLine).not.toHaveBeenCalled() // does NOT reach the Z-parser
+    expect(sendCanonical).not.toHaveBeenCalled()
   })
 })

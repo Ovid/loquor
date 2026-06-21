@@ -298,3 +298,27 @@ describe('Zork I × Spanish — book-disambiguation prompt (UAT F3)', () => {
     ).toBe('¿A qué libro te refieres, el libro negro o la caja de cerillas?')
   })
 })
+
+// The parser's incomplete-`put` prompt — "What do you want to put the X in?" —
+// is printed when the player names an object but no destination (e.g. `mete el
+// folleto`). It is off the walkthrough AND runtime-composed, so both gates miss
+// it; it leaked RAW English in es (UAT 2026-06-20, window.loquorMisses()). The X
+// is the player's echoed canonical noun, which can be a lexicon-emit synonym NOT
+// in the object table ("advertisement" for the leaflet) — so the template binds
+// {raw}, not {obj}, and drops the object on the out side, rendering the same
+// Spanish for every object (none leaks).
+describe('Zork I × Spanish — incomplete-put prompt (UAT 2026-06-20)', () => {
+  const c = compileCorpus(ZORK1_ES)
+
+  it('renders the lexicon-emit synonym ("advertisement") in Spanish', () => {
+    expect(matchLine(c, 'What do you want to put the advertisement in?')).toBe(
+      '¿Dónde quieres ponerlo?',
+    )
+  })
+
+  it('renders a known object ("leaflet") the same caseless way', () => {
+    expect(matchLine(c, 'What do you want to put the leaflet in?')).toBe(
+      '¿Dónde quieres ponerlo?',
+    )
+  })
+})

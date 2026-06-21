@@ -298,9 +298,10 @@ export function metaAlias(
 
 /** Every word the game's parser knows (stage-4 passthrough set, spec §4):
  * verb words (incl. multiword parts), verb synonyms, preps, movement, noun
- * dictionary synonyms + adjectives, meta commands, and the English articles
- * the Z-parser accepts. Canonical DESC tokens are NOT included — they are not
- * parser dictionary words (F-Z). */
+ * emit words (the short parser-accepted name we SEND) + dictionary synonyms +
+ * adjectives, meta commands, and the English articles the Z-parser accepts.
+ * Multiword canonical DESC tokens are NOT included — only the emit word is the
+ * parser-accepted form (e.g. canonical "crystal skull" → emit "skull"). */
 const VOCAB_WORD_SETS = new WeakMap<Vocab, Set<string>>()
 export function vocabWordSet(vocab: Vocab): Set<string> {
   const cached = VOCAB_WORD_SETS.get(vocab)
@@ -314,6 +315,7 @@ export function vocabWordSet(vocab: Vocab): Set<string> {
   for (const w of [...vocab.movement, ...vocab.preps, ...vocab.verbSynonyms])
     addWords(w)
   for (const n of vocab.nouns) {
+    addWords(n.emit)
     for (const s of n.synonyms ?? []) addWords(s)
     for (const adj of n.adjectives ?? []) addWords(adj)
   }

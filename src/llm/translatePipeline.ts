@@ -40,6 +40,7 @@ import {
   unquote,
   isVocabPassthrough,
 } from './inputTranslate'
+import { isHelpTrigger, helpResponse } from './help'
 import { parseLexicon } from './lexicon/parse'
 import type { CoreLexicon, NounLexicon } from './lexicon/types'
 import { parseDirection } from './directions'
@@ -629,6 +630,21 @@ export function createTranslate(
       if (quoted) {
         lastCommandRef.current = null
         sendTracked(quoted)
+        return 'ok'
+      }
+
+      // LOCALIZED HELP (Task 11): Zork I has no native help verb, so a bare help
+      // word ("ayuda"/"aide"/"hilfe"/"help", incl. English) is intercepted and
+      // answered with a localized cheat-sheet via the SAME aria-live notice seam
+      // the other NL notices use — it reaches the game NOT at all (no sendTracked,
+      // no turn burned). English "help" is intercepted too: there is no native help
+      // to fall through to, and with a model on the LLM would otherwise mistranslate
+      // it (observed: help → look). Placed beside the quoted-escape (both are
+      // pre-clause line escapes that bypass translation) so it sits with the
+      // existing meta-routing.
+      if (isHelpTrigger(line, activeLang)) {
+        lastCommandRef.current = null
+        setNotice(helpResponse(activeLang))
         return 'ok'
       }
 

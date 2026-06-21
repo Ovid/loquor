@@ -289,6 +289,11 @@
 .nl-notice {
   opacity: 0.8;
   font-size: 0.9em;
+  /* The localized help block is authored with newlines (command list + escape
+     examples); honor them so it reads as a list, not a run-on blob. pre-line
+     still wraps normally, so no overflow at 320px; single-line notices (no \n)
+     are unaffected. */
+  white-space: pre-line;
 }
 
 /* ---------- NL toggle + model-download modal ---------- */

@@ -15,6 +15,7 @@
 // they are not quote-escapes, which would need to stay English (m4).
 import type { ActiveLanguage } from './types'
 import type { LexLang } from './lexicon/types'
+import { ESCAPE_EXAMPLE } from './help'
 
 // en + the input-lexicon languages (fr/de/es) are MANDATORY — a new notice that
 // forgets one fails the build instead of silently shipping English (review S1).
@@ -209,6 +210,9 @@ export function commandPlaceholder(lang: ActiveLanguage): string {
       fr: 'écrivez en français — ex. : ouvrez la boîte aux lettres',
       de: 'schreiben Sie auf Deutsch — z. B. öffnen Sie den Briefkasten',
       es: 'escribe en español — p. ej.: abre el buzón',
+      // NATIVE-REVIEW-DRAFT (ka §4 case forms)
+      // ka is OUTPUT-ONLY: it raw-sends English, so the field invites English.
+      ka: 'აკრიფეთ ინგლისურად — მაგ. open the mailbox',
     },
     lang,
   )
@@ -222,9 +226,58 @@ export function commandLabel(lang: ActiveLanguage): string {
       fr: 'Commande de jeu — français naturel accepté',
       de: 'Spielbefehl — natürliches Deutsch akzeptiert',
       es: 'Comando del juego — español natural aceptado',
+      // NATIVE-REVIEW-DRAFT (ka §4 case forms)
+      ka: 'თამაშის ბრძანება — აკრიფეთ ინგლისურად',
     },
     lang,
   )
+}
+
+// The escape-hatch example stays ENGLISH (quoting bypasses translation and sends
+// the unquoted text verbatim to the Z-parser, so the example must be the literal
+// English the game accepts). ESCAPE_EXAMPLE is imported from help.ts (top of
+// file) so the canonical example can't drift between the help block and this
+// one-line activation nudge (S2).
+
+/** One-time escape-hatch nudge surfaced when a language is picked (P3). fr/de/es
+ * point the player at the quoted-English fallback; ka — which is OUTPUT-ONLY and
+ * raw-sends English — instead says to type commands in English (NO quoted escape,
+ * since there is no input LLM to bypass). English gets nothing: it already plays
+ * in English, so there is no fallback to advertise. */
+function escapeHatchOnActivation(lang: ActiveLanguage): string | null {
+  switch (lang) {
+    case 'fr':
+      return `Astuce : écrivez en français. Pour envoyer une commande anglaise exacte, mettez-la entre guillemets, p. ex. ${ESCAPE_EXAMPLE}. Tapez « aide » pour l’aide.`
+    case 'de':
+      return `Tipp: Schreiben Sie auf Deutsch. Um einen genauen englischen Befehl zu senden, setzen Sie ihn in Anführungszeichen, z. B. ${ESCAPE_EXAMPLE}. Geben Sie „hilfe“ für Hilfe ein.`
+    case 'es':
+      return `Consejo: escribe en español. Para enviar un comando exacto en inglés, ponlo entre comillas, p. ej. ${ESCAPE_EXAMPLE}. Escribe «ayuda» para la ayuda.`
+    case 'ka':
+      // NATIVE-REVIEW-DRAFT (ka §4 case forms)
+      // ka is OUTPUT-ONLY: raw-sends English, so commands are typed in English and
+      // there is NO quoted-escape (quoting is meaningless without an input LLM).
+      return 'რჩევა: ბრძანებები აკრიფეთ ინგლისურად; ტექსტი ქართულად ჩანს. დახმარებისთვის აკრიფეთ help.'
+    case 'en':
+    default:
+      return null // English raw-sends — no fallback to advertise.
+  }
+}
+
+/** A once-per-language latch over {@link escapeHatchOnActivation}: returns the
+ * nudge the FIRST time a given language is activated, then `null` for every
+ * later activation of that same language (so a re-pick / re-render doesn't
+ * re-notify). The hook owns one instance; mirrors the once-per-stint education
+ * latch (`educatedRef`) but keyed per language. Re-picking a different language
+ * still gets its own one-time notice. */
+export function makeActivationNotice(): (
+  lang: ActiveLanguage,
+) => string | null {
+  const shown = new Set<ActiveLanguage>()
+  return lang => {
+    if (shown.has(lang)) return null
+    shown.add(lang)
+    return escapeHatchOnActivation(lang)
+  }
 }
 
 /** A queued line was discarded because the game raised an interactive prompt. */

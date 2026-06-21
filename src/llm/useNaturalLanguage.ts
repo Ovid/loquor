@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
+  ActiveLanguage,
   CapabilityResult,
   LlmEngine,
   NlLanguage,
   NlState,
   ViewContext,
 } from './types'
+import { helpResponse } from './help'
 import { EngineGate } from '../shared/engineGate'
 import type { ViewState, TurnResult } from '../glkote-react/types'
 import type { Vocab } from './grammar/types'
@@ -22,6 +24,7 @@ import {
   type LiveState,
   type QueuedLine,
 } from './translatePipeline'
+import { makeActivationNotice } from './notices'
 
 export type { QueuedLine }
 
@@ -70,6 +73,11 @@ export interface UseNaturalLanguage {
   observe: (view: ViewState) => void
   /** True while a compound sequence is mid-flight (Terminal's observe effect defers to the hook). */
   isSequencing: () => boolean
+  /** Surface the localized help block via the shared `notice` aria-live seam.
+   * Drives the Loquor-level help intercept for OUTPUT-ONLY languages (ka),
+   * which raw-send English and so never reach the in-pipeline help intercept
+   * (translatePipeline). en/fr/de/es get help from inside translate instead. */
+  showHelp: (lang: ActiveLanguage) => void
 }
 
 /**
@@ -132,6 +140,13 @@ export function useNaturalLanguage(
   const educatedRef = useRef(false)
   const prevGrammarKeyRef = useRef<string | null>(null)
 
+  // One-time escape-hatch nudge per language (P3): fires the moment a language is
+  // first activated, pointing fr/de/es at the quoted-English fallback (ka at
+  // "type in English"). The latch is per-language and survives re-renders/re-picks
+  // of the same language; English is silent (it raw-sends).
+  const activationNoticeRef = useRef(makeActivationNotice())
+  const prevActiveLangRef = useRef<NlLanguage | null>(null)
+
   const hasVocab = vocab !== null
   // Capability no longer disables NL (hasVocab is the sole prerequisite); it only
   // gates whether the model UPGRADE may be ATTEMPTED. A `none` device still gets
@@ -180,6 +195,29 @@ export function useNaturalLanguage(
       educatedRef.current = false
     prevGrammarKeyRef.current = key
   }, [internal])
+
+  // Surface the one-time escape-hatch nudge on entry into an active language. Fire
+  // only on a genuine language CHANGE (not every render of the same active
+  // language), and let the per-language latch decide whether this language was
+  // already nudged. Downloading/off phases carry no active language, so picking a
+  // language, switching, or coming back up from a download all funnel through here.
+  useEffect(() => {
+    const active: NlLanguage =
+      internal.phase === 'on' ? internal.language : 'off'
+    if (active === prevActiveLangRef.current) return
+    // Defer while the upgrade modal is open (I4): picking a non-cached language
+    // activates grammar-only ('on') AND opens the modal in the same tick, but
+    // accepting the upgrade calls requestDownload → setNotice(null), which would
+    // wipe the nudge before the player reads it (and the per-language latch would
+    // never re-fire). Leave prevActiveLangRef unset so this re-runs once the modal
+    // resolves — decline keeps grammar 'on', accept settles to full 'on' — and
+    // the nudge fires then. (No modal at all → fires immediately, as before.)
+    if (modalOpen) return
+    prevActiveLangRef.current = active
+    if (active === 'off') return
+    const msg = activationNoticeRef.current(active)
+    if (msg) setNotice(msg)
+  }, [internal, modalOpen])
 
   const state: NlState = useMemo(() => {
     if (!hasVocab) return { phase: 'disabled' } // silent: this game has no vocab
@@ -315,6 +353,14 @@ export function useNaturalLanguage(
 
   const isSequencing = useCallback(() => inSequenceRef.current, [])
 
+  // The localized help block reuses the same `notice` channel the abstain /
+  // activation notices use (one aria-live region). Centralizing it here lets the
+  // OUTPUT-ONLY raw-send path (ka, which never calls translate) show help too.
+  const showHelp = useCallback(
+    (lang: ActiveLanguage) => setNotice(helpResponse(lang)),
+    [],
+  )
+
   return {
     state,
     pending,
@@ -329,5 +375,6 @@ export function useNaturalLanguage(
     queued,
     observe,
     isSequencing,
+    showHelp,
   }
 }

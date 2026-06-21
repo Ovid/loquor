@@ -36,10 +36,16 @@ const TEST_VOCAB: Vocab = {
     { canonical: 'mailbox', emit: 'mailbox' },
     { canonical: 'leaflet', emit: 'leaflet' },
     // Task-13-style entry WITH dictionary synonyms/adjectives: these words feed
-    // vocabWordSet, so 'open trap door' is all-vocab (stage-4 passthrough). The
-    // mailbox/leaflet entries above have NO synonyms on purpose — canonical/emit
-    // tokens are not parser dictionary words (F-Z), so 'open mailbox' still
-    // exercises the LLM path in the older tests.
+    // vocabWordSet, so 'open trap door' is all-vocab (stage-4 passthrough).
+    //
+    // NOTE on the mailbox/leaflet entries above: their `emit` words ('mailbox',
+    // 'leaflet') ARE parser dictionary words and DO feed vocabWordSet (a noun's
+    // emit is exactly the word the Z-parser accepts). So "open the mailbox" is
+    // all-vocab → stage-4 passthrough; it does NOT reach the LLM. Tests that
+    // need to drive the translate/LLM path must therefore type an input with at
+    // least one NON-vocab token (e.g. 'open the rusty mailbox' — 'rusty' is not
+    // in the vocab), while the fake completion still resolves the object to the
+    // 'mailbox' canonical so the canonical send is 'open mailbox'.
     {
       canonical: 'trap door',
       emit: 'trapdoor',
@@ -269,7 +275,9 @@ describe('useNaturalLanguage', () => {
   it('command translation echoes English then sends the canonical command', async () => {
     const engine = new FakeLlmEngine({
       cached: true,
-      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      completions: {
+        'open the rusty mailbox': '{"verb":"open","object":"mailbox"}',
+      },
     })
     const { hook, echoLocal, sendLine } = setup({ engine })
     await reachOn(hook)
@@ -280,9 +288,9 @@ describe('useNaturalLanguage', () => {
       ),
     )
     await act(async () => {
-      await hook.result.current.translate('open the mailbox')
+      await hook.result.current.translate('open the rusty mailbox')
     })
-    expect(echoLocal).toHaveBeenCalledWith('open the mailbox')
+    expect(echoLocal).toHaveBeenCalledWith('open the rusty mailbox')
     expect(sendLine).toHaveBeenCalledWith('open mailbox')
   })
 
@@ -447,6 +455,32 @@ describe('useNaturalLanguage', () => {
       }),
     )
     expect(readNlPref().language).toBe('de')
+  })
+
+  it('preserves the activation nudge across the upgrade-accept path (I4)', async () => {
+    // Picking a non-cached language opens the upgrade modal AND activates
+    // grammar-only. Accepting the upgrade calls requestDownload → setNotice(null),
+    // which used to wipe the one-time activation nudge before the player could
+    // read it (and the per-language latch never re-fired). The nudge must survive
+    // to the settled 'on' state.
+    const { hook } = setup() // not cached → grammar-only + modal
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({
+        phase: 'off',
+        installed: false,
+      }),
+    )
+    act(() => hook.result.current.setLanguage('de'))
+    expect(hook.result.current.modalOpen).toBe(true)
+    act(() => hook.result.current.requestDownload())
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({
+        phase: 'on',
+        model: 'full',
+      }),
+    )
+    // The German escape-hatch nudge ("Tipp: …") is present, not eaten.
+    expect(hook.result.current.notice).toMatch(/^Tipp:/)
   })
 
   it('boot restore: a stored language reactivates against a cached model', async () => {
@@ -642,14 +676,16 @@ describe('useNaturalLanguage', () => {
     const engine = new FakeLlmEngine({
       cached: true,
       generateDelayMs: 50,
-      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      completions: {
+        'open the rusty mailbox': '{"verb":"open","object":"mailbox"}',
+      },
       default: '{"verb":"__UNKNOWN__"}',
     })
     const { hook, sendLine } = setup({ engine })
     await reachOn(hook)
     let p!: Promise<string | null>
     act(() => {
-      p = hook.result.current.translate('open the mailbox') // drain in flight
+      p = hook.result.current.translate('open the rusty mailbox') // drain in flight
     })
     act(() => hook.result.current.setLanguage('off')) // off is instant
     act(() => {
@@ -861,7 +897,9 @@ describe('useNaturalLanguage', () => {
     localStorage.setItem('loquor.nl', JSON.stringify({ enabled: true }))
     const engine = new FakeLlmEngine({
       cached: true,
-      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      completions: {
+        'open the rusty mailbox': '{"verb":"open","object":"mailbox"}',
+      },
       default: '{"verb":"__UNKNOWN__"}',
     })
     const { hook, sendLine } = setup({ engine })
@@ -874,7 +912,7 @@ describe('useNaturalLanguage', () => {
       ),
     )
     await act(async () => {
-      await hook.result.current.translate('open the mailbox')
+      await hook.result.current.translate('open the rusty mailbox')
     })
     expect(engine.isLoaded()).toBe(true) // translate brought it into memory
     expect(sendLine).toHaveBeenCalledWith('open mailbox') // translated, not "failed"
@@ -1486,7 +1524,9 @@ describe('input queue (NL v2 §11, F-A)', () => {
     const engine = new FakeLlmEngine({
       cached: true,
       generateDelayMs: 50,
-      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      completions: {
+        'open the rusty mailbox': '{"verb":"open","object":"mailbox"}',
+      },
       default: '{"verb":"__UNKNOWN__"}',
     })
     const { hook, sendLine } = setup({ engine })
@@ -1498,7 +1538,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
     )
     let p!: Promise<string | null>
     act(() => {
-      p = hook.result.current.translate('open the mailbox')
+      p = hook.result.current.translate('open the rusty mailbox')
     })
     act(() => {
       void hook.result.current.translate('north')
@@ -1521,14 +1561,16 @@ describe('input queue (NL v2 §11, F-A)', () => {
     const engine = new FakeLlmEngine({
       cached: true,
       generateDelayMs: 50,
-      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      completions: {
+        'open the rusty mailbox': '{"verb":"open","object":"mailbox"}',
+      },
       default: '{"verb":"__UNKNOWN__"}',
     })
     const { hook } = setup({ engine })
     await reachOn(hook)
     let p!: Promise<string | null>
     act(() => {
-      p = hook.result.current.translate('open the mailbox')
+      p = hook.result.current.translate('open the rusty mailbox')
     })
     act(() => {
       void hook.result.current.translate('north')
@@ -1541,7 +1583,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
     })
     expect(hook.result.current.queued).toEqual([])
     act(() => {
-      p = hook.result.current.translate('open the mailbox')
+      p = hook.result.current.translate('open the rusty mailbox')
     })
     act(() => {
       void hook.result.current.translate('east')
@@ -1558,14 +1600,16 @@ describe('input queue (NL v2 §11, F-A)', () => {
     const engine = new FakeLlmEngine({
       cached: true,
       generateDelayMs: 50,
-      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      completions: {
+        'open the rusty mailbox': '{"verb":"open","object":"mailbox"}',
+      },
       default: '{"verb":"__UNKNOWN__"}',
     })
     const { hook } = setup({ engine })
     await reachOn(hook)
     let p!: Promise<string | null>
     act(() => {
-      p = hook.result.current.translate('open the mailbox') // in flight
+      p = hook.result.current.translate('open the rusty mailbox') // in flight
     })
     act(() => {
       void hook.result.current.translate('one')
@@ -1603,7 +1647,9 @@ describe('input queue (NL v2 §11, F-A)', () => {
     const engine = new FakeLlmEngine({
       cached: true,
       generateDelayMs: 50,
-      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      completions: {
+        'open the rusty mailbox': '{"verb":"open","object":"mailbox"}',
+      },
       default: '{"verb":"__UNKNOWN__"}',
     })
     const { hook } = setup({ engine, getContext, sendLine })
@@ -1615,7 +1661,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
     )
     let p!: Promise<string | null>
     act(() => {
-      p = hook.result.current.translate('open the mailbox')
+      p = hook.result.current.translate('open the rusty mailbox')
     })
     act(() => {
       void hook.result.current.translate('north')
@@ -1699,7 +1745,9 @@ describe('input queue (NL v2 §11, F-A)', () => {
     const engine = new FakeLlmEngine({
       cached: true,
       generateDelayMs: 50,
-      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      completions: {
+        'open the rusty mailbox': '{"verb":"open","object":"mailbox"}',
+      },
       default: '{"verb":"__UNKNOWN__"}',
     })
     const { hook } = setup({ engine, getContext, sendLine })
@@ -1711,7 +1759,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
     )
     let p!: Promise<string | null>
     act(() => {
-      p = hook.result.current.translate('open the mailbox')
+      p = hook.result.current.translate('open the rusty mailbox')
     })
     act(() => {
       void hook.result.current.translate('north') // the lone queued line
@@ -1807,14 +1855,16 @@ describe('input queue (NL v2 §11, F-A)', () => {
     const engine = new FakeLlmEngine({
       cached: true,
       generateDelayMs: 50,
-      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      completions: {
+        'open the rusty mailbox': '{"verb":"open","object":"mailbox"}',
+      },
       default: '{"verb":"__UNKNOWN__"}',
     })
     const { hook, sendLine } = setup({ engine })
     await reachOn(hook)
     let p!: Promise<string | null>
     act(() => {
-      p = hook.result.current.translate('open the mailbox')
+      p = hook.result.current.translate('open the rusty mailbox')
     })
     act(() => {
       void hook.result.current.translate('north') // queues
@@ -1839,7 +1889,9 @@ describe('input queue (NL v2 §11, F-A)', () => {
     const engine = new FakeLlmEngine({
       cached: true,
       generateDelayMs: 50,
-      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      completions: {
+        'open the rusty mailbox': '{"verb":"open","object":"mailbox"}',
+      },
       default: '{"verb":"__UNKNOWN__"}',
     })
     const echoLocal = vi.fn()
@@ -1863,7 +1915,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
     await waitFor(() => expect(hook.result.current.state.phase).toBe('on'))
     let p!: Promise<string | null>
     act(() => {
-      p = hook.result.current.translate('open the mailbox')
+      p = hook.result.current.translate('open the rusty mailbox')
     })
     act(() => {
       void hook.result.current.translate('north') // queued at the OLD game
@@ -1955,16 +2007,29 @@ describe('NL v2 pipeline stages (spec §4)', () => {
     expect(generateSpy).not.toHaveBeenCalled()
   })
 
-  it('does not echo when a translated stage returns the typed line verbatim (Zork III review #1)', async () => {
-    // 'mailbox' is not a parser dictionary word (canonical/emit tokens never
-    // are — F-Z), so 'open mailbox' misses stage-4 passthrough and reaches the
-    // LLM. When the model hands back the player's OWN words, no translation
-    // actually happened: the engine's '>' echo already shows the line, so the
-    // nl-source "(you) …" line would be a pure duplicate. Suppress it.
+  it("'open mailbox' is stage-4 passthrough — emit words are dictionary words now (no echo, no LLM)", async () => {
+    // REGRESSION NOTE: this case used to "cover" the Zork-III-review #1
+    // verbatim-echo suppression by feeding 'open mailbox' to the LLM and
+    // having the model hand back the player's own words. That stopped being
+    // true once noun EMIT words joined vocabWordSet (commit "include noun emit
+    // words in vocab passthrough set"): 'mailbox' is the mailbox noun's emit
+    // word, so 'open mailbox' is now ALL-VOCAB and short-circuits at stage 4 —
+    // it never reaches the model at all. Both the old assertions still held
+    // (passthrough also doesn't echo), so the test passed for the wrong reason
+    // with a now-false "reaches the LLM" comment.
+    //
+    // It is RETARGETED to assert the true post-fix behavior: a verbatim send,
+    // no nl-source echo, and — proven by the generate spy — the model is never
+    // consulted. The verbatim-echo suppression itself can no longer be reached
+    // through the pipeline (every emit/canonical token is now a passthrough
+    // word, so an English line whose LLM result equals the typed line is
+    // structurally impossible — it would have passed through at stage 4); that
+    // is documented as an unreachable defensive guard in translatePipeline.test.ts.
     const engine = new FakeLlmEngine({
       cached: true,
       completions: { 'open mailbox': '{"verb":"open","object":"mailbox"}' },
     })
+    const generateSpy = vi.spyOn(engine, 'generate')
     const { hook, echoLocal, sendLine } = setup({ engine })
     await reachOn(hook)
     act(() =>
@@ -1977,6 +2042,7 @@ describe('NL v2 pipeline stages (spec §4)', () => {
     })
     expect(sendLine).toHaveBeenCalledWith('open mailbox')
     expect(echoLocal).not.toHaveBeenCalled()
+    expect(generateSpy).not.toHaveBeenCalled() // stage-4 passthrough, never the LLM
   })
 
   it("stage 4 collision guard: fr picker + a lexicon word ('examine') does NOT pass through — routes via the lexicon", async () => {
@@ -2164,7 +2230,9 @@ describe('EngineGate integration (output-translation spec §6)', () => {
     // task releases, the input waiter runs and the translation completes.
     const engine = new FakeLlmEngine({
       cached: true,
-      completions: { 'open the mailbox': '{"verb":"open","object":"mailbox"}' },
+      completions: {
+        'open the rusty mailbox': '{"verb":"open","object":"mailbox"}',
+      },
       default: '{"verb":"__UNKNOWN__"}',
     })
     const sharedGate = new EngineGate()
@@ -2189,7 +2257,7 @@ describe('EngineGate integration (output-translation spec §6)', () => {
     // held output task and still complete once the output task releases.
     let translateDone!: Promise<string | null>
     act(() => {
-      translateDone = hook.result.current.translate('open the mailbox')
+      translateDone = hook.result.current.translate('open the rusty mailbox')
     })
 
     // Flush microtasks while the gate is still held — the translation must
@@ -2208,7 +2276,7 @@ describe('EngineGate integration (output-translation spec §6)', () => {
       await translateDone
     })
 
-    expect(echoLocal).toHaveBeenCalledWith('open the mailbox')
+    expect(echoLocal).toHaveBeenCalledWith('open the rusty mailbox')
     expect(sendLine).toHaveBeenCalledWith('open mailbox')
   })
 })

@@ -317,12 +317,17 @@ export const ES_CORE: CoreLexicon = {
     oye: 'listen to',
     esconde: 'hide',
     esconder: 'hide',
+    eco: 'echo', // Loud Room puzzle solution; 'echo' is a game verb (fr/de pass the English word through)
   },
   verbIdioms: [
     { phrase: 'echa un vistazo a', to: 'examine' },
     { phrase: 'pon en marcha', to: 'turn on' },
     { phrase: 'date la vuelta', to: 'turn' },
     { phrase: 'tira de', to: 'pull' }, // Peninsular; beats bare tira→throw
+    { phrase: 'dale cuerda al', to: 'wind up' }, // fused a+el; players type 'al canario'
+    { phrase: 'da cuerda al', to: 'wind up' },
+    { phrase: 'dale cuerda a la', to: 'wind up' },
+    { phrase: 'da cuerda a la', to: 'wind up' },
     { phrase: 'dale cuerda a', to: 'wind up' }, // F-CC parity (fr remonte)
     { phrase: 'da cuerda a', to: 'wind up' },
     { phrase: 'haz sonar', to: 'ring' },
@@ -338,6 +343,9 @@ export const ES_CORE: CoreLexicon = {
     { phrase: 'llamad a', to: 'knock on' },
   ],
   particleVerbs: [],
+  // "all" quantifier — Spanish 'todo' family. fr ('tout'…) and de ('alles'…)
+  // already have this; ES_CORE lacked it, so 'deja todo' missed (UAT-es-3).
+  quantifiersAll: ['todo', 'todos', 'toda', 'todas', 'all'],
   // NOTE (personal-`a` hazard, for the deterministic parser — Task 13):
   // Spanish marks animate DIRECT objects with `a`/`al` ('ataca al troll',
   // 'sigue al ladron') — the same surface form as the indirect-object prep
@@ -351,9 +359,7 @@ export const ES_CORE: CoreLexicon = {
     con: 'with',
     en: 'in',
     a: 'to',
-    // `al` = a+el contraction. `del` (de+el) is deliberately ABSENT: it falls
-    // to the LLM. Any future `del` addition must consider the personal-`a`
-    // interaction above ('huye del troll' vs prep-split misfires).
+    // `al` = a+el contraction.
     al: 'to',
     sobre: 'on',
     bajo: 'under',
@@ -384,6 +390,11 @@ export const ES_CORE: CoreLexicon = {
     'esas',
     'estos',
     'estas',
+    'del', // fused de+el; stripped as an article (mirrors fr 'du'), so 'sal del bote' → exit boat
+    // NOTE: stripping 'del' also drops the genitive sense ('coge la llave del
+    // cajon' loses "from"), but the boat-exit win outweighs that rare case.
+    // Personal-`a` note (see preps block above): 'huye del troll' works
+    // because 'del' is stripped before object lookup, not split as a prep.
   ],
   pronounsDirect: ['lo', 'la', 'los', 'las'],
   pronounsContainer: [

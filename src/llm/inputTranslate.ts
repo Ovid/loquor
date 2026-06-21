@@ -299,8 +299,18 @@ export function metaAlias(
 /** Every word the game's parser knows (stage-4 passthrough set, spec §4):
  * verb words (incl. multiword parts), verb synonyms, preps, movement, noun
  * emit words (the short parser-accepted name we SEND) + dictionary synonyms +
- * adjectives, meta commands, and the English articles the Z-parser accepts.
- * Multiword canonical DESC tokens are NOT included — only the emit word is the
+ * adjectives, SINGLE-TOKEN canonicals, meta commands, and the English articles
+ * the Z-parser accepts.
+ *
+ * The canonical is the object's DESC — the very word the game PRINTS for it
+ * ("reveals a leaflet"), so it's the most natural word a player types. But the
+ * generator filters the canonical out of `synonyms` and may pick a different
+ * synonym as the emit ('advertisement' for the leaflet), leaving the canonical
+ * word in NO other field. Without it here, "take the leaflet" misses stage-4
+ * passthrough and falls to the LLM, which mangles it ("take leaves"). A
+ * single-token canonical is a real dictionary word (it was a declared SYNONYM
+ * the generator deduped away), so passing it through is safe. MULTIWORD
+ * canonical DESC tokens are still NOT included — only the emit word is the
  * parser-accepted form (e.g. canonical "crystal skull" → emit "skull"). */
 const VOCAB_WORD_SETS = new WeakMap<Vocab, Set<string>>()
 export function vocabWordSet(vocab: Vocab): Set<string> {
@@ -316,6 +326,9 @@ export function vocabWordSet(vocab: Vocab): Set<string> {
     addWords(w)
   for (const n of vocab.nouns) {
     addWords(n.emit)
+    // Single-token canonicals only: a multiword DESC ("crystal skull") is a
+    // display phrase, not a parser word — its emit ("skull") already covers it.
+    if (!/\s/.test(n.canonical)) addWords(n.canonical)
     for (const s of n.synonyms ?? []) addWords(s)
     for (const adj of n.adjectives ?? []) addWords(adj)
   }

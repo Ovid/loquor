@@ -372,10 +372,10 @@ export const DE_CORE: CoreLexicon = {
   pronounsSelf: ['mich', 'mir'],
   // 'alles'/'alle' → the Z-parser's ALL object (UAT F15): 'nimm alles' →
   // 'take all'. Without this the bare quantifier fell to the LLM, which
-  // mis-mapped it to 'large bag'. Bare English 'all' is here too (as in
-  // fr/es): a German-picker player typing English "take all" hits the same
-  // gap, and without it falls to the LLM (UAT Bug A).
-  quantifiersAll: ['alles', 'alle', 'all'],
+  // mis-mapped it to 'large bag'. Bare English 'all'/'everything' are here too
+  // (as in fr/es): a German-picker player typing English "take all" hits the
+  // same gap, and without it falls to the LLM (UAT Bug A).
+  quantifiersAll: ['alles', 'alle', 'all', 'everything'],
   metaAliases: {
     inventar: 'inventory', // migrated from META_ALIASES
     diagnose: 'diagnose',

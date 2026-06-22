@@ -751,22 +751,31 @@ describe('parseLexicon — bare English "all" maps in EVERY language (Bug A pari
   // German-picker player typing English "take all" fell straight to the LLM
   // (which mis-mapped it to "large bag"). The deterministic path must exist in
   // every applicable language, not just the easy ones.
-  it('German core: "take all" → "take all"', () => {
+  it('German core: "take all"/"take everything" → "take all"', () => {
     expect(parseLexicon('take all', DE_CORE, DE_NOUNS, vocab, empty)).toEqual({
       kind: 'command',
       text: 'take all',
     })
+    expect(
+      parseLexicon('take everything', DE_CORE, DE_NOUNS, vocab, empty),
+    ).toEqual({ kind: 'command', text: 'take all' })
   })
-  it('French core: "take all" → "take all"', () => {
+  it('French core: "take all"/"take everything" → "take all"', () => {
     expect(parseLexicon('take all', FR_CORE, FR_NOUNS, vocab, empty)).toEqual({
       kind: 'command',
       text: 'take all',
     })
+    expect(
+      parseLexicon('take everything', FR_CORE, FR_NOUNS, vocab, empty),
+    ).toEqual({ kind: 'command', text: 'take all' })
   })
-  it('Spanish core: "take all" → "take all"', () => {
+  it('Spanish core: "take all"/"take everything" → "take all"', () => {
     expect(parseLexicon('take all', ES_CORE, ES_NOUNS, vocab, empty)).toEqual({
       kind: 'command',
       text: 'take all',
     })
+    expect(
+      parseLexicon('take everything', ES_CORE, ES_NOUNS, vocab, empty),
+    ).toEqual({ kind: 'command', text: 'take all' })
   })
 })

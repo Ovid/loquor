@@ -312,8 +312,9 @@ export const FR_CORE: CoreLexicon = {
     { word: 'dessus', prep: 'on' },
   ],
   pronounsSelf: ['moi', 'me'],
-  // 'tout/tous/toute/toutes' (folded) and the bare English 'all' → ALL.
-  quantifiersAll: ['tout', 'tous', 'toute', 'toutes', 'all'],
+  // 'tout/tous/toute/toutes' (folded) and the bare English 'all'/'everything'
+  // → ALL (English words for the player who mixes in English; Bug A parity).
+  quantifiersAll: ['tout', 'tous', 'toute', 'toutes', 'all', 'everything'],
   metaAliases: {
     inventaire: 'inventory', // fr (migrated from META_ALIASES)
     diagnostic: 'diagnose', // F5

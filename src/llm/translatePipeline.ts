@@ -41,7 +41,7 @@ import {
   isVocabPassthrough,
 } from './inputTranslate'
 import { isHelpTrigger, helpResponse } from './help'
-import { parseLexicon } from './lexicon/parse'
+import { parseLexicon, resolveEnglishPronoun } from './lexicon/parse'
 import type { CoreLexicon, NounLexicon } from './lexicon/types'
 import { parseDirection } from './directions'
 import { MAX_CLAUSES, QUEUE_CAP, LOAD_WATCHDOG_MS } from './config'
@@ -343,6 +343,14 @@ export async function runClause(
     const r = parseLexicon(clause, lex.core, lex.nouns, vocab, scene)
     if (r.kind === 'command')
       return { result: r, raw: '(lexicon)', stage: 'lexicon' }
+  } else {
+    // English has no input lexicon, but a bare pronoun ("open it") is resolvable
+    // from the tracked antecedent — the same deterministic substitution fr/de/es
+    // get above. Without it the clause reaches the LLM and a static few-shot
+    // anchors the pronoun to a constant noun ("open advertisement").
+    const r = resolveEnglishPronoun(clause, vocab, scene)
+    if (r.kind === 'command')
+      return { result: r, raw: '(pronoun)', stage: 'lexicon' }
   }
   // 7. LLM fallback — skipped in grammar-only: abstain so stage 8 applies the
   //    existing policy (EN raw-send / non-EN notice). The engine is never touched.

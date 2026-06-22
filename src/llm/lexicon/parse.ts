@@ -153,6 +153,50 @@ function verbArity1or2(verb: string, vocab: Vocab): boolean {
   return verbArityOk(verb, vocab, 1) || verbArityOk(verb, vocab, 2)
 }
 
+// English direct-object pronouns. English has NO input lexicon, so a bare
+// pronoun reaches the LLM — where a static few-shot can only ever anchor it to a
+// constant noun (the "open it" → "open advertisement" bug). fr/de/es resolve the
+// same case deterministically in parseLexicon's pronounsDirect branch; this is
+// the English-mode equivalent, substituting the already-tracked scene.antecedent
+// with no model round-trip.
+const EN_PRONOUNS = ['it', 'them']
+
+/** Resolve a pronoun-only English command ("open it" → "open mailbox") from the
+ * scene antecedent. A miss falls through to the LLM, exactly like a lexicon miss.
+ * ponytail: handles the "<verb> <pronoun>" two-token form (the reported case and
+ * the overwhelming majority); particle/compound forms ("pick it up", "take lamp
+ * and open it") still fall to the model. */
+export function resolveEnglishPronoun(
+  clause: string,
+  vocab: Vocab,
+  scene: Scene,
+): LexResult {
+  const tokens = tokenize(clause)
+  if (tokens.length < 2) return MISS
+  if (!EN_PRONOUNS.includes(tokens[tokens.length - 1])) return MISS
+  if (!scene.antecedent) return MISS
+  // The tokens before the pronoun must be exactly ONE known verb phrase (longest
+  // first so a multiword verb wins). verbSynonyms included so "get it" resolves.
+  const verbTokens = tokens.slice(0, -1)
+  const verb = [
+    ...vocab.verbs2,
+    ...vocab.verbs1,
+    ...vocab.verbsOnly,
+    ...vocab.verbSynonyms,
+  ]
+    .sort((a, b) => b.length - a.length)
+    .find(v => {
+      const parts = v.split(' ')
+      return (
+        parts.length === verbTokens.length &&
+        parts.every((p, i) => verbTokens[i] === p)
+      )
+    })
+  if (!verb || !verbArity1or2(verb, vocab)) return MISS
+  const e = byCanonical(vocab, scene.antecedent)
+  return e ? { kind: 'command', text: `${verb} ${e.emit}` } : MISS
+}
+
 export function parseLexicon(
   clause: string,
   core: CoreLexicon,

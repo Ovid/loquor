@@ -1,6 +1,6 @@
 // src/llm/lexicon/parse.test.ts
 import { describe, it, expect } from 'vitest'
-import { parseLexicon } from './parse'
+import { parseLexicon, resolveEnglishPronoun } from './parse'
 import { FR_CORE } from './fr.core'
 import { DE_CORE } from './de.core'
 import { ES_CORE } from './es.core'
@@ -390,6 +390,46 @@ describe('parseLexicon — English via vocab surface forms (spec §6 step 3)', (
     expect(
       parseLexicon('open trap door', FR_CORE, FR_NOUNS, vocab, empty),
     ).toEqual({ kind: 'command', text: 'open trapdoor' })
+  })
+})
+
+describe('resolveEnglishPronoun (the "open advertisement" fix)', () => {
+  it('substitutes the antecedent emit form for "it"', () => {
+    expect(
+      resolveEnglishPronoun('open it', vocab, scene([], 'small mailbox')),
+    ).toEqual({ kind: 'command', text: 'open mailbox' })
+  })
+
+  it('handles trailing punctuation and "them"', () => {
+    expect(
+      resolveEnglishPronoun('take them.', vocab, scene([], 'brass lantern')),
+    ).toEqual({ kind: 'command', text: 'take light' })
+  })
+
+  it('misses (→ LLM) when there is no antecedent', () => {
+    expect(resolveEnglishPronoun('open it', vocab, empty)).toEqual({
+      kind: 'miss',
+    })
+  })
+
+  it('misses when the leading word is not a known verb', () => {
+    // "frobnicate" is no verb → never a deterministic resolve.
+    expect(
+      resolveEnglishPronoun('frobnicate it', vocab, scene([], 'small mailbox')),
+    ).toEqual({ kind: 'miss' })
+  })
+
+  it('misses on a non-pronoun final token (a real noun is the lexicon/LLM path)', () => {
+    expect(
+      resolveEnglishPronoun('open mailbox', vocab, scene([], 'small mailbox')),
+    ).toEqual({ kind: 'miss' })
+  })
+
+  it('misses on compound/particle forms — they belong to the LLM', () => {
+    // ponytail ceiling: only the two-token "<verb> <pronoun>" form resolves here.
+    expect(
+      resolveEnglishPronoun('pick it up', vocab, scene([], 'small mailbox')),
+    ).toEqual({ kind: 'miss' })
   })
 })
 

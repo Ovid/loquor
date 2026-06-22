@@ -176,7 +176,7 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
     progressNote:
       'თქვენი მონაცემები ინახება; დახურეთ ფანჯარა და დაბრუნდით, როცა მოგესურვებათ.',
     languageLabel: 'ენა:',
-    // SIBLING COPY: GeorgianStatusBar.tsx renders the in-game variant of this
+    // SIBLING COPY: BottomBar.tsx renders the in-game variant of this
     // same beta note. Both are drafts pending native review (§8) — apply any
     // wording fix to BOTH so they don't drift (review S4).
     caveat:

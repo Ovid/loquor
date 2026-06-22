@@ -1,28 +1,48 @@
 import { GEORGIAN_ACTIVATION_TIP } from '../llm/notices'
+import { nlModeSummary } from './nlModeSummary'
+import type { NlState } from '../llm/types'
 
 /**
- * The Georgian (`ka`) bottom status bar (spec 2026-06-21). A static, labeled
- * `<footer>` (NOT a live region — finding [7]) holding the persistent ka mode
- * info, pinned to the column bottom by `.screen.term`'s flex layout (no
- * position:fixed). Rendered ONLY under ka (the caller gates on outLang === 'ka'
- * and the presence of one of the two notices), so en/fr/de/es pay no layout cost.
+ * The bottom status bar (spec 2026-06-21, generalized from the Georgian-only
+ * footer 2026-06-22). A single labeled `<footer>` (one landmark, NOT a live
+ * region — finding [7]) pinned to the column bottom by `.screen.term`'s flex
+ * layout (no position:fixed). ALWAYS present, in every language. It hosts:
  *
- * `showBeta` and `showNoCorpus` are mutually exclusive (the caller derives them
- * from the same corpus check). They are NOT symmetric (spec Decision 1):
- *  - Beta: the screen IS Georgian → Georgian-only notice + the type-English tip.
- *  - No-corpus: the screen fell back to English → bilingual notice, NO tip.
+ *  - The READOUT (always): the NL-mode summary + story title. Static text. With
+ *    `debug` on it also appends the story signature (the save-slot key, an 8-hex
+ *    developer detail) — kept off the default readout where it reads as noise.
+ *  - The Georgian NOTICE segment (`showBeta`/`showNoCorpus`): persistent ka
+ *    player content shown in addition to the readout. These two are mutually
+ *    exclusive (the caller derives them from one corpus check) and asymmetric
+ *    (Decision 1):
+ *      - Beta: the screen IS Georgian → Georgian-only notice + the type-English tip.
+ *      - No-corpus: the screen fell back to English → bilingual notice, NO tip.
  */
-export function GeorgianStatusBar({
+export function BottomBar({
+  debug,
+  nlState,
+  storyTitle,
+  signature,
   showBeta,
   showNoCorpus,
 }: {
+  debug: boolean
+  nlState: NlState
+  storyTitle: string
+  /** Story signature (save-slot key); '' until boot resolves it. Shown only
+   *  under debug, truncated to the first 8 hex. */
+  signature: string
   showBeta: boolean
   showNoCorpus: boolean
 }) {
   return (
-    <footer className="bottombar" aria-label="Georgian mode information">
+    <footer className="bottombar" aria-label="Status information">
       <span className="bottombar-icon" aria-hidden="true">
         ⓘ
+      </span>
+      <span className="bottombar-readout">
+        {nlModeSummary(nlState)} — {storyTitle}
+        {debug && signature ? ` · ${signature.slice(0, 8)}` : ''}
       </span>
       {showBeta && (
         <>

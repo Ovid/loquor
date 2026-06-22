@@ -511,7 +511,7 @@ describe('Terminal', () => {
         )
         expect(ka).toHaveAttribute('lang', 'ka')
         const bar = screen.getByRole('contentinfo', {
-          name: /Georgian mode information/i,
+          name: /Status information/i,
         })
         expect(bar).toContainElement(ka)
         // Decision 1: the English half is GONE from the beta notice.
@@ -523,7 +523,9 @@ describe('Terminal', () => {
       }
     })
 
-    it('renders no bottom bar for French', async () => {
+    it('always shows the bottom bar with the NL-mode readout for French', async () => {
+      // The bug this fixes: the bottom bar used to appear ONLY in Georgian. It is
+      // now always present, in every language, carrying the diagnostic readout.
       nlOverride = {
         state: { phase: 'on', language: 'fr', model: 'full', canUpgrade: true },
       }
@@ -536,16 +538,13 @@ describe('Terminal', () => {
             themeToggle={null}
           />,
         )
-        // Wait for boot output so the corpus/signature has resolved.
-        await waitFor(
-          () => expect(screen.getByRole('log')).toHaveTextContent(/\S/),
+        const bar = await screen.findByRole(
+          'contentinfo',
+          { name: /Status information/i },
           { timeout: 8000 },
         )
-        expect(
-          screen.queryByRole('contentinfo', {
-            name: /Georgian mode information/i,
-          }),
-        ).toBeNull()
+        expect(bar).toHaveTextContent('fr · full · input')
+        expect(bar).toHaveTextContent('Zork I')
       } finally {
         nlOverride = null
       }
@@ -611,7 +610,7 @@ describe('Terminal', () => {
         )
         expect(ka).toHaveAttribute('lang', 'ka')
         const bar = screen.getByRole('contentinfo', {
-          name: /Georgian mode information/i,
+          name: /Status information/i,
         })
         expect(bar).toContainElement(ka)
         // Stays bilingual (Decision 1).
@@ -651,19 +650,17 @@ describe('Terminal', () => {
             themeToggle={null}
           />,
         )
-        // Wait for the bar (requires signature resolution), then check the
-        // dedicated announce region. The bar appears at the same render cycle
-        // that populates the sr-only div (both gated on showBetaNotice).
-        const bar = await screen.findByRole(
-          'contentinfo',
-          { name: /Georgian mode information/i },
-          { timeout: 8000 },
-        )
-        // The dedicated sr-only live region must carry the tip.
-        const tip = screen.getByText(
+        // The bar is always present now, so it can't be the sync point — wait on
+        // the dedicated announce region directly (it populates once the signature
+        // resolves and showBetaNotice turns true).
+        const tip = await screen.findByText(
           'რჩევა: ბრძანებები აკრიფეთ ინგლისურად; ტექსტი ქართულად ჩანს.',
           { selector: '[aria-live]' },
+          { timeout: 8000 },
         )
+        const bar = screen.getByRole('contentinfo', {
+          name: /Status information/i,
+        })
         // Dedicated polite live region, Georgian-voiced.
         expect(tip).toHaveAttribute('aria-live', 'polite')
         expect(tip).toHaveAttribute('lang', 'ka')
@@ -706,7 +703,7 @@ describe('Terminal', () => {
         // …not in the bottom bar. Wait for the bar (signature must resolve first).
         const bar = await screen.findByRole(
           'contentinfo',
-          { name: /Georgian mode information/i },
+          { name: /Status information/i },
           { timeout: 8000 },
         )
         expect(bar).not.toContainElement(notice)
@@ -785,7 +782,7 @@ describe('Terminal', () => {
       }
     })
 
-    it('removes the bar when switching ka → en (item 6)', async () => {
+    it('drops the Georgian notice (but keeps the bar) when switching ka → en (item 6)', async () => {
       nlOverride = { state: ka }
       try {
         const { rerender } = render(
@@ -796,12 +793,14 @@ describe('Terminal', () => {
             themeToggle={null}
           />,
         )
-        await screen.findByRole(
-          'contentinfo',
-          { name: /Georgian mode information/i },
+        // The Georgian beta notice is present under ka.
+        await screen.findByText(
+          /ქართული თარგმანი ჯერ სატესტოა/,
+          {},
           { timeout: 8000 },
         )
-        // Switch to English: the bar (and its content) must vanish.
+        // Switch to English: the ka player notice must vanish, but the bar stays
+        // (it is always present now) carrying the English readout.
         nlOverride = {
           state: {
             phase: 'on',
@@ -820,11 +819,13 @@ describe('Terminal', () => {
         )
         await waitFor(() =>
           expect(
-            screen.queryByRole('contentinfo', {
-              name: /Georgian mode information/i,
-            }),
+            screen.queryByText(/ქართული თარგმანი ჯერ სატესტოა/),
           ).toBeNull(),
         )
+        const bar = screen.getByRole('contentinfo', {
+          name: /Status information/i,
+        })
+        expect(bar).toHaveTextContent('en · full · input')
       } finally {
         nlOverride = null
       }

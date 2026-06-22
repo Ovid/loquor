@@ -241,14 +241,26 @@ export function extractVerbsAndPreps(forms, N, metaSet) {
 
   // Prep-class declarations: <SYNONYM WITH …>/<SYNONYM IN …>/… The block head is
   // the canonical prep; union it into preps so declared-but-not-inter-object preps
-  // (e.g. `under`) survive. Non-prep SYNONYM heads are verb/direction synonym
-  // blocks whose members we retain (NL v2 §9).
+  // (e.g. `under`) survive. The block MEMBERS (inside/into/onto/underneath/beneath/
+  // below/using/through/thru) are real prep dictionary words the Z-parser accepts
+  // wherever the head is accepted (<SYNONYM IN INSIDE INTO>), so they are retained
+  // in `preps` too — otherwise the English vocab-passthrough gate (vocabWordSet)
+  // misses the literal word a player types and routes the command to the warm LLM,
+  // which mangles it (UAT: 'put painting into case' → 'take painting'; 'look
+  // underneath rug' → 'look'). Same class as the BUG C verb-head gap above. The
+  // fr/de/es lexicon is unaffected: it maps foreign preps to the CANONICAL head, so
+  // it never emits a synonym. Non-prep SYNONYM heads are verb/direction synonym
+  // blocks whose members we retain as verbSynonyms (NL v2 §9).
   const verbSynonyms = new Set()
   for (const f of active) {
     if (headAtom(f) !== 'SYNONYM') continue
     const head = atomAt(f, 1).toLowerCase()
     if (PREP_HEADS.has(head)) {
       preps.add(head)
+      for (let i = 2; i < f.items.length; i++) {
+        const it = f.items[i]
+        if (it.t === 'atom') preps.add(it.v.toLowerCase())
+      }
       continue
     }
     // Verb/direction synonym block: members are parser dictionary words the

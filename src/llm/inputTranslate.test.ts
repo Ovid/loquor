@@ -23,6 +23,8 @@ import { ES_ZORK1 } from './lexicon/es.zork1'
 import type { Vocab } from './grammar/types'
 import type { NounLexicon } from './lexicon/types'
 import { ZORK1_VOCAB } from './grammar/zork1.vocab'
+import { ZORK2_VOCAB } from './grammar/zork2.vocab'
+import { ZORK3_VOCAB } from './grammar/zork3.vocab'
 import {
   TAKE_ACK,
   DROP_ACK,
@@ -913,6 +915,52 @@ describe('inflate verb passes the vocab gate (Zork I) — BUG C', () => {
       expect(isVocabPassthrough(cmd, ZORK1_VOCAB, null)).toBe(true)
     },
   )
+})
+
+// PREPOSITION SYNONYMS (UAT 2026-06-22, same class as BUG C): gsyntax.zil declares
+// each canonical prep WITH its synonyms — <SYNONYM IN INSIDE INTO>, <SYNONYM ON ONTO>,
+// <SYNONYM UNDER UNDERNEATH BENEATH BELOW>, <SYNONYM WITH USING THROUGH THRU>. The
+// extractor kept only the canonical HEAD (in/on/under/with) and dropped the members,
+// so the English vocab-passthrough gate missed the literal word a player types and
+// routed e.g. 'put painting into case' to the warm LLM, which mangled it ('take
+// painting'; 'look underneath rug' → 'look'). The Z-parser accepts the synonyms
+// natively, so raw-sending them is correct. Identical gap in Zork I/II/III (shared
+// generic SYNTAX file). Fix: zil.mjs retains the prep-block synonym members in `preps`.
+describe('preposition synonyms pass the vocab gate (Zork I)', () => {
+  it.each([
+    'put painting into case', // IN → into (was LLM-mangled to "take painting")
+    'put painting inside case', // IN → inside
+    'put coal onto machine', // ON → onto
+    'look underneath rug', // UNDER → underneath (was LLM-mangled to "look")
+    'look beneath rug', // UNDER → beneath
+    'look below rug', // UNDER → below
+    'attack troll using sword', // WITH → using
+    'look through window', // WITH → through
+    'look thru window', // WITH → thru
+  ])('%s clears the vocab gate (raw-sends, not the LLM)', cmd => {
+    expect(isVocabPassthrough(cmd, ZORK1_VOCAB, null)).toBe(true)
+  })
+})
+
+describe('preposition synonyms are present in every game vocab (parity)', () => {
+  const PREP_SYNONYMS = [
+    'inside',
+    'into',
+    'onto',
+    'underneath',
+    'beneath',
+    'below',
+    'using',
+    'through',
+    'thru',
+  ]
+  it.each([
+    ['Zork I', ZORK1_VOCAB],
+    ['Zork II', ZORK2_VOCAB],
+    ['Zork III', ZORK3_VOCAB],
+  ] as const)('%s preps include every synonym', (_label, vocab) => {
+    for (const syn of PREP_SYNONYMS) expect(vocab.preps).toContain(syn)
+  })
 })
 
 describe('P3 signpost escape commands pass the vocab gate (Zork I)', () => {

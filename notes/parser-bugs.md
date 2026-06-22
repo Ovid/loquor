@@ -346,3 +346,71 @@ have that", confirming the parse). **`inflate` is the lone failure.**
 - The compound **abort-on-failure** ("Ran N of M") silently drops later clauses if an
   early clause mis-resolves to a not-in-scope object — flip side of the fix; mitigated
   by the visible notice. Worth a deliberate look but not obviously a bug.
+
+---
+
+# Walkthrough English UAT (2026-06-22, branch `ovid/fix-the-it-bug`) — hunt for more A/B/C-class bugs
+
+Drove the full Zork I walkthrough command set in plain English, `full`/warm-LLM mode
+(resumed save, East-West Passage, score 40). Method: in-page `console.log` hook into
+`window.__nlClauses`, read the authoritative `[nl] clause` `stage`/`result.text` per
+probe. A token-coverage sweep (`grep` walkthrough tokens vs `zork1.vocab.ts`) showed
+only `all` (handled by the Bug-A quantifier path) and `inside` absent — so the literal
+walkthrough is clean except `inside`. The richer-English probes found the real bug.
+
+## ❌→✅ BUG D (RESOLVED) — preposition SYNONYMS dropped from the vocab → warm LLM mangles `put X into Y` etc.
+
+**Severity: high — same class as BUG A/C. A core, natural phrasing of a constant
+command (`put X into/inside Y`, `look under`/`underneath`/`beneath`/`below`) routes to
+the warm LLM and is non-deterministically mangled to a WRONG command.**
+
+Browser-confirmed mangles (`stage:"llm"`, reproduced 2× each):
+
+| Input (warm LLM)            | LLM `result.text` | player sees / harm                                  |
+| --------------------------- | ----------------- | --------------------------------------------------- |
+| `put painting into case`    | `take painting`   | verb FLIPPED + destination dropped — opposite action |
+| `look underneath rug`       | `look`            | object lost — would miss the trap door under the rug |
+| `attack troll using sword`  | `attack troll with sword` | correct THIS run (LLM luck)                  |
+| `put coal onto machine`     | `put coal on machine`     | correct THIS run (LLM luck)                  |
+| `put painting inside case`  | `put painting in case`    | correct 3× (LLM luck)                        |
+
+The grammar-only path is fine (English raw-sends; Zork maps the synonym itself); it is
+the **warm LLM** that breaks it — the A/B/C trap exactly.
+
+### Root cause (confirmed; identical in Zork I/II/III — shared generic SYNTAX file)
+
+`gsyntax.zil` declares each canonical prep WITH its synonyms:
+`<SYNONYM IN INSIDE INTO>` · `<SYNONYM ON ONTO>` ·
+`<SYNONYM UNDER UNDERNEATH BENEATH BELOW>` · `<SYNONYM WITH USING THROUGH THRU>`.
+The extractor (`scripts/lib/zil.mjs`) kept only the canonical **head** (`in/on/under/with`)
+and `continue`d, **dropping all 9 synonym members** — they never reached `vocab.preps`,
+so `vocabWordSet`/`isVocabPassthrough` missed the literal word the player typed and
+routed the command to the LLM. (Verb/direction/magic-word synonym blocks are NOT
+affected — their members ARE retained as `verbSynonyms`; verified `Ulysses`→vocab,
+`ne`→`northeast` via a dedicated `direction` stage. Prepositions were the lone gap.)
+
+Complete dropped set (all 9, all three games, all `MISSING` from each vocab pre-fix):
+`inside, into` (IN) · `onto` (ON) · `underneath, beneath, below` (UNDER) ·
+`using, through, thru` (WITH).
+
+### RESOLVED 2026-06-22 (Ovid go-ahead → /paad:vibe, TDD)
+
+Mirrors the BUG C extractor fix. `zil.mjs` now retains the prep-block synonym members
+in `preps` (they are real prep dictionary words the Z-parser accepts wherever the head
+is; raw-sending `into`/`underneath` is correct — Zork maps them to `in`/`under`).
+`make extract-vocab` regenerated all three games — a +9-preps-per-game diff, nothing
+else changed. The fr/de/es lexicon is unaffected (it maps foreign preps to the CANONICAL
+head, never emits a synonym). RED→GREEN: `inputTranslate.test.ts` "preposition synonyms
+pass the vocab gate (Zork I)" (all 9 via `isVocabPassthrough`) + "...present in every
+game vocab (parity)" (zork1/2/3 `preps` contain all 9). `make all` green (1287).
+Live-verified in a fresh tab: `put painting into case` → `[vocab]` verbatim (was LLM
+`take painting`) → game gives the correct PUT error "You don't have that!"; `look
+underneath rug` → `[vocab]` verbatim (was LLM `look`) → "You can't see any rug here!"
+(object preserved). Not yet committed.
+
+## Lower-severity / non-bugs this run
+
+- Single-word + magic-word + adj+noun probes all raw-send (`stage:"vocab"`): `Ulysses`,
+  `sand` (the `dig` disambiguation answer), `wait`, `inventory`, `push yellow button`,
+  `take canary from egg`, `go up chimney`. Direction abbreviations (`u`/`ne`/`nw`) resolve
+  deterministically (`u` vocab; `ne`→`northeast` via the `direction` stage). No LLM, no harm.

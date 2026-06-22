@@ -124,6 +124,23 @@ north`) while the NL input was still German — a self-contradictory state the
 - Quoted commands (`"open mailbox"`) are the reliable escape hatch and each
   use doubles as a passthrough test; prefer them over toggling the picker to
   English so the session stays in-language end to end.
+- **A clean-looking GAME response can MASK an LLM mangle — the screen lies, the
+  `[nl] clause` log doesn't.** (UAT 2026-06-22, BUG C.) `inflate plastic with
+  pump` printed "You can't see any pump here!", which reads as a correct parse —
+  but the console showed `stage:"llm"` / `result.text:"turn on pump"`: the LLM
+  had dropped the verb. The plausible game error came from the *mangled* command,
+  not the typed one. **ALWAYS confirm a command raw-sent (`stage:"vocab"`/
+  `"lexicon"`, `result.text` ≈ input) before trusting it parsed** — a missing
+  vocab word produces a different-but-still-plausible Zork error every time.
+  Fastest capture for English `full` runs (the console reader DUPLICATES history):
+  patch `console.log` once to push `[nl] clause` payloads into a
+  `window.__nlClauses` array, reset it per probe, read it after.
+- **A verb in the vocab as a 6-char-truncated form (`inflat`) raw-sends for
+  fr/de/es but NOT for English.** The lexicon `hasVerbForm` is truncation-aware;
+  the English `vocabWordSet`/`isVocabPassthrough` gate is exact-match. So a
+  truncated verb head is an English-only leak (fixed for BUG C by de-truncating
+  in `scripts/lib/zil.mjs`). When a puzzle verb fails ONLY in English, suspect a
+  truncated `verbs2`/`verbs1` entry: `grep -n "'[a-z]\{6\}'" zork{N}.vocab.ts`.
 
 ## Output-translation testing (corpus gates have a known blind spot)
 

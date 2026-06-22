@@ -858,6 +858,27 @@ describe('isVocabPassthrough (stage 4 + collision guard)', () => {
       true,
     )
   })
+  // The v3 Z-parser truncates BOTH dictionary words and player input to 6 chars
+  // before matching, so a vocab stored in its truncated form must still accept the
+  // full word a player types. Mirrors parse.ts hasVerbForm / roundtrip.ts. Without
+  // this, a source-truncated ZIL verb head (the original BUG C: gsyntax 'INFLAT' vs
+  // typed 'inflate') silently leaks past stage-4 passthrough into the LLM.
+  it('truncation-aware: a >6-char token matches a 6-char-truncated vocab entry', () => {
+    // truncVocab holds only the truncated 'inflat' (no full 'inflate').
+    const truncVocab: Vocab = {
+      ...pvVocab,
+      verbs2: [...pvVocab.verbs2, 'inflat'],
+    }
+    expect(
+      isVocabPassthrough('inflate the small mailbox', truncVocab, null),
+    ).toBe(true)
+  })
+  it('truncation widening does not over-match an unknown long word', () => {
+    // 'zeppelinesque'[:6] = 'zeppel' is in no vocab field → still rejected.
+    expect(
+      isVocabPassthrough('zeppelinesque the small mailbox', pvVocab, null),
+    ).toBe(false)
+  })
 })
 
 // Task 8b: pin es conjoined+trailing-prep distribution (spec N3 coverage).

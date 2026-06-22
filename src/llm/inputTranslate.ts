@@ -365,6 +365,17 @@ export function unquote(line: string): string | null {
  * English, a token in the active language's lexicon does NOT count — the
  * line falls through to the lexicon parse instead (pushback issue 2).
  */
+/** Truncation-aware membership: the v3 Z-parser truncates BOTH dictionary words
+ * and player input to 6 chars before matching, so a token whose 6-char prefix is
+ * a known word is accepted by the game even when the stored vocab form is the
+ * truncation (BUG C: gsyntax authored the verb head as 'INFLAT' vs the typed
+ * 'inflate'). Mirrors the same widening already used by parse.ts `hasVerbForm`
+ * and roundtrip.ts. For tokens ≤6 chars `slice(0,6)` is the token itself, so this
+ * only widens the >6-char case — short words keep exact-match semantics. */
+function vocabKnows(words: Set<string>, t: string): boolean {
+  return words.has(t) || words.has(t.slice(0, 6))
+}
+
 export function isVocabPassthrough(
   line: string,
   vocab: Vocab,
@@ -378,7 +389,7 @@ export function isVocabPassthrough(
     .filter(Boolean)
   if (tokens.length === 0) return false
   return tokens.every(
-    t => words.has(t) && !(activeLexiconWords?.has(t) ?? false),
+    t => vocabKnows(words, t) && !(activeLexiconWords?.has(t) ?? false),
   )
 }
 

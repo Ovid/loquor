@@ -223,6 +223,7 @@ export function Terminal({
         status={xl.status}
         onChangeStory={onChangeStory}
         changeStoryLabel={LANDING_STRINGS[activeLang].changeStory}
+        labelLang={nlLang}
         themeToggle={themeToggle}
         inert={bgInert}
         nlToggle={

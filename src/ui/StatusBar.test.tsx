@@ -65,6 +65,33 @@ describe('StatusBar', () => {
     ).toBeInTheDocument()
   })
 
+  it('tags a non-English Change story label with its lang (WCAG 3.1.2)', () => {
+    // Without lang, a screen reader voices the localized label with English
+    // phonemes. The button text is in the UI language, so it must carry it.
+    render(
+      <StatusBar
+        status={null}
+        onChangeStory={() => {}}
+        themeToggle={null}
+        changeStoryLabel="ისტორიის შეცვლა"
+        labelLang="ka"
+      />,
+    )
+    expect(
+      screen.getByRole('button', { name: 'ისტორიის შეცვლა' }),
+    ).toHaveAttribute('lang', 'ka')
+  })
+
+  it('leaves the English Change story label untagged (no lang)', () => {
+    // English matches the document lang, so tagging it is noise.
+    render(
+      <StatusBar status={null} onChangeStory={() => {}} themeToggle={null} />,
+    )
+    expect(
+      screen.getByRole('button', { name: 'Change story' }),
+    ).not.toHaveAttribute('lang')
+  })
+
   it('renders the prefsToggle node between the picker and theme toggle', () => {
     render(
       <StatusBar

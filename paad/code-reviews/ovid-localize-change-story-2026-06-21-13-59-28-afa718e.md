@@ -22,12 +22,13 @@ None found.
 ## Important Issues
 
 ### [I1] Localized "Change story" button has no `lang` attribute (WCAG 3.1.2 regression)
+
 - **File:** `src/ui/StatusBar.tsx:38-40`
 - **Bug:** The button now renders `{changeStoryLabel}`, fed `LANDING_STRINGS[activeLang].changeStory`
   (`Terminal.tsx:225`) — Georgian (`ისტორიის შეცვლა`), French, German, or Spanish text — but the
   `<button>` has no `lang`. The document lang is English, so assistive tech voices the localized
   label with English phonemes. Before this change the button was always the English string
-  "Change story", so this diff *introduces* the mispronunciation.
+  "Change story", so this diff _introduces_ the mispronunciation.
 - **Impact:** A11y is a hard project requirement (CLAUDE.md). The bug hits all four non-English UIs,
   and "a fix in one language is a fix in all" applies. The sibling `NlLanguagePicker` already does
   the right thing — every localized span there is wrapped in `lang={state.language}`
@@ -59,7 +60,7 @@ None found.
   unverifiable in jsdom — worth a one-time manual contrast check in both themes. _(Found by: A11y)_
 - **Manual responsive checklist still required**: `.bottombar` (flex-wrap + fluid Georgian text +
   its own `@media (max-width:520px)` rules, no `position:fixed`) shows no obvious 320px overflow,
-  but the bar is *always present* during `ka` play and there is no automated layout guard (jsdom).
+  but the bar is _always present_ during `ka` play and there is no automated layout guard (jsdom).
   Run the spec's 320/375/520px + short-landscape check **under the `ka` case specifically**, both
   themes. _(Found by: Plan Alignment / Responsive)_
 - **Bundled out-of-scope changes** (informational): the `vocabWordSet` single-token-canonical fix,

@@ -46,6 +46,7 @@ import {
   resolveEnglishPronoun,
   isEnglishPronounClause,
   resolveEnglishQuantifier,
+  resolveEnglishQuantifierPhrase,
 } from './lexicon/parse'
 import type { CoreLexicon, NounLexicon } from './lexicon/types'
 import { parseDirection } from './directions'
@@ -363,6 +364,14 @@ export async function runClause(
     const q = resolveEnglishQuantifier(clause, vocab)
     if (q.kind === 'command')
       return { result: q, raw: '(quantifier)', stage: 'lexicon' }
+    // Modified quantifier ("put all in case", "drop all but the lamp", "take
+    // everything except the lamp"): the bare path above only catches "<verb> all".
+    // The Z-parser handles ALL with preps/EXCEPT natively, so raw-send the player's
+    // words (everything→all normalized) instead of letting the LLM mangle it to the
+    // same "take large bag" hallucination bare "take all" produced pre-BUG-A (BUG F).
+    const qp = resolveEnglishQuantifierPhrase(clause, vocab)
+    if (qp.kind === 'command')
+      return { result: qp, raw: '(quantifier-raw)', stage: 'vocab' }
     // A well-formed "<verb> it/them" we couldn't pin to a specific object (no
     // antecedent, or one not in vocab): raw-send the player's words to Zork,
     // whose parser tracks "it" natively — far safer than the LLM, which

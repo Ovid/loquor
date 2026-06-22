@@ -5,6 +5,7 @@ import {
   resolveEnglishPronoun,
   isEnglishPronounClause,
   resolveEnglishQuantifier,
+  resolveEnglishQuantifierPhrase,
 } from './parse'
 import { FR_CORE } from './fr.core'
 import { DE_CORE } from './de.core'
@@ -745,6 +746,65 @@ describe('resolveEnglishQuantifier (English "take all" deterministic path — Bu
       kind: 'miss',
     })
     expect(resolveEnglishQuantifier('take', vocab)).toEqual({ kind: 'miss' })
+  })
+})
+
+// BUG F (UAT 2026-06-22, same class as BUG A): the bare-quantifier path above only
+// catches the two-token "<verb> all". The MODIFIED forms — "put all in case" (the
+// natural endgame treasure-casing shortcut), "drop all but the lamp", "take
+// everything except the lamp" — fall to the warm LLM, which mangles them exactly
+// like bare "take all" did pre-BUG-A: browser-confirmed "put all in case" →
+// {"verb":"take","object":"large bag"} ("take large bag" — verb FLIPPED + object
+// hallucinated), "drop all but the lamp" → "drop large bag". The Z-parser handles
+// its ALL object with prepositions and the BUT/EXCEPT exclusion natively, so the
+// fix raw-sends the player's words — normalizing "everything" → "all" (the parser's
+// quantifier is ALL/ONE/BOTH; "everything" is NOT a Zork dictionary word). Guard:
+// only fires when the leading verb is one arity-1/2 vocab verb, the quantifier sits
+// right after it, there IS a rest, and every rest token is a word the parser knows.
+describe('resolveEnglishQuantifierPhrase (modified "<verb> all <rest>" — Bug F)', () => {
+  it('raw-sends "put all in case" (the bare path drops the destination)', () => {
+    expect(
+      resolveEnglishQuantifierPhrase('put all in case', ZORK1_VOCAB),
+    ).toEqual({ kind: 'command', text: 'put all in case' })
+  })
+
+  it('preserves a leading article + the destination ("put all in the case")', () => {
+    expect(
+      resolveEnglishQuantifierPhrase('put all in the case', ZORK1_VOCAB),
+    ).toEqual({ kind: 'command', text: 'put all in the case' })
+  })
+
+  it('raw-sends the BUT/EXCEPT exclusion ("drop all but the lamp")', () => {
+    expect(
+      resolveEnglishQuantifierPhrase('drop all but the lamp', ZORK1_VOCAB),
+    ).toEqual({ kind: 'command', text: 'drop all but the lamp' })
+  })
+
+  it('normalizes "everything" → "all" before raw-send (not a Zork word)', () => {
+    expect(
+      resolveEnglishQuantifierPhrase(
+        'take everything except the lamp',
+        ZORK1_VOCAB,
+      ),
+    ).toEqual({ kind: 'command', text: 'take all except the lamp' })
+  })
+
+  it('misses on the bare form (no rest) — that is the sibling path’s job', () => {
+    expect(resolveEnglishQuantifierPhrase('take all', ZORK1_VOCAB)).toEqual({
+      kind: 'miss',
+    })
+  })
+
+  it('misses when a rest token is not a parser-known word (no over-match)', () => {
+    expect(
+      resolveEnglishQuantifierPhrase('put all in zeppelin', ZORK1_VOCAB),
+    ).toEqual({ kind: 'miss' })
+  })
+
+  it('misses when there is no leading arity-1/2 verb', () => {
+    expect(
+      resolveEnglishQuantifierPhrase('look all around here', ZORK1_VOCAB),
+    ).toEqual({ kind: 'miss' })
   })
 })
 

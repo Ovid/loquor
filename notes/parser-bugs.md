@@ -495,3 +495,48 @@ pot" → "any **pot** here!"). Committed this session.
 - **`shove the rug`** — `shove` is not a Zork dictionary word (the rug answers to
   MOVE/PUSH), so raw-sending would fail anyway; the LLM mapping it to `move rug` is
   arguably better. Not a gate bug.
+
+## ❌→✅ BUG F (RESOLVED) — MODIFIED quantifiers (`put all in case`, `drop all but X`) fall to the warm LLM and mangle like pre-BUG-A `take all`
+
+**Severity: medium-high — same failure mode as BUG A, on natural and genuinely useful
+phrasings. `put all in case` is the obvious shortcut for the endgame's 19-treasure
+casing; `drop all but the lamp` is the natural way to lighten the load while keeping
+your light source.**
+
+A second verb-phrasing sweep (98 probes) found that the English quantifier path
+(`resolveEnglishQuantifier`, the BUG-A fix) only catches the **bare two-token** form
+(`take all`/`drop all`/`take everything`). The MODIFIED forms route to the warm LLM,
+which mangles them to the **exact same "large bag" hallucination** bare `take all`
+produced before BUG A. Browser-confirmed (`stage:"llm"`):
+
+| Input (warm LLM, pre-fix) | LLM `raw`                              | sent to Zork     | harm                                   |
+| ------------------------- | -------------------------------------- | ---------------- | -------------------------------------- |
+| `put all in case`         | `{"verb":"take","object":"large bag"}` | `take large bag` | verb FLIPPED (put→take) + hallucinated |
+| `drop all but the lamp`   | `{"verb":"drop","object":"large bag"}` | `drop large bag` | EXCEPT dropped + hallucinated          |
+
+### Root cause
+
+`resolveEnglishQuantifier` uses `englishVerbBeforeTail(…, EN_QUANTIFIERS)`, which
+requires the quantifier to be the **last** token — so anything trailing it (`in case`,
+`but the lamp`, `except the lamp`) misses, and the clause reaches the LLM. The Z-parser
+(`gparser.zil` SNARFEM) handles its ALL object together with prepositions and the
+BUT/EXCEPT exclusion natively; only the deterministic English path was missing the
+modified forms.
+
+### RESOLVED 2026-06-22 (autonomous, same class as approved BUG A, TDD)
+
+Added `resolveEnglishQuantifierPhrase` (`parse.ts`) wired into the English branch of
+`runClause` right after the bare path. It RAW-SENDS the player's words (Zork handles
+ALL + prep/EXCEPT), normalizing `everything` → `all` because `everything` is NOT a Zork
+dictionary word (the parser's quantifier is ALL/ONE/BOTH — `gsyntax.zil:11` /
+`gparser.zil` `W?ALL`). Tight guard so fuzzy phrases still fall to the LLM: leading
+token(s) are exactly one **arity-1/2** vocab verb, the quantifier sits immediately
+after it, there IS a remainder, and **every** remainder token is a parser-known word
+(`vocabWordSet`, 6-char-truncation-aware). RED→GREEN: 7 cases in `parse.test.ts`
+"resolveEnglishQuantifierPhrase … — Bug F" (the three real commands + article
+preservation + everything→all + bare-form miss + unknown-token miss + no-leading-verb
+miss). `make all` green (1302). **Live-verified in a fresh tab — semantically, not just
+routing:** `put all in case` → Zork iterates every held item; `drop all but the lamp` →
+`sword/lunch/glass bottle: Dropped.` with the **brass lantern correctly retained**;
+`take everything except the lamp` → emitted `take all except the lamp`, all but the lamp
+taken. All `stage:"vocab"` / `raw:"(quantifier-raw)"`. Committed this session.

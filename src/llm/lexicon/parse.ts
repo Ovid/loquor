@@ -6,6 +6,7 @@ import type { CoreLexicon, NounLexicon } from './types'
 import type { Vocab, NounEntry } from '../grammar/types'
 import type { Scene } from '../scene/types'
 import { fold, tokenize } from './fold'
+import { vocabWordSet } from '../inputTranslate'
 
 export type LexResult = { kind: 'command'; text: string } | { kind: 'miss' }
 const MISS: LexResult = { kind: 'miss' }
@@ -251,6 +252,51 @@ export function resolveEnglishQuantifier(
 ): LexResult {
   const verb = englishVerbBeforeTail(clause, vocab, EN_QUANTIFIERS)
   return verb ? { kind: 'command', text: `${verb} all` } : MISS
+}
+
+/** Resolve a MODIFIED English quantifier command the bare path above doesn't catch:
+ * "put all in case" (the natural endgame treasure-casing shortcut), "drop all but
+ * the lamp", "take everything except the lamp". English has NO input lexicon, so
+ * these reach the warm LLM, which mangles them exactly like bare "take all" did
+ * pre-BUG-A ("put all in case" → "take large bag": verb flipped + object
+ * hallucinated). The Z-parser handles its ALL object together with prepositions and
+ * the BUT/EXCEPT exclusion natively, so the fix RAW-SENDS the player's words —
+ * normalizing "everything" → "all" (the parser's quantifier is ALL/ONE/BOTH;
+ * "everything" is not a Zork dictionary word). It fires ONLY when: the clause leads
+ * with exactly one arity-1/2 vocab verb, the quantifier (all/everything) sits
+ * immediately after it, there IS a remainder (the bare form is
+ * resolveEnglishQuantifier's job), and every remainder token is a word the parser
+ * knows (vocabWordSet, 6-char-truncation-aware) — so a fuzzy phrase still falls to
+ * the LLM rather than raw-sending garbage. A miss leaves the clause for the caller. */
+export function resolveEnglishQuantifierPhrase(
+  clause: string,
+  vocab: Vocab,
+): LexResult {
+  const tokens = tokenize(clause)
+  if (tokens.length < 3) return MISS // need verb + quantifier + ≥1 remainder token
+  const qIdx = tokens.findIndex(t => EN_QUANTIFIERS.includes(t))
+  if (qIdx < 1 || qIdx === tokens.length - 1) return MISS
+  const verbTokens = tokens.slice(0, qIdx)
+  const verb = [
+    ...vocab.verbs2,
+    ...vocab.verbs1,
+    ...vocab.verbsOnly,
+    ...vocab.verbSynonyms,
+  ]
+    .sort((a, b) => b.length - a.length)
+    .find(v => {
+      const parts = v.split(' ')
+      return (
+        parts.length === verbTokens.length &&
+        parts.every((p, i) => verbTokens[i] === p)
+      )
+    })
+  if (!verb || !verbArity1or2(verb, vocab)) return MISS
+  const words = vocabWordSet(vocab)
+  const knows = (t: string) => words.has(t) || words.has(t.slice(0, 6))
+  const rest = tokens.slice(qIdx + 1)
+  if (!rest.every(knows)) return MISS
+  return { kind: 'command', text: [verb, 'all', ...rest].join(' ') }
 }
 
 /** Is `clause` a well-formed "<verb> <pronoun>" command? When resolveEnglishPronoun

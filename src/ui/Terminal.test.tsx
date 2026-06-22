@@ -747,6 +747,42 @@ describe('Terminal', () => {
       }
     })
 
+    it('mounts the announce live region empty (gated on ka, not on content) so it can fire later (S2)', async () => {
+      // Pins the MOUNT-vs-CONTENT split at Terminal.tsx:368-371: the sr-only
+      // region must be REGISTERED while still empty (mount gated on outLang ===
+      // 'ka' only) so a screen reader observes the empty→filled transition. A
+      // no-corpus ka game has showBetaNotice === false, so the region mounts but
+      // its content is null. If a refactor folded the mount gate into the content
+      // gate, the region would never pre-mount and the announcement would die
+      // silently — this asserts the empty region exists.
+      const zork2 = new Uint8Array(readFileSync('public/games/zork2.z3'))
+      nlOverride = {
+        state: ka,
+        announce: 'რჩევა: ბრძანებები აკრიფეთ ინგლისურად; ტექსტი ქართულად ჩანს.',
+      }
+      try {
+        const { container } = render(
+          <Terminal
+            storyBytes={zork2}
+            storyTitle="Zork II"
+            onChangeStory={() => {}}
+            themeToggle={null}
+          />,
+        )
+        // Wait for corpus resolution (no-corpus footer) so we're past boot.
+        await screen.findByText(
+          /ამ ისტორიისთვის ქართული თარგმანი ჯერ არ არის/,
+          {},
+          { timeout: 8000 },
+        )
+        const region = container.querySelector('[aria-live="polite"][lang="ka"]')
+        expect(region).not.toBeNull()
+        expect(region).toBeEmptyDOMElement()
+      } finally {
+        nlOverride = null
+      }
+    })
+
     it('removes the bar when switching ka → en (item 6)', async () => {
       nlOverride = { state: ka }
       try {

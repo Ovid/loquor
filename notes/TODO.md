@@ -1,3 +1,10 @@
+I believe I've made a mistake with the bottom bar. It only shows up in
+Georgian. It should show up in all languages and show status. For now, it
+should show, for all languages, if we're in debug mode. Not sure what else, if
+anything, it should show /brainstorming
+
+---
+
 Sound effects?
 
 ---

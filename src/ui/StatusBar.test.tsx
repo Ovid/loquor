@@ -38,7 +38,7 @@ describe('StatusBar', () => {
     expect(screen.getByRole('banner')).toBeInTheDocument()
   })
 
-  it('hides decorative glyphs (· separator and ▾ chevron) from assistive tech', () => {
+  it('hides the · separator from assistive tech', () => {
     const { container } = render(
       <StatusBar
         status={{ location: 'West of House', right: 'Score: 0   Moves: 1' }}
@@ -49,12 +49,47 @@ describe('StatusBar', () => {
     // The middot is a purely visual divider; announcing it is noise.
     const sep = container.querySelector('.sep')
     expect(sep).toHaveAttribute('aria-hidden', 'true')
+  })
 
-    // The trailing chevron decorates the button; the accessible name is the
-    // word, with the glyph hidden so a screen reader doesn't read it.
-    const button = screen.getByRole('button', { name: 'Change story' })
-    const hiddenGlyph = button.querySelector('[aria-hidden="true"]')
-    expect(hiddenGlyph?.textContent).toBe('▾')
+  it('localizes the Change story label', () => {
+    render(
+      <StatusBar
+        status={null}
+        onChangeStory={() => {}}
+        themeToggle={null}
+        changeStoryLabel="Changer d’histoire"
+      />,
+    )
+    expect(
+      screen.getByRole('button', { name: 'Changer d’histoire' }),
+    ).toBeInTheDocument()
+  })
+
+  it('tags a non-English Change story label with its lang (WCAG 3.1.2)', () => {
+    // Without lang, a screen reader voices the localized label with English
+    // phonemes. The button text is in the UI language, so it must carry it.
+    render(
+      <StatusBar
+        status={null}
+        onChangeStory={() => {}}
+        themeToggle={null}
+        changeStoryLabel="ისტორიის შეცვლა"
+        labelLang="ka"
+      />,
+    )
+    expect(
+      screen.getByRole('button', { name: 'ისტორიის შეცვლა' }),
+    ).toHaveAttribute('lang', 'ka')
+  })
+
+  it('leaves the English Change story label untagged (no lang)', () => {
+    // English matches the document lang, so tagging it is noise.
+    render(
+      <StatusBar status={null} onChangeStory={() => {}} themeToggle={null} />,
+    )
+    expect(
+      screen.getByRole('button', { name: 'Change story' }),
+    ).not.toHaveAttribute('lang')
   })
 
   it('renders the prefsToggle node between the picker and theme toggle', () => {
@@ -70,7 +105,7 @@ describe('StatusBar', () => {
     expect(screen.getByRole('button', { name: 'prefs' })).toBeInTheDocument()
   })
 
-  it('Change story uses the trailing ▾ glyph (decorative, aria-hidden)', () => {
+  it('Change story carries no caret glyph — it opens an overlay, not a dropdown', () => {
     render(
       <StatusBar
         status={null}
@@ -79,7 +114,7 @@ describe('StatusBar', () => {
       />,
     )
     const btn = screen.getByRole('button', { name: 'Change story' })
-    expect(btn.textContent).toContain('▾')
+    expect(btn.textContent).not.toContain('▾')
     expect(btn.textContent).not.toContain('⌄')
   })
 })

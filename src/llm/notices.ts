@@ -239,6 +239,15 @@ export function commandLabel(lang: ActiveLanguage): string {
 // file) so the canonical example can't drift between the help block and this
 // one-line activation nudge (S2).
 
+/** The Georgian (`ka`) activation tip. Output-only: raw-sends English, so the
+ * tip says “type commands in English; text appears in Georgian” with NO
+ * quoted-escape instruction (quoting is meaningless without an input LLM).
+ * Shared by the bottom-bar’s persistent visible copy and the one-shot
+ * activation announcement so the two can’t drift (spec Decision 6).
+ * NATIVE-REVIEW-DRAFT (ka §4 case forms). */
+export const GEORGIAN_ACTIVATION_TIP =
+  'რჩევა: ბრძანებები აკრიფეთ ინგლისურად; ტექსტი ქართულად ჩანს. დახმარებისთვის აკრიფეთ help.'
+
 /** One-time escape-hatch nudge surfaced when a language is picked (P3). fr/de/es
  * point the player at the quoted-English fallback; ka — which is OUTPUT-ONLY and
  * raw-sends English — instead says to type commands in English (NO quoted escape,
@@ -253,10 +262,7 @@ function escapeHatchOnActivation(lang: ActiveLanguage): string | null {
     case 'es':
       return `Consejo: escribe en español. Para enviar un comando exacto en inglés, ponlo entre comillas, p. ej. ${ESCAPE_EXAMPLE}. Escribe «ayuda» para la ayuda.`
     case 'ka':
-      // NATIVE-REVIEW-DRAFT (ka §4 case forms)
-      // ka is OUTPUT-ONLY: raw-sends English, so commands are typed in English and
-      // there is NO quoted-escape (quoting is meaningless without an input LLM).
-      return 'რჩევა: ბრძანებები აკრიფეთ ინგლისურად; ტექსტი ქართულად ჩანს. დახმარებისთვის აკრიფეთ help.'
+      return GEORGIAN_ACTIVATION_TIP
     case 'en':
     default:
       return null // English raw-sends — no fallback to advertise.

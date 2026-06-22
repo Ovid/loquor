@@ -7,6 +7,7 @@ import type {
   NlState,
   ViewContext,
 } from './types'
+import { OUTPUT_ONLY_LANGS } from './types'
 import { helpResponse } from './help'
 import { EngineGate } from '../shared/engineGate'
 import type { ViewState, TurnResult } from '../glkote-react/types'
@@ -54,6 +55,15 @@ export interface UseNaturalLanguage {
   state: NlState
   pending: boolean
   notice: string | null
+  /** A dedicated one-shot, polite live-region message for OUTPUT-ONLY languages
+   * (ka): the must-read "type in English" activation tip, announced once on
+   * entry via the makeActivationNotice latch. Kept SEPARATE from `notice` so a
+   * help/abstain reply in the inline region can't clobber it (spec finding [6]).
+   * LIFECYCLE: set once per language per session by the latch; NOT cleared on
+   * switch-away and NOT re-announced on re-entry (the 3ac3508 once-per-session
+   * contract). Terminal gates the live region on `outLang === 'ka'`, so a stale
+   * value can never render under another language. */
+  announce: string | null
   modalOpen: boolean
   /** Pick a language ('off' disables the layer). Sticky via writeNlPref. */
   setLanguage: (lang: NlLanguage) => void
@@ -117,6 +127,7 @@ export function useNaturalLanguage(
   const engineGate = gateArg ?? fallbackGate
   const [pending, setPending] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  const [announce, setAnnounce] = useState<string | null>(null)
   // Guards against a second translate running concurrently; a line that arrives
   // while this is set QUEUES instead (F-A). A ref (vs. `pending` state) closes
   // the same-tick window synchronously.
@@ -216,7 +227,12 @@ export function useNaturalLanguage(
     prevActiveLangRef.current = active
     if (active === 'off') return
     const msg = activationNoticeRef.current(active)
-    if (msg) setNotice(msg)
+    // OUTPUT-ONLY languages (ka) route their must-read tip to the dedicated
+    // one-shot `announce` live region; input languages keep the inline notice.
+    if (msg) {
+      if (OUTPUT_ONLY_LANGS.has(active)) setAnnounce(msg)
+      else setNotice(msg)
+    }
   }, [internal, modalOpen])
 
   const state: NlState = useMemo(() => {
@@ -365,6 +381,7 @@ export function useNaturalLanguage(
     state,
     pending,
     notice,
+    announce,
     modalOpen,
     setLanguage,
     requestDownload,

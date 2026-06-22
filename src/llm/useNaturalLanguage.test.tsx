@@ -483,6 +483,66 @@ describe('useNaturalLanguage', () => {
     expect(hook.result.current.notice).toMatch(/^Tipp:/)
   })
 
+  it('clears a prior language’s activation notice when switching languages', async () => {
+    // Repro: pick a language whose one-time activation nudge writes nl.notice,
+    // then switch to a language with NO activation notice (English raw-sends).
+    // The nudge must not strand in the live status region — left there it shows
+    // stale, in the wrong language, above the prompt (e.g. a Georgian tip while
+    // the player has switched to English).
+    const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({
+        phase: 'off',
+        installed: true,
+      }),
+    )
+    act(() => hook.result.current.setLanguage('fr'))
+    await waitFor(() => expect(hook.result.current.notice).toMatch(/^Astuce/))
+    act(() => hook.result.current.setLanguage('en'))
+    expect(hook.result.current.notice).toBeNull()
+  })
+
+  it('routes the Georgian activation tip to announce, not the inline notice (reported repro)', async () => {
+    // ka is OUTPUT-ONLY (no modal, no input LLM). Its "რჩევა: …" activation tip
+    // must NOT land in the inline `notice` channel — there a `help` reply would
+    // clobber it (spec finding [6]). It rides the new dedicated `announce`
+    // channel instead, so the inline notice stays clean for help/abstain.
+    const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({
+        phase: 'off',
+        installed: true,
+      }),
+    )
+    act(() => hook.result.current.setLanguage('ka'))
+    await waitFor(() => expect(hook.result.current.announce).toMatch(/^რჩევა/))
+    // The inline notice channel was never written for ka's tip.
+    expect(hook.result.current.notice).toBeNull()
+    // Switching away never strands the tip in the inline notice region (the
+    // original repro): the tip lives only on `announce`, so `notice` stays
+    // null across the switch. `announce` is a once-per-session latch (matching
+    // the 3ac3508 contract) — it is NOT cleared on switch and NOT re-announced
+    // on a later re-entry; the ka-gated live region simply unmounts, so a stale
+    // value can never surface under English. We assert the inline channel only.
+    act(() => hook.result.current.setLanguage('en'))
+    expect(hook.result.current.notice).toBeNull()
+  })
+
+  it('keeps the fr activation nudge on the inline notice channel (not announce)', async () => {
+    // Input languages (fr/de/es) keep their one-time nudge inline — only the
+    // output-only ka tip moves to the dedicated announce region.
+    const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({
+        phase: 'off',
+        installed: true,
+      }),
+    )
+    act(() => hook.result.current.setLanguage('fr'))
+    await waitFor(() => expect(hook.result.current.notice).toMatch(/^Astuce/))
+    expect(hook.result.current.announce).toBeNull()
+  })
+
   it('boot restore: a stored language reactivates against a cached model', async () => {
     localStorage.setItem(
       'loquor.nl',

@@ -882,6 +882,20 @@ describe('es conjoined+trailing-prep distribution (spec N3)', () => {
 // commands shown to the player as "quote it verbatim" escapes, so each must
 // survive unquote → isVocabPassthrough. Regression net for the n.emit omission
 // in vocabWordSet ('thief' is the thief noun's emit, not a synonym).
+// Root-cause net: a noun's CANONICAL (the DESC word the game prints for the
+// object — "reveals a leaflet") is a word the parser knows and the player will
+// naturally type, but the generator filters it out of `synonyms` and the emit
+// may be a different synonym ('advertisement'), so the canonical landed in NO
+// vocab field. vocabWordSet must include single-token canonicals or "take the
+// leaflet" misses every deterministic stage and the LLM mangles it ("leaves").
+describe('canonical (DESC) words pass the vocab gate (Zork I)', () => {
+  it('passes a command using a noun’s displayed canonical word ("leaflet")', () => {
+    // Guard the real-data shape: emit is 'advertisement', synonyms exclude
+    // 'leaflet', so only adding the canonical to the word set makes this pass.
+    expect(isVocabPassthrough('take the leaflet', ZORK1_VOCAB, null)).toBe(true)
+  })
+})
+
 describe('P3 signpost escape commands pass the vocab gate (Zork I)', () => {
   it.each([
     '"wind up canary"',

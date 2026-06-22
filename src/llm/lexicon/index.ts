@@ -106,6 +106,7 @@ export const KNOWN_COLLISIONS: Record<
       'jade', // 'figurine de jade' token vs the 'jade' adjective; same word
       'l',
       'machine', // FR machine = EN 'machine' (lubricated machine); emit word
+      'passage', // FR passage vs EN 'passage' (the forest-passage canonical, emit 'trail') — both lexicon-mapped
       'pot', // FR pot (pot d or) vs 'pot of gold' synonym 'pot'
       'sandwich', // FR sandwich = EN 'sandwich' (lunch); the normal FR word
       'sceptre', // FR sceptre = EN 'sceptre' (egyptian sceptre); emit word
@@ -123,8 +124,10 @@ export const KNOWN_COLLISIONS: Record<
       'cage', // FR cage = EN 'cage' (mangled/steel cages); same word
       'cube', // FR cube = EN 'cube' (large stone cube); same word
       'd', // elided d' ('pochette d allumettes')
+      'demon', // FR démon folds to 'demon' = EN 'demon' canonical; same word
       'dragon', // FR dragon vs 'huge red dragon' synonym 'dragon'
       'examine',
+      'glacier', // FR glacier = EN 'glacier' canonical; same word
       'gnome', // FR gnome = EN 'gnome' (gnome of zurich / volcano gnome)
       'grue', // proper noun kept as-is vs 'lurking grue' / repellent 'grue'
       'instructions', // FR instructions = EN 'instructions' (green paper)
@@ -142,6 +145,7 @@ export const KNOWN_COLLISIONS: Record<
       'sphere', // FR sphere = EN 'sphere' (crystal spheres); same word
       'statuette', // FR statuette = EN 'statuette' (golden dragon); same word
       'table', // FR table = EN 'table' (oblong/dusty tables); same word
+      'tunnel', // FR tunnel = EN 'tunnel' canonical (emit differs); same word
       'zorkmid', // currency proper noun vs the 'zorkmid' bills adjective
       'zurich', // 'gnome de zurich' token vs the EN 'zurich' synonym
     ],
@@ -156,7 +160,9 @@ export const KNOWN_COLLISIONS: Record<
       'parapet', // FR parapet = EN 'parapet'; emit word, same object
       'passage', // FR passage vs EN 'passage' (synonym of 'tunnel') — both lexicon-mapped
       'rose', // 'rose des vents' token vs 'compass rose' synonym 'rose'
+      'runes', // FR runes = EN 'runes' canonical; same word
       'statue', // FR statue = EN 'statue' (guardians of zork); same word
+      'tunnel', // FR tunnel = EN 'tunnel' canonical (emit differs); same word
       'zorkmid', // currency proper noun vs the 'zorkmid' emit; same word
     ],
   },
@@ -191,6 +197,7 @@ export const KNOWN_COLLISIONS: Record<
       'rose', // DE Rose = EN 'rose' (perfect rose); same word, same object
       'safe', // DE Safe = EN 'safe' (the bank 'box' synonym); same object
       'statuette', // DE Statuette = EN 'statuette' (golden dragon); same word
+      'tunnel', // DE Tunnel = EN 'tunnel' canonical (emit differs); same word
       'zorkmid', // currency proper noun vs the 'zorkmid' bills adjective
       'zurich', // 'gnom von zurich' token vs the EN 'zurich' synonym
     ],
@@ -203,6 +210,7 @@ export const KNOWN_COLLISIONS: Record<
       'hole', // holen imperative vs the 'hole' canonical's dictionary word
       'in',
       'statue', // DE Statue = EN 'statue' (guardians of zork); same word
+      'tunnel', // DE Tunnel = EN 'tunnel' canonical (emit differs); same word
       'zorkmid', // currency proper noun vs the 'zorkmid' emit; same word
     ],
   },

@@ -6,7 +6,9 @@ import { Scrollback } from './Scrollback'
 import { CommandInput } from './CommandInput'
 import { NlLanguagePicker } from './NlLanguagePicker'
 import { ModelDownloadModal } from './ModelDownloadModal'
+import { GeorgianStatusBar } from './GeorgianStatusBar'
 import { PreferencesModal, prefsOpenLabel } from './PreferencesModal'
+import { LANDING_STRINGS } from './landingStrings'
 import { useDebug } from './useDebug'
 import {
   useGameEngine,
@@ -220,6 +222,8 @@ export function Terminal({
       <StatusBar
         status={xl.status}
         onChangeStory={onChangeStory}
+        changeStoryLabel={LANDING_STRINGS[activeLang].changeStory}
+        labelLang={nlLang}
         themeToggle={themeToggle}
         inert={bgInert}
         nlToggle={
@@ -274,41 +278,6 @@ export function Terminal({
               silent abstain (common in FR/DE/ES) is heard. Always mounted so the
               live region is registered before a notice appears. */}
           <div role="status" aria-live="polite" className="nl-status">
-            {showBetaNotice && (
-              // Bilingual notice: each half carries its own lang so a screen
-              // reader voices the English half with English phonemes, not
-              // Georgian (3.1.2 — review I1).
-              // SIBLING COPY: landingStrings.ts `ka.caveat` is the landing-plate
-              // variant of this same beta note (worded for that surface). Both
-              // are drafts pending native review (§8) — apply any wording fix to
-              // BOTH so they don't drift (review S4).
-              <p className="nl-notice">
-                <span lang="ka">
-                  ქართული თარგმანი ჯერ სატესტოა — ზოგი ტექსტი შეიძლება
-                  ინგლისურად გამოჩნდეს.
-                </span>{' '}
-                <span lang="en">
-                  Georgian is a beta translation; some text may still appear in
-                  English.
-                </span>
-              </p>
-            )}
-            {showNoCorpusNotice && (
-              // Bilingual, like the beta notice: each half carries its own lang
-              // so a screen reader voices the English half with English phonemes
-              // (3.1.2). Draft pending native review (§8) — same status as the
-              // beta notice / landing caveat; apply any wording fix consistently.
-              <p className="nl-notice">
-                <span lang="ka">
-                  ამ ისტორიისთვის ქართული თარგმანი ჯერ არ არის — თამაში
-                  ინგლისურად გამოჩნდება.
-                </span>{' '}
-                <span lang="en">
-                  Georgian isn’t available for this story yet; it is shown in
-                  English.
-                </span>
-              </p>
-            )}
             {nl.pending && (
               <p className="nl-thinking" lang={nlLang}>
                 {thinking(activeLang)}
@@ -380,6 +349,37 @@ export function Terminal({
           />
         </Scrollback>
       </main>
+      {/* Georgian (ka) mode chrome (spec 2026-06-21). Both are ka-only, so
+          en/fr/de/es get no extra DOM and <main> (flex:1) keeps the full height.
+          The announce region is a DEDICATED polite live region (NOT role=status,
+          to avoid a second status landmark colliding with the inline one, and
+          NOT the static footer) for the one-shot "type in English" tip on ka
+          entry — finding [6].
+          MOUNT vs. CONTENT: the region is mounted whenever ka is active (so the
+          live region is REGISTERED while still empty, before content fills on a
+          later render — a region that mounts already populated may not announce).
+          But its CONTENT is gated on `showBetaNotice` (corpus present): on a
+          no-corpus ka game (Zork II/III) the display is ENGLISH, so announcing
+          "type in English; text appears in Georgian" would be locally wrong — the
+          same reason Decision 1 omits the VISIBLE tip there. The latch fires
+          `nl.announce` on ka entry regardless of corpus (it can't see the
+          corpus), so the corpus gate lives HERE, mirroring the visible-tip gate.
+          lang="ka" voices it in Georgian. */}
+      {outLang === 'ka' && (
+        <div className="sr-only" aria-live="polite" lang="ka">
+          {showBetaNotice ? nl.announce : null}
+        </div>
+      )}
+      {/* The persistent visible bar. Gated additionally on a notice being
+          present so it is absent (not an empty strip) during the boot window
+          before the signature resolves — preserving the boot-flash guard
+          (finding [5]): showNoCorpusNotice already requires signature !== ''. */}
+      {outLang === 'ka' && (showBetaNotice || showNoCorpusNotice) && (
+        <GeorgianStatusBar
+          showBeta={showBetaNotice}
+          showNoCorpus={showNoCorpusNotice}
+        />
+      )}
       <ModelDownloadModal
         open={upgradeModalOpen || nl.state.phase === 'downloading'}
         warn={

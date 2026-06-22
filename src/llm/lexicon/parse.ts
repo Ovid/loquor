@@ -177,22 +177,18 @@ function verbArity1or2(verb: string, vocab: Vocab): boolean {
 // with no model round-trip.
 const EN_PRONOUNS = ['it', 'them']
 
-/** Resolve a pronoun-only English command ("open it" → "open mailbox") from the
- * scene antecedent. A miss falls through to the LLM, exactly like a lexicon miss.
- * ponytail: handles the "<verb> <pronoun>" two-token form (the reported case and
- * the overwhelming majority); particle/compound forms ("pick it up", "take lamp
- * and open it") still fall to the model. */
-export function resolveEnglishPronoun(
-  clause: string,
-  vocab: Vocab,
-  scene: Scene,
-): LexResult {
+/** If `clause` is a well-formed two-token "<verb> <pronoun>" English command,
+ * return its verb (a known, arity-1-or-2 vocab verb); else null. The verb tokens
+ * before the pronoun must be EXACTLY one known verb phrase (longest first so a
+ * multiword verb wins; verbSynonyms included so "get it" matches).
+ * ponytail: only the two-token form (the reported case and the overwhelming
+ * majority); particle/compound forms ("pick it up", "take lamp and open it")
+ * return null and fall through. Shared by resolveEnglishPronoun (deterministic
+ * resolve) and isEnglishPronounClause (the raw-send fallback). */
+function englishPronounVerb(clause: string, vocab: Vocab): string | null {
   const tokens = tokenize(clause)
-  if (tokens.length < 2) return MISS
-  if (!EN_PRONOUNS.includes(tokens[tokens.length - 1])) return MISS
-  if (!scene.antecedent) return MISS
-  // The tokens before the pronoun must be exactly ONE known verb phrase (longest
-  // first so a multiword verb wins). verbSynonyms included so "get it" resolves.
+  if (tokens.length < 2) return null
+  if (!EN_PRONOUNS.includes(tokens[tokens.length - 1])) return null
   const verbTokens = tokens.slice(0, -1)
   const verb = [
     ...vocab.verbs2,
@@ -208,9 +204,31 @@ export function resolveEnglishPronoun(
         parts.every((p, i) => verbTokens[i] === p)
       )
     })
-  if (!verb || !verbArity1or2(verb, vocab)) return MISS
+  return verb && verbArity1or2(verb, vocab) ? verb : null
+}
+
+/** Resolve a pronoun-only English command ("open it" → "open mailbox") from the
+ * scene antecedent. English has NO input lexicon, so a bare pronoun would
+ * otherwise reach the LLM — where a static few-shot anchors it to a constant
+ * noun (the "open it" → "open advertisement" bug). A miss leaves the clause for
+ * the caller (which raw-sends a real pronoun command, else the LLM). */
+export function resolveEnglishPronoun(
+  clause: string,
+  vocab: Vocab,
+  scene: Scene,
+): LexResult {
+  const verb = englishPronounVerb(clause, vocab)
+  if (!verb || !scene.antecedent) return MISS
   const obj = antecedentObject(vocab, scene.antecedent)
   return obj ? { kind: 'command', text: `${verb} ${obj}` } : MISS
+}
+
+/** Is `clause` a well-formed "<verb> <pronoun>" command? When resolveEnglishPronoun
+ * misses (no antecedent, or one not mappable to a vocab object), such a clause is
+ * raw-sent to Zork — whose parser tracks "it" natively — instead of the LLM,
+ * which hallucinates a noun ("open it" → "open chests"). */
+export function isEnglishPronounClause(clause: string, vocab: Vocab): boolean {
+  return englishPronounVerb(clause, vocab) !== null
 }
 
 export function parseLexicon(

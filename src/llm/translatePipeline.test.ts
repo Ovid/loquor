@@ -173,15 +173,24 @@ describe('runClause (NL v2 pipeline stages 3–7)', () => {
     expect(generateRaw).not.toHaveBeenCalled()
   })
 
-  it('stage 6 (EN pronoun): no antecedent falls through to the LLM', async () => {
-    // With nothing to resolve "it" to, the deterministic path MUST miss rather
-    // than guess — the clause goes to the model (or abstains), as before.
-    const grammar = buildGrammar(TEST_VOCAB)
-    const generateRaw = vi.fn<GenerateRaw>(
-      async () => '{"verb":"open","object":"mailbox"}',
-    )
-    const deps: ClauseDeps = { vocab: TEST_VOCAB, grammar, generateRaw, getContext: ctx }
+  it('stage 6 (EN pronoun): no antecedent raw-sends "open it" to Zork, not the LLM', async () => {
+    // Nothing to resolve "it" to → raw-send the player's words verbatim. Zork's
+    // parser tracks "it" natively, which is far safer than the LLM (it
+    // hallucinated "open chests"). Sent as a passthrough (stage 'vocab').
+    const { deps, generateRaw } = detDeps()
     const r = await runClause('open it', emptyScene, 'en', null, false, deps)
+    expect(r.stage).toBe('vocab')
+    expect(r.result).toEqual({ kind: 'command', text: 'open it' })
+    expect(generateRaw).not.toHaveBeenCalled()
+  })
+
+  it('stage 6 (EN pronoun): a non-verb pronoun clause still reaches the LLM', async () => {
+    // "frobnicate" is no verb, so this is not a well-formed pronoun command — the
+    // raw-send fallback must NOT fire; genuine unknown input goes to the model.
+    const grammar = buildGrammar(TEST_VOCAB)
+    const generateRaw = vi.fn<GenerateRaw>(async () => '{"verb":"__UNKNOWN__"}')
+    const deps: ClauseDeps = { vocab: TEST_VOCAB, grammar, generateRaw, getContext: ctx }
+    const r = await runClause('frobnicate it', emptyScene, 'en', null, false, deps)
     expect(r.stage).toBe('llm')
     expect(generateRaw).toHaveBeenCalledTimes(1)
   })

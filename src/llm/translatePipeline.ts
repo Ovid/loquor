@@ -41,7 +41,11 @@ import {
   isVocabPassthrough,
 } from './inputTranslate'
 import { isHelpTrigger, helpResponse } from './help'
-import { parseLexicon, resolveEnglishPronoun } from './lexicon/parse'
+import {
+  parseLexicon,
+  resolveEnglishPronoun,
+  isEnglishPronounClause,
+} from './lexicon/parse'
 import type { CoreLexicon, NounLexicon } from './lexicon/types'
 import { parseDirection } from './directions'
 import { MAX_CLAUSES, QUEUE_CAP, LOAD_WATCHDOG_MS } from './config'
@@ -351,6 +355,16 @@ export async function runClause(
     const r = resolveEnglishPronoun(clause, vocab, scene)
     if (r.kind === 'command')
       return { result: r, raw: '(pronoun)', stage: 'lexicon' }
+    // A well-formed "<verb> it/them" we couldn't pin to a specific object (no
+    // antecedent, or one not in vocab): raw-send the player's words to Zork,
+    // whose parser tracks "it" natively — far safer than the LLM, which
+    // hallucinates ("open it" → "open chests"). Verbatim, like passthrough.
+    if (isEnglishPronounClause(stripped, vocab))
+      return {
+        result: { kind: 'command', text: stripped },
+        raw: '(pronoun-raw)',
+        stage: 'vocab',
+      }
   }
   // 7. LLM fallback — skipped in grammar-only: abstain so stage 8 applies the
   //    existing policy (EN raw-send / non-EN notice). The engine is never touched.

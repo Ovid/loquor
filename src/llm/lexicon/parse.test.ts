@@ -1,6 +1,10 @@
 // src/llm/lexicon/parse.test.ts
 import { describe, it, expect } from 'vitest'
-import { parseLexicon, resolveEnglishPronoun } from './parse'
+import {
+  parseLexicon,
+  resolveEnglishPronoun,
+  isEnglishPronounClause,
+} from './parse'
 import { FR_CORE } from './fr.core'
 import { DE_CORE } from './de.core'
 import { ES_CORE } from './es.core'
@@ -443,6 +447,19 @@ describe('resolveEnglishPronoun (the "open advertisement" fix)', () => {
     expect(
       resolveEnglishPronoun('pick it up', vocab, scene([], 'small mailbox')),
     ).toEqual({ kind: 'miss' })
+  })
+
+  it('isEnglishPronounClause: true for a well-formed "<verb> <pronoun>"', () => {
+    // Drives the raw-send fallback: a real pronoun command we couldn't resolve
+    // should raw-send to Zork, not the LLM.
+    expect(isEnglishPronounClause('open it', vocab)).toBe(true)
+    expect(isEnglishPronounClause('take them.', vocab)).toBe(true)
+  })
+
+  it('isEnglishPronounClause: false for a non-verb, a real noun, or a particle form', () => {
+    expect(isEnglishPronounClause('frobnicate it', vocab)).toBe(false) // unknown verb
+    expect(isEnglishPronounClause('open mailbox', vocab)).toBe(false) // real noun
+    expect(isEnglishPronounClause('pick it up', vocab)).toBe(false) // particle form
   })
 
   it('emits an ambiguous-synonym antecedent verbatim (the "window" Behind-House bug)', () => {

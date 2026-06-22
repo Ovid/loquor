@@ -312,11 +312,36 @@ export function metaAlias(
  * the generator deduped away), so passing it through is safe. MULTIWORD
  * canonical DESC tokens are still NOT included — only the emit word is the
  * parser-accepted form (e.g. canonical "crystal skull" → emit "skull"). */
+/** The Z-parser's BUZZ noise words (gsyntax.zil:11 — identical in Zork I/II/III):
+ * <BUZZ A AN THE IS AND OF THEN ALL ONE BUT EXCEPT \. \, \" YES NO Y HERE>. The
+ * parser strips these before matching, so the game's own multi-word object DESCs
+ * embed them ("a pot of gold", "a clove of garlic", "a pair of candles") — the most
+ * natural phrasing a player types. They are words the parser knows, so a command
+ * made entirely of them + real game words is always safe to raw-send; without them
+ * in the passthrough set the noise word ("of") misses the gate and the whole command
+ * routes to the warm LLM, which mangles it (BUG E, same class as the dropped prep
+ * synonyms in BUG D). EXCLUDED on purpose, because a dedicated deterministic path
+ * already owns them: the conjunctions `and`/`then` (splitClauses), the quantifier
+ * `all` (the quantifier path → "take all"), and the confirmation replies
+ * `yes`/`no`/`y` (confirmationReply). Punctuation buzz tokens (`.` `,` `"`) are
+ * stripped from the line before matching, so they need no entry. */
+const BUZZ_NOISE_WORDS: readonly string[] = [
+  'the',
+  'a',
+  'an',
+  'is',
+  'of',
+  'one',
+  'but',
+  'except',
+  'here',
+]
+
 const VOCAB_WORD_SETS = new WeakMap<Vocab, Set<string>>()
 export function vocabWordSet(vocab: Vocab): Set<string> {
   const cached = VOCAB_WORD_SETS.get(vocab)
   if (cached) return cached
-  const out = new Set<string>(['the', 'a', 'an'])
+  const out = new Set<string>(BUZZ_NOISE_WORDS)
   const addWords = (s: string) => {
     for (const w of s.toLowerCase().split(/\s+/)) if (w) out.add(w)
   }

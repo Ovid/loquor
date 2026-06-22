@@ -984,6 +984,44 @@ describe('preposition synonyms are present in every game vocab (parity)', () => 
   })
 })
 
+// BUG E (UAT 2026-06-22, same class as BUG C/D): the Z-parser's BUZZ noise words
+// (zork1/gsyntax.zil:11 — <BUZZ A AN THE IS AND OF THEN ALL ONE BUT EXCEPT \. \,
+// \" YES NO Y HERE>, identical in Zork I/II/III) are *ignored* during parsing, so
+// the game's own multi-word object NAMES embed them: "a pot of gold", "a clove of
+// garlic", "a small pile of coal", "a pair of candles", "a trunk of jewels", "a
+// leather bag of coins", "a large coil of rope". A player reading those very
+// descriptions and typing them verbatim is the most natural phrasing there is — but
+// vocabWordSet only seeded the/a/an, so the noise word "of" missed the gate and
+// routed every "X of Y" command to the warm LLM (browser-confirmed stage:"llm":
+// "take the pot of gold" → "take pot" this run, but LLM-nondeterministic — the same
+// lottery as BUG A/C/D). In grammar-only mode they raw-send and work; it is the warm
+// LLM that breaks them. Fix: seed vocabWordSet with the BUZZ noise words the parser
+// ignores. Conjunctions (and/then) are consumed upstream by splitClauses, the
+// quantifier "all" by the quantifier path, and yes/no/y by the confirmation path —
+// those are excluded so their dedicated paths stay authoritative; the remainder
+// (of/is/one/but/except/here) are pure noise words it is always safe to raw-send.
+describe('BUZZ noise words pass the vocab gate — "X of Y" object names (Zork I)', () => {
+  it.each([
+    'take the pot of gold',
+    'take the clove of garlic',
+    'take the small pile of coal',
+    'take the pair of candles',
+    'take the trunk of jewels',
+    'take the leather bag of coins',
+    'take the large coil of rope',
+  ])('%s clears the vocab gate (raw-sends, not the LLM)', cmd => {
+    expect(isVocabPassthrough(cmd, ZORK1_VOCAB, null)).toBe(true)
+  })
+
+  it('still rejects a command with a genuinely unknown word (no over-match)', () => {
+    // The noise word is permissive ONLY in combination with real game words;
+    // an unknown noun still fails the gate and falls through to the LLM.
+    expect(
+      isVocabPassthrough('take the pot of zeppelin', ZORK1_VOCAB, null),
+    ).toBe(false)
+  })
+})
+
 describe('P3 signpost escape commands pass the vocab gate (Zork I)', () => {
   it.each([
     '"wind up canary"',

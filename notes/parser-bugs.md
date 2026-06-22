@@ -381,13 +381,13 @@ the warm LLM and is non-deterministically mangled to a WRONG command.**
 
 Browser-confirmed mangles (`stage:"llm"`, reproduced 2× each):
 
-| Input (warm LLM)            | LLM `result.text` | player sees / harm                                  |
-| --------------------------- | ----------------- | --------------------------------------------------- |
-| `put painting into case`    | `take painting`   | verb FLIPPED + destination dropped — opposite action |
-| `look underneath rug`       | `look`            | object lost — would miss the trap door under the rug |
-| `attack troll using sword`  | `attack troll with sword` | correct THIS run (LLM luck)                  |
-| `put coal onto machine`     | `put coal on machine`     | correct THIS run (LLM luck)                  |
-| `put painting inside case`  | `put painting in case`    | correct 3× (LLM luck)                        |
+| Input (warm LLM)           | LLM `result.text`         | player sees / harm                                   |
+| -------------------------- | ------------------------- | ---------------------------------------------------- |
+| `put painting into case`   | `take painting`           | verb FLIPPED + destination dropped — opposite action |
+| `look underneath rug`      | `look`                    | object lost — would miss the trap door under the rug |
+| `attack troll using sword` | `attack troll with sword` | correct THIS run (LLM luck)                          |
+| `put coal onto machine`    | `put coal on machine`     | correct THIS run (LLM luck)                          |
+| `put painting inside case` | `put painting in case`    | correct 3× (LLM luck)                                |
 
 The grammar-only path is fine (English raw-sends; Zork maps the synonym itself); it is
 the **warm LLM** that breaks it — the A/B/C trap exactly.
@@ -429,3 +429,69 @@ underneath rug` → `[vocab]` verbatim (was LLM `look`) → "You can't see any r
   `sand` (the `dig` disambiguation answer), `wait`, `inventory`, `push yellow button`,
   `take canary from egg`, `go up chimney`. Direction abbreviations (`u`/`ne`/`nw`) resolve
   deterministically (`u` vocab; `ne`→`northeast` via the `direction` stage). No LLM, no harm.
+
+---
+
+# Walkthrough English UAT (2026-06-22, branch `ovid/fix-the-it-bug`) — BUG E: the "of" noise word
+
+Continued the English `full`/warm-LLM walkthrough hunt with a **systematic** sweep:
+ran natural-English rephrasings of every walkthrough action (171 probes — articles +
+adjectives + display nouns + verb/prep synonyms) through `isVocabPassthrough` and
+flagged each one that routes to the LLM, with the exact unknown token. 14/171 routed
+to the LLM; **10 of them had a single shared cause: the missing noise word `of`.**
+
+## ❌→✅ BUG E (RESOLVED) — the Z-parser BUZZ noise word `of` dropped from `vocabWordSet` → the game's own "X of Y" object names route to the warm LLM
+
+**Severity: high — same class as BUG A/C/D. The game PRINTS these names ("a pot of
+gold", "a clove of garlic", "a small pile of coal", "a pair of candles", "a trunk of
+jewels", "a leather bag of coins", "a large coil of rope"), so typing them verbatim is
+the single most natural phrasing — and every one routed to the warm LLM.**
+
+Browser-confirmed `stage:"llm"` (3/3, fresh full-mode tab, East-West Passage):
+
+| Input (warm LLM, pre-fix)     | LLM `result.text` | note                        |
+| ----------------------------- | ----------------- | --------------------------- |
+| `take the pot of gold`        | `take pot`        | correct THIS run (LLM luck) |
+| `take the small pile of coal` | `take coal`       | correct THIS run (LLM luck) |
+| `take the pair of candles`    | `take candles`    | correct THIS run (LLM luck) |
+
+The LLM happened to drop "of …" cleanly all three times, but it is the same
+non-deterministic lottery as BUG A/C/D — a core, constantly-used phrasing depending on
+the model instead of the deterministic gate. In **grammar-only** mode English
+raw-sends, so these reach Zork and work; it is the **warm LLM that breaks them** — the
+A/B/C/D warm-LLM trap exactly.
+
+### Root cause (confirmed in source; identical in Zork I/II/III — shared gsyntax)
+
+`gsyntax.zil:11` declares `<BUZZ A AN THE IS AND OF THEN ALL ONE BUT EXCEPT \. \, \"
+YES NO Y HERE>` — the parser's **noise words**, stripped before matching. So "take the
+pot of gold" parses in raw Zork as `take pot gold` → the pot-of-gold object. But
+`vocabWordSet` (`src/llm/inputTranslate.ts`) only seeded `the/a/an`, so the noise word
+`of` missed the passthrough gate, every other token was real, and the WHOLE command
+fell to the LLM. Same omission would bite Zork II/III (identical BUZZ line).
+
+### RESOLVED 2026-06-22 (autonomous fix per Ovid's "commit as you go", TDD)
+
+Seeded `vocabWordSet` from a documented `BUZZ_NOISE_WORDS` constant
+(`the/a/an/is/of/one/but/except/here`) citing `gsyntax.zil:11`. EXCLUDED the buzz words
+already owned by a dedicated deterministic path so it stays authoritative: `and`/`then`
+(splitClauses), `all` (the quantifier path), `yes`/`no`/`y` (confirmationReply);
+punctuation buzz (`. , "`) is stripped before matching. RED→GREEN: `inputTranslate.test.ts`
+"BUZZ noise words pass the vocab gate — \"X of Y\" object names (Zork I)" pins all 7
+"X of Y" names + a no-over-match negative (`take the pot of zeppelin` → still `false`).
+`make all` green (1295). Live-verified in a fresh tab: the three probes now route
+`stage:"vocab"`, raw-send verbatim, and Zork resolves them itself ("take the pot of
+gold" → "You can't see any **gold** here!" — Zork stripped the/of; was the LLM's "take
+pot" → "any **pot** here!"). Committed this session.
+
+### Deferred (NOT fixed — lower value / dubious)
+
+- **Hyphenated display adjectives** — `take the solid-gold coffin`,
+  `take the sapphire-encrusted bracelet`, `take the jewel-encrusted egg` route to the
+  LLM (the hyphenated compound is one token, unknown to the gate). But the v3 parser
+  truncates to 6 chars and does not split on hyphen, so `jewel-` ≠ the `jewel` adjective
+  — raw Zork wouldn't cleanly accept these either, and the player has the bare noun
+  (`take the egg`). Not obviously a deterministic win; left alone.
+- **`shove the rug`** — `shove` is not a Zork dictionary word (the rug answers to
+  MOVE/PUSH), so raw-sending would fail anyway; the LLM mapping it to `move rug` is
+  arguably better. Not a gate bug.

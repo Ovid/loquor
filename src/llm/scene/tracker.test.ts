@@ -169,6 +169,25 @@ describe('reduceScene — antecedent precedence', () => {
     expect(s.antecedent).toBe('lamp') // not the stale "rug"
   })
 
+  it('tier 2: an ARTICLE-led take ("take the lamp") still updates the antecedent (Bug B)', () => {
+    // English vocab-passthrough keeps the article ("take the lamp"), unlike the
+    // article-free canonical fr/de/es feed here. directObject must strip the
+    // leading article or the acted object is lost and "it" resolves stale.
+    const prev = reduceScene(
+      emptySceneState,
+      ev({ outputText: 'A lamp and a rug are here.' }),
+      vocab,
+    )
+    expect(prev.antecedent).toBe('rug')
+    const s = reduceScene(
+      prev,
+      ev({ lastCommand: 'take the lamp', outputText: 'Taken.' }),
+      vocab,
+    )
+    expect(s.antecedent).toBe('lamp') // not the stale "rug"
+    expect(s.inScope.find(o => o.canonical === 'lamp')?.carried).toBe(true)
+  })
+
   it('tier 3: prior antecedent carries over when nothing new fires', () => {
     const prev = reduceScene(
       emptySceneState,

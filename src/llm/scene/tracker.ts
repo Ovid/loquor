@@ -123,6 +123,15 @@ function directObject(command: string, vocab: Vocab): string | null {
       break
     }
   }
+  // Strip a leading English article. fr/de/es feed this tracker the article-free
+  // canonical (the lexicon strips articles during translation: 'prends le
+  // déjeuner' → 'take food'), but English vocab-passthrough keeps the article
+  // ('take the lunch'), so without this the remainder ('the lunch') matches no
+  // surface form → null → the acted object is lost and 'it' resolves to a stale
+  // older object (UAT Bug B). No-op for the article-free languages.
+  const head = rest.split(' ', 1)[0]
+  if (head !== rest && (head === 'the' || head === 'a' || head === 'an'))
+    rest = rest.slice(head.length + 1)
   for (const { phrase, canonical } of surfaceForms(vocab.nouns))
     if (rest === phrase || rest.startsWith(phrase + ' ')) return canonical
   return null

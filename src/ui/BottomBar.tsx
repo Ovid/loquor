@@ -40,7 +40,11 @@ export function BottomBar({
       <span className="bottombar-icon" aria-hidden="true">
         ⓘ
       </span>
-      <span className="bottombar-readout">
+      {/* lang="en": the readout is English diagnostic tokens + the English
+          story title, shown under a fr/de/es/ka document language. Tag it so a
+          screen reader voices it with English phonemes, not the UI language's
+          (WCAG 3.1.2) — same discipline as the notice spans below. */}
+      <span className="bottombar-readout" lang="en">
         {nlModeSummary(nlState)} — {storyTitle}
         {debug && signature ? ` · ${signature.slice(0, 8)}` : ''}
       </span>

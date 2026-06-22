@@ -79,6 +79,12 @@ describe('BottomBar', () => {
     // The readout is plain static text, not a live region.
     expect(bar).not.toHaveAttribute('aria-live')
     expect(screen.getByText('ⓘ')).toHaveAttribute('aria-hidden', 'true')
+    // The readout is English text under a non-English UI — tag it lang="en"
+    // so a screen reader doesn't voice it with the wrong phonemes (WCAG 3.1.2).
+    expect(screen.getByText(/fr · full · input — Zork I/)).toHaveAttribute(
+      'lang',
+      'en',
+    )
   })
 
   it('debug on: appends the story signature, truncated to 8 hex', () => {

@@ -4,6 +4,7 @@ import {
   parseLexicon,
   resolveEnglishPronoun,
   isEnglishPronounClause,
+  resolveEnglishQuantifier,
 } from './parse'
 import { FR_CORE } from './fr.core'
 import { DE_CORE } from './de.core'
@@ -700,5 +701,72 @@ describe('parseLexicon — UAT French playthrough (real Zork I vocab + lexicon)'
         scene(['nasty knife']),
       ),
     ).toEqual({ kind: 'command', text: 'throw nasty knives' })
+  })
+})
+
+describe('resolveEnglishQuantifier (English "take all" deterministic path — Bug A)', () => {
+  it('maps a bare "<verb> all" to the Z-parser ALL object', () => {
+    expect(resolveEnglishQuantifier('take all', vocab)).toEqual({
+      kind: 'command',
+      text: 'take all',
+    })
+  })
+
+  it('maps "everything" to the same ALL object, with trailing punctuation', () => {
+    expect(resolveEnglishQuantifier('take everything', vocab)).toEqual({
+      kind: 'command',
+      text: 'take all',
+    })
+    expect(resolveEnglishQuantifier('drop everything.', vocab)).toEqual({
+      kind: 'command',
+      text: 'drop all',
+    })
+  })
+
+  it('allows a verbs2 verb (put all) — the Z-parser orphan-prompts for the rest', () => {
+    expect(resolveEnglishQuantifier('put all', vocab)).toEqual({
+      kind: 'command',
+      text: 'put all',
+    })
+  })
+
+  it('misses on an unknown verb or a verb-only (arity-0) verb', () => {
+    expect(resolveEnglishQuantifier('frobnicate all', vocab)).toEqual({
+      kind: 'miss',
+    })
+    expect(resolveEnglishQuantifier('look all', vocab)).toEqual({ kind: 'miss' })
+  })
+
+  it('misses when the quantifier is not the bare remainder', () => {
+    // "take all keys" is a real object phrase, not the ALL quantifier.
+    expect(resolveEnglishQuantifier('take all keys', vocab)).toEqual({
+      kind: 'miss',
+    })
+    expect(resolveEnglishQuantifier('take', vocab)).toEqual({ kind: 'miss' })
+  })
+})
+
+describe('parseLexicon — bare English "all" maps in EVERY language (Bug A parity)', () => {
+  // fr/es already list bare 'all' in quantifiersAll; de did not, so a
+  // German-picker player typing English "take all" fell straight to the LLM
+  // (which mis-mapped it to "large bag"). The deterministic path must exist in
+  // every applicable language, not just the easy ones.
+  it('German core: "take all" → "take all"', () => {
+    expect(parseLexicon('take all', DE_CORE, DE_NOUNS, vocab, empty)).toEqual({
+      kind: 'command',
+      text: 'take all',
+    })
+  })
+  it('French core: "take all" → "take all"', () => {
+    expect(parseLexicon('take all', FR_CORE, FR_NOUNS, vocab, empty)).toEqual({
+      kind: 'command',
+      text: 'take all',
+    })
+  })
+  it('Spanish core: "take all" → "take all"', () => {
+    expect(parseLexicon('take all', ES_CORE, ES_NOUNS, vocab, empty)).toEqual({
+      kind: 'command',
+      text: 'take all',
+    })
   })
 })

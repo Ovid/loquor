@@ -45,6 +45,7 @@ import {
   parseLexicon,
   resolveEnglishPronoun,
   isEnglishPronounClause,
+  resolveEnglishQuantifier,
 } from './lexicon/parse'
 import type { CoreLexicon, NounLexicon } from './lexicon/types'
 import { parseDirection } from './directions'
@@ -355,6 +356,13 @@ export async function runClause(
     const r = resolveEnglishPronoun(clause, vocab, scene)
     if (r.kind === 'command')
       return { result: r, raw: '(pronoun)', stage: 'lexicon' }
+    // "take all"/"take everything": English has no lexicon, so the bare
+    // quantifier reaches the LLM, which binds it to the antecedent or
+    // hallucinates ("take all" → "take large bag"). Map it deterministically
+    // to the Z-parser's ALL object — the fr/de/es quantifiersAll equivalent.
+    const q = resolveEnglishQuantifier(clause, vocab)
+    if (q.kind === 'command')
+      return { result: q, raw: '(quantifier)', stage: 'lexicon' }
     // A well-formed "<verb> it/them" we couldn't pin to a specific object (no
     // antecedent, or one not in vocab): raw-send the player's words to Zork,
     // whose parser tracks "it" natively — far safer than the LLM, which

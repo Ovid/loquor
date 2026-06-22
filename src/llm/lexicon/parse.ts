@@ -177,18 +177,30 @@ function verbArity1or2(verb: string, vocab: Vocab): boolean {
 // with no model round-trip.
 const EN_PRONOUNS = ['it', 'them']
 
-/** If `clause` is a well-formed two-token "<verb> <pronoun>" English command,
- * return its verb (a known, arity-1-or-2 vocab verb); else null. The verb tokens
- * before the pronoun must be EXACTLY one known verb phrase (longest first so a
- * multiword verb wins; verbSynonyms included so "get it" matches).
- * ponytail: only the two-token form (the reported case and the overwhelming
- * majority); particle/compound forms ("pick it up", "take lamp and open it")
- * return null and fall through. Shared by resolveEnglishPronoun (deterministic
- * resolve) and isEnglishPronounClause (the raw-send fallback). */
-function englishPronounVerb(clause: string, vocab: Vocab): string | null {
+// English bare quantifiers → the Z-parser's ALL object. English has NO input
+// lexicon, so "take all"/"take everything" reaches the LLM, which binds the
+// quantifier to the tracked antecedent or hallucinates (UAT Bug A: "take all" →
+// "take large bag"). fr/de/es resolve this in parseLexicon's quantifiersAll
+// branch; this is the English-mode equivalent. Note the irony: in grammar-only
+// mode English raw-sends and "take all" reaches Zork verbatim and WORKS — it is
+// the warm LLM that breaks it, exactly the gap a deterministic path closes.
+const EN_QUANTIFIERS = ['all', 'everything']
+
+/** If `clause` is a well-formed two-token "<verb> <tail>" English command whose
+ * last token is in `tail`, return its verb (a known, arity-1-or-2 vocab verb);
+ * else null. The verb tokens before the final word must be EXACTLY one known
+ * verb phrase (longest first so a multiword verb wins; verbSynonyms included so
+ * "get it" matches). ponytail: only the two-token form (the reported cases and
+ * the overwhelming majority); particle/compound forms ("pick it up") fall
+ * through. Shared by the pronoun and quantifier English paths. */
+function englishVerbBeforeTail(
+  clause: string,
+  vocab: Vocab,
+  tail: readonly string[],
+): string | null {
   const tokens = tokenize(clause)
   if (tokens.length < 2) return null
-  if (!EN_PRONOUNS.includes(tokens[tokens.length - 1])) return null
+  if (!tail.includes(tokens[tokens.length - 1])) return null
   const verbTokens = tokens.slice(0, -1)
   const verb = [
     ...vocab.verbs2,
@@ -207,6 +219,10 @@ function englishPronounVerb(clause: string, vocab: Vocab): string | null {
   return verb && verbArity1or2(verb, vocab) ? verb : null
 }
 
+function englishPronounVerb(clause: string, vocab: Vocab): string | null {
+  return englishVerbBeforeTail(clause, vocab, EN_PRONOUNS)
+}
+
 /** Resolve a pronoun-only English command ("open it" → "open mailbox") from the
  * scene antecedent. English has NO input lexicon, so a bare pronoun would
  * otherwise reach the LLM — where a static few-shot anchors it to a constant
@@ -221,6 +237,18 @@ export function resolveEnglishPronoun(
   if (!verb || !scene.antecedent) return MISS
   const obj = antecedentObject(vocab, scene.antecedent)
   return obj ? { kind: 'command', text: `${verb} ${obj}` } : MISS
+}
+
+/** Resolve a bare-quantifier English command ("take all"/"take everything" →
+ * "take all") to the Z-parser's ALL object. No scene needed — "all" names every
+ * eligible object, not an antecedent. A miss leaves the clause for the LLM. The
+ * fr/de/es equivalent is parseLexicon's quantifiersAll branch. */
+export function resolveEnglishQuantifier(
+  clause: string,
+  vocab: Vocab,
+): LexResult {
+  const verb = englishVerbBeforeTail(clause, vocab, EN_QUANTIFIERS)
+  return verb ? { kind: 'command', text: `${verb} all` } : MISS
 }
 
 /** Is `clause` a well-formed "<verb> <pronoun>" command? When resolveEnglishPronoun

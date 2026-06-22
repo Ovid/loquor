@@ -126,7 +126,9 @@ function antecedentObject(vocab: Vocab, antecedent: string): string | null {
   const e = byCanonical(vocab, antecedent)
   if (e) return e.emit
   const a = antecedent.toLowerCase()
-  return vocab.nouns.some(n => (n.synonyms ?? []).some(s => s.toLowerCase() === a))
+  return vocab.nouns.some(n =>
+    (n.synonyms ?? []).some(s => s.toLowerCase() === a),
+  )
     ? antecedent
     : null
 }

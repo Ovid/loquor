@@ -734,7 +734,9 @@ describe('resolveEnglishQuantifier (English "take all" deterministic path — Bu
     expect(resolveEnglishQuantifier('frobnicate all', vocab)).toEqual({
       kind: 'miss',
     })
-    expect(resolveEnglishQuantifier('look all', vocab)).toEqual({ kind: 'miss' })
+    expect(resolveEnglishQuantifier('look all', vocab)).toEqual({
+      kind: 'miss',
+    })
   })
 
   it('misses when the quantifier is not the bare remainder', () => {

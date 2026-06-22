@@ -189,8 +189,20 @@ describe('runClause (NL v2 pipeline stages 3–7)', () => {
     // raw-send fallback must NOT fire; genuine unknown input goes to the model.
     const grammar = buildGrammar(TEST_VOCAB)
     const generateRaw = vi.fn<GenerateRaw>(async () => '{"verb":"__UNKNOWN__"}')
-    const deps: ClauseDeps = { vocab: TEST_VOCAB, grammar, generateRaw, getContext: ctx }
-    const r = await runClause('frobnicate it', emptyScene, 'en', null, false, deps)
+    const deps: ClauseDeps = {
+      vocab: TEST_VOCAB,
+      grammar,
+      generateRaw,
+      getContext: ctx,
+    }
+    const r = await runClause(
+      'frobnicate it',
+      emptyScene,
+      'en',
+      null,
+      false,
+      deps,
+    )
     expect(r.stage).toBe('llm')
     expect(generateRaw).toHaveBeenCalledTimes(1)
   })

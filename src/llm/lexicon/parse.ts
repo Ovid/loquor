@@ -115,6 +115,22 @@ function byCanonical(vocab: Vocab, canonical: string): NounEntry | undefined {
   return vocab.nouns.find(n => n.canonical === canonical)
 }
 
+/** The parser-acceptable object word for a tracker antecedent, or null.
+ * A canonical resolves to its emit form. An AMBIGUOUS synonym (one shared by 2+
+ * objects, which the scene tracker stores as ITSELF — "window", owned by both
+ * boarded- and kitchen-window — so it is NOT a vocab canonical) is already a
+ * Z-parser dictionary word: emit it verbatim and let the parser disambiguate by
+ * room (the tracker's documented contract). Without this an ambiguous-synonym
+ * antecedent missed to the LLM, which hallucinated ("open it" → "open chests"). */
+function antecedentObject(vocab: Vocab, antecedent: string): string | null {
+  const e = byCanonical(vocab, antecedent)
+  if (e) return e.emit
+  const a = antecedent.toLowerCase()
+  return vocab.nouns.some(n => (n.synonyms ?? []).some(s => s.toLowerCase() === a))
+    ? antecedent
+    : null
+}
+
 /** Truncation-aware verb membership: v3 dictionary words store at most 6
  * characters ('inflate' → 'inflat'), while the lexicons map to the full
  * in-game spelling the Z-parser accepts (NOTE in fr/de/es.core.ts). The
@@ -193,8 +209,8 @@ export function resolveEnglishPronoun(
       )
     })
   if (!verb || !verbArity1or2(verb, vocab)) return MISS
-  const e = byCanonical(vocab, scene.antecedent)
-  return e ? { kind: 'command', text: `${verb} ${e.emit}` } : MISS
+  const obj = antecedentObject(vocab, scene.antecedent)
+  return obj ? { kind: 'command', text: `${verb} ${obj}` } : MISS
 }
 
 export function parseLexicon(
@@ -270,10 +286,9 @@ export function parseLexicon(
   // Standalone le/la/les (no following noun) is a PRONOUN; in leading position
   // before a noun it is an article, stripped by resolveNoun (Task 12 note). ---
   if (tokens.length === 1 && core.pronounsDirect.includes(tokens[0])) {
-    if (!scene.antecedent) return MISS
-    const e = byCanonical(vocab, scene.antecedent)
-    if (!e || !verbArity1or2(verb, vocab)) return MISS
-    return { kind: 'command', text: `${verb} ${e.emit}` }
+    if (!scene.antecedent || !verbArity1or2(verb, vocab)) return MISS
+    const obj = antecedentObject(vocab, scene.antecedent)
+    return obj ? { kind: 'command', text: `${verb} ${obj}` } : MISS
   }
   if (tokens.length === 1 && core.pronounsSelf.includes(tokens[0]))
     return verbArityOk(verb, vocab, 1)

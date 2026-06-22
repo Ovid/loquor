@@ -216,6 +216,19 @@ describe('parseLexicon — French', () => {
       parseLexicon('prends-le', FR_CORE, FR_NOUNS, vocab, scene([], 'sword')),
     ).toEqual({ kind: 'command', text: 'take sword' })
   })
+  it('clitic pronoun with an ambiguous-synonym antecedent emits the parser word (window)', () => {
+    // Same fix as resolveEnglishPronoun, shared via antecedentObject: an
+    // ambiguous synonym ("window") is no vocab canonical but IS a parser word.
+    expect(
+      parseLexicon(
+        'prends-le',
+        FR_CORE,
+        FR_NOUNS,
+        ZORK1_VOCAB,
+        scene([], 'window'),
+      ),
+    ).toEqual({ kind: 'command', text: 'take window' })
+  })
   it('standalone la (no following noun) is a pronoun, not an article', () => {
     expect(
       parseLexicon(
@@ -430,6 +443,16 @@ describe('resolveEnglishPronoun (the "open advertisement" fix)', () => {
     expect(
       resolveEnglishPronoun('pick it up', vocab, scene([], 'small mailbox')),
     ).toEqual({ kind: 'miss' })
+  })
+
+  it('emits an ambiguous-synonym antecedent verbatim (the "window" Behind-House bug)', () => {
+    // "window" is owned by boarded + kitchen window, so the scene tracker stores
+    // it as its OWN canonical — there is NO vocab canonical 'window'. It is still
+    // a parser word, so it must emit directly ("open window") and let Zork
+    // disambiguate by room, NOT miss to the LLM (which hallucinated "open chests").
+    expect(
+      resolveEnglishPronoun('open it', ZORK1_VOCAB, scene([], 'window')),
+    ).toEqual({ kind: 'command', text: 'open window' })
   })
 })
 

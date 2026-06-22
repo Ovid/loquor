@@ -109,12 +109,15 @@
   outline-offset: 2px;
 }
 
-/* ---------- Georgian bottom status bar (ka only) ---------- */
+/* ---------- Bottom status bar — always present ---------- */
 /* Mirrors .statusbar tokens but reads as quieter ambient chrome: a TOP border
    (it sits at the column's bottom), a smaller font, dimmer text. Pinned to the
    bottom by the .screen.term flex column — NO position:fixed (responsive spec's
-   scroll-safe rule). ka-only; absent (not empty) for en/fr/de/es, so <main>
-   (flex:1) reclaims the space and there is no layout change for them. */
+   scroll-safe rule). ALWAYS rendered, in every language: it carries the
+   localized NL-mode + story readout for all players, plus the Georgian player
+   notices when ka is active. So <main> (flex:1) shares the column height with it
+   permanently — it does NOT reclaim that row. (Keep the bar's height minimal;
+   re-check the responsive checklist when its content grows.) */
 .bottombar {
   display: flex;
   flex-wrap: wrap;
@@ -133,6 +136,11 @@
 }
 .bottombar-icon {
   color: var(--brass-soft);
+}
+/* Status readout: monospace so the signature hash and the · separators read
+   cleanly as data, not prose. */
+.bottombar-readout {
+  font-family: ui-monospace, monospace;
 }
 
 /* ---------- Scrollback ---------- */

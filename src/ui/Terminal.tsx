@@ -6,7 +6,7 @@ import { Scrollback } from './Scrollback'
 import { CommandInput } from './CommandInput'
 import { NlLanguagePicker } from './NlLanguagePicker'
 import { ModelDownloadModal } from './ModelDownloadModal'
-import { GeorgianStatusBar } from './GeorgianStatusBar'
+import { BottomBar } from './BottomBar'
 import { PreferencesModal, prefsOpenLabel } from './PreferencesModal'
 import { LANDING_STRINGS } from './landingStrings'
 import { useDebug } from './useDebug'
@@ -349,8 +349,9 @@ export function Terminal({
           />
         </Scrollback>
       </main>
-      {/* Georgian (ka) mode chrome (spec 2026-06-21). Both are ka-only, so
-          en/fr/de/es get no extra DOM and <main> (flex:1) keeps the full height.
+      {/* Georgian (ka) one-shot announce region (spec 2026-06-21). THIS region
+          is ka-only — en/fr/de/es get no extra live region here. (The bottom bar
+          below is NOT ka-only; it always renders — see its own comment.)
           The announce region is a DEDICATED polite live region (NOT role=status,
           to avoid a second status landmark colliding with the inline one, and
           NOT the static footer) for the one-shot "type in English" tip on ka
@@ -370,16 +371,18 @@ export function Terminal({
           {showBetaNotice ? nl.announce : null}
         </div>
       )}
-      {/* The persistent visible bar. Gated additionally on a notice being
-          present so it is absent (not an empty strip) during the boot window
-          before the signature resolves — preserving the boot-flash guard
-          (finding [5]): showNoCorpusNotice already requires signature !== ''. */}
-      {outLang === 'ka' && (showBetaNotice || showNoCorpusNotice) && (
-        <GeorgianStatusBar
-          showBeta={showBetaNotice}
-          showNoCorpus={showNoCorpusNotice}
-        />
-      )}
+      {/* The persistent bottom bar — ALWAYS present, in every language, showing
+          the NL-mode + story readout (plus the save-slot signature under debug).
+          The Georgian notice flags add the ka player content on top (they already
+          imply outLang === 'ka'). */}
+      <BottomBar
+        debug={debug}
+        nlState={nl.state}
+        storyTitle={storyTitle}
+        signature={signature}
+        showBeta={showBetaNotice}
+        showNoCorpus={showNoCorpusNotice}
+      />
       <ModelDownloadModal
         open={upgradeModalOpen || nl.state.phase === 'downloading'}
         warn={

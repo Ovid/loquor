@@ -113,6 +113,24 @@ north`) while the NL input was still German — a self-contradictory state the
 
 ## NL-layer testing technique
 
+- **Find warm-LLM gate gaps OFFLINE first, with a `isVocabPassthrough` sweep —
+  no browser turns needed (UAT 2026-06-22, found BUG E + BUG F).** The whole
+  A/C/D/E/F bug class is one shape: a natural English command with ONE token the
+  vocab gate doesn't know routes to the warm LLM, which mangles it. Enumerate the
+  candidates en masse in a throwaway `*.test.ts`: feed natural-English
+  rephrasings of every walkthrough action (articles + adjectives + the game's own
+  display nouns + verb/prep synonyms) to `isVocabPassthrough(cmd, ZORK1_VOCAB,
+null)`, and for each `false`, print the tokens that fail
+  `words.has(t) || words.has(t.slice(0,6))` (the same 6-char-truncation widening
+  the gate uses). The unknown token IS the root cause: a SHARED unknown across
+  many probes is a high-value systemic gap (`of` → 10 "X of Y" object names;
+  `all` → the modified-quantifier forms), a one-off unknown is usually a non-Zork
+  word (`shove`, `inspect`) where the LLM mapping is actually fine. Then confirm
+  only the shared-cause hits live (`stage:"llm"`) and fix the gate. Cross-check
+  any candidate against the ZIL before calling it a bug: `gsyntax.zil` `<BUZZ …>`
+  (noise words like `of` the parser ignores) and `<SYNONYM …>` (verb/prep
+  synonyms); a token that's neither a buzz/synonym/verb/noun is genuinely unknown
+  to Zork, so raw-sending would fail and the LLM is the right path.
 - The fastest realism check is the UAT-2/UAT-3 probe list: replay each old
   finding's exact input at its original game location, then log new findings
   with the console `stage` evidence attached.
@@ -126,9 +144,9 @@ north`) while the NL input was still German — a self-contradictory state the
   English so the session stays in-language end to end.
 - **A clean-looking GAME response can MASK an LLM mangle — the screen lies, the
   `[nl] clause` log doesn't.** (UAT 2026-06-22, BUG C.) `inflate plastic with
-  pump` printed "You can't see any pump here!", which reads as a correct parse —
+pump` printed "You can't see any pump here!", which reads as a correct parse —
   but the console showed `stage:"llm"` / `result.text:"turn on pump"`: the LLM
-  had dropped the verb. The plausible game error came from the *mangled* command,
+  had dropped the verb. The plausible game error came from the _mangled_ command,
   not the typed one. **ALWAYS confirm a command raw-sent (`stage:"vocab"`/
   `"lexicon"`, `result.text` ≈ input) before trusting it parsed** — a missing
   vocab word produces a different-but-still-plausible Zork error every time.

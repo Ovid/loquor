@@ -327,7 +327,22 @@ pump', ZORK1_VOCAB, null) === true`. The lexicon path stays green (its `hasVerbF
 now exact-matches `inflate` instead of truncation-matching `inflat`). `make all` green
 (1273). Live-verified in a fresh tab: English `inflate plastic with pump` → `[vocab]`
 `inflate plastic with pump` (was LLM `turn on pump`); Spanish `infla el plástico con la
-bomba` → `[lexicon]` `inflate valve with pump` (unchanged). Commits pending.
+bomba` → `[lexicon]` `inflate valve with pump` (unchanged). Committed: `edec358`.
+
+**Follow-up hardening 2026-06-22 (Ovid go-ahead, TDD) — the gate is now truncation-aware.**
+The data fix removed the only current instance, but the English passthrough gate
+(`isVocabPassthrough`/`vocabWordSet`) was still **exact-match** while the game and the
+fr/de/es lexicon validator (`hasVerbForm`/roundtrip) are truncation-aware. A diagnostic
+sweep confirmed `inflat` was the lone real truncation (the other 6-char SYNTAX heads —
+ANSWER/ATTACK/LAUNCH/… — are full words; the `NORTHE`/`SOUTHE` direction synonyms are
+harmless because `movement` carries full `northeast`/`southeast`; all long nouns are
+stored full). To immunize the class structurally, `isVocabPassthrough` now matches via
+`vocabKnows(words, t) = words.has(t) || words.has(t.slice(0,6))` (only widens the
+
+> 6-char case; short tokens keep exact-match). Pins in `inputTranslate.test.ts`:
+> "truncation-aware: a >6-char token matches a 6-char-truncated vocab entry" + a
+> no-over-match negative. `make all` green (1275); no es/fr/de passthrough or
+> collision-guard regression. Committed: `e457b42`.
 
 ## Verb sweep — all other required puzzle verbs PASS (English, `stage:"vocab"` raw-send)
 

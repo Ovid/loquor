@@ -184,6 +184,18 @@ const PREP_HEADS = new Set([
   'off',
 ])
 
+// v3 dictionary words truncate to 6 characters, and a few gsyntax.zil SYNTAX verb
+// HEADS were authored in that truncated form (the lone case across Zork I/II/III is
+// INFLAT, from `<SYNTAX INFLAT OBJECT WITH OBJECT …>`). The extractor must emit the
+// FULL in-game spelling the Z-parser actually accepts ('inflate'), or the English
+// vocab-passthrough gate — which exact-matches tokens — misses the word a player
+// types ('inflate'), routing every inflate command to the warm LLM, which mangles it
+// (UAT BUG C: 'inflate plastic with pump' → 'turn on pump', breaking the magic-boat
+// puzzle). Sibling verb heads (DEFLATE, EXTINGUISH, LAUNCH) are already full in the
+// ZIL, so they need no entry. NOTE: this remaps only SYNTAX verb HEADS — the truncated
+// 'inflat' ADJECTIVE on the boat object is a real dictionary word and is untouched.
+const VERB_HEAD_DETRUNCATIONS = { inflat: 'inflate' }
+
 // From the active SYNTAX rules for game N: verb-only canonicals (minus meta),
 // one-object verbs (verbs1, multiword particles preserved), two-object verbs
 // (verbs2), and the prepositions — the <SYNONYM …> prep-block heads UNION any
@@ -206,8 +218,9 @@ export function extractVerbsAndPreps(forms, N, metaSet) {
       if (it.t === 'atom') seq.push(it.v)
     }
     if (seq.length === 0) continue
-    const verb = seq[0].toLowerCase()
-    if (/[#$]/.test(verb)) continue // debug verbs ($verify, #command)
+    const rawVerb = seq[0].toLowerCase()
+    if (/[#$]/.test(rawVerb)) continue // debug verbs ($verify, #command)
+    const verb = VERB_HEAD_DETRUNCATIONS[rawVerb] ?? rawVerb
 
     const objIdx = []
     for (let i = 1; i < seq.length; i++) if (seq[i] === 'OBJECT') objIdx.push(i)

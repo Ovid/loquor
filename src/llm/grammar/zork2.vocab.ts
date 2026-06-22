@@ -212,7 +212,7 @@ export const ZORK2_VOCAB: Vocab = {
     'drop',
     'fill',
     'give',
-    'inflat',
+    'inflate',
     'kill',
     'light',
     'lock',

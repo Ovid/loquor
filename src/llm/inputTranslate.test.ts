@@ -896,6 +896,25 @@ describe('canonical (DESC) words pass the vocab gate (Zork I)', () => {
   })
 })
 
+// BUG C (UAT 2026-06-22): the two-object verb 'inflate' appears in zork1/gsyntax.zil
+// as the v3 dictionary-truncated SYNTAX atom (<SYNTAX INFLAT OBJECT WITH OBJECT …>) —
+// the LONE truncated verb head (DEFLATE/EXTINGUISH/LAUNCH are full). The extractor
+// copied it verbatim, so verbs2 held 'inflat', and the English passthrough gate
+// exact-matches the typed 'inflate' against 'inflat', misses, and routes every inflate
+// command to the warm LLM, which mangles it ('inflate plastic with pump' → 'turn on
+// pump') and BREAKS the magic-boat puzzle (in grammar-only mode it would raw-send and
+// work — the warm-LLM trap). The 'inflat' ADJECTIVE on the boat object is a real
+// truncated dictionary word and is unaffected. Fix: the extractor de-truncates the
+// verb head to the in-game spelling 'inflate' the Z-parser accepts.
+describe('inflate verb passes the vocab gate (Zork I) — BUG C', () => {
+  it.each(['inflate plastic with pump', 'inflate the boat with the pump'])(
+    '%s clears the vocab gate (raw-sends, not the LLM)',
+    cmd => {
+      expect(isVocabPassthrough(cmd, ZORK1_VOCAB, null)).toBe(true)
+    },
+  )
+})
+
 describe('P3 signpost escape commands pass the vocab gate (Zork I)', () => {
   it.each([
     '"wind up canary"',

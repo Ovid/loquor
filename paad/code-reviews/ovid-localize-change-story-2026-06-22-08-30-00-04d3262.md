@@ -67,7 +67,7 @@ Plan: `docs/superpowers/plans/2026-06-21-loquor-georgian-mode-bottom-bar.md`
   checklist (320/375/520px + short landscape, both themes, screen reader) — a human
   gate jsdom can't satisfy; it remains the pre-merge gate.
 - **Deviations:** None contradicting the spec. Thin coverage spot: no dedicated
-  test for a mid-session *story* switch flipping bar content corpus→no-corpus (the
+  test for a mid-session _story_ switch flipping bar content corpus→no-corpus (the
   plan argues the existing `corpusFor`/`signature` path + Zork II suppression tests
   cover the same branch).
 
@@ -88,4 +88,4 @@ Plan: `docs/superpowers/plans/2026-06-21-loquor-georgian-mode-bottom-bar.md`
 - **Steering files consulted:** /workspace/CLAUDE.md (ka OUTPUT-ONLY rule,
   "fix in one language" rule, a11y + responsive requirements — no contradictions)
 - **Plan/design docs consulted:** the 2026-06-21 georgian-mode bottom-bar design
-  + plan.
+  - plan.

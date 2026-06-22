@@ -775,7 +775,9 @@ describe('Terminal', () => {
           {},
           { timeout: 8000 },
         )
-        const region = container.querySelector('[aria-live="polite"][lang="ka"]')
+        const region = container.querySelector(
+          '[aria-live="polite"][lang="ka"]',
+        )
         expect(region).not.toBeNull()
         expect(region).toBeEmptyDOMElement()
       } finally {

@@ -543,7 +543,7 @@ describe('Terminal', () => {
           { name: /Status information/i },
           { timeout: 8000 },
         )
-        expect(bar).toHaveTextContent('fr · full · input')
+        expect(bar).toHaveTextContent('complet · saisie')
         expect(bar).toHaveTextContent('Zork I')
       } finally {
         nlOverride = null
@@ -825,7 +825,7 @@ describe('Terminal', () => {
         const bar = screen.getByRole('contentinfo', {
           name: /Status information/i,
         })
-        expect(bar).toHaveTextContent('en · full · input')
+        expect(bar).toHaveTextContent('full · input')
       } finally {
         nlOverride = null
       }

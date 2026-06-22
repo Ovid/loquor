@@ -1,16 +1,19 @@
 import { GEORGIAN_ACTIVATION_TIP } from '../llm/notices'
-import { nlModeSummary } from './nlModeSummary'
+import { nlModeSummary, readoutLang } from './nlModeSummary'
 import type { NlState } from '../llm/types'
 
 /**
- * The bottom status bar (spec 2026-06-21, generalized from the Georgian-only
- * footer 2026-06-22). A single labeled `<footer>` (one landmark, NOT a live
+ * The bottom status bar. Began as the Georgian-only footer (spec 2026-06-21),
+ * then generalized to always-present in every language with a localized NL-mode
+ * readout (spec 2026-06-22). A single labeled `<footer>` (one landmark, NOT a live
  * region — finding [7]) pinned to the column bottom by `.screen.term`'s flex
  * layout (no position:fixed). ALWAYS present, in every language. It hosts:
  *
- *  - The READOUT (always): the NL-mode summary + story title. Static text. With
- *    `debug` on it also appends the story signature (the save-slot key, an 8-hex
- *    developer detail) — kept off the default readout where it reads as noise.
+ *  - The READOUT (always): the LOCALIZED NL-mode chip + story title. Player-facing
+ *    copy in the active language (the bar is read by every player) — see
+ *    nlModeSummary. With `debug` on it also appends the story signature (the
+ *    save-slot key, an 8-hex developer detail) — kept off the default readout
+ *    where it reads as noise.
  *  - The Georgian NOTICE segment (`showBeta`/`showNoCorpus`): persistent ka
  *    player content shown in addition to the readout. These two are mutually
  *    exclusive (the caller derives them from one corpus check) and asymmetric
@@ -35,18 +38,24 @@ export function BottomBar({
   showBeta: boolean
   showNoCorpus: boolean
 }) {
+  const summary = nlModeSummary(nlState)
   return (
     <footer className="bottombar" aria-label="Status information">
       <span className="bottombar-icon" aria-hidden="true">
         ⓘ
       </span>
-      {/* lang="en": the readout is English diagnostic tokens + the English
-          story title, shown under a fr/de/es/ka document language. Tag it so a
-          screen reader voices it with English phonemes, not the UI language's
-          (WCAG 3.1.2) — same discipline as the notice spans below. */}
-      <span className="bottombar-readout" lang="en">
-        {nlModeSummary(nlState)} — {storyTitle}
-        {debug && signature ? ` · ${signature.slice(0, 8)}` : ''}
+      {/* The readout = a localized NL-mode chip + the English story title.
+          The two carry different `lang`s (WCAG 3.1.2): the chip is in the active
+          language (fr "complet · saisie", en "full · input"); the title and the
+          debug signature are English, so they ride `lang="en"`. The chip is
+          absent for ka (output-only) and any title-only state — then the title
+          stands alone. */}
+      <span className="bottombar-readout">
+        {summary && <span lang={readoutLang(nlState)}>{summary} — </span>}
+        <span lang="en">
+          {storyTitle}
+          {debug && signature ? ` · ${signature.slice(0, 8)}` : ''}
+        </span>
       </span>
       {showBeta && (
         <>

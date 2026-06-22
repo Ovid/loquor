@@ -349,8 +349,9 @@ export function Terminal({
           />
         </Scrollback>
       </main>
-      {/* Georgian (ka) mode chrome (spec 2026-06-21). Both are ka-only, so
-          en/fr/de/es get no extra DOM and <main> (flex:1) keeps the full height.
+      {/* Georgian (ka) one-shot announce region (spec 2026-06-21). THIS region
+          is ka-only — en/fr/de/es get no extra live region here. (The bottom bar
+          below is NOT ka-only; it always renders — see its own comment.)
           The announce region is a DEDICATED polite live region (NOT role=status,
           to avoid a second status landmark colliding with the inline one, and
           NOT the static footer) for the one-shot "type in English" tip on ka

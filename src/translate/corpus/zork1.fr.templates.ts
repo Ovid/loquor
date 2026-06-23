@@ -103,9 +103,18 @@ export const ZORK1_FR_TEMPLATES: readonly Template[] = [
   // reader in basic mode (deterministic-no-english goal; the `push button` dam
   // prompt was LLM-routed → an EN leak with no model). Sorts AFTER the literal
   // book pin (fewer literals), so book keeps its natural « livre » mention.
-  { en: 'Which {raw} do you mean, the {obj} or the {obj2}?', out: 'Vous voulez dire {obj.def} ou {obj2.def} ?' },
-  { en: 'Which {raw} do you mean, the {obj}, the {obj2}, or the {obj3}?', out: 'Vous voulez dire {obj.def}, {obj2.def} ou {obj3.def} ?' },
-  { en: 'Which {raw} do you mean, the {obj}, the {obj2}, the {obj3}, or the {obj4}?', out: 'Vous voulez dire {obj.def}, {obj2.def}, {obj3.def} ou {obj4.def} ?' },
+  {
+    en: 'Which {raw} do you mean, the {obj} or the {obj2}?',
+    out: 'Vous voulez dire {obj.def} ou {obj2.def} ?',
+  },
+  {
+    en: 'Which {raw} do you mean, the {obj}, the {obj2}, or the {obj3}?',
+    out: 'Vous voulez dire {obj.def}, {obj2.def} ou {obj3.def} ?',
+  },
+  {
+    en: 'Which {raw} do you mean, the {obj}, the {obj2}, the {obj3}, or the {obj4}?',
+    out: 'Vous voulez dire {obj.def}, {obj2.def}, {obj3.def} ou {obj4.def} ?',
+  },
   // Parser orphan prompt (gparser.zil:760-774): "What do you want to <verb>[ the
   // <noun>] <prep>?". Off-walkthrough, runtime-composed; leaked RAW English (UAT
   // 2026-06-20). {verb}/{raw} capture the player's echoed tokens for MATCHING; the
@@ -114,8 +123,14 @@ export const ZORK1_FR_TEMPLATES: readonly Template[] = [
   // covers every verb that orphans on it. Reachable preps: `in` (bare `put X`) and
   // `with` (`cut`/`strike X`); `on`->WEAR and `under`/`behind`->unparsed never
   // orphan, so they are not authored.
-  { en: 'What do you want to {verb} the {raw} in?', out: 'Où voulez-vous le mettre ?' },
-  { en: 'What do you want to {verb} the {raw} with?', out: 'Avec quoi voulez-vous le faire ?' },
+  {
+    en: 'What do you want to {verb} the {raw} in?',
+    out: 'Où voulez-vous le mettre ?',
+  },
+  {
+    en: 'What do you want to {verb} the {raw} with?',
+    out: 'Avec quoi voulez-vous le faire ?',
+  },
   { en: 'What do you want to {verb}?', out: 'Que voulez-vous faire ?' },
 
   // ── Presence & listings (gverbs.zil DESCRIBE-OBJECT :1704-1725,
@@ -235,7 +250,10 @@ export const ZORK1_FR_TEMPLATES: readonly Template[] = [
   { en: 'The {obj} is empty.', out: "Il n'y a rien dans {obj.def}." },
   // V-POUR-ON / HOT-BELL-F (Hades exorcism) — nominative subject.
   { en: 'The {obj} is extinguished.', out: "{obj.def} s'éteint." },
-  { en: 'The {obj} burns and is consumed.', out: '{obj.def} brûle et se consume.' },
+  {
+    en: 'The {obj} burns and is consumed.',
+    out: '{obj.def} brûle et se consume.',
+  },
   {
     en: 'The {obj} is already in the {obj2}.',
     out: 'Il y a déjà {obj.def} dans {obj2.def}.',

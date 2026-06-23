@@ -435,7 +435,9 @@ describe('open form keys contract (spec §4, §7.1 — fake declined language)',
 })
 
 describe('{verb} match-only slot', () => {
-  const mkCorpus = (templates: TranslationCorpus['templates']): TranslationCorpus => ({
+  const mkCorpus = (
+    templates: TranslationCorpus['templates'],
+  ): TranslationCorpus => ({
     strings: {},
     objects: {},
     templates,
@@ -448,9 +450,9 @@ describe('{verb} match-only slot', () => {
       ]),
     )
     // {verb} is consumed by the regex (so the line resolves) but not rendered.
-    expect(
-      matchLine(c, 'What do you want to attack the troll with?'),
-    ).toBe('N=troll')
+    expect(matchLine(c, 'What do you want to attack the troll with?')).toBe(
+      'N=troll',
+    )
   })
 
   it('keeps a MULTI-WORD {raw} anchored by the literal prep', () => {

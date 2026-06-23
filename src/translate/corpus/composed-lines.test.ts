@@ -47,7 +47,9 @@ const GLUE_FLOOR = 4 // skip trivial spans (" the ", "?", ": ") — they match a
 // normalized span, and keeps fragment boundaries so a single-line span can't
 // false-match across two fragments.
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
-const buf = new Uint8Array(readFileSync(resolve(repoRoot, 'public/games/zork1.z3')))
+const buf = new Uint8Array(
+  readFileSync(resolve(repoRoot, 'public/games/zork1.z3')),
+)
 const HAYSTACK = displayLines(extractStrings(buf)).join('\n')
 
 /** A skeleton's distinctive literal spans, longer than the trivial-glue floor.
@@ -118,13 +120,16 @@ describe('composed-line gate (spec P2.1)', () => {
         asserted.add(fam.en)
         const fails: string[] = []
         for (const { code } of LANGS) {
-          if (EXEMPTIONS[code as 'fr' | 'de' | 'es']?.some(e => e.en === fam.en))
+          if (
+            EXEMPTIONS[code as 'fr' | 'de' | 'es']?.some(e => e.en === fam.en)
+          )
             continue
           const c = COMPILED.get(code)!
           for (const en of fillsFor(fam, code)) {
             const out = matchLine(c, en)
             if (out === null) fails.push(`${code}: MISS "${en}"`)
-            else if (out === en) fails.push(`${code}: ECHO (untranslated) "${en}"`)
+            else if (out === en)
+              fails.push(`${code}: ECHO (untranslated) "${en}"`)
             else if (code === 'ka' && !GEORGIAN.test(out))
               fails.push(`ka: no Georgian char in "${out}" (for "${en}")`)
           }

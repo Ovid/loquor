@@ -128,7 +128,9 @@ describe('ka provisional Georgian strings carry a NATIVE-REVIEW-DRAFT marker', (
     const begin = lines.findIndex(l =>
       l.includes('COMPOSED-GATE-DRAFTS (P2.1) BEGIN'),
     )
-    const end = lines.findIndex(l => l.includes('COMPOSED-GATE-DRAFTS (P2.1) END'))
+    const end = lines.findIndex(l =>
+      l.includes('COMPOSED-GATE-DRAFTS (P2.1) END'),
+    )
     expect(
       begin,
       'expected the COMPOSED-GATE-DRAFTS BEGIN sentinel',

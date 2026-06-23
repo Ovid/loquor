@@ -91,18 +91,30 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
   //     notes/georgian-composed-line-review.md). Verb-neutral caseless reframes:
   //     the `out` drops {verb}/{raw} (en-side for matching only), like the shipped
   //     put-in line — so ka never declines an echoed English token (§4 sidestep).
-  { en: 'What do you want to {verb} the {raw} in?', out: 'რაში გსურთ მისი ჩადება?' },
-  { en: 'What do you want to {verb} the {raw} with?', out: 'რით გსურთ მისი გაკეთება?' },
+  {
+    en: 'What do you want to {verb} the {raw} in?',
+    out: 'რაში გსურთ მისი ჩადება?',
+  },
+  {
+    en: 'What do you want to {verb} the {raw} with?',
+    out: 'რით გსურთ მისი გაკეთება?',
+  },
   { en: 'What do you want to {verb}?', out: 'რისი გაკეთება გსურს?' },
   // ── Listing engine (P2.1 Task 6; gverbs.zil DESCRIBE-OBJECT/PRINT-CONT). ka
   //    shipped only per-object pins, so the lit BRASS LANTERN, the vehicle tail,
   //    the surface header and the actor "is holding:" leaked raw English. Each
   //    keeps {obj} in the NOMINATIVE citation form (no case agreement) or drops
   //    the noun where a case would be forced (§4).
-  { en: 'There is a {obj} here (providing light).', out: 'აქ {obj.indef} არის (ანათებს).' },
+  {
+    en: 'There is a {obj} here (providing light).',
+    out: 'აქ {obj.indef} არის (ანათებს).',
+  },
   { en: 'A {obj} (providing light)', out: '{obj.indef} (ანათებს)' },
   // Vehicle tail — a colon avoids declining the boat (mirrors de "(außerhalb: …)").
-  { en: 'There is a {obj} here. (outside the {obj2})', out: 'აქ {obj.indef} არის. (გარეთ: {obj2.indef})' },
+  {
+    en: 'There is a {obj} here. (outside the {obj2})',
+    out: 'აქ {obj.indef} არის. (გარეთ: {obj2.indef})',
+  },
   // Surface header — the surface would need the -ზე postposition case (§4) and is
   // on-screen, so drop it: "on top lies:".
   { en: 'Sitting on the {obj} is:', out: 'ზედ დევს:' },
@@ -116,20 +128,29 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
   // ── 7b Container/placement failures (gverbs.zil V-PUT). Two-object lines drop
   //    the container (on-screen; -ში would shift a multi-word adjective, §4); the
   //    rest keep {obj} as the nominative subject ("have" takes the nominative).
-  { en: 'The {obj} is already in the {obj2}.', out: '{obj.indef} უკვე შიგ დევს.' },
+  {
+    en: 'The {obj} is already in the {obj2}.',
+    out: '{obj.indef} უკვე შიგ დევს.',
+  },
   { en: "The {obj} isn't in the {obj2}.", out: '{obj.indef} შიგ არ არის.' },
   { en: "You don't have the {obj}.", out: '{obj.indef} არ გაქვს.' },
   { en: "The {obj} isn't here!", out: '{obj.indef} აქ არ არის!' },
   { en: "There's no good surface on the {obj}.", out: 'ამაზე ვერაფერს დადებ.' },
   // ── 7d-i Standard-verb refusals/statuses (gverbs.zil). NS = {obj} kept as the
   //    nominative subject; DN = dropped to a demonstrative (caseless, §4).
-  { en: 'Moving the {obj} reveals nothing.', out: 'გადაადგილებამ არაფერი გამოაჩინა.' },
-  { en: 'You can\'t move the {obj}.', out: '{obj.indef} ადგილიდან არ იძვრება.' },
+  {
+    en: 'Moving the {obj} reveals nothing.',
+    out: 'გადაადგილებამ არაფერი გამოაჩინა.',
+  },
+  { en: "You can't move the {obj}.", out: '{obj.indef} ადგილიდან არ იძვრება.' },
   { en: 'You are now in the {obj}.', out: 'ახლა შიგ ხარ.' },
   { en: 'You are now wearing the {obj}.', out: 'ახლა {obj.indef} გაცვია.' },
   { en: "You're not carrying the {obj}.", out: '{obj.indef} თან არ გაქვს.' },
   { en: 'How does one read a {obj}?', out: 'ეს როგორ უნდა წაიკითხო?' },
-  { en: "You aren't even holding the {obj}.", out: '{obj.indef} ხელშიც კი არ გიჭირავს.' },
+  {
+    en: "You aren't even holding the {obj}.",
+    out: '{obj.indef} ხელშიც კი არ გიჭირავს.',
+  },
   // ── 7d-ii Exotic-verb refusals (author-all). NS keeps {obj} nominative; DN
   //    drops the object to a fixed demonstrative (ამას/ამაზე/ამაში/ამით, §4-safe).
   { en: 'The {obj} is rudely awakened.', out: '{obj.indef} უხეშად იღვიძებს.' },
@@ -137,42 +158,96 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
   { en: 'With a {obj}??!?', out: 'ამით??!?' },
   { en: "You can't burn a {obj}.", out: '{obj.indef} არ იწვის.' },
   { en: "You can't climb onto the {obj}.", out: 'ამაზე ვერ აძვრები.' },
-  { en: 'You must tell me how to do that to a {obj}.', out: 'ვერ მივხვდი, რა გნებავთ.' },
-  { en: 'The {obj} pays no attention.', out: '{obj.indef} ყურადღებას არ აქცევს.' },
-  { en: 'Strange concept, cutting the {obj}....', out: 'ამის ჭრა? უცნაური აზრია....' },
-  { en: 'Digging with the {obj} is slow and tedious.', out: 'ამით თხრა ნელი და მოსაბეზრებელია.' },
+  {
+    en: 'You must tell me how to do that to a {obj}.',
+    out: 'ვერ მივხვდი, რა გნებავთ.',
+  },
+  {
+    en: 'The {obj} pays no attention.',
+    out: '{obj.indef} ყურადღებას არ აქცევს.',
+  },
+  {
+    en: 'Strange concept, cutting the {obj}....',
+    out: 'ამის ჭრა? უცნაური აზრია....',
+  },
+  {
+    en: 'Digging with the {obj} is slow and tedious.',
+    out: 'ამით თხრა ნელი და მოსაბეზრებელია.',
+  },
   { en: 'Digging with a {obj} is silly.', out: 'ამით თხრა სისულელეა.' },
-  { en: 'The {obj} refuses it politely.', out: '{obj.indef} თავაზიანად უარს ამბობს.' },
+  {
+    en: 'The {obj} refuses it politely.',
+    out: '{obj.indef} თავაზიანად უარს ამბობს.',
+  },
   { en: 'Why knock on a {obj}?', out: 'ამას რად აკაკუნებ?' },
   { en: 'The {obj} makes no sound.', out: '{obj.indef} ხმას არ გამოსცემს.' },
   { en: 'There is nothing behind the {obj}.', out: 'მის უკან არაფერია.' },
   { en: 'Look on a {obj}???', out: 'ზედ რას ნახავ???' },
-  { en: "It's not clear that a {obj} can be melted.", out: '{obj.indef} ალბათ ვერ დნება.' },
-  { en: 'Ahoy -- {obj} overboard!', out: 'ჰეი — {obj.indef} წყალში გადავარდა!' },
+  {
+    en: "It's not clear that a {obj} can be melted.",
+    out: '{obj.indef} ალბათ ვერ დნება.',
+  },
+  {
+    en: 'Ahoy -- {obj} overboard!',
+    out: 'ჰეი — {obj.indef} წყალში გადავარდა!',
+  },
   { en: 'Pump it up with a {obj}?', out: 'ამით გაბერავ?' },
   { en: 'How does one look through a {obj}?', out: 'ამაში როგორ გაიხედავ?' },
-  { en: 'It is hardly likely that the {obj} is interested.', out: '{obj.indef} ნაკლებად დაინტერესდება.' },
+  {
+    en: 'It is hardly likely that the {obj} is interested.',
+    out: '{obj.indef} ნაკლებად დაინტერესდება.',
+  },
   { en: 'Why would you send for the {obj}?', out: 'ამას რად დაიბარებ?' },
   { en: 'It smells like a {obj}.', out: 'უცნაური სუნი აქვს.' },
-  { en: 'The {obj} does not understand this.', out: '{obj.indef} ამას ვერ იგებს.' },
+  {
+    en: 'The {obj} does not understand this.',
+    out: '{obj.indef} ამას ვერ იგებს.',
+  },
   { en: "You can't talk to the {obj}!", out: 'ამას ვერ დაელაპარაკები!' },
-  { en: "You can't tie the {obj} to that.", out: 'ამის იქ მიბმა ვერ მოხერხდება.' },
+  {
+    en: "You can't tie the {obj} to that.",
+    out: 'ამის იქ მიბმა ვერ მოხერხდება.',
+  },
   { en: 'You cannot wind up a {obj}.', out: 'ამის დაჭიმვა ვერ მოხერხდება.' },
   { en: 'A nice idea, but with a {obj}?', out: 'კარგი აზრია, მაგრამ ამით?' },
-  { en: "It seems that a {obj} won't do.", out: 'როგორც ჩანს, ამით არ გამოვა.' },
+  {
+    en: "It seems that a {obj} won't do.",
+    out: 'როგორც ჩანს, ამით არ გამოვა.',
+  },
   { en: 'Why would you tie up a {obj}?', out: 'ამას რად შეკრავ?' },
   { en: 'It looks pretty much like a {obj}.', out: 'ჩვეულებრივ რამეს ჰგავს.' },
   // ── 7d-iii Exotic multi-slot + all-language gaps. give/destroy/cut/water drop
   //    to demonstratives (DN, §4); the {obj}smanship pun drops both slots;
   //    extinguished/burns keep {obj} as the nominative subject (NS).
-  { en: "You can't give a {obj} to a {obj2}!", out: 'ამის მიცემა ვერ მოახერხებ!' },
-  { en: 'Trying to destroy the {obj} with a {obj2} is futile.', out: 'ამის დანგრევა ამით ფუჭია.' },
-  { en: 'Trying to destroy the {obj} with your bare hands is futile.', out: 'ამის ხელით დანგრევა ფუჭია.' },
-  { en: 'Your skillful {obj}smanship slices the {obj2} into innumerable slivers which blow away.', out: 'ოსტატურად დააქუცმაცებ.' },
-  { en: 'The "cutting edge" of a {obj} is hardly adequate.', out: 'ამის პირი საჭრელად არ ვარგა.' },
-  { en: 'The water leaks out of the {obj} and evaporates immediately.', out: 'წყალი გადმოიღვრება და მაშინვე აორთქლდება.' },
+  {
+    en: "You can't give a {obj} to a {obj2}!",
+    out: 'ამის მიცემა ვერ მოახერხებ!',
+  },
+  {
+    en: 'Trying to destroy the {obj} with a {obj2} is futile.',
+    out: 'ამის დანგრევა ამით ფუჭია.',
+  },
+  {
+    en: 'Trying to destroy the {obj} with your bare hands is futile.',
+    out: 'ამის ხელით დანგრევა ფუჭია.',
+  },
+  {
+    en: 'Your skillful {obj}smanship slices the {obj2} into innumerable slivers which blow away.',
+    out: 'ოსტატურად დააქუცმაცებ.',
+  },
+  {
+    en: 'The "cutting edge" of a {obj} is hardly adequate.',
+    out: 'ამის პირი საჭრელად არ ვარგა.',
+  },
+  {
+    en: 'The water leaks out of the {obj} and evaporates immediately.',
+    out: 'წყალი გადმოიღვრება და მაშინვე აორთქლდება.',
+  },
   { en: 'The {obj} is extinguished.', out: '{obj.indef} ჩაქრა.' },
-  { en: 'The {obj} burns and is consumed.', out: '{obj.indef} იწვის და ნადგურდება.' },
+  {
+    en: 'The {obj} burns and is consumed.',
+    out: '{obj.indef} იწვის და ნადგურდება.',
+  },
   // === COMPOSED-GATE-DRAFTS (P2.1) END ===
   // NB (UAT 2026-06-20 / recon 2026-06-23): orphan preps `in` (bare `put X`) and
   // `with` (`cut`/`strike X`) are templated above; `on`->WEAR and

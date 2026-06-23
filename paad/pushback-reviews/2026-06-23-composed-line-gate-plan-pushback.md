@@ -21,6 +21,7 @@ the plan never reconciles. All fixable; none invalidate the architecture.
 **None.** The branch `ovid/composed-line-gate` is current; HEAD is the spec
 commit this plan executes. Every file the plan reads/modifies exists at the cited
 state:
+
 - `src/translate/match.ts` line 28 (`SLOT`) and lines 94–97 (the `else` raw
   branch) match the plan's diff targets exactly.
 - `src/translate/match.test.ts` exists (the plan's "append if the file exists" is
@@ -55,16 +56,16 @@ No recent commit has moved or renamed anything the plan depends on.
   - **E-seed** `'What do you want to put the {raw} in?'` → span
     `"What do you want to put the"` → `[FAIL]`. The only real decoded fragment is
     `"What do you want to"` (the verb `put` is runtime-spliced).
-  - The plan's Task 2 Step 2 explicitly lists *both* of these as passing spans
+  - The plan's Task 2 Step 2 explicitly lists _both_ of these as passing spans
     (`"Opening the small mailbox reveals a leaflet."` and `"What do you want to"` —
     note it silently swaps the E span to the shorter real one but leaves the C span
     as the full sentence). So the plan's stated GREEN is self-contradictory: by its
     own fidelity rule the seed is RED.
 - **Why it matters:** Task 2's entire purpose is to prove the gate end-to-end on a
-  known-good seed *before* any new content. If the seed is red for a spurious
+  known-good seed _before_ any new content. If the seed is red for a spurious
   reason, the executor can't tell a real transcription bug from the model-shape
   bug, and the "fix the `en`" instruction in Task 2 Step 2 is actively
-  misleading — the C-seed `en` is *correct game wording*; it's the slotless
+  misleading — the C-seed `en` is _correct game wording_; it's the slotless
   literal modeling that breaks fidelity, not a mis-transcription.
 - **Root cause (structural, not a typo):** the fidelity check assumes every
   family's `en` decomposes (via slot/join split + edge-strip) into spans that are
@@ -78,17 +79,17 @@ No recent commit has moved or renamed anything the plan depends on.
     `'Opening the {obj} reveals {raw}'` (or move it into the Task-6 listing group)
     so the spans become `"Opening the"` (PASS) + `"reveals"` (PASS). If a literal
     2-object instance is genuinely wanted, drive it via `instances:[{obj:'small
-    mailbox', raw:'a leaflet'}]` on a slotted `en` so the spans decompose.
+mailbox', raw:'a leaflet'}]` on a slotted `en` so the spans decompose.
   - E: it is already superseded in Task 4 by `'What do you want to {verb} the {raw}
-    in?'` (span → `"What do you want to"`, PASS). Either seed Task 1 directly with
+in?'` (span → `"What do you want to"`, PASS). Either seed Task 1 directly with
     the `{verb}` form (requires Task 3's slot first — reorder), or have Task 1 seed
     the E family with an `en` whose only ≥4-char non-slot span is `"What do you want
-    to"` and explicitly note in Task 2 that the C/E spans reduce to fragments.
+to"` and explicitly note in Task 2 that the C/E spans reduce to fragments.
   - Whichever path: **correct the "Expected: PASS" span list in Task 2 Step 2** to
     the spans that actually exist (`"Opening the"`, `"reveals"`, `"What do you want
-    to"`), and add a one-line rule to `composed-families.ts`'s header: *"never
+to"`), and add a one-line rule to `composed-families.ts`'s header: _"never
     model a composed line as a slotless literal — fidelity requires the variable
-    parts to be slots."*
+    parts to be slots."_
 
 ### [2] SERIOUS — New `ka` drafts escape the existing NATIVE-REVIEW-DRAFT marker gate
 
@@ -98,15 +99,15 @@ No recent commit has moved or renamed anything the plan depends on.
   File Structure table and tasks never touch
   `src/translate/corpus/ka-native-review-draft.test.ts`.
 - **Problem:** That existing test enforces a `NATIVE-REVIEW-DRAFT` marker comment
-  above each *new* ka Georgian line — but it is **narrowly scoped** to two specific
+  above each _new_ ka Georgian line — but it is **narrowly scoped** to two specific
   template entries (the disambiguation template, located by `{raw}`+`{obj.indef}`;
   and the incomplete-put line, located by the exact string `'რაში გსურთ მისი
-  ჩადება'`). It does **not** scan every Georgian line in `zork1.ka.templates.ts`
+ჩადება'`). It does **not** scan every Georgian line in `zork1.ka.templates.ts`
   (the comment says the file is "PRE-EXISTING reviewed … Only ONE entry was
   added/flagged this branch"). So the plan's new orphan drafts
   (`რით გსურთ მისი გაკეთება?`, `რისი გაკეთება გსურს?`) and every Tasks 5–8 ka draft
-  get **no marker enforcement at all**. The spec and CLAUDE.md require *everything
-  authored* to be `NATIVE-REVIEW-DRAFT`; there is a test that guards exactly this,
+  get **no marker enforcement at all**. The spec and CLAUDE.md require _everything
+  authored_ to be `NATIVE-REVIEW-DRAFT`; there is a test that guards exactly this,
   and the plan leaves it stale.
 - **Secondary hazard:** the incomplete-put assertion pins the line by the literal
   Georgian `'რაში გსურთ მისი ჩადება'`. Task 4 Step 4 reuses that exact wording for
@@ -133,8 +134,8 @@ No recent commit has moved or renamed anything the plan depends on.
   2-candidate "book" pin, per the ka file's own comment "they keep only the
   2-candidate book pin"); ka ships all four arities. The worked example drives a
   **dam-buttons** instance (`blue/red/yellow button` — all confirmed present in
-  every object table). Whether the fr/de/es 2-candidate template *matches the
-  buttons instance* depends on whether that pin is a generic `{obj}/{obj2}` template
+  every object table). Whether the fr/de/es 2-candidate template _matches the
+  buttons instance_ depends on whether that pin is a generic `{obj}/{obj2}` template
   or a fixed-object string. If fixed/book-specific, the buttons instance MISSES →
   the gate goes RED for fr/de/es on the 2-candidate, and the 3-candidate is RED for
   fr/de/es regardless (no template). The plan says "add EXEMPTIONS … if fr/de/es
@@ -156,7 +157,7 @@ No recent commit has moved or renamed anything the plan depends on.
   to 8").
 - **Problem:** The seed is described as "6 families (the two E-pins are one put-in
   family)". But Task 1 seeds **six `Family` objects** where one is the C literal,
-  two are D pins, **one** is the E put-in, one F, one G — that *is* 6 reachable.
+  two are D pins, **one** is the E put-in, one F, one G — that _is_ 6 reachable.
   Task 4 then "replaces the put-in family" (net 0) and "appends" the `…with?` and
   `…?` orphan families (+2) → 8. The arithmetic (6→8) is internally consistent
   **only if** the C-seed remains a counted reachable family. But finding [1] forces
@@ -176,11 +177,11 @@ No recent commit has moved or renamed anything the plan depends on.
 
 - **Category:** feasibility / fidelity-check robustness
 - **Where:** the `HAYSTACK` construction (Task 2) and every later group's recon.
-- **Problem:** `extractStrings` is *anchored*, not exhaustive, and the decoded
+- **Problem:** `extractStrings` is _anchored_, not exhaustive, and the decoded
   inventory contains truncated/garbled fragments (e.g. I observed
   `"ug is extremely heavy and cannot be carried."` and
   `"cyclops … qa8,The trophy case is securely fastened to the wall."` alongside the
-  clean lines). The clean full fragments *do* exist for the seed (verified: D, F, G
+  clean lines). The clean full fragments _do_ exist for the seed (verified: D, F, G
   all PASS), so the seed is fine. But for **later** groups (Tasks 6/7), a
   distinctive response span that happens to live only inside a longer composed
   TELL may appear only as a mid-string substring — which `HAYSTACK.includes()` still
@@ -191,10 +192,10 @@ No recent commit has moved or renamed anything the plan depends on.
   a fidelity RED that isn't a transcription bug. The spec's own `ponytail` note
   ("the floor lets trivial glue through … tighten only if a glue-level bug is
   found") acknowledges the check is heuristic.
-- **Recommended fix:** Add a sentence to Task 5 Step 1: *"If a span MISSES but the
+- **Recommended fix:** Add a sentence to Task 5 Step 1: _"If a span MISSES but the
   recon snippet shows the fragment IS in the decoded output, the miss is an
   extraction-anchoring gap, not a transcription bug — split the span on a
-  finer boundary or drop it below the floor; do not reword correct game text."*
+  finer boundary or drop it below the floor; do not reword correct game text."_
   This complements the existing "do not loosen the check" guidance with the
   opposite failure mode.
 
@@ -204,7 +205,7 @@ No recent commit has moved or renamed anything the plan depends on.
 - **Where:** Task 6 (listing engine) and Task 7 (single-line splices, "largest
   group"), each one paragraph that says "Follow Task 5 Steps 1–7."
 - **Assessment:** This is a **legitimate recipe, not a hidden hand-wave** — the
-  judgment is defensible. The gate *generates* the per-cell worklist (RED output),
+  judgment is defensible. The gate _generates_ the per-cell worklist (RED output),
   Task 5 defines the exact red→green→commit loop and works one group end-to-end
   (disambiguation), and the decision ladder for ka (rung 1/2/3) is concrete. Not
   inlining ~40 families of Georgian is correct: fabricating authoritative Georgian
@@ -212,9 +213,9 @@ No recent commit has moved or renamed anything the plan depends on.
   **However**, Task 7 bundles the single largest, most heterogeneous group
   ("already open/closed", "now on/off", multi-`<obj>:` labels, the deferred
   joke-insult tail) behind one paragraph with only "split into 2–3 commits if the
-  diff grows unwieldy." A fresh engineer has no list of *which* splices are
+  diff grows unwieldy." A fresh engineer has no list of _which_ splices are
   reachable vs deferred — the spec says 124 distinct single-line families exist.
-- **Why it matters:** The risk isn't fabrication; it's *scoping drift / fatigue* on
+- **Why it matters:** The risk isn't fabrication; it's _scoping drift / fatigue_ on
   the 124-family tail, where the executor must repeatedly judge reach and pick ka
   rungs. The "bias to reachable" rule mitigates leak risk but not effort estimation.
 - **Recommended fix:** In Task 7, commit to a concrete sub-grouping up front (e.g.
@@ -235,7 +236,7 @@ No recent commit has moved or renamed anything the plan depends on.
   Vitest's in-file sequential default"). This is sound but fragile: a future
   `--sequence.shuffle` or a `describe.concurrent` would silently break it (could
   false-PASS if the completeness `it` runs before some family `it`s, or false-FAIL).
-- **Recommended fix (optional):** Compute `asserted` size from the *same* iteration
+- **Recommended fix (optional):** Compute `asserted` size from the _same_ iteration
   that drives the assertions, or assert completeness structurally
   (`REACHABLE.length === COMPOSED_FAMILIES.filter(isReachable).length` is vacuous;
   instead assert each family's translate-`it` exists by name). Low priority — the
@@ -248,7 +249,7 @@ No recent commit has moved or renamed anything the plan depends on.
   `What do you want to {verb} the {raw} with?` as a **generic verb-neutral**
   question (`Avec quoi voulez-vous le faire ?` / `რით გსურთ მისი გაკეთება?`),
   dropping both the player's verb and noun.
-- **Assessment:** This is a *documented, reasoned* product decision (spec
+- **Assessment:** This is a _documented, reasoned_ product decision (spec
   decision 7: a verb-neutral phrasing "bakes no verb's meaning, so one per-prep
   template serves every orphaning verb … no English verb is mixed into Georgian").
   The harm is mild — the player's verb and noun are still on-screen in the echoed
@@ -259,8 +260,7 @@ No recent commit has moved or renamed anything the plan depends on.
   noticeably more generic than original Zork's "What do you want to attack the
   troll with?". If natural fr/de/es phrasing later wants the verb back, that's an
   LLM-routed exemption, never a per-verb ka template.
-- **Recommended fix:** None required. Note it in the native-review worklist (Task
-  10) so the Georgian reviewers can judge whether the verb-neutral reframe reads
+- **Recommended fix:** None required. Note it in the native-review worklist (Task 10) so the Georgian reviewers can judge whether the verb-neutral reframe reads
   naturally, since they're the ones who lose the most context (no LLM net).
 
 ---
@@ -282,7 +282,7 @@ No recent commit has moved or renamed anything the plan depends on.
   decompose to real decoded fragments (`"You can't wear the"`, `"is closed"`,
   `"What do you want to"`, `"Opening the"`, `"reveals"`, `"is now on"`, etc. all
   PASS). The slot/join split + edge-strip + ≥4 floor is the right shape — finding
-  [1] is about *literal-modeled* families, not the check's core logic.
+  [1] is about _literal-modeled_ families, not the check's core logic.
 - **The honesty architecture is genuinely stronger than the spec's literal
   `log()`.** Asserting the deferred set against `EXPECTED_DEFERRED` (CLAUDE.md
   pristine-output compliant), the floor + completeness meta-tests, the

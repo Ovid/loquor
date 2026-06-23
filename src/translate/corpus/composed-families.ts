@@ -60,7 +60,10 @@ export const COMPOSED_FAMILIES: readonly Family[] = [
     en: 'Opening the {obj} reveals {raw}.',
     reach: 'reachable',
     note: 'UAT-C 2026-06-19. gverbs.zil V-OPEN reveal. obj=small mailbox, contents sample "a leaflet". Fill = the exact UAT line (matches today\'s corpus pin) while fidelity sees the real "Opening the"/"reveals" fragments.',
-    bindings: { obj: { objects: ['small mailbox'] }, raw: { sample: 'a leaflet' } },
+    bindings: {
+      obj: { objects: ['small mailbox'] },
+      raw: { sample: 'a leaflet' },
+    },
   },
   // D: per-object FAILURE reasons in `take all` (gverbs.zil ITAKE).
   {
@@ -143,7 +146,12 @@ export const COMPOSED_FAMILIES: readonly Family[] = [
     reach: 'reachable',
     note: 'gparser.zil WHICH-PRINT, 3-candidate. Dam buttons (blue/red/yellow).',
     instances: [
-      { raw: 'button', obj: 'blue button', obj2: 'red button', obj3: 'yellow button' },
+      {
+        raw: 'button',
+        obj: 'blue button',
+        obj2: 'red button',
+        obj3: 'yellow button',
+      },
     ],
   },
   {
@@ -345,7 +353,7 @@ export const COMPOSED_FAMILIES: readonly Family[] = [
     bindings: { obj: 'all-objects' },
   },
   {
-    en: 'You can\'t move the {obj}.',
+    en: "You can't move the {obj}.",
     reach: 'reachable',
     note: 'gverbs.zil:918 V-MOVE refusal. ka NS "{obj.indef} ადგილიდან არ იძვრება.".',
     bindings: { obj: 'all-objects' },
@@ -391,38 +399,188 @@ export const COMPOSED_FAMILIES: readonly Family[] = [
   //    a curious player CAN type these, so ka must not leak. fr/de/es generalize;
   //    ka drafts keep {obj} nominative-subject (NS) or drop to a demonstrative
   //    (DN, §4). All NATIVE-REVIEW-DRAFT, sectioned.
-  { en: 'The {obj} is rudely awakened.', reach: 'reachable', note: 'V-ALARM (wake). ka NS.', bindings: { obj: 'all-objects' } },
-  { en: "The {obj} isn't sleeping.", reach: 'reachable', note: 'V-ALARM (wake). ka NS.', bindings: { obj: 'all-objects' } },
-  { en: 'With a {obj}??!?', reach: 'reachable', note: 'PRE-BURN (burn with non-flame). ka DN "ამით??!?".', bindings: { obj: 'all-objects' } },
-  { en: "You can't burn a {obj}.", reach: 'reachable', note: 'V-BURN. ka NS "{obj.indef} არ იწვის.".', bindings: { obj: 'all-objects' } },
-  { en: "You can't climb onto the {obj}.", reach: 'reachable', note: 'V-CLIMB-ON. ka DN.', bindings: { obj: 'all-objects' } },
-  { en: 'You must tell me how to do that to a {obj}.', reach: 'reachable', note: 'V-CLOSE syntax fallback. ka DN.', bindings: { obj: 'all-objects' } },
-  { en: 'The {obj} pays no attention.', reach: 'reachable', note: 'V-COMMAND. ka NS.', bindings: { obj: 'all-objects' } },
-  { en: 'Strange concept, cutting the {obj}....', reach: 'reachable', note: 'V-CUT (non-weapon target). ka DN.', bindings: { obj: 'all-objects' } },
-  { en: 'Digging with the {obj} is slow and tedious.', reach: 'reachable', note: 'V-DIG (with shovel). ka DN (tool dropped).', bindings: { obj: 'all-objects' } },
-  { en: 'Digging with a {obj} is silly.', reach: 'reachable', note: 'V-DIG (wrong tool). ka DN.', bindings: { obj: 'all-objects' } },
+  {
+    en: 'The {obj} is rudely awakened.',
+    reach: 'reachable',
+    note: 'V-ALARM (wake). ka NS.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: "The {obj} isn't sleeping.",
+    reach: 'reachable',
+    note: 'V-ALARM (wake). ka NS.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'With a {obj}??!?',
+    reach: 'reachable',
+    note: 'PRE-BURN (burn with non-flame). ka DN "ამით??!?".',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: "You can't burn a {obj}.",
+    reach: 'reachable',
+    note: 'V-BURN. ka NS "{obj.indef} არ იწვის.".',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: "You can't climb onto the {obj}.",
+    reach: 'reachable',
+    note: 'V-CLIMB-ON. ka DN.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'You must tell me how to do that to a {obj}.',
+    reach: 'reachable',
+    note: 'V-CLOSE syntax fallback. ka DN.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'The {obj} pays no attention.',
+    reach: 'reachable',
+    note: 'V-COMMAND. ka NS.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'Strange concept, cutting the {obj}....',
+    reach: 'reachable',
+    note: 'V-CUT (non-weapon target). ka DN.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'Digging with the {obj} is slow and tedious.',
+    reach: 'reachable',
+    note: 'V-DIG (with shovel). ka DN (tool dropped).',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'Digging with a {obj} is silly.',
+    reach: 'reachable',
+    note: 'V-DIG (wrong tool). ka DN.',
+    bindings: { obj: 'all-objects' },
+  },
   // (V-ENCHANT "filch"/"puff of smoke" are Zork II/III only — gverbs.zil
   //  ZORK-NUMBER-gated, absent from the Zork I decode — so NOT registered.)
-  { en: 'The {obj} refuses it politely.', reach: 'reachable', note: 'V-GIVE (recipient refuses). ka NS.', bindings: { obj: 'all-objects' } },
-  { en: 'Why knock on a {obj}?', reach: 'reachable', note: 'V-KNOCK. ka DN.', bindings: { obj: 'all-objects' } },
-  { en: 'The {obj} makes no sound.', reach: 'reachable', note: 'V-LISTEN. ka NS.', bindings: { obj: 'all-objects' } },
-  { en: 'There is nothing behind the {obj}.', reach: 'reachable', note: 'V-LOOK-BEHIND. ka DN.', bindings: { obj: 'all-objects' } },
-  { en: 'Look on a {obj}???', reach: 'reachable', note: 'V-LOOK-ON. ka DN.', bindings: { obj: 'all-objects' } },
-  { en: "It's not clear that a {obj} can be melted.", reach: 'reachable', note: 'V-MELT. ka NS.', bindings: { obj: 'all-objects' } },
-  { en: 'Ahoy -- {obj} overboard!', reach: 'reachable', note: 'V-OVERBOARD (throw from boat). ka NS.', bindings: { obj: 'all-objects' } },
-  { en: 'Pump it up with a {obj}?', reach: 'reachable', note: 'V-PUMP (wrong tool). ka DN.', bindings: { obj: 'all-objects' } },
-  { en: 'How does one look through a {obj}?', reach: 'reachable', note: 'PRE-READ (look through). ka DN.', bindings: { obj: 'all-objects' } },
-  { en: 'It is hardly likely that the {obj} is interested.', reach: 'reachable', note: 'V-REPLY/answer. ka NS.', bindings: { obj: 'all-objects' } },
-  { en: 'Why would you send for the {obj}?', reach: 'reachable', note: 'V-SEND. ka DN.', bindings: { obj: 'all-objects' } },
-  { en: 'It smells like a {obj}.', reach: 'reachable', note: 'V-SMELL. ka DN (object would need a case).', bindings: { obj: 'all-objects' } },
-  { en: 'The {obj} does not understand this.', reach: 'reachable', note: 'V-SQUEEZE. ka NS.', bindings: { obj: 'all-objects' } },
-  { en: "You can't talk to the {obj}!", reach: 'reachable', note: 'V-TELL/talk. ka DN.', bindings: { obj: 'all-objects' } },
-  { en: "You can't tie the {obj} to that.", reach: 'reachable', note: 'V-TIE. ka DN.', bindings: { obj: 'all-objects' } },
-  { en: 'You cannot wind up a {obj}.', reach: 'reachable', note: 'V-WIND (non-canary). ka DN.', bindings: { obj: 'all-objects' } },
-  { en: 'A nice idea, but with a {obj}?', reach: 'reachable', note: 'TEETH-F (brush teeth, wrong tool). ka DN.', bindings: { obj: 'all-objects' } },
-  { en: "It seems that a {obj} won't do.", reach: 'reachable', note: 'MSWITCH-FUNCTION (wrong tool for the machine). ka DN.', bindings: { obj: 'all-objects' } },
-  { en: 'Why would you tie up a {obj}?', reach: 'reachable', note: 'ROPE-FUNCTION (tie up). ka DN.', bindings: { obj: 'all-objects' } },
-  { en: 'It looks pretty much like a {obj}.', reach: 'reachable', note: 'DUMB-CONTAINER examine. ka DN.', bindings: { obj: 'all-objects' } },
+  {
+    en: 'The {obj} refuses it politely.',
+    reach: 'reachable',
+    note: 'V-GIVE (recipient refuses). ka NS.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'Why knock on a {obj}?',
+    reach: 'reachable',
+    note: 'V-KNOCK. ka DN.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'The {obj} makes no sound.',
+    reach: 'reachable',
+    note: 'V-LISTEN. ka NS.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'There is nothing behind the {obj}.',
+    reach: 'reachable',
+    note: 'V-LOOK-BEHIND. ka DN.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'Look on a {obj}???',
+    reach: 'reachable',
+    note: 'V-LOOK-ON. ka DN.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: "It's not clear that a {obj} can be melted.",
+    reach: 'reachable',
+    note: 'V-MELT. ka NS.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'Ahoy -- {obj} overboard!',
+    reach: 'reachable',
+    note: 'V-OVERBOARD (throw from boat). ka NS.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'Pump it up with a {obj}?',
+    reach: 'reachable',
+    note: 'V-PUMP (wrong tool). ka DN.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'How does one look through a {obj}?',
+    reach: 'reachable',
+    note: 'PRE-READ (look through). ka DN.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'It is hardly likely that the {obj} is interested.',
+    reach: 'reachable',
+    note: 'V-REPLY/answer. ka NS.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'Why would you send for the {obj}?',
+    reach: 'reachable',
+    note: 'V-SEND. ka DN.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'It smells like a {obj}.',
+    reach: 'reachable',
+    note: 'V-SMELL. ka DN (object would need a case).',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'The {obj} does not understand this.',
+    reach: 'reachable',
+    note: 'V-SQUEEZE. ka NS.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: "You can't talk to the {obj}!",
+    reach: 'reachable',
+    note: 'V-TELL/talk. ka DN.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: "You can't tie the {obj} to that.",
+    reach: 'reachable',
+    note: 'V-TIE. ka DN.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'You cannot wind up a {obj}.',
+    reach: 'reachable',
+    note: 'V-WIND (non-canary). ka DN.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'A nice idea, but with a {obj}?',
+    reach: 'reachable',
+    note: 'TEETH-F (brush teeth, wrong tool). ka DN.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: "It seems that a {obj} won't do.",
+    reach: 'reachable',
+    note: 'MSWITCH-FUNCTION (wrong tool for the machine). ka DN.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'Why would you tie up a {obj}?',
+    reach: 'reachable',
+    note: 'ROPE-FUNCTION (tie up). ka DN.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'It looks pretty much like a {obj}.',
+    reach: 'reachable',
+    note: 'DUMB-CONTAINER examine. ka DN.',
+    bindings: { obj: 'all-objects' },
+  },
 
   // ── 7d-iii Exotic multi-slot + the two all-language gaps (author-all). give/
   //    destroy/cut/water are templated in fr/de/es (ka DN drafts); "is
@@ -487,7 +645,7 @@ export const COMPOSED_FAMILIES: readonly Family[] = [
   {
     en: "You can't see any {raw} here!",
     reach: 'reachable',
-    note: 'gparser.zil referenced-object-absent. Golden path: `You can\'t see any thief/troll here!`. ka {raw}-echo template ships (:40). Phase-2 ka revisit.',
+    note: "gparser.zil referenced-object-absent. Golden path: `You can't see any thief/troll here!`. ka {raw}-echo template ships (:40). Phase-2 ka revisit.",
     bindings: { raw: { sample: 'thief' } },
   },
 ]

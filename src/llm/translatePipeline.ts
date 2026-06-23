@@ -349,7 +349,13 @@ export async function runClause(
     const r = parseLexicon(clause, lex.core, lex.nouns, vocab, scene)
     if (r.kind === 'command')
       return { result: r, raw: '(lexicon)', stage: 'lexicon' }
-  } else {
+  } else if (activeLang === 'en') {
+    // Gated on the LANGUAGE, not "no noun lexicon" (I2): `lex` can be non-null
+    // with `lex.nouns === null` (an unregistered signature for a non-English
+    // picker), and the English resolvers below must never run on fr/de/es input
+    // — those clauses fall through to the LLM. The matchers are English-only
+    // (it/them/all/everything), so a misfire was unlikely even before, but the
+    // contract now matches the gate instead of relying on the tokens.
     // English has no input lexicon, but a bare pronoun ("open it") is resolvable
     // from the tracked antecedent — the same deterministic substitution fr/de/es
     // get above. Without it the clause reaches the LLM and a static few-shot

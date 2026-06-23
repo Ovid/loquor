@@ -6,7 +6,7 @@ import type { CoreLexicon, NounLexicon } from './types'
 import type { Vocab, NounEntry } from '../grammar/types'
 import type { Scene } from '../scene/types'
 import { fold, tokenize } from './fold'
-import { vocabWordSet } from '../inputTranslate'
+import { vocabWordSet, vocabKnows } from '../inputTranslate'
 
 export type LexResult = { kind: 'command'; text: string } | { kind: 'miss' }
 const MISS: LexResult = { kind: 'miss' }
@@ -189,23 +189,14 @@ const EN_PRONOUNS = ['it', 'them']
 // the warm LLM that breaks it, exactly the gap a deterministic path closes.
 const EN_QUANTIFIERS = ['all', 'everything']
 
-/** If `clause` is a well-formed two-token "<verb> <tail>" English command whose
- * last token is in `tail`, return its verb (a known, arity-1-or-2 vocab verb);
- * else null. The verb tokens before the final word must be EXACTLY one known
- * verb phrase (longest first so a multiword verb wins; verbSynonyms included so
- * "get it" matches). ponytail: only the two-token form (the reported cases and
- * the overwhelming majority); particle/compound forms ("pick it up") fall
- * through. Shared by the pronoun and quantifier English paths. */
-function englishVerbBeforeTail(
-  clause: string,
+/** The single known vocab verb phrase that EXACTLY spans `verbTokens` (longest
+ * first so a multiword verb wins; verbSynonyms included so "get it" matches), or
+ * undefined. Shared by the English pronoun/quantifier verb-prefix checks (S1). */
+function findVerbPhrase(
+  verbTokens: string[],
   vocab: Vocab,
-  tail: readonly string[],
-): string | null {
-  const tokens = tokenize(clause)
-  if (tokens.length < 2) return null
-  if (!tail.includes(tokens[tokens.length - 1])) return null
-  const verbTokens = tokens.slice(0, -1)
-  const verb = [
+): string | undefined {
+  return [
     ...vocab.verbs2,
     ...vocab.verbs1,
     ...vocab.verbsOnly,
@@ -219,6 +210,23 @@ function englishVerbBeforeTail(
         parts.every((p, i) => verbTokens[i] === p)
       )
     })
+}
+
+/** If `clause` is a well-formed two-token "<verb> <tail>" English command whose
+ * last token is in `tail`, return its verb (a known, arity-1-or-2 vocab verb);
+ * else null. The verb tokens before the final word must be EXACTLY one known
+ * verb phrase. ponytail: only the two-token form (the reported cases and the
+ * overwhelming majority); particle/compound forms ("pick it up") fall through.
+ * Shared by the pronoun and quantifier English paths. */
+function englishVerbBeforeTail(
+  clause: string,
+  vocab: Vocab,
+  tail: readonly string[],
+): string | null {
+  const tokens = tokenize(clause)
+  if (tokens.length < 2) return null
+  if (!tail.includes(tokens[tokens.length - 1])) return null
+  const verb = findVerbPhrase(tokens.slice(0, -1), vocab)
   return verb && verbArity1or2(verb, vocab) ? verb : null
 }
 
@@ -276,26 +284,11 @@ export function resolveEnglishQuantifierPhrase(
   if (tokens.length < 3) return MISS // need verb + quantifier + ≥1 remainder token
   const qIdx = tokens.findIndex(t => EN_QUANTIFIERS.includes(t))
   if (qIdx < 1 || qIdx === tokens.length - 1) return MISS
-  const verbTokens = tokens.slice(0, qIdx)
-  const verb = [
-    ...vocab.verbs2,
-    ...vocab.verbs1,
-    ...vocab.verbsOnly,
-    ...vocab.verbSynonyms,
-  ]
-    .sort((a, b) => b.length - a.length)
-    .find(v => {
-      const parts = v.split(' ')
-      return (
-        parts.length === verbTokens.length &&
-        parts.every((p, i) => verbTokens[i] === p)
-      )
-    })
+  const verb = findVerbPhrase(tokens.slice(0, qIdx), vocab)
   if (!verb || !verbArity1or2(verb, vocab)) return MISS
   const words = vocabWordSet(vocab)
-  const knows = (t: string) => words.has(t) || words.has(t.slice(0, 6))
   const rest = tokens.slice(qIdx + 1)
-  if (!rest.every(knows)) return MISS
+  if (!rest.every(t => vocabKnows(words, t))) return MISS
   return { kind: 'command', text: [verb, 'all', ...rest].join(' ') }
 }
 

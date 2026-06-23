@@ -402,7 +402,7 @@ export function unquote(line: string): string | null {
  * 'inflate'). Mirrors the same widening already used by parse.ts `hasVerbForm`
  * and roundtrip.ts. For tokens ≤6 chars `slice(0,6)` is the token itself, so this
  * only widens the >6-char case — short words keep exact-match semantics. */
-function vocabKnows(words: Set<string>, t: string): boolean {
+export function vocabKnows(words: Set<string>, t: string): boolean {
   return words.has(t) || words.has(t.slice(0, 6))
 }
 

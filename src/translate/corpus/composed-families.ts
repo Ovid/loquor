@@ -277,6 +277,43 @@ export const COMPOSED_FAMILIES: readonly Family[] = [
     note: 'gverbs.zil:886 V-LOOK-INSIDE empty container. ka "{obj.indef} ცარიელია." authored (nominative subject, caseless).',
     bindings: { obj: 'all-objects' },
   },
+
+  // ── 7b Container / placement failures (gverbs.zil V-PUT :1093-1106, V-PUT-ON
+  //    :1126, take-from :1375). "There's no room." / "How can you do that?" carry
+  //    no object splice (plain strings). "The {obj} isn't open." is seed G. The
+  //    two-object families DROP the container for ka (it is on-screen from the
+  //    player's command, and a Georgian "-ში" case would shift a multi-word
+  //    container's adjective, §4).
+  {
+    en: 'The {obj} is already in the {obj2}.',
+    reach: 'reachable',
+    note: 'gverbs.zil:1098 V-PUT idempotent. ka drops the container: "{obj.indef} უკვე შიგ დევს." (already inside).',
+    instances: [{ obj: 'leaflet', obj2: 'small mailbox' }],
+  },
+  {
+    en: "The {obj} isn't in the {obj2}.",
+    reach: 'reachable',
+    note: 'gverbs.zil:1375 take-from failure. ka drops the container: "{obj.indef} შიგ არ არის." (isn\'t inside).',
+    instances: [{ obj: 'sword', obj2: 'trophy case' }],
+  },
+  {
+    en: "You don't have the {obj}.",
+    reach: 'reachable',
+    note: 'gverbs.zil:1105 V-PUT (put what you aren\'t holding). ka "{obj.indef} არ გაქვს." — Georgian "have" takes the possessed in the NOMINATIVE, so caseless and clean.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: "The {obj} isn't here!",
+    reach: 'reachable',
+    note: 'gverbs.zil:2027 referenced-object-absent. ka "{obj.indef} აქ არ არის!" (nominative subject, mirrors "There is a {obj} here.").',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: "There's no good surface on the {obj}.",
+    reach: 'reachable',
+    note: 'gverbs.zil:1126 V-PUT-ON onto a non-surface. ka drop-noun "ამაზე ვერაფერს დადებ." (you can\'t put anything on this) — the surface would need the -ზე case (§4) and is on-screen.',
+    bindings: { obj: 'all-objects' },
+  },
 ]
 
 /** fr/de/es families deliberately routed to the LLM instead of a shared
@@ -303,8 +340,10 @@ export const EXPECTED_DEFERRED: readonly string[] = []
  *  arities (2/3/4-candidate, Task 5) → 11; +11 listing-engine families (Task 6:
  *  there-is ×2-light, A×providing/worn, vehicle tail, thief with-a, contains,
  *  sitting-on, is-holding, carrying, treasures) → 22; +6 state/idempotent (Task
- *  7a: is-now-closed/on/off, opens, is-closed, is-empty) → 28. */
-export const REACHABLE_FLOOR = 28
+ *  7a: is-now-closed/on/off, opens, is-closed, is-empty) → 28; +5 container/
+ *  placement failures (Task 7b: already-in, isn't-in, don't-have, isn't-here,
+ *  no-surface) → 33. */
+export const REACHABLE_FLOOR = 33
 
 /** Skeleton-fidelity escape hatch for `extractStrings` ANCHORING MISSES only:
  *  a distinctive span that is verified-correct game text (read in the local ZIL /

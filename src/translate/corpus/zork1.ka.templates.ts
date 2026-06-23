@@ -113,6 +113,14 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
   //    predicate — caseless, so it composes safely (like the open-success line).
   { en: 'The {obj} is now closed.', out: '{obj.indef} იხურება.' },
   { en: 'The {obj} is empty.', out: '{obj.indef} ცარიელია.' },
+  // ── 7b Container/placement failures (gverbs.zil V-PUT). Two-object lines drop
+  //    the container (on-screen; -ში would shift a multi-word adjective, §4); the
+  //    rest keep {obj} as the nominative subject ("have" takes the nominative).
+  { en: 'The {obj} is already in the {obj2}.', out: '{obj.indef} უკვე შიგ დევს.' },
+  { en: "The {obj} isn't in the {obj2}.", out: '{obj.indef} შიგ არ არის.' },
+  { en: "You don't have the {obj}.", out: '{obj.indef} არ გაქვს.' },
+  { en: "The {obj} isn't here!", out: '{obj.indef} აქ არ არის!' },
+  { en: "There's no good surface on the {obj}.", out: 'ამაზე ვერაფერს დადებ.' },
   // === COMPOSED-GATE-DRAFTS (P2.1) END ===
   // NB (UAT 2026-06-20 / recon 2026-06-23): orphan preps `in` (bare `put X`) and
   // `with` (`cut`/`strike X`) are templated above; `on`->WEAR and

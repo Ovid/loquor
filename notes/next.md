@@ -35,12 +35,12 @@ and that.
 > `ovid/status-bar` + `ovid/localize-change-story` (UI/a11y), and
 > `ovid/fix-the-it-bug` (**P2.3 anaphora "it" — now RESOLVED**, see below).
 
-| Lang   | Read (output corpus)                                                               | Type (input)                                                                              |
-| ------ | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| **fr** | ~complete — deathless run ≈1 baseline miss                                         | NL (LLM + grammar-only); puzzle verbs regression-pinned; driven UAT catalogue pending     |
-| **de** | ~complete                                                                          | NL; puzzle verbs regression-pinned; open items (`notes/uat-de-findings.md`)               |
-| **es** | complete — endgame verified clean (UAT-es-4)                                       | NL; **blocking+friction bugs FIXED** this branch; deferred: `sube la cesta`, `entra bote` |
-| **ka** | gates green, but **composed-line blind spot** (4 fixed prior branch; class bigger) | **type-English only** (Phase 1). Phase 2 = Georgian grammar-only input (own spec)         |
+| Lang   | Read (output corpus)                                                                           | Type (input)                                                                              |
+| ------ | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| **fr** | ~complete — deathless run ≈1 baseline miss                                                     | NL (LLM + grammar-only); puzzle verbs regression-pinned; driven UAT catalogue pending     |
+| **de** | ~complete                                                                                      | NL; puzzle verbs regression-pinned; open items (`notes/uat-de-findings.md`)               |
+| **es** | complete — endgame verified clean (UAT-es-4)                                                   | NL; **blocking+friction bugs FIXED** this branch; deferred: `sube la cesta`, `entra bote` |
+| **ka** | gates green; **composed-line class now gate-enforced (P2.1)** — native-review worklist pending | **type-English only** (Phase 1). Phase 2 = Georgian grammar-only input (own spec)         |
 
 The headline asymmetry: **output is nearly there for fr/de/es and structurally
 sound for ka; INPUT is where playability actually breaks** — es puzzle-verb
@@ -102,24 +102,32 @@ This is a large branch on its own — keep it separate from the fr/de/es input w
 
 ## P2 — coverage completeness (anti-regression nets)
 
-### P2.1 — Composed-line inventory gate (all langs) ⭐ recommended infra
+### P2.1 — Composed-line inventory gate (all langs) ⭐ DONE (branch `ovid/composed-line-gate`)
 
-Directly answers `notes/TODO.md` line 1 ("a test that validates all text is
-translated…"). The two existing gates have a **structural** blind spot: coverage
-is walkthrough-only; inventory only vets full-line z-strings. **Runtime-composed
-line families slip both** and leak English (this branch found 4 by hand in ka;
-fr/de/es leak some too — e.g. the take-all failure prefixes). Families to
-enumerate from the ZIL composition sites + the corpus templates and assert every
-language renders:
+**STATUS: DONE.** The runtime-composed-line blind spot is now **gate-enforced across
+all four languages**. The two older gates had a structural gap: coverage was
+walkthrough-only; inventory only vetted full-line z-strings — so **runtime-spliced
+line families slipped both** and leaked raw English (ka found 4 by hand; fr/de/es leaked
+some too). Built:
 
-- reveal-on-open — `Opening the {container} reveals {contents}.`
-- multi-object `{obj}: {result}` — success (`Taken.`/`Dropped.`) **and every
-  failure reason** (too-heavy, rug-too-heavy, securely-fastened, …)
-- examine default — `There's nothing special about the {obj}.`
-- darkness / "too dark to see", and the dynamic disambiguation prompts (P2.2)
+- **`src/translate/corpus/composed-families.ts`** — the committed family inventory
+  (82 reachable families: orphan + disambiguation prompts, listing engine, state,
+  container/placement, standard- and exotic-verb refusals, multi-slot splices).
+- **`src/translate/corpus/composed-lines.test.ts`** — the gate. Per reachable family it
+  (a) checks the EN skeleton is real game text (fidelity vs. the decoded story file),
+  then (b) drives object/raw/verb fills through `matchLine` per language and asserts a
+  non-English, Georgian-bearing translation for `ka`. `REACHABLE_FLOOR = 82` +
+  completeness meta-tests guard against a refactor silently emptying the data.
+  `EXEMPTIONS` / `EXPECTED_DEFERRED` are **empty** (Ovid's author-all call — close the
+  leak, don't list it); `FIDELITY_ALLOW` holds 3 verified two-TELL spans.
 
-Build it once and the whole class stops being UAT-discovered. (Technique +
-French-switch classifier now recorded in `notes/uat.md`.)
+Ovid's governing decision: **a switched-language player must never read English, even
+in basic mode** — so the exotic-verb tail (burn/dig/cut/tie/wind/…) was **authored, not
+deferred**. The 60 authored `ka` composed lines are machine-drafted and
+linguistically unverified; the per-line native-review worklist is
+**`notes/georgian-composed-line-review.md`** (the `(beta)` marker stays until a native
+speaker signs off). `composed-lines.uat.test.ts` was retired — its 7 UAT pins are now
+seed families asserted by the gate.
 
 ### P2.2 — Dynamic disambiguation prompts (all langs)
 
@@ -173,14 +181,14 @@ found+fixed TDD, live-confirmed; sweep recorded in `notes/uat.md` ("Pronoun /
 'it'-resolution sweep").
 
 - **BUG H** (commit ae43cc9) — richer English pronoun forms (`turn it on`, `put
-  painting in it`, `give it to thief`) leaked to the warm LLM and got mangled.
+painting in it`, `give it to thief`) leaked to the warm LLM and got mangled.
   Fix: `isEnglishPronounClause` now raw-sends any clause that leads with a known
   vocab verb + holds exactly one `it`/`them` + every other token is a Z-parser
   word — Zork's native "it" tracker is authoritative (it even beat our own
   scene-tracker's stale antecedent). English-specific; fr/de/es already resolve
   container/direct pronouns in `parseLexicon` (`pronounsContainer`/`pronounsDirect`)
   — the English particle-in-the-middle construction has no fr/de/es analog.
-- **BUG I** (commit fdffbe4) — `examine bottle` then `open it` opened the *wrong*
+- **BUG I** (commit fdffbe4) — `examine bottle` then `open it` opened the _wrong_
   object: `ABSENCE_PAT`'s "X is empty" clause wrongly scrubbed the container from
   scope. Fix: dropped that alternative (examining an empty container is a success,
   not an absence). Shared EN/FR/DE/ES.
@@ -311,12 +319,14 @@ genuinely _completable_ in fr/de/es without secret English, and it's bounded
 data/parser work with clear forcing-function tests.
 **STATUS: DONE — see above.**
 
-Strong alternative if you want the safety net first: **P2.1 composed-line
-inventory gate** — turns the whole "leaks English on an off-path composed line"
-class from UAT-discovered into gate-enforced, across all four languages at once.
+The safety net is now in place: **P2.1 composed-line inventory gate is DONE**
+(`ovid/composed-line-gate`) — the "leaks English on an off-path composed line" class is
+gate-enforced across all four languages. Remaining big slices:
 
-Keep **Georgian Phase 2 input (P1.2)** as its own later branch — it's the biggest
-single piece and needs its own spec/plan.
+- **Georgian native review** of the 60 composed-line drafts
+  (`notes/georgian-composed-line-review.md`) — wording pass before `(beta)` drops.
+- **Georgian Phase 2 input (P1.2)** — the biggest single piece; own spec/plan.
+- Driven fr/de UAT catalogues; deferred es items (`sube la cesta`, `entra bote`).
 
 ---
 
@@ -332,4 +342,5 @@ single piece and needs its own spec/plan.
 - Spec §1 (Phase 2 scope), §6 (round-trip deferral), §8 (native loop):
   `docs/superpowers/specs/2026-06-17-loquor-output-translation-georgian-design.md`.
 - `src/translate/corpus/roundtrip.test.ts:34` (lang enrolment),
-  `src/translate/corpus/composed-lines.uat.test.ts` (this branch's cross-lang pins).
+  `src/translate/corpus/composed-lines.test.ts` + `composed-families.ts` (the P2.1
+  composed-line gate + inventory; the old `composed-lines.uat.test.ts` was absorbed into it).

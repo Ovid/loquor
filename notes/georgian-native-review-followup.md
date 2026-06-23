@@ -40,20 +40,30 @@ Run the app in Georgian, play through, and capture any awkward line. The corpus-
 (`logMiss`, surfaced via `window.loquorMisses()`) and the UAT regression file
 (`zork1.ka.uat.test.ts`) are the seams to record confirmed findings as regression pins.
 
-## Known ka raw-English leaks (deferred)
+## Composed-line leaks — now gate-enforced (P2.1, branch `ovid/composed-line-gate`)
 
 - **Parser orphan prompt** `What do you want to <verb> the <typed-tokens> <prep>?`
-  (`zork1/gparser.zil` ~758-774). Unlike the disambiguation prompt (now templated as
-  `Which {raw} do you mean, the {obj} or the {obj2}?`), this prompt echoes an **unbounded**
-  run of the player's typed tokens between the verb and the preposition, so it is **not
-  cleanly templatable** (a single `{raw}` cannot safely span an arbitrary noun phrase while
-  also binding a trailing preposition reliably). ka has no LLM fallback (corpus-only), so this
-  prompt currently **leaks raw English** for Georgian players. fr/de/es translate it via the
-  LLM fallback (it is in `zork1.extraction-ignore.ts` `'What do you want to'`). Left to a future
-  bounded-verb-set template or an input-phase fix. Do **not** add it to the extraction-ignore
-  routing as a ka special case.
+  (`zork1/gparser.zil` ~758-774) is **no longer a deferred leak** — it is now **gated and
+  templated**. Task 4 of the composed-line gate templated it in all four corpora as
+  `What do you want to {verb} the {raw} in?/with?/` + the no-noun `What do you want to {verb}?`
+  (object dropped; the `ka` draft drops `{verb}`/`{raw}` entirely, so it is Phase-2-clean).
+  The broader composed-line class — runtime-spliced listing/state/refusal lines that fell
+  through both existing gates — is now closed too: Ovid's **author-all** call means every
+  reachable splice family is a `ka` draft, not a deferred list. See
+  `src/translate/corpus/composed-families.ts` (the inventory),
+  `src/translate/corpus/composed-lines.test.ts` (the gate that drives every family through
+  `matchLine` per language and asserts a non-English, Georgian-bearing `ka`), and
+  **`notes/georgian-composed-line-review.md`** (the per-line wording worklist for native
+  review — 60 authored `ka` composed lines).
 
-## Provisional `ka` draft lines added this branch (NATIVE-REVIEW-DRAFT)
+## Provisional `ka` draft lines (NATIVE-REVIEW-DRAFT) — two batches
+
+> **Two separate batches, both NATIVE-REVIEW-DRAFT:** the 5 lines below were added on the
+> PRIOR branch `ovid/zork1-input-parity`. Branch `ovid/composed-line-gate` adds **60 more**
+> composed-line templates inside the `COMPOSED-GATE-DRAFTS (P2.1)` sentinel block of
+> `zork1.ka.templates.ts` — those have their **own dedicated worklist**,
+> **`notes/georgian-composed-line-review.md`** (grouped by family, with the rung/case notes
+> a reviewer needs). Review both; don't let the two lists drift.
 
 These Georgian strings were added on `ovid/zork1-input-parity` and each carries a
 `// NATIVE-REVIEW-DRAFT (ka §4 case forms)` marker. A test pins the markers in place

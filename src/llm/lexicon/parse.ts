@@ -196,27 +196,29 @@ function findVerbPhrase(
   verbTokens: string[],
   vocab: Vocab,
 ): string | undefined {
-  return [
-    ...vocab.verbs2,
-    ...vocab.verbs1,
-    ...vocab.verbsOnly,
-    ...vocab.verbSynonyms,
-  ]
-    // Single-char Zork verbs are exclusively intransitive direction/meta
-    // abbreviations (i/l/q/z, n/e/s/w/u/d); they never take a pronoun/quantifier
-    // object, so accepting one as a transitive lead raw-sent a malformed command
-    // ("q it"). All three callers detect an object-taking verb (I2). ponytail:
-    // only the single-char case — multi-char intransitive synonyms (go/run) stay
-    // accepted; tighten if a real "<intransitive> it" misfire surfaces.
-    .filter(v => v.length > 1)
-    .sort((a, b) => b.length - a.length)
-    .find(v => {
-      const parts = v.split(' ')
-      return (
-        parts.length === verbTokens.length &&
-        parts.every((p, i) => verbTokens[i] === p)
-      )
-    })
+  return (
+    [
+      ...vocab.verbs2,
+      ...vocab.verbs1,
+      ...vocab.verbsOnly,
+      ...vocab.verbSynonyms,
+    ]
+      // Single-char Zork verbs are exclusively intransitive direction/meta
+      // abbreviations (i/l/q/z, n/e/s/w/u/d); they never take a pronoun/quantifier
+      // object, so accepting one as a transitive lead raw-sent a malformed command
+      // ("q it"). All three callers detect an object-taking verb (I2). ponytail:
+      // only the single-char case — multi-char intransitive synonyms (go/run) stay
+      // accepted; tighten if a real "<intransitive> it" misfire surfaces.
+      .filter(v => v.length > 1)
+      .sort((a, b) => b.length - a.length)
+      .find(v => {
+        const parts = v.split(' ')
+        return (
+          parts.length === verbTokens.length &&
+          parts.every((p, i) => verbTokens[i] === p)
+        )
+      })
+  )
 }
 
 /** If `clause` is a well-formed two-token "<verb> <tail>" English command whose

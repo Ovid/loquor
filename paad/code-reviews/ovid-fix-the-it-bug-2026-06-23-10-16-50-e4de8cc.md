@@ -25,6 +25,7 @@ None found.
 ## Important Issues
 
 ### [I1] Container-anaphora branch ignores the new `antecedentObject` helper
+
 - **File:** `src/llm/lexicon/parse.ts:444`
 - **Bug:** The container/pronoun branch resolves the antecedent with
   `byCanonical(vocab, scene.antecedent)`, which only matches `n.canonical`. An
@@ -42,6 +43,7 @@ None found.
 - **Found by:** Multilingual Parity, Verifier
 
 ### [I2] Single-letter meta verb synonyms accepted as the lead verb in English pronoun clauses
+
 - **File:** `src/llm/lexicon/parse.ts` (`findVerbPhrase` ~516, `verbArityOk` ~157, `isEnglishPronounClause` / `resolveEnglishPronoun`)
 - **Bug:** `findVerbPhrase` includes `vocab.verbSynonyms`, which contains
   intransitive single-letter metas (`i`=inventory, `l`=look, `q`=quit, `z`=wait,
@@ -59,6 +61,7 @@ None found.
 - **Found by:** Logic & Correctness, Verifier
 
 ### [I3] Double-space input defeats the leading-article strip (partial Bug B regression)
+
 - **File:** `src/llm/scene/tracker.ts:132-134`
 - **Bug:** `command` is only `.trim()`-ed (not internal-whitespace-collapsed) and
   the verb match slices a fixed `v.length + 1`. For `"take  the lamp"` (double

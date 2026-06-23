@@ -109,6 +109,10 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
   // Actor-contents header — reuse the reviewed "contains" predicate (de/es also
   // render "is holding" → "contains"); {obj} stays the nominative subject.
   { en: 'The {obj} is holding:', out: '{obj.indef} შეიცავს:' },
+  // ── 7a State/idempotent (gverbs.zil). {obj} is the nominative subject of the
+  //    predicate — caseless, so it composes safely (like the open-success line).
+  { en: 'The {obj} is now closed.', out: '{obj.indef} იხურება.' },
+  { en: 'The {obj} is empty.', out: '{obj.indef} ცარიელია.' },
   // === COMPOSED-GATE-DRAFTS (P2.1) END ===
   // NB (UAT 2026-06-20 / recon 2026-06-23): orphan preps `in` (bare `put X`) and
   // `with` (`cut`/`strike X`) are templated above; `on`->WEAR and

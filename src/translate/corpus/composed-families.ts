@@ -236,6 +236,47 @@ export const COMPOSED_FAMILIES: readonly Family[] = [
     reach: 'reachable',
     note: 'Treasure/score listing header. Full-line string pin in every corpus (ka :28). No slot.',
   },
+
+  // ── 7a State / idempotent splices (gverbs.zil). Object-agnostic state lines
+  //    from the standard open/close/turn-on/turn-off verbs. NOTE the "already"
+  //    refusals say "It is already open/closed." (no splice → plain strings, not
+  //    families); only the egg/book have per-object "already open" pins.
+  {
+    en: 'The {obj} is now closed.',
+    reach: 'reachable',
+    note: 'gverbs.zil:353 V-CLOSE success. ka "{obj.indef} იხურება." authored (mirrors the open-success "იღება" verb, caseless).',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'The {obj} is now on.',
+    reach: 'reachable',
+    note: 'gverbs.zil:792 V-LAMP-ON. ka ships it (:159). Caseless nominative subject.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'The {obj} is now off.',
+    reach: 'reachable',
+    note: 'gverbs.zil:779 V-LAMP-OFF. ka ships it (:160).',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'The {obj} opens.',
+    reach: 'reachable',
+    note: 'gverbs.zil:980/990 V-OPEN success. ka ships it (:167).',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'The {obj} is closed.',
+    reach: 'reachable',
+    note: 'gverbs.zil:888/1973 closed-container state (open/look-in a shut container). ka ships it (:169).',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'The {obj} is empty.',
+    reach: 'reachable',
+    note: 'gverbs.zil:886 V-LOOK-INSIDE empty container. ka "{obj.indef} ცარიელია." authored (nominative subject, caseless).',
+    bindings: { obj: 'all-objects' },
+  },
 ]
 
 /** fr/de/es families deliberately routed to the LLM instead of a shared
@@ -261,8 +302,9 @@ export const EXPECTED_DEFERRED: readonly string[] = []
  *  families (with-prep + no-noun, Task 4) → 8; +3 WHICH-PRINT disambiguation
  *  arities (2/3/4-candidate, Task 5) → 11; +11 listing-engine families (Task 6:
  *  there-is ×2-light, A×providing/worn, vehicle tail, thief with-a, contains,
- *  sitting-on, is-holding, carrying, treasures) → 22. */
-export const REACHABLE_FLOOR = 22
+ *  sitting-on, is-holding, carrying, treasures) → 22; +6 state/idempotent (Task
+ *  7a: is-now-closed/on/off, opens, is-closed, is-empty) → 28. */
+export const REACHABLE_FLOOR = 28
 
 /** Skeleton-fidelity escape hatch for `extractStrings` ANCHORING MISSES only:
  *  a distinctive span that is verified-correct game text (read in the local ZIL /

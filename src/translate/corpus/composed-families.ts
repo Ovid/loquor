@@ -477,6 +477,19 @@ export const COMPOSED_FAMILIES: readonly Family[] = [
     note: '1actions.zil:356 HOT-BELL-F (the Hades exorcism). Authored fresh in all 4. Nominative subject.',
     bindings: { obj: 'all-objects' },
   },
+
+  // ── Task 8 sweep: the one composed family the walkthrough audit surfaced that
+  //    was covered but unregistered. The parser echoes the player's TYPED noun
+  //    ({raw}, not necessarily a known object — e.g. `attack troll` after the
+  //    troll is gone). ka echoes the quoted English noun (accepted {raw}-echo,
+  //    like disambiguation; Phase-2 Georgian input must revisit it); fr/de/es use
+  //    their {obj} templates (golden-path "thief"/"troll" are known objects).
+  {
+    en: "You can't see any {raw} here!",
+    reach: 'reachable',
+    note: 'gparser.zil referenced-object-absent. Golden path: `You can\'t see any thief/troll here!`. ka {raw}-echo template ships (:40). Phase-2 ka revisit.',
+    bindings: { raw: { sample: 'thief' } },
+  },
 ]
 
 /** fr/de/es families deliberately routed to the LLM instead of a shared
@@ -511,8 +524,9 @@ export const EXPECTED_DEFERRED: readonly string[] = []
  *  single-object refusals (Task 7d-ii: burn/dig/cut/knock/listen/smell/tie/wind/
  *  …; V-ENCHANT filch/puff dropped — Zork II/III only) → 73; +8 exotic multi-slot
  *  + all-language gaps (Task 7d-iii: give, destroy ×2, cut-success, cut-edge,
- *  water-leak, extinguished, burns-consumed) → 81. */
-export const REACHABLE_FLOOR = 81
+ *  water-leak, extinguished, burns-consumed) → 81; +1 walkthrough-sweep family
+ *  (Task 8: can't-see-any {raw}) → 82. */
+export const REACHABLE_FLOOR = 82
 
 /** Skeleton-fidelity escape hatch for `extractStrings` ANCHORING MISSES only:
  *  a distinctive span that is verified-correct game text (read in the local ZIL /

@@ -3,7 +3,7 @@
 > **A request to our Georgian colleagues.** Loquor wants a Georgian player to read
 > Zork I entirely in Georgian — never forced back into English. To get there we had
 > to translate dozens of lines the game _builds at runtime_ by gluing fragments and
-> object names together ("composed lines"). The 60 lines below were **machine-drafted
+> object names together ("composed lines"). The 62 lines below were **machine-drafted
 > by a non-native author** and are deliberately **safe but stiff**: where the object
 > is the grammatical subject we kept it (`{obj.indef}` as a nominative); everywhere
 > else we **dropped the object** to a caseless demonstrative (ამას / ამაზე / ამაში /
@@ -26,7 +26,7 @@
     caseless demonstrative (ამას/ამაზე/ამაში/ამით) or folded away entirely. Chosen
     when the object would need an oblique case we weren't sure of. **Review: is the
     reframe natural, or would you rather name the object (with the right case)?**
-  - **pin** = a full-string pin (none in this batch; all 60 are templates).
+  - **pin** = a full-string pin (none in this batch; all 62 are templates).
 - ⚠ marks the drafts the author was **least confident** about — start here.
 
 The templates live in `src/translate/corpus/zork1.ka.templates.ts`, inside the
@@ -158,6 +158,25 @@ which were **uncovered in every language** and authored fresh.
 
 ---
 
+## Group H — Parser implicit-object parenthetical (2)
+
+Added UAT 2026-06-24. When the parser auto-supplies a uniquely-determined missing
+object it prints it on its own line — bare `(<obj>)` or `(with the <obj>)`. fr/de/es
+generalize both; `ka` had only the `(with the match)` → `(ასანთით)` pin, so e.g.
+`attack troll` → `(with the sword)` leaked raw English. **One open question for you:**
+for `(with the {obj})` we used the caseless drop-noun `(ამით)` ("with this") rather
+than risk the instrumental case per object — **would you rather name the weapon/tool
+in the instrumental** (like the existing `(ასანთით)` = "with the match")? Both are
+leak-free; this is naturalness only. The auto-supply fires only when ONE instrument is
+eligible, so `(ამით)` is unambiguous.
+
+| #   | EN source          | Draft Georgian  | Rung | Note                                                                                                                                     |
+| --- | ------------------ | --------------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| 61  | `({obj})`          | `({obj.indef})` | NS   | bare auto-supplied object, e.g. `(brass lantern)` → `(სპილენძის ფარანი)` — nominative citation                                           |
+| 62  | `(with the {obj})` | `(ამით)`        | DN   | ⚠ "(with this)" — instrument dropped (§4 instrumental); `(with the match)` keeps its named `(ასანთით)` pin. Name the instrument instead? |
+
+---
+
 ## Phase-2 follow-up: `{raw}`-echo templates (revisit when Georgian input lands)
 
 Today `ka` is **output-only / type-English**, so a template that echoes the player's
@@ -178,7 +197,7 @@ the echoed English — or the same drop-the-token reframe used in Group A.
 
 ## Reviewer priority
 
-If time is short, fix the ⚠ rows first (rows 15, 21, 28, 37, 44, 52, 56) — they are
+If time is short, fix the ⚠ rows first (rows 15, 21, 28, 37, 44, 52, 56, 62) — they are
 the heaviest reframes and the `{obj}smanship` pun (56) is the biggest flavour loss.
 Then sweep the DN rows: for each, decide whether naming the object (in the right §4
 case) reads better than the caseless demonstrative. The NS rows mostly need a tense /

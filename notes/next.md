@@ -123,7 +123,7 @@ some too). Built:
 
 Ovid's governing decision: **a switched-language player must never read English, even
 in basic mode** — so the exotic-verb tail (burn/dig/cut/tie/wind/…) was **authored, not
-deferred**. The 60 authored `ka` composed lines are machine-drafted and
+deferred**. The 62 authored `ka` composed lines are machine-drafted and
 linguistically unverified; the per-line native-review worklist is
 **`notes/georgian-composed-line-review.md`** (the `(beta)` marker stays until a native
 speaker signs off). `composed-lines.uat.test.ts` was retired — its 7 UAT pins are now
@@ -136,12 +136,14 @@ seed families asserted by the gate.
   corpus and leaked raw English right after `move rug`. Pinned in all four + regression tests
   (added a German uat suite; de had none). Commit `fix(translate): pin pre-cyclops closed-trap
 Living Room variant`.
-- ⏳ **OPEN — parser implicit-object parenthetical `(with the <obj>)` / `(<obj>)`** is a
-  **recon gap**: it is not in `composed-families.ts`. fr/de/es generalize it with a template;
-  **`ka` has only the `(with the match)` pin**, so `attack troll` → raw `(with the sword)`
-  leaks for Georgian on the golden path. Fix = add the family + author the `ka` instrumental
-  form with native review (the §4 case problem — instrumental is deliberately un-templated).
-  Full diagnosis + recommended fix: `notes/georgian-native-review-followup.md`.
+- ✅ **FIXED (UAT 2026-06-24)** — parser implicit-object parenthetical `(with the <obj>)` /
+  `(<obj>)` (a P2.1 **recon gap**). fr/de/es already generalized both shapes; **`ka` had only
+  the `(with the match)` pin**, so `attack troll` → raw `(with the sword)` leaked for Georgian
+  on the golden path. Both shapes are now registered as families in `composed-families.ts`
+  (REACHABLE_FLOOR 82→84) and `ka`-templated: bare → nominative `({obj.indef})`; `(with the
+{obj})` → drop-noun `(ამით)` (instrumental is the §4 case problem; the match pin keeps its
+  named `(ასანთით)`). Browser-verified in basic mode. NATIVE-REVIEW open question (drop-noun
+  vs. per-object instrumental) logged in `notes/georgian-native-review-followup.md`.
 
 ### P2.2 — Dynamic disambiguation prompts (all langs)
 
@@ -337,7 +339,7 @@ The safety net is now in place: **P2.1 composed-line inventory gate is DONE**
 (`ovid/composed-line-gate`) — the "leaks English on an off-path composed line" class is
 gate-enforced across all four languages. Remaining big slices:
 
-- **Georgian native review** of the 60 composed-line drafts
+- **Georgian native review** of the 62 composed-line drafts
   (`notes/georgian-composed-line-review.md`) — wording pass before `(beta)` drops.
 - **Georgian Phase 2 input (P1.2)** — the biggest single piece; own spec/plan.
 - Driven fr/de UAT catalogues; deferred es items (`sube la cesta`, `entra bote`).

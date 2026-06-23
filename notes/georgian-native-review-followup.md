@@ -54,37 +54,38 @@ Run the app in Georgian, play through, and capture any awkward line. The corpus-
   `src/translate/corpus/composed-lines.test.ts` (the gate that drives every family through
   `matchLine` per language and asserts a non-English, Georgian-bearing `ka`), and
   **`notes/georgian-composed-line-review.md`** (the per-line wording worklist for native
-  review — 60 authored `ka` composed lines).
+  review — 62 authored `ka` composed lines).
 
-- **STILL OPEN — parser implicit-object parenthetical `(with the <obj>)` / `(<obj>)`**
-  (UAT 2026-06-23, NOT yet gated — a recon miss). When the parser auto-supplies a missing
-  object it announces the assumption on its own line: `attack trophy case` with a weapon in
-  reach prints **`(with the sword)`**, `open` with one openable present prints `(the door)`,
-  etc. (`zork1/gparser.zil`). This is a **golden-path** line — `attack troll` → `(with the
-sword)` is THE combat command. fr/de/es **generalize** it with a template
-  (`(with the {obj})` → `(mit {obj.bare})` / `(con {obj.def})` / `(avec {obj.def})`, plus the
-  bare `({obj})` form), so German renders `(mit Schwert)` deterministically. **`ka` has only a
-  single per-object string pin** — `'(with the match)': '(ასანთით)'` — and **no general
-  template**, so EVERY other object leaks raw English to a Georgian player (confirmed in
-  basic-mode play: `attack trophy case` → raw `(with the sword)`). This is exactly the
-  coverage-asymmetry trap the P2.1 spec describes: pinning a couple of instances (sword/knife)
-  would false-pass the gate while the rest still leak.
-  - **Why it isn't fixed in this UAT pass:** the natural `ka` form is INSTRUMENTAL
-    (`X-ით`), which `zork1.ka.templates.ts` (header note) deliberately does **not** template —
-    it is the §4 case problem (per-object stem/case). Authoring a general `ka` instrumental
-    template (or per-object instrumental pins for every auto-suppliable weapon/tool) is a
-    Georgian-gift case decision that needs native review, not an unsupervised guess — so it is
-    surfaced here per CLAUDE.md "talk to me first" rather than half-fixed.
-  - **Recommended fix:** register `(with the {obj})` and `({obj})` as families in
-    `composed-families.ts` (object binding = `all-objects`, so the union-drive exposes every
-    leaking object); add the fr/de/es templates to the drive (already present → green); author
-    the `ka` instrumental form with the native reviewer (safe-but-stiff over natural-but-wrong),
-    marked `NATIVE-REVIEW-DRAFT`. The gate will then enforce it like every other family.
+- **NOW GATED & TEMPLATED (UAT 2026-06-24) — parser implicit-object parenthetical
+  `(with the <obj>)` / `(<obj>)`.** When the parser auto-supplies a uniquely-determined
+  missing object it announces the assumption on its own line: `attack trophy case` with a
+  weapon in reach prints **`(with the sword)`**; a bare DOBJ auto-supply prints `(brass
+lantern)` (`zork1/gparser.zil` GWIM :907-925). This is a **golden-path** line — `attack
+troll` → `(with the sword)` is THE combat command. It was a **recon miss** in the original
+  P2.1 inventory: fr/de/es already generalized both shapes (`(avec/con/mit {obj.def})` +
+  `({obj.def})`, so German renders `(mit Schwert)`), but **`ka` had only the single
+  `(with the match)` → `(ასანთით)` string pin**, so every other auto-supply leaked raw English
+  for a Georgian player (confirmed in basic-mode play). Both shapes are now **registered as
+  families in `composed-families.ts` and gated** (all-objects union drive), with `ka`
+  templates added (`zork1.ka.templates.ts`, COMPOSED-GATE-DRAFTS block, **NATIVE-REVIEW-DRAFT**):
+  - **Bare `({obj})`** → nominative citation `({obj.indef})` (rung 1, caseless — like the
+    listing-engine subject). Browser-verified: `turn off` → `(სპილენძის ფარანი)`.
+  - **`(with the {obj})`** → drop-noun `(ამით)` ("with this"), the same reframe the orphan
+    with-prep prompt uses, because the instrumental `X-ით` is the §4 case problem (per-object
+    stem + multi-word adjective agreement). GWIM fires only when ONE instrument is eligible, so
+    the demonstrative is unambiguous. The `(with the match)` → `(ასანთით)` pin keeps its named
+    instrumental (specificity wins). Browser-verified: `attack trophy case` → `(ამით)`.
+  - **NATIVE-REVIEW decision for the colleagues:** is the drop-noun `(ამით)` acceptable, or
+    should `(with the {obj})` be upgraded to per-object **instrumental** pins (naming the
+    weapon/tool, like the match pin)? The named form is more informative but needs the §4
+    instrumental for each auto-suppliable weapon/tool (sword/knives/axe/stiletto/sceptre/
+    torch/candles/shovel/pump/screwdriver/wrench/key/putty). Either way is leak-free; this is
+    a naturalness call, not a coverage gap.
 
 ## Provisional `ka` draft lines (NATIVE-REVIEW-DRAFT) — two batches
 
 > **Two separate batches, both NATIVE-REVIEW-DRAFT:** the 5 lines below were added on the
-> PRIOR branch `ovid/zork1-input-parity`. Branch `ovid/composed-line-gate` adds **60 more**
+> PRIOR branch `ovid/zork1-input-parity`. Branch `ovid/composed-line-gate` adds **62 more**
 > composed-line templates inside the `COMPOSED-GATE-DRAFTS (P2.1)` sentinel block of
 > `zork1.ka.templates.ts` — those have their **own dedicated worklist**,
 > **`notes/georgian-composed-line-review.md`** (grouped by family, with the rung/case notes

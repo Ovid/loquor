@@ -100,6 +100,22 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
     out: 'რით გსურთ მისი გაკეთება?',
   },
   { en: 'What do you want to {verb}?', out: 'რისი გაკეთება გსურს?' },
+  // ── Parser implicit-object parenthetical (P2.1 follow-up, UAT 2026-06-24;
+  //    gparser.zil GWIM :907-925). The parser announces a uniquely-determined
+  //    auto-supplied object on its own line. fr/de/es generalize both shapes; ka
+  //    had only the "(with the match)" → "(ასანთით)" string pin, so e.g.
+  //    `attack troll` → "(with the sword)" leaked raw English for Georgian.
+  //  - Bare "({obj})" (no prep) → nominative citation form (rung 1, caseless —
+  //    same role as the listing-engine "{obj.indef} არის" subject).
+  { en: '({obj})', out: '({obj.indef})' },
+  //  - "(with the {obj})" → INSTRUMENTAL ("X-ით") is the §4 case problem
+  //    (per-object stem + multi-word adjective agreement), so the general form
+  //    DROPS the noun to the caseless demonstrative "(ამით)" ("with this") — the
+  //    same reframe the orphan with-prep prompt uses ("რით გსურთ…"). GWIM only
+  //    fires when ONE instrument is eligible, so the demonstrative is unambiguous.
+  //    The "(with the match)" string pin is more specific → keeps its named
+  //    "(ასანთით)". NATIVE-REVIEW may upgrade this to per-object instrumental pins.
+  { en: '(with the {obj})', out: '(ამით)' },
   // ── Listing engine (P2.1 Task 6; gverbs.zil DESCRIBE-OBJECT/PRINT-CONT). ka
   //    shipped only per-object pins, so the lit BRASS LANTERN, the vehicle tail,
   //    the surface header and the actor "is holding:" leaked raw English. Each

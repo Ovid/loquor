@@ -169,6 +169,37 @@ export const COMPOSED_FAMILIES: readonly Family[] = [
     ],
   },
 
+  // ── Parser implicit-object parenthetical (gparser.zil GWIM :907-925, UAT
+  //    2026-06-24). When the parser auto-supplies a uniquely-determined missing
+  //    object it ANNOUNCES it on its own line, two shapes: bare "({obj})" (no
+  //    prep — the `<TELL D .OBJ ")">` ELSE branch) and "(with the {obj})" (the
+  //    prep branch — `FIND WEAPONBIT/TOOLBIT/FLAMEBIT`: attack/cut/dig/burn/
+  //    inflate). Reachable on the GOLDEN PATH — `attack troll` with one weapon
+  //    held prints "(with the sword)". A RECON MISS in the original P2.1
+  //    inventory: fr/de/es already template both shapes ((avec/con/mit {obj.def})
+  //    + ({obj.def})), but `ka` had ONLY the `(with the match)` string pin, so
+  //    every other auto-supply leaked raw English for Georgian. ka now: bare →
+  //    nominative citation ({obj.indef}, rung 1); "with the" → drop-noun "(ამით)"
+  //    ("with this") — instrumental "X-ით" is the §4 case problem (per-object
+  //    stem + multi-word adjective agreement), and auto-supply fires only when ONE
+  //    instrument is eligible so the demonstrative is unambiguous; the pre-existing
+  //    "(with the match)" → "(ასანთით)" named-instrumental pin stays (specificity
+  //    wins). All NATIVE-REVIEW-DRAFT. all-objects = safe over-approximation (only
+  //    weapon/tool/flame objects actually auto-supply; ka's out is object-agnostic
+  //    so driving the union is free and leak-proof).
+  {
+    en: '({obj})',
+    reach: 'reachable',
+    note: 'gparser.zil GWIM :924 bare auto-supplied DOBJ "(<obj>)" (no prep). ka rung-1 nominative {obj.indef}; fr/de/es ({obj.def}). UAT 2026-06-24.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: '(with the {obj})',
+    reach: 'reachable',
+    note: 'gparser.zil GWIM :918-921 instrument auto-supply "(with the <obj>)". ka drop-noun "(ამით)" (rung 3 — instrumental is §4; "(with the match)" keeps its "(ასანთით)" pin); fr/de/es (avec/con/mit {obj.def}). UAT 2026-06-24 recon-miss. "with the" straddles GWIM TELLs (PRINTB prep + " " + "the ") → FIDELITY_ALLOW.',
+    bindings: { obj: 'all-objects' },
+  },
+
   // ── Listing engine (gverbs.zil DESCRIBE-OBJECT :1692-1725 / PRINT-CONT
   //    :1833-1835; thief treasure listing 1actions.zil). Every line is glued at
   //    runtime from a fixed header/tail + spliced object name(s), so none is a
@@ -683,8 +714,9 @@ export const EXPECTED_DEFERRED: readonly string[] = []
  *  …; V-ENCHANT filch/puff dropped — Zork II/III only) → 73; +8 exotic multi-slot
  *  + all-language gaps (Task 7d-iii: give, destroy ×2, cut-success, cut-edge,
  *  water-leak, extinguished, burns-consumed) → 81; +1 walkthrough-sweep family
- *  (Task 8: can't-see-any {raw}) → 82. */
-export const REACHABLE_FLOOR = 82
+ *  (Task 8: can't-see-any {raw}) → 82; +2 parser implicit-object parentheticals
+ *  (UAT 2026-06-24: bare "({obj})" + "(with the {obj})") → 84. */
+export const REACHABLE_FLOOR = 84
 
 /** Skeleton-fidelity escape hatch for `extractStrings` ANCHORING MISSES only:
  *  a distinctive span that is verified-correct game text (read in the local ZIL /

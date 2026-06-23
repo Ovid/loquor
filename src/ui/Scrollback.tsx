@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
 import type { DisplayLine } from '../translate/useOutputTranslation'
 
 export function Scrollback({
@@ -16,8 +16,25 @@ export function Scrollback({
   children?: ReactNode
 }) {
   const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    ref.current?.scrollTo?.(0, ref.current.scrollHeight)
+  // Pin the transcript to the bottom as new lines arrive. The command prompt
+  // (`children`) renders at the END of this same scroll container, so its box
+  // is part of the scrollable content. A single post-commit scroll lands ~one
+  // line short: the prompt's final layout (and any just-mounted nl-status
+  // notice) settles AFTER the scroll, so the bottom grows and the focused input
+  // is left clipped below the fold — a stable ~56px gap, debugged in-browser
+  // (WCAG 2.4.11 "focus not obscured"; worse on short/phone viewports). Fix:
+  // scroll in a layout effect (before paint — no visible jump) and re-assert on
+  // the next frame, once that late layout has settled. Mirrors the
+  // requestAnimationFrame re-try idiom in useFocusTrap. There is no automated
+  // pixel guard (jsdom has no layout engine); the responsive spec's manual
+  // checklist covers the rendered behavior — re-run it when touching this.
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const toBottom = () => el.scrollTo?.(0, el.scrollHeight)
+    toBottom()
+    const raf = requestAnimationFrame(toBottom)
+    return () => cancelAnimationFrame(raf)
   }, [lines])
 
   // Toggling debug re-renders the whole history at once (canonical echoes appear/

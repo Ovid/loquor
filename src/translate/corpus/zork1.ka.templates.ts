@@ -121,6 +121,15 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
   { en: "You don't have the {obj}.", out: '{obj.indef} არ გაქვს.' },
   { en: "The {obj} isn't here!", out: '{obj.indef} აქ არ არის!' },
   { en: "There's no good surface on the {obj}.", out: 'ამაზე ვერაფერს დადებ.' },
+  // ── 7d-i Standard-verb refusals/statuses (gverbs.zil). NS = {obj} kept as the
+  //    nominative subject; DN = dropped to a demonstrative (caseless, §4).
+  { en: 'Moving the {obj} reveals nothing.', out: 'გადაადგილებამ არაფერი გამოაჩინა.' },
+  { en: 'You can\'t move the {obj}.', out: '{obj.indef} ადგილიდან არ იძვრება.' },
+  { en: 'You are now in the {obj}.', out: 'ახლა შიგ ხარ.' },
+  { en: 'You are now wearing the {obj}.', out: 'ახლა {obj.indef} გაცვია.' },
+  { en: "You're not carrying the {obj}.", out: '{obj.indef} თან არ გაქვს.' },
+  { en: 'How does one read a {obj}?', out: 'ეს როგორ უნდა წაიკითხო?' },
+  { en: "You aren't even holding the {obj}.", out: '{obj.indef} ხელშიც კი არ გიჭირავს.' },
   // === COMPOSED-GATE-DRAFTS (P2.1) END ===
   // NB (UAT 2026-06-20 / recon 2026-06-23): orphan preps `in` (bare `put X`) and
   // `with` (`cut`/`strike X`) are templated above; `on`->WEAR and

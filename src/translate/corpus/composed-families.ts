@@ -333,6 +333,59 @@ export const COMPOSED_FAMILIES: readonly Family[] = [
     note: 'gverbs.zil:481 multi-drop success. All langs ship it (ka :146). Caseless nominative label.',
     bindings: { obj: 'all-objects' },
   },
+
+  // ── 7d-i Standard-verb object-splice refusals/statuses (gverbs.zil). These are
+  //    gated by verbs IN the standard set (move/enter/wear/drop/read/attack/
+  //    examine), so a normal player reaches them. fr/de/es generalize; ka drafts
+  //    added (NS = nominative subject kept; DN = dropped to a demonstrative, §4).
+  {
+    en: 'Moving the {obj} reveals nothing.',
+    reach: 'reachable',
+    note: 'gverbs.zil:916 V-MOVE. ka DN "გადაადგილებამ არაფერი გამოაჩინა.".',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'You can\'t move the {obj}.',
+    reach: 'reachable',
+    note: 'gverbs.zil:918 V-MOVE refusal. ka NS "{obj.indef} ადგილიდან არ იძვრება.".',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'You are now in the {obj}.',
+    reach: 'reachable',
+    note: 'gverbs.zil:225 V-BOARD/enter success. ka DN "ახლა შიგ ხარ." (the vehicle is on-screen; -ში would shift a multi-word adjective, §4).',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'You are now wearing the {obj}.',
+    reach: 'reachable',
+    note: 'gverbs.zil:1385 wear success. ka NS "ახლა {obj.indef} გაცვია." (Georgian "wear" takes the worn item in the nominative).',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: "You're not carrying the {obj}.",
+    reach: 'reachable',
+    note: 'gverbs.zil IDROP refusal. ka NS "{obj.indef} თან არ გაქვს." ("have" → nominative).',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'How does one read a {obj}?',
+    reach: 'reachable',
+    note: 'gverbs.zil:1145 V-READ refusal. ka DN "ეს როგორ უნდა წაიკითხო?".',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: "You aren't even holding the {obj}.",
+    reach: 'reachable',
+    note: 'gverbs.zil:185 V-ATTACK (weapon not held). ka NS "{obj.indef} ხელშიც კი არ გიჭირავს.".',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: "There's nothing special about the {obj}.",
+    reach: 'reachable',
+    note: 'gverbs.zil:630 V-EXAMINE default. ka already ships its drop-noun examine template (no echo of the object, §4).',
+    bindings: { obj: 'all-objects' },
+  },
 ]
 
 /** fr/de/es families deliberately routed to the LLM instead of a shared
@@ -362,8 +415,9 @@ export const EXPECTED_DEFERRED: readonly string[] = []
  *  7a: is-now-closed/on/off, opens, is-closed, is-empty) → 28; +5 container/
  *  placement failures (Task 7b: already-in, isn't-in, don't-have, isn't-here,
  *  no-surface) → 33; +2 multi-command labels (Task 7c: Taken/Dropped; rug+trophy
- *  failures are seed D) → 35. */
-export const REACHABLE_FLOOR = 35
+ *  failures are seed D) → 35; +8 standard-verb refusals (Task 7d-i: move ×2,
+ *  board, wear, not-carrying, read, attack-hold, examine) → 43. */
+export const REACHABLE_FLOOR = 43
 
 /** Skeleton-fidelity escape hatch for `extractStrings` ANCHORING MISSES only:
  *  a distinctive span that is verified-correct game text (read in the local ZIL /

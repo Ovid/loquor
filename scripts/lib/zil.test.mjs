@@ -3,6 +3,7 @@ import { readForms, headAtom } from './zil.mjs'
 import { activeForms } from './zil.mjs'
 import { extractVerbsAndPreps } from './zil.mjs'
 import { extractNouns } from './zil.mjs'
+import { extractScenery } from './zil.mjs'
 import { computeEmit } from './zil.mjs'
 import { extractDirections } from './zil.mjs'
 import { buildVocabModule } from './zil.mjs'
@@ -329,5 +330,44 @@ describe('buildVocabModule', () => {
     expect(src).toContain('"canonical":"tree"')
     expect(src).toContain('"synonyms":["branch"]')
     expect(src).toContain('export const ZORK2_VOCAB: Vocab = {')
+  })
+
+  it('serializes the scenery word list (BUG G)', () => {
+    const src = buildVocabModule(1, { ...vocab, scenery: ['chain', 'dome'] })
+    expect(src).toContain('scenery: ["chain","dome"]')
+  })
+
+  it('emits an empty scenery list when none is provided', () => {
+    const src = buildVocabModule(1, vocab)
+    expect(src).toContain('scenery: []')
+  })
+})
+
+describe('extractScenery', () => {
+  // Room-level (PSEUDO "WORD" FUNC …) properties name local scenery the
+  // Z-parser recognizes (examine chain/dome/stream) but that has NO <OBJECT>.
+  // extractNouns only reads <OBJECT> forms, so these words reached neither the
+  // passthrough gate nor the GBNF grammar — the warm LLM then dropped the
+  // missing noun and mangled "examine the chain" into "look" (UAT BUG G).
+  it('collects room PSEUDO words, deduped and sorted, incl. multi-word lists', () => {
+    const src = `
+<ROOM SHAFT-ROOM (DESC "Shaft Room") (PSEUDO "CHAIN" CHAIN-PSEUDO)>
+<ROOM GAS-ROOM (DESC "Gas Room") (PSEUDO "GAS" GAS-PSEUDO "ODOR" GAS-PSEUDO)>
+<ROOM DRAFTY (DESC "Drafty Room") (PSEUDO "CHAIN" CHAIN-PSEUDO)>
+`
+    expect(extractScenery(src, new Set())).toEqual(['chain', 'gas', 'odor'])
+  })
+
+  it('excludes words already known to the vocab (real objects / verbs)', () => {
+    // door/gate are real-object dictionary words; they must NOT be re-added as
+    // scenery (the parser already knows them via their <OBJECT>s).
+    const src = `<ROOM GALLERY (DESC "Gallery") (PSEUDO "DOOR" DOOR-PSEUDO "PAINT" PAINT-PSEUDO)>`
+    expect(extractScenery(src, new Set(['door']))).toEqual(['paint'])
+  })
+
+  it('ignores PSEUDO-looking properties outside ROOM forms', () => {
+    // Defensive: only <ROOM …> blocks define local scenery.
+    const src = `<OBJECT X (DESC "x") (PSEUDO "NOPE" NOPE-FN)>`
+    expect(extractScenery(src, new Set())).toEqual([])
   })
 })

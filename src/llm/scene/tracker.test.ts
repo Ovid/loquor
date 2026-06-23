@@ -74,16 +74,45 @@ describe('reduceScene — mentions', () => {
   })
 
   it('absence/negation suppresses a mention', () => {
+    // ("X is empty" is intentionally NOT an absence — see the BUG I test above.)
     const s = reduceScene(
       emptySceneState,
       ev({
-        outputText:
-          "There is no lamp here. The trophy case is empty. You can't see any troll.",
+        outputText: "There is no lamp here. You can't see any troll.",
       }),
       vocab,
     )
     expect(s.inScope.map(o => o.canonical)).toEqual([])
     expect(s.antecedent).toBeNull()
+  })
+
+  it('an empty-container line keeps the container as the antecedent (BUG I)', () => {
+    // "The glass bottle is empty." NAMES the bottle, which is PRESENT — its absent
+    // CONTENTS are unnamed. So a following "open it"/"put X in it" must resolve to
+    // the bottle. Live UAT: "examine sword" then "examine bottle" then "open it"
+    // wrongly produced "open sword" because ABSENCE_PAT's "X is empty" clause
+    // suppressed the just-examined bottle.
+    let s = reduceScene(
+      emptySceneState,
+      ev({
+        location: 'East-West Passage',
+        outputText: "There's nothing special about the sword.",
+        lastCommand: 'examine sword',
+      }),
+      ZORK1_VOCAB,
+    )
+    expect(s.antecedent).toBe('sword')
+    s = reduceScene(
+      s,
+      ev({
+        location: 'East-West Passage',
+        outputText: 'The glass bottle is empty.',
+        lastCommand: 'examine bottle',
+      }),
+      ZORK1_VOCAB,
+    )
+    expect(s.antecedent).toBe('glass bottle')
+    expect(s.inScope.map(o => o.canonical)).toContain('glass bottle')
   })
 
   it('suppresses an adjective-prefixed absent object (review C6)', () => {
@@ -164,6 +193,42 @@ describe('reduceScene — antecedent precedence', () => {
     const s = reduceScene(
       prev,
       ev({ lastCommand: 'take lamp', outputText: 'Taken.' }),
+      vocab,
+    )
+    expect(s.antecedent).toBe('lamp') // not the stale "rug"
+  })
+
+  it('tier 2: an ARTICLE-led take ("take the lamp") still updates the antecedent (Bug B)', () => {
+    // English vocab-passthrough keeps the article ("take the lamp"), unlike the
+    // article-free canonical fr/de/es feed here. directObject must strip the
+    // leading article or the acted object is lost and "it" resolves stale.
+    const prev = reduceScene(
+      emptySceneState,
+      ev({ outputText: 'A lamp and a rug are here.' }),
+      vocab,
+    )
+    expect(prev.antecedent).toBe('rug')
+    const s = reduceScene(
+      prev,
+      ev({ lastCommand: 'take the lamp', outputText: 'Taken.' }),
+      vocab,
+    )
+    expect(s.antecedent).toBe('lamp') // not the stale "rug"
+    expect(s.inScope.find(o => o.canonical === 'lamp')?.carried).toBe(true)
+  })
+
+  it('tier 2: a double-spaced article-led take ("take  the lamp") still updates the antecedent (I3)', () => {
+    // command is only trimmed, not whitespace-collapsed, so a double space left
+    // the article-strip head empty and the acted object was lost (stale "it").
+    const prev = reduceScene(
+      emptySceneState,
+      ev({ outputText: 'A lamp and a rug are here.' }),
+      vocab,
+    )
+    expect(prev.antecedent).toBe('rug')
+    const s = reduceScene(
+      prev,
+      ev({ lastCommand: 'take  the lamp', outputText: 'Taken.' }),
       vocab,
     )
     expect(s.antecedent).toBe('lamp') // not the stale "rug"

@@ -14,6 +14,12 @@ export interface Vocab {
   preps: string[] // with, in, to, on …
   verbSynonyms: string[] // gsyntax <SYNONYM VERB …> members (ulysses, fight, i, q …)
   nouns: NounEntry[]
+  // Room-level (PSEUDO "WORD" FUNC) scenery: words the Z-parser recognizes
+  // (examine chain/dome/stream) with no backing <OBJECT>. They feed the grammar
+  // + passthrough gate (so the model can name them and English raw-sends them)
+  // but NOT the scene tracker — stateless room flavor, never an "it" antecedent
+  // (BUG G). Optional: a vocab without scenery behaves exactly as before.
+  scenery?: string[]
   takeAck: RegExp // recognises a successful take in output text
   dropAck: RegExp // recognises a successful drop
   absencePat: RegExp // captures a negated/absent noun so it never enters scope

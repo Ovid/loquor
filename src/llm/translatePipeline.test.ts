@@ -161,6 +161,77 @@ describe('runClause (NL v2 pipeline stages 3–7)', () => {
     expect(generateRaw).not.toHaveBeenCalled()
   })
 
+  it('stage 6 (EN pronoun): "open it" resolves to the antecedent, no model', async () => {
+    // The "open advertisement" bug: English has no input lexicon, so a bare
+    // pronoun reached the LLM and hit a poisoned few-shot. English now gets the
+    // same deterministic pronoun substitution fr/de/es get in parseLexicon.
+    const { deps, generateRaw } = detDeps()
+    const scene: Scene = { inScope: [], antecedent: 'mailbox' }
+    const r = await runClause('open it', scene, 'en', null, false, deps)
+    expect(r.stage).toBe('lexicon')
+    expect(r.result).toEqual({ kind: 'command', text: 'open mailbox' })
+    expect(generateRaw).not.toHaveBeenCalled()
+  })
+
+  it('stage 6 (EN pronoun): no antecedent raw-sends "open it" to Zork, not the LLM', async () => {
+    // Nothing to resolve "it" to → raw-send the player's words verbatim. Zork's
+    // parser tracks "it" natively, which is far safer than the LLM (it
+    // hallucinated "open chests"). Sent as a passthrough (stage 'vocab').
+    const { deps, generateRaw } = detDeps()
+    const r = await runClause('open it', emptyScene, 'en', null, false, deps)
+    expect(r.stage).toBe('vocab')
+    expect(r.result).toEqual({ kind: 'command', text: 'open it' })
+    expect(generateRaw).not.toHaveBeenCalled()
+  })
+
+  it('stage 6 (EN pronoun): a non-verb pronoun clause still reaches the LLM', async () => {
+    // "frobnicate" is no verb, so this is not a well-formed pronoun command — the
+    // raw-send fallback must NOT fire; genuine unknown input goes to the model.
+    const grammar = buildGrammar(TEST_VOCAB)
+    const generateRaw = vi.fn<GenerateRaw>(async () => '{"verb":"__UNKNOWN__"}')
+    const deps: ClauseDeps = {
+      vocab: TEST_VOCAB,
+      grammar,
+      generateRaw,
+      getContext: ctx,
+    }
+    const r = await runClause(
+      'frobnicate it',
+      emptyScene,
+      'en',
+      null,
+      false,
+      deps,
+    )
+    expect(r.stage).toBe('llm')
+    expect(generateRaw).toHaveBeenCalledTimes(1)
+  })
+
+  it('non-English with a null-noun lexicon falls through to the LLM, not the English resolvers (I2)', async () => {
+    // The English resolver block is gated on the active LANGUAGE, not merely
+    // "this game has no noun lexicon": an es/fr/de picker on a game whose noun
+    // lexicon is unregistered (lex non-null, lex.nouns null) must NOT run the
+    // English pronoun/quantifier resolvers — its input belongs to the LLM.
+    // Latent today (all Zork sigs are registered), but the contract must match
+    // the gate. With the old `else` on `lex?.nouns`, "open it" here resolved to
+    // the antecedent deterministically; the language gate sends it to the model.
+    const grammar = buildGrammar(TEST_VOCAB)
+    const generateRaw = vi.fn<GenerateRaw>(
+      async () => '{"verb":"open","object":"mailbox"}',
+    )
+    const deps: ClauseDeps = {
+      vocab: TEST_VOCAB,
+      grammar,
+      generateRaw,
+      getContext: ctx,
+    }
+    const lex: Lex = { core: coreLexicon('es'), nouns: null, words: new Set() }
+    const scene: Scene = { inScope: [], antecedent: 'mailbox' }
+    const r = await runClause('open it', scene, 'es', lex, false, deps)
+    expect(r.stage).toBe('llm')
+    expect(generateRaw).toHaveBeenCalledTimes(1)
+  })
+
   it('stage 7 (LLM): an unresolved clause consults the model with the full-vocab grammar', async () => {
     const grammar = buildGrammar(TEST_VOCAB)
     const generateRaw = vi.fn<GenerateRaw>(

@@ -1,6 +1,12 @@
 // src/llm/lexicon/parse.test.ts
 import { describe, it, expect } from 'vitest'
-import { parseLexicon } from './parse'
+import {
+  parseLexicon,
+  resolveEnglishPronoun,
+  isEnglishPronounClause,
+  resolveEnglishQuantifier,
+  resolveEnglishQuantifierPhrase,
+} from './parse'
 import { FR_CORE } from './fr.core'
 import { DE_CORE } from './de.core'
 import { ES_CORE } from './es.core'
@@ -110,11 +116,13 @@ const FR_NOUNS: NounLexicon = {
 const DE_NOUNS: NounLexicon = {
   'brass lantern': ['lampe', 'laterne'],
   'trap door': ['falltur'],
+  'trophy case': ['kiste', 'vitrine'],
   sword: ['schwert'],
   rope: ['seil'],
 }
 const ES_NOUNS: NounLexicon = {
   'brass lantern': ['lampara', 'linterna'],
+  'trophy case': ['vitrina'],
   sword: ['espada'],
   troll: ['troll'],
 }
@@ -216,6 +224,19 @@ describe('parseLexicon — French', () => {
       parseLexicon('prends-le', FR_CORE, FR_NOUNS, vocab, scene([], 'sword')),
     ).toEqual({ kind: 'command', text: 'take sword' })
   })
+  it('clitic pronoun with an ambiguous-synonym antecedent emits the parser word (window)', () => {
+    // Same fix as resolveEnglishPronoun, shared via antecedentObject: an
+    // ambiguous synonym ("window") is no vocab canonical but IS a parser word.
+    expect(
+      parseLexicon(
+        'prends-le',
+        FR_CORE,
+        FR_NOUNS,
+        ZORK1_VOCAB,
+        scene([], 'window'),
+      ),
+    ).toEqual({ kind: 'command', text: 'take window' })
+  })
   it('standalone la (no following noun) is a pronoun, not an article', () => {
     expect(
       parseLexicon(
@@ -252,6 +273,21 @@ describe('parseLexicon — French', () => {
         scene(['painting'], 'painting'),
       ),
     ).toEqual({ kind: 'miss' })
+  })
+  it('container anaphora resolves an ambiguous-synonym antecedent (window) — I1', () => {
+    // 'window' is a shared synonym (boarded/kitchen window), NOT a vocab
+    // canonical, so byCanonical misses it; antecedentObject emits it verbatim,
+    // matching the direct-pronoun branch. Real ZORK1 data (the fixture has no
+    // ambiguous synonym for a container).
+    expect(
+      parseLexicon(
+        'mets le tableau dedans',
+        FR_CORE,
+        FR_ZORK1,
+        ZORK1_VOCAB,
+        scene([], 'window'),
+      ),
+    ).toEqual({ kind: 'command', text: 'put painting in window' })
   })
   it('strictness: one unrecognized content token → miss', () => {
     expect(
@@ -390,6 +426,126 @@ describe('parseLexicon — English via vocab surface forms (spec §6 step 3)', (
     expect(
       parseLexicon('open trap door', FR_CORE, FR_NOUNS, vocab, empty),
     ).toEqual({ kind: 'command', text: 'open trapdoor' })
+  })
+})
+
+describe('resolveEnglishPronoun (the "open advertisement" fix)', () => {
+  it('substitutes the antecedent emit form for "it"', () => {
+    expect(
+      resolveEnglishPronoun('open it', vocab, scene([], 'small mailbox')),
+    ).toEqual({ kind: 'command', text: 'open mailbox' })
+  })
+
+  it('handles trailing punctuation and "them"', () => {
+    expect(
+      resolveEnglishPronoun('take them.', vocab, scene([], 'brass lantern')),
+    ).toEqual({ kind: 'command', text: 'take light' })
+  })
+
+  it('misses (→ LLM) when there is no antecedent', () => {
+    expect(resolveEnglishPronoun('open it', vocab, empty)).toEqual({
+      kind: 'miss',
+    })
+  })
+
+  it('misses when the leading word is not a known verb', () => {
+    // "frobnicate" is no verb → never a deterministic resolve.
+    expect(
+      resolveEnglishPronoun('frobnicate it', vocab, scene([], 'small mailbox')),
+    ).toEqual({ kind: 'miss' })
+  })
+
+  it('misses on a non-pronoun final token (a real noun is the lexicon/LLM path)', () => {
+    expect(
+      resolveEnglishPronoun('open mailbox', vocab, scene([], 'small mailbox')),
+    ).toEqual({ kind: 'miss' })
+  })
+
+  it('misses on compound/particle forms — they belong to the LLM', () => {
+    // ponytail ceiling: only the two-token "<verb> <pronoun>" form resolves here.
+    expect(
+      resolveEnglishPronoun('pick it up', vocab, scene([], 'small mailbox')),
+    ).toEqual({ kind: 'miss' })
+  })
+
+  it('isEnglishPronounClause: true for a well-formed "<verb> <pronoun>"', () => {
+    // Drives the raw-send fallback: a real pronoun command we couldn't resolve
+    // should raw-send to Zork, not the LLM.
+    expect(isEnglishPronounClause('open it', vocab)).toBe(true)
+    expect(isEnglishPronounClause('take them.', vocab)).toBe(true)
+  })
+
+  it('isEnglishPronounClause: false for a non-verb, a real noun, or a particle form', () => {
+    expect(isEnglishPronounClause('frobnicate it', vocab)).toBe(false) // unknown verb
+    expect(isEnglishPronounClause('open mailbox', vocab)).toBe(false) // real noun
+    expect(isEnglishPronounClause('pick it up', vocab)).toBe(false) // particle form
+  })
+
+  it('emits an ambiguous-synonym antecedent verbatim (the "window" Behind-House bug)', () => {
+    // "window" is owned by boarded + kitchen window, so the scene tracker stores
+    // it as its OWN canonical — there is NO vocab canonical 'window'. It is still
+    // a parser word, so it must emit directly ("open window") and let Zork
+    // disambiguate by room, NOT miss to the LLM (which hallucinated "open chests").
+    expect(
+      resolveEnglishPronoun('open it', ZORK1_VOCAB, scene([], 'window')),
+    ).toEqual({ kind: 'command', text: 'open window' })
+  })
+})
+
+describe('isEnglishPronounClause — richer pronoun forms (BUG H)', () => {
+  // A natural pronoun command beyond the bare "<verb> it" form (particle in the
+  // middle, container, or prep-tail) must RAW-SEND to Zork — whose parser tracks
+  // "it"/"them" natively — instead of falling to the warm LLM, which ignores the
+  // antecedent and mangles it (live UAT: "put lunch in it" → LLM → "take food" →
+  // "You already have that!"; raw-sent it → Zork's correct "There's no room.").
+  it('raw-sends the particle form "turn it on"', () => {
+    expect(isEnglishPronounClause('turn it on', ZORK1_VOCAB)).toBe(true)
+    expect(isEnglishPronounClause('turn it off', ZORK1_VOCAB)).toBe(true)
+  })
+  it('raw-sends the container form "put X in it"', () => {
+    expect(isEnglishPronounClause('put painting in it', ZORK1_VOCAB)).toBe(true)
+    expect(isEnglishPronounClause('put lunch in it', ZORK1_VOCAB)).toBe(true)
+  })
+  it('raw-sends the prep-tail form "give it to thief"', () => {
+    expect(isEnglishPronounClause('give it to thief', ZORK1_VOCAB)).toBe(true)
+  })
+  it('still recognizes the bare "<verb> it/them" form', () => {
+    expect(isEnglishPronounClause('open it', ZORK1_VOCAB)).toBe(true)
+    expect(isEnglishPronounClause('take them', ZORK1_VOCAB)).toBe(true)
+  })
+  it('does NOT raw-send a single-letter meta/direction verb ("q it"/"i it"/"n it") — I2', () => {
+    // Single-char Zork verbs are exclusively intransitive direction/meta
+    // abbreviations (i=inventory, q=quit, n=north…); accepting one as a
+    // transitive lead raw-sent a malformed command (and "q it" could trip the
+    // quit-confirm path). A real transitive verbSynonym ("get it") still passes.
+    expect(isEnglishPronounClause('q it', ZORK1_VOCAB)).toBe(false)
+    expect(isEnglishPronounClause('i it', ZORK1_VOCAB)).toBe(false)
+    expect(isEnglishPronounClause('n it', ZORK1_VOCAB)).toBe(false)
+    expect(isEnglishPronounClause('get it', ZORK1_VOCAB)).toBe(true) // regression guard
+  })
+  it('resolveEnglishPronoun: miss for a single-letter meta verb ("q it") — I2', () => {
+    // The verb filter, not a missing antecedent, is the reason for the miss:
+    // a good verb with the same antecedent resolves.
+    expect(
+      resolveEnglishPronoun('q it', ZORK1_VOCAB, scene([], 'window')),
+    ).toEqual({ kind: 'miss' })
+    expect(
+      resolveEnglishPronoun('get it', ZORK1_VOCAB, scene([], 'window')),
+    ).toEqual({ kind: 'command', text: 'get window' })
+  })
+  it('does NOT raw-send a clause with an unknown (non-pronoun) token', () => {
+    // a fuzzy/foreign word stays the LLM's job — we only raw-send commands Zork
+    // can fully parse on its own.
+    expect(isEnglishPronounClause('turn it frobnicate', ZORK1_VOCAB)).toBe(
+      false,
+    )
+    expect(isEnglishPronounClause('put squizzle in it', ZORK1_VOCAB)).toBe(
+      false,
+    )
+  })
+  it('does NOT raw-send a non-verb-led clause or a two-pronoun clause', () => {
+    expect(isEnglishPronounClause('it on', ZORK1_VOCAB)).toBe(false) // no leading verb
+    expect(isEnglishPronounClause('put it in it', ZORK1_VOCAB)).toBe(false) // ambiguous
   })
 })
 
@@ -620,5 +776,219 @@ describe('parseLexicon — UAT French playthrough (real Zork I vocab + lexicon)'
         scene(['nasty knife']),
       ),
     ).toEqual({ kind: 'command', text: 'throw nasty knives' })
+  })
+})
+
+describe('resolveEnglishQuantifier (English "take all" deterministic path — Bug A)', () => {
+  it('maps a bare "<verb> all" to the Z-parser ALL object', () => {
+    expect(resolveEnglishQuantifier('take all', vocab)).toEqual({
+      kind: 'command',
+      text: 'take all',
+    })
+  })
+
+  it('maps "everything" to the same ALL object, with trailing punctuation', () => {
+    expect(resolveEnglishQuantifier('take everything', vocab)).toEqual({
+      kind: 'command',
+      text: 'take all',
+    })
+    expect(resolveEnglishQuantifier('drop everything.', vocab)).toEqual({
+      kind: 'command',
+      text: 'drop all',
+    })
+  })
+
+  it('allows a verbs2 verb (put all) — the Z-parser orphan-prompts for the rest', () => {
+    expect(resolveEnglishQuantifier('put all', vocab)).toEqual({
+      kind: 'command',
+      text: 'put all',
+    })
+  })
+
+  it('misses on an unknown verb or a verb-only (arity-0) verb', () => {
+    expect(resolveEnglishQuantifier('frobnicate all', vocab)).toEqual({
+      kind: 'miss',
+    })
+    expect(resolveEnglishQuantifier('look all', vocab)).toEqual({
+      kind: 'miss',
+    })
+  })
+
+  it('misses when the quantifier is not the bare remainder', () => {
+    // "take all keys" is a real object phrase, not the ALL quantifier.
+    expect(resolveEnglishQuantifier('take all keys', vocab)).toEqual({
+      kind: 'miss',
+    })
+    expect(resolveEnglishQuantifier('take', vocab)).toEqual({ kind: 'miss' })
+  })
+})
+
+// BUG F (UAT 2026-06-22, same class as BUG A): the bare-quantifier path above only
+// catches the two-token "<verb> all". The MODIFIED forms — "put all in case" (the
+// natural endgame treasure-casing shortcut), "drop all but the lamp", "take
+// everything except the lamp" — fall to the warm LLM, which mangles them exactly
+// like bare "take all" did pre-BUG-A: browser-confirmed "put all in case" →
+// {"verb":"take","object":"large bag"} ("take large bag" — verb FLIPPED + object
+// hallucinated), "drop all but the lamp" → "drop large bag". The Z-parser handles
+// its ALL object with prepositions and the BUT/EXCEPT exclusion natively, so the
+// fix raw-sends the player's words — normalizing "everything" → "all" (the parser's
+// quantifier is ALL/ONE/BOTH; "everything" is NOT a Zork dictionary word). Guard:
+// only fires when the leading verb is one arity-1/2 vocab verb, the quantifier sits
+// right after it, there IS a rest, and every rest token is a word the parser knows.
+describe('resolveEnglishQuantifierPhrase (modified "<verb> all <rest>" — Bug F)', () => {
+  it('raw-sends "put all in case" (the bare path drops the destination)', () => {
+    expect(
+      resolveEnglishQuantifierPhrase('put all in case', ZORK1_VOCAB),
+    ).toEqual({ kind: 'command', text: 'put all in case' })
+  })
+
+  it('preserves a leading article + the destination ("put all in the case")', () => {
+    expect(
+      resolveEnglishQuantifierPhrase('put all in the case', ZORK1_VOCAB),
+    ).toEqual({ kind: 'command', text: 'put all in the case' })
+  })
+
+  it('raw-sends the BUT/EXCEPT exclusion ("drop all but the lamp")', () => {
+    expect(
+      resolveEnglishQuantifierPhrase('drop all but the lamp', ZORK1_VOCAB),
+    ).toEqual({ kind: 'command', text: 'drop all but the lamp' })
+  })
+
+  it('normalizes "everything" → "all" before raw-send (not a Zork word)', () => {
+    expect(
+      resolveEnglishQuantifierPhrase(
+        'take everything except the lamp',
+        ZORK1_VOCAB,
+      ),
+    ).toEqual({ kind: 'command', text: 'take all except the lamp' })
+  })
+
+  it('misses on the bare form (no rest) — that is the sibling path’s job', () => {
+    expect(resolveEnglishQuantifierPhrase('take all', ZORK1_VOCAB)).toEqual({
+      kind: 'miss',
+    })
+  })
+
+  it('misses when a rest token is not a parser-known word (no over-match)', () => {
+    expect(
+      resolveEnglishQuantifierPhrase('put all in zeppelin', ZORK1_VOCAB),
+    ).toEqual({ kind: 'miss' })
+  })
+
+  it('misses when there is no leading arity-1/2 verb', () => {
+    expect(
+      resolveEnglishQuantifierPhrase('look all around here', ZORK1_VOCAB),
+    ).toEqual({ kind: 'miss' })
+  })
+})
+
+describe('parseLexicon — bare English "all" maps in EVERY language (Bug A parity)', () => {
+  // fr/es already list bare 'all' in quantifiersAll; de did not, so a
+  // German-picker player typing English "take all" fell straight to the LLM
+  // (which mis-mapped it to "large bag"). The deterministic path must exist in
+  // every applicable language, not just the easy ones.
+  it('German core: "take all"/"take everything" → "take all"', () => {
+    expect(parseLexicon('take all', DE_CORE, DE_NOUNS, vocab, empty)).toEqual({
+      kind: 'command',
+      text: 'take all',
+    })
+    expect(
+      parseLexicon('take everything', DE_CORE, DE_NOUNS, vocab, empty),
+    ).toEqual({ kind: 'command', text: 'take all' })
+  })
+  it('French core: "take all"/"take everything" → "take all"', () => {
+    expect(parseLexicon('take all', FR_CORE, FR_NOUNS, vocab, empty)).toEqual({
+      kind: 'command',
+      text: 'take all',
+    })
+    expect(
+      parseLexicon('take everything', FR_CORE, FR_NOUNS, vocab, empty),
+    ).toEqual({ kind: 'command', text: 'take all' })
+  })
+  it('Spanish core: "take all"/"take everything" → "take all"', () => {
+    expect(parseLexicon('take all', ES_CORE, ES_NOUNS, vocab, empty)).toEqual({
+      kind: 'command',
+      text: 'take all',
+    })
+    expect(
+      parseLexicon('take everything', ES_CORE, ES_NOUNS, vocab, empty),
+    ).toEqual({ kind: 'command', text: 'take all' })
+  })
+})
+
+// BUG F parity (I1): the English raw-send (resolveEnglishQuantifierPhrase)
+// catches the MODIFIED quantifier ("put all in case", "drop all but the lamp")
+// because the player's words are already English. fr/de/es got only the BARE
+// single-token quantifier in parseLexicon, so the localized endgame
+// treasure-casing shortcut ("mets tout dans la caisse") fell to the LLM — the
+// exact "take large bag" mangle the English fix was added to prevent. The
+// localized tail must be TRANSLATED (prep via core.preps / exclusion via
+// core.quantifiersExcept / noun resolved), emitting the canonical
+// "all <prep> <noun>" / "all except <noun>".
+describe('parseLexicon — MODIFIED "all" quantifier in fr/de/es (Bug F parity, I1)', () => {
+  it('French prep form: "mets tout dans la vitrine" → "put all in case"', () => {
+    expect(
+      parseLexicon(
+        'mets tout dans la vitrine',
+        FR_CORE,
+        FR_NOUNS,
+        vocab,
+        empty,
+      ),
+    ).toEqual({ kind: 'command', text: 'put all in case' })
+  })
+  it('French except form: "pose tout sauf la lampe" → "drop all except light"', () => {
+    expect(
+      parseLexicon('pose tout sauf la lampe', FR_CORE, FR_NOUNS, vocab, empty),
+    ).toEqual({ kind: 'command', text: 'drop all except light' })
+  })
+  it('German prep form: "leg alles in die kiste" → "put all in case"', () => {
+    expect(
+      parseLexicon('leg alles in die kiste', DE_CORE, DE_NOUNS, vocab, empty),
+    ).toEqual({ kind: 'command', text: 'put all in case' })
+  })
+  it('German except form (außer folds to ausser): "lass alles außer die lampe" → "drop all except light"', () => {
+    expect(
+      parseLexicon(
+        'lass alles außer die lampe',
+        DE_CORE,
+        DE_NOUNS,
+        vocab,
+        empty,
+      ),
+    ).toEqual({ kind: 'command', text: 'drop all except light' })
+  })
+  it('Spanish prep form: "pon todo en la vitrina" → "put all in case"', () => {
+    expect(
+      parseLexicon('pon todo en la vitrina', ES_CORE, ES_NOUNS, vocab, empty),
+    ).toEqual({ kind: 'command', text: 'put all in case' })
+  })
+  it('Spanish except form: "deja todo excepto la lampara" → "drop all except light"', () => {
+    expect(
+      parseLexicon(
+        'deja todo excepto la lampara',
+        ES_CORE,
+        ES_NOUNS,
+        vocab,
+        empty,
+      ),
+    ).toEqual({ kind: 'command', text: 'drop all except light' })
+  })
+  it('misses (falls to the LLM) when the tail noun is unknown — never raw-sends foreign words', () => {
+    expect(
+      parseLexicon(
+        'mets tout dans le zeppelin',
+        FR_CORE,
+        FR_NOUNS,
+        vocab,
+        empty,
+      ),
+    ).toEqual({ kind: 'miss' })
+  })
+  it('bare "<verb> tout" still resolves via the single-token path (unchanged)', () => {
+    expect(parseLexicon('pose tout', FR_CORE, FR_NOUNS, vocab, empty)).toEqual({
+      kind: 'command',
+      text: 'drop all',
+    })
   })
 })

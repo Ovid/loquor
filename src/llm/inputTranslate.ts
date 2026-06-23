@@ -312,11 +312,36 @@ export function metaAlias(
  * the generator deduped away), so passing it through is safe. MULTIWORD
  * canonical DESC tokens are still NOT included — only the emit word is the
  * parser-accepted form (e.g. canonical "crystal skull" → emit "skull"). */
+/** The Z-parser's BUZZ noise words (gsyntax.zil:11 — identical in Zork I/II/III):
+ * <BUZZ A AN THE IS AND OF THEN ALL ONE BUT EXCEPT \. \, \" YES NO Y HERE>. The
+ * parser strips these before matching, so the game's own multi-word object DESCs
+ * embed them ("a pot of gold", "a clove of garlic", "a pair of candles") — the most
+ * natural phrasing a player types. They are words the parser knows, so a command
+ * made entirely of them + real game words is always safe to raw-send; without them
+ * in the passthrough set the noise word ("of") misses the gate and the whole command
+ * routes to the warm LLM, which mangles it (BUG E, same class as the dropped prep
+ * synonyms in BUG D). EXCLUDED on purpose, because a dedicated deterministic path
+ * already owns them: the conjunctions `and`/`then` (splitClauses), the quantifier
+ * `all` (the quantifier path → "take all"), and the confirmation replies
+ * `yes`/`no`/`y` (confirmationReply). Punctuation buzz tokens (`.` `,` `"`) are
+ * stripped from the line before matching, so they need no entry. */
+const BUZZ_NOISE_WORDS: readonly string[] = [
+  'the',
+  'a',
+  'an',
+  'is',
+  'of',
+  'one',
+  'but',
+  'except',
+  'here',
+]
+
 const VOCAB_WORD_SETS = new WeakMap<Vocab, Set<string>>()
 export function vocabWordSet(vocab: Vocab): Set<string> {
   const cached = VOCAB_WORD_SETS.get(vocab)
   if (cached) return cached
-  const out = new Set<string>(['the', 'a', 'an'])
+  const out = new Set<string>(BUZZ_NOISE_WORDS)
   const addWords = (s: string) => {
     for (const w of s.toLowerCase().split(/\s+/)) if (w) out.add(w)
   }
@@ -332,6 +357,11 @@ export function vocabWordSet(vocab: Vocab): Set<string> {
     for (const s of n.synonyms ?? []) addWords(s)
     for (const adj of n.adjectives ?? []) addWords(adj)
   }
+  // Room PSEUDO scenery (chain/dome/stream…): parser-known words with no
+  // <OBJECT>, so a command made of them + real game words is safe to raw-send;
+  // without them the unknown noun misses the gate and routes to the warm LLM,
+  // which can't emit it and mangles "examine the chain" → "look" (BUG G).
+  for (const s of vocab.scenery ?? []) addWords(s)
   for (const m of META_COMMANDS) addWords(m)
   VOCAB_WORD_SETS.set(vocab, out)
   return out
@@ -365,6 +395,17 @@ export function unquote(line: string): string | null {
  * English, a token in the active language's lexicon does NOT count — the
  * line falls through to the lexicon parse instead (pushback issue 2).
  */
+/** Truncation-aware membership: the v3 Z-parser truncates BOTH dictionary words
+ * and player input to 6 chars before matching, so a token whose 6-char prefix is
+ * a known word is accepted by the game even when the stored vocab form is the
+ * truncation (BUG C: gsyntax authored the verb head as 'INFLAT' vs the typed
+ * 'inflate'). Mirrors the same widening already used by parse.ts `hasVerbForm`
+ * and roundtrip.ts. For tokens ≤6 chars `slice(0,6)` is the token itself, so this
+ * only widens the >6-char case — short words keep exact-match semantics. */
+export function vocabKnows(words: Set<string>, t: string): boolean {
+  return words.has(t) || words.has(t.slice(0, 6))
+}
+
 export function isVocabPassthrough(
   line: string,
   vocab: Vocab,
@@ -378,7 +419,7 @@ export function isVocabPassthrough(
     .filter(Boolean)
   if (tokens.length === 0) return false
   return tokens.every(
-    t => words.has(t) && !(activeLexiconWords?.has(t) ?? false),
+    t => vocabKnows(words, t) && !(activeLexiconWords?.has(t) ?? false),
   )
 }
 
@@ -612,7 +653,12 @@ export function parseCommand(rawJson: string, vocab: Vocab): TranslateResult {
   const object = typeof cmd.object === 'string' ? cmd.object : undefined
   const prep = typeof cmd.prep === 'string' ? cmd.prep : undefined
   const indirect = typeof cmd.indirect === 'string' ? cmd.indirect : undefined
-  const emits = new Set(vocab.nouns.map(n => n.emit))
+  // Scenery (room PSEUDO words) is nameable too — the grammar offers it, so the
+  // model's emitted object must validate here or it gets dropped to abstain (BUG G).
+  const emits = new Set([
+    ...vocab.nouns.map(n => n.emit),
+    ...(vocab.scenery ?? []),
+  ])
 
   const isOnly = vocab.verbsOnly.includes(verb) || vocab.movement.includes(verb)
   const is1 = vocab.verbs1.includes(verb)

@@ -93,10 +93,13 @@ const FEWSHOTS: Record<LexLang | 'en', ChatMessages> &
       content:
         '{"verb":"attack","object":"troll","prep":"with","indirect":"sword"}',
     },
-    // EN pronouns ALWAYS reach the LLM (stage 4 rejects 'it'), so the pronoun
-    // few-shot matters most here (spec §7: drop-verb, two-object, pronoun).
-    { role: 'user', content: 'take it' },
-    { role: 'assistant', content: '{"verb":"take","object":"advertisement"}' },
+    // NO pronoun few-shot: a static example can only hardcode ONE noun
+    // ("advertisement"), which the model then parrots for EVERY pronoun
+    // regardless of the live antecedent ("open it" → "open advertisement").
+    // Pronoun-only commands now resolve deterministically (resolveEnglishPronoun
+    // / the fr-de-es pronounsDirect branch) before the LLM; residual pronouns in
+    // compound clauses are handled by the explicit instruction + the "Most
+    // recently mentioned" antecedent line, not a poisoned constant.
   ],
   fr: [
     { role: 'user', content: 'pose l’épée' },
@@ -107,8 +110,8 @@ const FEWSHOTS: Record<LexLang | 'en', ChatMessages> &
       content:
         '{"verb":"attack","object":"troll","prep":"with","indirect":"sword"}',
     },
-    { role: 'user', content: 'prends-le' },
-    { role: 'assistant', content: '{"verb":"take","object":"advertisement"}' },
+    // No pronoun few-shot — see the en note: a hardcoded noun poisons every
+    // pronoun. "prends-le" resolves deterministically in parseLexicon.
   ],
   de: [
     { role: 'user', content: 'lass das Schwert fallen' },
@@ -119,8 +122,8 @@ const FEWSHOTS: Record<LexLang | 'en', ChatMessages> &
       content:
         '{"verb":"attack","object":"troll","prep":"with","indirect":"sword"}',
     },
-    { role: 'user', content: 'nimm ihn' },
-    { role: 'assistant', content: '{"verb":"take","object":"advertisement"}' },
+    // No pronoun few-shot — see the en note: a hardcoded noun poisons every
+    // pronoun. "nimm ihn" resolves deterministically in parseLexicon.
   ],
   es: [
     { role: 'user', content: 'suelta la espada' },
@@ -131,8 +134,8 @@ const FEWSHOTS: Record<LexLang | 'en', ChatMessages> &
       content:
         '{"verb":"attack","object":"troll","prep":"with","indirect":"sword"}',
     },
-    { role: 'user', content: 'tómalo' },
-    { role: 'assistant', content: '{"verb":"take","object":"advertisement"}' },
+    // No pronoun few-shot — see the en note: a hardcoded noun poisons every
+    // pronoun. "tómalo" resolves deterministically in parseLexicon.
   ],
 }
 

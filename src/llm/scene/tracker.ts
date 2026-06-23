@@ -115,7 +115,9 @@ function directObject(command: string, vocab: Vocab): string | null {
     ...vocab.verbsOnly,
     ...vocab.movement,
   ].sort((a, b) => b.length - a.length)
-  let rest = command.trim().toLowerCase()
+  // Collapse internal whitespace too: a double space ("take  the lamp") left the
+  // article-strip head empty and lost the acted object → stale "it" (I3).
+  let rest = command.trim().toLowerCase().replace(/\s+/g, ' ')
   for (const v of verbs) {
     if (rest === v) return null
     if (rest.startsWith(v + ' ')) {
@@ -123,6 +125,15 @@ function directObject(command: string, vocab: Vocab): string | null {
       break
     }
   }
+  // Strip a leading English article. fr/de/es feed this tracker the article-free
+  // canonical (the lexicon strips articles during translation: 'prends le
+  // déjeuner' → 'take food'), but English vocab-passthrough keeps the article
+  // ('take the lunch'), so without this the remainder ('the lunch') matches no
+  // surface form → null → the acted object is lost and 'it' resolves to a stale
+  // older object (UAT Bug B). No-op for the article-free languages.
+  const head = rest.split(' ', 1)[0]
+  if (head !== rest && (head === 'the' || head === 'a' || head === 'an'))
+    rest = rest.slice(head.length + 1)
   for (const { phrase, canonical } of surfaceForms(vocab.nouns))
     if (rest === phrase || rest.startsWith(phrase + ' ')) return canonical
   return null

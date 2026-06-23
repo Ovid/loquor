@@ -184,6 +184,18 @@ const PREP_HEADS = new Set([
   'off',
 ])
 
+// v3 dictionary words truncate to 6 characters, and a few gsyntax.zil SYNTAX verb
+// HEADS were authored in that truncated form (the lone case across Zork I/II/III is
+// INFLAT, from `<SYNTAX INFLAT OBJECT WITH OBJECT …>`). The extractor must emit the
+// FULL in-game spelling the Z-parser actually accepts ('inflate'), or the English
+// vocab-passthrough gate — which exact-matches tokens — misses the word a player
+// types ('inflate'), routing every inflate command to the warm LLM, which mangles it
+// (UAT BUG C: 'inflate plastic with pump' → 'turn on pump', breaking the magic-boat
+// puzzle). Sibling verb heads (DEFLATE, EXTINGUISH, LAUNCH) are already full in the
+// ZIL, so they need no entry. NOTE: this remaps only SYNTAX verb HEADS — the truncated
+// 'inflat' ADJECTIVE on the boat object is a real dictionary word and is untouched.
+const VERB_HEAD_DETRUNCATIONS = { inflat: 'inflate' }
+
 // From the active SYNTAX rules for game N: verb-only canonicals (minus meta),
 // one-object verbs (verbs1, multiword particles preserved), two-object verbs
 // (verbs2), and the prepositions — the <SYNONYM …> prep-block heads UNION any
@@ -206,8 +218,9 @@ export function extractVerbsAndPreps(forms, N, metaSet) {
       if (it.t === 'atom') seq.push(it.v)
     }
     if (seq.length === 0) continue
-    const verb = seq[0].toLowerCase()
-    if (/[#$]/.test(verb)) continue // debug verbs ($verify, #command)
+    const rawVerb = seq[0].toLowerCase()
+    if (/[#$]/.test(rawVerb)) continue // debug verbs ($verify, #command)
+    const verb = VERB_HEAD_DETRUNCATIONS[rawVerb] ?? rawVerb
 
     const objIdx = []
     for (let i = 1; i < seq.length; i++) if (seq[i] === 'OBJECT') objIdx.push(i)
@@ -228,14 +241,26 @@ export function extractVerbsAndPreps(forms, N, metaSet) {
 
   // Prep-class declarations: <SYNONYM WITH …>/<SYNONYM IN …>/… The block head is
   // the canonical prep; union it into preps so declared-but-not-inter-object preps
-  // (e.g. `under`) survive. Non-prep SYNONYM heads are verb/direction synonym
-  // blocks whose members we retain (NL v2 §9).
+  // (e.g. `under`) survive. The block MEMBERS (inside/into/onto/underneath/beneath/
+  // below/using/through/thru) are real prep dictionary words the Z-parser accepts
+  // wherever the head is accepted (<SYNONYM IN INSIDE INTO>), so they are retained
+  // in `preps` too — otherwise the English vocab-passthrough gate (vocabWordSet)
+  // misses the literal word a player types and routes the command to the warm LLM,
+  // which mangles it (UAT: 'put painting into case' → 'take painting'; 'look
+  // underneath rug' → 'look'). Same class as the BUG C verb-head gap above. The
+  // fr/de/es lexicon is unaffected: it maps foreign preps to the CANONICAL head, so
+  // it never emits a synonym. Non-prep SYNONYM heads are verb/direction synonym
+  // blocks whose members we retain as verbSynonyms (NL v2 §9).
   const verbSynonyms = new Set()
   for (const f of active) {
     if (headAtom(f) !== 'SYNONYM') continue
     const head = atomAt(f, 1).toLowerCase()
     if (PREP_HEADS.has(head)) {
       preps.add(head)
+      for (let i = 2; i < f.items.length; i++) {
+        const it = f.items[i]
+        if (it.t === 'atom') preps.add(it.v.toLowerCase())
+      }
       continue
     }
     // Verb/direction synonym block: members are parser dictionary words the
@@ -547,6 +572,35 @@ export function extractNouns(dungeonSrc, globalsSrc, N, mergeLog = []) {
   return entries
 }
 
+// Room-level (PSEUDO "WORD" FUNC …) properties name local scenery the Z-parser
+// recognizes (examine chain/dome/stream) with NO backing <OBJECT>. extractNouns
+// reads only <OBJECT> forms, so without this these words land in neither
+// vocabWordSet (the passthrough gate) nor the GBNF grammar — the warm LLM then
+// can't emit the unknown noun and DROPS it, mangling "examine the chain" into
+// "look" (UAT BUG G). Collected as a flat scenery word list that feeds the gate
+// + grammar (so the model can name them and English passthrough raw-sends them)
+// but NOT the scene tracker — pseudo-objects are stateless room-local flavor,
+// never an "it" antecedent, so they stay out of scope/antecedent resolution.
+// `knownWords` is the set of words the vocab already covers (real-object
+// dictionary words, verbs, preps…); a PSEUDO word already known there
+// (door/gate/gates back real objects) is dropped as a redundant duplicate.
+// Returns sorted-unique lowercase words.
+export function extractScenery(dungeonSrc, knownWords = new Set()) {
+  const out = new Set()
+  for (const f of readForms(dungeonSrc)) {
+    if (f.t !== 'list' || f.k !== '<' || headAtom(f) !== 'ROOM') continue
+    for (const it of f.items) {
+      if (it.t !== 'list' || it.k !== '(' || headAtom(it) !== 'PSEUDO') continue
+      for (const x of it.items)
+        if (x.t === 'str') {
+          const w = x.v.toLowerCase()
+          if (!knownWords.has(w)) out.add(w)
+        }
+    }
+  }
+  return [...out].sort()
+}
+
 // Render a Vocab literal as TypeScript source. Output is intentionally close to
 // the final shape; the generator runs Prettier over it so the committed file is
 // formatter-canonical (a fresh regenerate is a no-op diff).
@@ -577,6 +631,7 @@ export const ZORK${N}_VOCAB: Vocab = {
   nouns: [
 ${vocab.nouns.map(noun).join('\n')}
   ],
+  scenery: ${arr(vocab.scenery ?? [])},
   takeAck: TAKE_ACK,
   dropAck: DROP_ACK,
   absencePat: ABSENCE_PAT,

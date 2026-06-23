@@ -113,6 +113,24 @@ north`) while the NL input was still German — a self-contradictory state the
 
 ## NL-layer testing technique
 
+- **Find warm-LLM gate gaps OFFLINE first, with a `isVocabPassthrough` sweep —
+  no browser turns needed (UAT 2026-06-22, found BUG E + BUG F).** The whole
+  A/C/D/E/F bug class is one shape: a natural English command with ONE token the
+  vocab gate doesn't know routes to the warm LLM, which mangles it. Enumerate the
+  candidates en masse in a throwaway `*.test.ts`: feed natural-English
+  rephrasings of every walkthrough action (articles + adjectives + the game's own
+  display nouns + verb/prep synonyms) to `isVocabPassthrough(cmd, ZORK1_VOCAB,
+null)`, and for each `false`, print the tokens that fail
+  `words.has(t) || words.has(t.slice(0,6))` (the same 6-char-truncation widening
+  the gate uses). The unknown token IS the root cause: a SHARED unknown across
+  many probes is a high-value systemic gap (`of` → 10 "X of Y" object names;
+  `all` → the modified-quantifier forms), a one-off unknown is usually a non-Zork
+  word (`shove`, `inspect`) where the LLM mapping is actually fine. Then confirm
+  only the shared-cause hits live (`stage:"llm"`) and fix the gate. Cross-check
+  any candidate against the ZIL before calling it a bug: `gsyntax.zil` `<BUZZ …>`
+  (noise words like `of` the parser ignores) and `<SYNONYM …>` (verb/prep
+  synonyms); a token that's neither a buzz/synonym/verb/noun is genuinely unknown
+  to Zork, so raw-sending would fail and the LLM is the right path.
 - The fastest realism check is the UAT-2/UAT-3 probe list: replay each old
   finding's exact input at its original game location, then log new findings
   with the console `stage` evidence attached.
@@ -124,6 +142,23 @@ north`) while the NL input was still German — a self-contradictory state the
 - Quoted commands (`"open mailbox"`) are the reliable escape hatch and each
   use doubles as a passthrough test; prefer them over toggling the picker to
   English so the session stays in-language end to end.
+- **A clean-looking GAME response can MASK an LLM mangle — the screen lies, the
+  `[nl] clause` log doesn't.** (UAT 2026-06-22, BUG C.) `inflate plastic with
+pump` printed "You can't see any pump here!", which reads as a correct parse —
+  but the console showed `stage:"llm"` / `result.text:"turn on pump"`: the LLM
+  had dropped the verb. The plausible game error came from the _mangled_ command,
+  not the typed one. **ALWAYS confirm a command raw-sent (`stage:"vocab"`/
+  `"lexicon"`, `result.text` ≈ input) before trusting it parsed** — a missing
+  vocab word produces a different-but-still-plausible Zork error every time.
+  Fastest capture for English `full` runs (the console reader DUPLICATES history):
+  patch `console.log` once to push `[nl] clause` payloads into a
+  `window.__nlClauses` array, reset it per probe, read it after.
+- **A verb in the vocab as a 6-char-truncated form (`inflat`) raw-sends for
+  fr/de/es but NOT for English.** The lexicon `hasVerbForm` is truncation-aware;
+  the English `vocabWordSet`/`isVocabPassthrough` gate is exact-match. So a
+  truncated verb head is an English-only leak (fixed for BUG C by de-truncating
+  in `scripts/lib/zil.mjs`). When a puzzle verb fails ONLY in English, suspect a
+  truncated `verbs2`/`verbs1` entry: `grep -n "'[a-z]\{6\}'" zork{N}.vocab.ts`.
 
 ## Output-translation testing (corpus gates have a known blind spot)
 
@@ -683,3 +718,149 @@ disambiguation safely, type a non-button command like `look`. I2b (2-candidate) 
 not independently reachable (needs two same-noun objects in scope, late-game); the
 2-candidate template is the strictly-simpler sibling of the verified 4-candidate
 and is unit-pinned — covered by extension.
+
+## Walkthrough NL sweep (2026-06-22, branch `ovid/fix-the-it-bug`) — ⭐ BUG G: PSEUDO-scenery LLM mangle
+
+Ran the offline `isVocabPassthrough` sweep over 214 natural-English rephrasings of
+every Zork I walkthrough action (articles + the game's _display_ nouns + adjectives
+
+- verb synonyms), then the recommended ZIL cross-check, then live confirmation in a
+  warm-LLM browser session. **Two technique refinements that made the result rigorous:**
+
+* **Diff the game's WHOLE dictionary against our gate, not just the probes.** Extract
+  every `(SYNONYM …)` + `(ADJECTIVE …)` word from `1dungeon.zil`/`zork1.zil` (319
+  words) and check `our.has(g) || our.has(g[:6])` for each. Result: **0 of 318 game
+  dictionary words are rejected** by our gate when the player types the game's own
+  word — the BUG A–F fixes hold, the gate is healthy. So every sweep rejection is
+  EITHER flavor prose the game ALSO rejects (LLM route is correct) OR an edge class.
+* **The edge class the dictionary-diff misses: room-level `(PSEUDO "WORD" FUNC)`
+  scenery.** `extractNouns` (`scripts/lib/zil.mjs:483`) only scans `<OBJECT …>`
+  forms; `(PSEUDO …)` lives inside `<ROOM …>` blocks and is **never extracted**, so
+  those words reach neither `vocabWordSet` NOR the GBNF grammar. Grep them with
+  `grep -hoE '\(PSEUDO[^)]*\)' zork1/1dungeon.zil`. Zork I has 13 distinct PSEUDO
+  words; **10 are absent from our gate**: `chain, chasm, dome, gas, lake, nail,
+nails, odor, paint, stream` (`door`/`gate`/`gates` are covered by real objects).
+
+**⭐ BUG G (live-verified twice, full LLM mode, East-West Passage):** examining a
+PSEUDO-scenery object **silently mangles to `look`**. The grammar lacks the noun, so
+the constrained LLM cannot emit it and **drops the object entirely**:
+
+- `examine the iron chain` → `stage:"llm"`, `raw:{"verb":"look"}`, `result.text:"look"`
+  → prints the room description, +1 turn. Player's command silently lost.
+- `examine the dome` → `stage:"llm"`, `{"verb":"look"}` → same.
+- CONTRAST (why it's specifically the missing noun): `examine the sword of great
+antiquity` → `{"verb":"examine","object":"sword"}` → "There's nothing special about
+  the sword." The grammar-constrained LLM strips the flavor adjectives FINE when the
+  noun (`sword`) is in the grammar; it only fails when the noun itself is missing.
+  This is exactly the BUG C masking lesson — a clean-looking room redraw hides a
+  dropped command. The `[nl] clause` log is the only tell.
+- Also verified healthy this run: English conjoined objects `drop the lunch and the
+glass bottle` → two `stage:"vocab"` raw-sends, both "Dropped." (no LLM); and the
+  modified-quantifier fixes (`drop all but the lamp` / `put all in case` / `take all
+except the lamp`) all worked in the resumed transcript (BUG F holds).
+
+**RESOLVED 2026-06-23 (Ovid go-ahead "A" → option A, TDD).** Added a NEW
+`extractScenery(dungeonSrc, knownWords)` in `scripts/lib/zil.mjs` that reads room
+`(PSEUDO "WORD" FUNC …)` properties (the part of `<ROOM>` blocks `extractNouns`
+never sees), deduped/sorted, EXCLUDING words already known via real objects/verbs
+(door/gate/gates back real objects → not re-added). Chose a **separate
+`Vocab.scenery?: string[]` field** (NOT folding scenery into `nouns`) so the words
+feed ONLY the GBNF grammar (`buildGrammar` noun production) + the passthrough gate
+(`vocabWordSet`) + the `parseCommand` emit-validation set — and stay OUT of the
+scene tracker (`mentions`/`surfaceForms`/antecedent). Rationale: pseudo-objects are
+stateless room-local flavor, never an "it" referent, and this avoids perturbing the
+scope/"it" machinery (the very thing this `ovid/fix-the-it-bug` branch is about) and
+the emit-uniqueness/collision logic. Regenerated `zork{1,2,3}.vocab.ts`: zork1
+scenery = `chain chasm dome gas lake nail nails odor paint stream` (the 10 leaking
+words exactly); zork2 got `homunculi mortar owl pestle riddle stalactite stalagmite`;
+zork3 `torch torche`. **Live-verified in a fresh tab:** `examine the chain` →
+`stage:"vocab"` raw-send; `examine the iron chain` → `stage:"llm"` now emits
+`{"verb":"examine","object":"chain"}` (object PRESERVED) → both print Zork's honest
+"You can't see any chain here!" instead of the silent "look" room-redraw. `make all`
+green (1322). Pins: `scripts/lib/zil.test.mjs` (extractScenery + buildVocabModule),
+`buildGrammar.test.ts`, `inputTranslate.test.ts` (gate + parseCommand, fixture AND
+real ZORK1_VOCAB "examine the chain"), `vocab-invariants.test.ts` (scenery set,
+disjoint-from-nouns, door/gate/gates excluded, grammar-emittable). Multilingual: the
+scenery words are the GAME's English nouns → they help ALL LLM input languages
+(fr/de/es scenery typed in-language → lexicon miss → LLM can now emit the English
+canonical) + English passthrough; ka (output-only, raw-sends English) is unaffected
+on input, exactly as required. Note for a future pass: Zork II/III scenery is now
+extracted too but was NOT live-played this session (zork1 only) — worth a quick
+in-game scenery probe when those games get a UAT.
+
+## Pronoun / "it"-resolution sweep (2026-06-23, branch `ovid/fix-the-it-bug`) — ⭐ BUG H + BUG I
+
+The vocab gate is healthy after BUG A–G, so this pass mined the OTHER NL surface
+the branch is named for: **English "it"/"them" resolution.** The walkthrough spells
+out every object, but a real player leans on pronouns constantly ("take lamp; turn
+it on", "open coffin; take it", "put it in the case"). Two new bugs, both live-
+confirmed and fixed (TDD), both in the same family the deterministic-pronoun path
+was built to close.
+
+**Technique — offline scene-tracker replay + a `runClause` LLM-sentinel.** No new
+gate sweep needed; instead replay walkthrough turns through the REAL machinery in a
+throwaway `*.test.ts`:
+
+- Fold `reduceScene(prev, {location, outputText, lastCommand}, ZORK1_VOCAB)` over
+  the walkthrough's own command/output pairs to build the live `antecedent`/`inScope`
+  at each step (the walkthrough IS the game output, so the replay is faithful).
+- Classify a probe by calling the REAL `runClause(clause, scene, 'en', null, false,
+deps)` with `generateRaw: async () => { throw LLM_SENTINEL }`. Any probe that
+  throws the sentinel REACHES THE LLM (= candidate "it"-bug, since the LLM ignores
+  the antecedent and anchors the pronoun to a constant noun). A probe that returns
+  `stage:"vocab"`/`"lexicon"` is safe.
+- Then confirm live in a warm-LLM English session and read `window.__nlClauses`
+  (`[nl] clause` capture hook) — the screen LIES (BUG C lesson): "turn it on" printed
+  the correct "It is already on." while the log showed `stage:"llm"`,
+  `raw:{"verb":"turn on","object":"light"}` — the LLM dropped "it" and hit the lamp
+  only by luck (light≈lamp). The decisive proof is comparing the LLM route to the
+  quoted raw-send escape hatch: `put lunch in it` → LLM → "take food" → "You already
+  have that!" vs. `"put lunch in it"` (quoted, raw-sent) → Zork's correct "There's no
+  room." **Zork's native "it" is authoritative — it even beat our tracker (which had
+  a stale `antecedent`).**
+
+**⭐ BUG H (RESOLVED 2026-06-23, commit ae43cc9):** richer English pronoun forms —
+particle `turn it on` / `pick it up`, container `put painting in it`, prep-tail
+`give it to thief` — fell through BOTH `resolveEnglishPronoun` AND the old
+`isEnglishPronounClause` to the warm LLM, which mangled them. Root cause:
+`englishVerbBeforeTail` only matches a pronoun in FINAL position after EXACTLY one
+verb phrase, so word order alone decided the outcome (`turn on it` → deterministic
+"turn on lamp", but `turn it on` → LLM). Fix: broaden `isEnglishPronounClause` (the
+raw-send net, parse.ts) to raw-send ANY clause that leads with a known vocab verb,
+holds exactly one `it`/`them` token, and whose every other token is a Z-parser word
+(`vocabKnows`, truncation-aware) — Zork's parser tracks "it" natively. Bare-form
+`resolveEnglishPronoun` (deterministic substitution, nicer echo) unchanged and still
+runs first. ENGLISH-SPECIFIC: raw-send presumes the English VM; fr/de/es already
+resolve container/direct pronouns in `parseLexicon`'s `pronounsContainer`/
+`pronounsDirect` branches (the English particle-in-the-middle construction has no
+fr/de/es analog — they attach a clitic, a different path). Pinned:
+`parse.test.ts` "richer pronoun forms (BUG H)". Live-verified fresh tab: `turn it
+on`/`put lunch in it` now `stage:"vocab"`, correct Zork responses.
+
+**⭐ BUG I (RESOLVED 2026-06-23, commit fdffbe4):** examining/looking-in an EMPTY
+container scrubbed it from scope, so `examine bottle` then `open it` opened the
+PREVIOUSLY-referenced object (live: `examine sword` → `examine bottle` → `open it`
+→ "You must tell me how to do that to a sword."; log `stage:"lexicon"`,
+`text:"open sword"`). Root cause: `ABSENCE_PAT`'s `"X is empty"` clause (present
+since the first scene-tracker commit) captured the CONTAINER named before "is empty"
+and `suppressed()` removed it — but "X is empty" means X is PRESENT, only its unnamed
+CONTENTS are absent, so suppressing X is backwards (and there were never named
+contents to suppress). Fix: drop the `\b([a-z]+)\s+is\s+empty\b` alternative from
+`ABSENCE_PAT` (patterns.ts). Correct on all three consumers — `suppressed()`
+(tracker), `clauseFailed()` (compound abort), `refusalApplies()` (`failurePat`, never
+used "is empty" anyway): examining an empty container is a SUCCESSFUL command, not an
+absence/failure. Multilingual: `ABSENCE_PAT` is shared EN/FR/DE/ES, so all input
+languages get the corrected scope; output corpora unaffected. Pinned:
+`tracker.test.ts` "an empty-container line keeps the container as the antecedent";
+the two tests that pinned the old suppression (`patterns.test.ts`, `tracker.test.ts`
+"absence/negation suppresses a mention") updated to corrected behavior. Live-verified
+fresh tab: `open it` after `examine bottle` → `stage:"lexicon"`,
+`antecedent:"glass bottle"`, "open bottle".
+
+**Confirmed healthy this pass (no bug):** compound + pronoun (`drop sword and take
+it` → clause 2 `take it` → "take sword"; the compound loop observes between clauses);
+`look in it` after `examine bottle` (raw-send net covers `verbsOnly` verbs);
+bare `open it`/`read it`/`take it` still deterministically substitute via
+`resolveEnglishPronoun`. The emit-form echo (`take it` → "take advertisement" for the
+leaflet) is BY DESIGN — `advertisement` is a real Zork dictionary word, so it
+resolves correctly; only the nl-source echo looks odd.

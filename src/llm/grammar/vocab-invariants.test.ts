@@ -6,6 +6,7 @@ import { ZORK1_VOCAB } from './zork1.vocab'
 import { ZORK2_VOCAB } from './zork2.vocab'
 import { ZORK3_VOCAB } from './zork3.vocab'
 import { META_COMMANDS } from '../meta'
+import { buildGrammar } from './buildGrammar'
 import type { Vocab } from './types'
 
 const games: Array<[string, Vocab]> = [
@@ -128,6 +129,52 @@ describe('vocab invariants (regeneration regression gate)', () => {
     expect(ZORK2_VOCAB.verbs1).toContain('kill')
     expect(ZORK1_VOCAB.verbs1).not.toContain('kill')
     expect(ZORK3_VOCAB.verbs1).not.toContain('kill')
+  })
+})
+
+// BUG G regression gate: room (PSEUDO "WORD" FUNC) scenery must reach the gate
+// AND the grammar, or the warm LLM (which can't emit a missing noun) drops the
+// object and mangles "examine the chain" -> "look". Verified live in UAT.
+describe('scenery (room PSEUDO words, BUG G)', () => {
+  it('zork1 extracts the live-verified scenery set', () => {
+    for (const w of [
+      'chain',
+      'chasm',
+      'dome',
+      'gas',
+      'lake',
+      'nail',
+      'nails',
+      'odor',
+      'paint',
+      'stream',
+    ])
+      expect(ZORK1_VOCAB.scenery).toContain(w)
+  })
+
+  it.each(games)(
+    '%s: scenery never duplicates a real-object dictionary word (exclusion works)',
+    (_name, v) => {
+      const nounWords = new Set<string>()
+      for (const n of v.nouns) {
+        nounWords.add(n.emit)
+        nounWords.add(n.canonical)
+        for (const s of n.synonyms ?? []) nounWords.add(s)
+        for (const a of n.adjectives ?? []) nounWords.add(a)
+      }
+      for (const s of v.scenery ?? []) expect(nounWords.has(s)).toBe(false)
+    },
+  )
+
+  it('zork1: door/gate/gates back real objects, so they are NOT re-added as scenery', () => {
+    for (const w of ['door', 'gate', 'gates'])
+      expect(ZORK1_VOCAB.scenery).not.toContain(w)
+  })
+
+  it('zork1: scenery words are emittable in the grammar (so the model can name them)', () => {
+    const g = buildGrammar(ZORK1_VOCAB)
+    for (const w of ['chain', 'dome', 'stream'])
+      expect(g).toContain(`"\\u0022${w}\\u0022"`)
   })
 })
 

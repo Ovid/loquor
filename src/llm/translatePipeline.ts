@@ -41,7 +41,13 @@ import {
   isVocabPassthrough,
 } from './inputTranslate'
 import { isHelpTrigger, helpResponse } from './help'
-import { parseLexicon } from './lexicon/parse'
+import {
+  parseLexicon,
+  resolveEnglishPronoun,
+  isEnglishPronounClause,
+  resolveEnglishQuantifier,
+  resolveEnglishQuantifierPhrase,
+} from './lexicon/parse'
 import type { CoreLexicon, NounLexicon } from './lexicon/types'
 import { parseDirection } from './directions'
 import { MAX_CLAUSES, QUEUE_CAP, LOAD_WATCHDOG_MS } from './config'
@@ -343,6 +349,45 @@ export async function runClause(
     const r = parseLexicon(clause, lex.core, lex.nouns, vocab, scene)
     if (r.kind === 'command')
       return { result: r, raw: '(lexicon)', stage: 'lexicon' }
+  } else if (activeLang === 'en') {
+    // Gated on the LANGUAGE, not "no noun lexicon" (I2): `lex` can be non-null
+    // with `lex.nouns === null` (an unregistered signature for a non-English
+    // picker), and the English resolvers below must never run on fr/de/es input
+    // — those clauses fall through to the LLM. The matchers are English-only
+    // (it/them/all/everything), so a misfire was unlikely even before, but the
+    // contract now matches the gate instead of relying on the tokens.
+    // English has no input lexicon, but a bare pronoun ("open it") is resolvable
+    // from the tracked antecedent — the same deterministic substitution fr/de/es
+    // get above. Without it the clause reaches the LLM and a static few-shot
+    // anchors the pronoun to a constant noun ("open advertisement").
+    const r = resolveEnglishPronoun(clause, vocab, scene)
+    if (r.kind === 'command')
+      return { result: r, raw: '(pronoun)', stage: 'lexicon' }
+    // "take all"/"take everything": English has no lexicon, so the bare
+    // quantifier reaches the LLM, which binds it to the antecedent or
+    // hallucinates ("take all" → "take large bag"). Map it deterministically
+    // to the Z-parser's ALL object — the fr/de/es quantifiersAll equivalent.
+    const q = resolveEnglishQuantifier(clause, vocab)
+    if (q.kind === 'command')
+      return { result: q, raw: '(quantifier)', stage: 'lexicon' }
+    // Modified quantifier ("put all in case", "drop all but the lamp", "take
+    // everything except the lamp"): the bare path above only catches "<verb> all".
+    // The Z-parser handles ALL with preps/EXCEPT natively, so raw-send the player's
+    // words (everything→all normalized) instead of letting the LLM mangle it to the
+    // same "take large bag" hallucination bare "take all" produced pre-BUG-A (BUG F).
+    const qp = resolveEnglishQuantifierPhrase(clause, vocab)
+    if (qp.kind === 'command')
+      return { result: qp, raw: '(quantifier-raw)', stage: 'vocab' }
+    // A well-formed "<verb> it/them" we couldn't pin to a specific object (no
+    // antecedent, or one not in vocab): raw-send the player's words to Zork,
+    // whose parser tracks "it" natively — far safer than the LLM, which
+    // hallucinates ("open it" → "open chests"). Verbatim, like passthrough.
+    if (isEnglishPronounClause(stripped, vocab))
+      return {
+        result: { kind: 'command', text: stripped },
+        raw: '(pronoun-raw)',
+        stage: 'vocab',
+      }
   }
   // 7. LLM fallback — skipped in grammar-only: abstain so stage 8 applies the
   //    existing policy (EN raw-send / non-EN notice). The engine is never touched.

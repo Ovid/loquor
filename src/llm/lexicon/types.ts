@@ -44,6 +44,11 @@ export interface CoreLexicon {
    * Z-parser's ALL object — 'prends tout' → 'take all', 'pose tout' → 'drop
    * all'. Optional: a language without it just falls these to the LLM. */
   quantifiersAll?: readonly string[]
+  /** Exclusion words (folded) for the MODIFIED quantifier — 'pose tout SAUF la
+   * lampe' → 'drop all except light'. The Z-parser's BUT/EXCEPT; emitted as the
+   * canonical 'except'. Optional: a language without it falls the except form to
+   * the LLM (the prep form still resolves via `preps`). */
+  quantifiersExcept?: readonly string[]
   /** Localized meta words → raw English command (migrates META_ALIASES). */
   metaAliases: Readonly<Record<string, string>>
 }

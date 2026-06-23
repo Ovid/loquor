@@ -63,6 +63,19 @@ describe('buildGrammar (vocab-driven, NL v2 §7)', () => {
     expect(g).toContain('"\\u0022with\\u0022"')
   })
 
+  it('adds scenery words to the noun production so the model can name them (BUG G)', () => {
+    // Room PSEUDO scenery (chain/dome/…) must be emittable: without it the
+    // grammar-constrained model can't produce "examine chain" and drops the
+    // object, mangling the command to "look".
+    const g = buildGrammar({ ...vocab, scenery: ['chain', 'dome'] })
+    expect(g).toContain('"\\u0022chain\\u0022"')
+    expect(g).toContain('"\\u0022dome\\u0022"')
+  })
+
+  it('a vocab without scenery builds exactly as before', () => {
+    expect(buildGrammar({ ...vocab, scenery: [] })).toBe(buildGrammar(vocab))
+  })
+
   it('encodes JSON quotes as XGrammar \\u0022 escapes, never \\" (Grammar.fromEBNF rejects \\")', () => {
     // XGrammar's EBNF parser follows W3C XML notation: a "..." string literal
     // cannot contain a literal " and the ONLY escapes it accepts are C-style

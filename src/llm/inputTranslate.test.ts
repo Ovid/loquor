@@ -23,6 +23,8 @@ import { ES_ZORK1 } from './lexicon/es.zork1'
 import type { Vocab } from './grammar/types'
 import type { NounLexicon } from './lexicon/types'
 import { ZORK1_VOCAB } from './grammar/zork1.vocab'
+import { ZORK2_VOCAB } from './grammar/zork2.vocab'
+import { ZORK3_VOCAB } from './grammar/zork3.vocab'
 import {
   TAKE_ACK,
   DROP_ACK,
@@ -88,6 +90,21 @@ describe('parseCommand (vocab-gated, scope-free)', () => {
 
   it('rejects an object not in the vocab emit set', () => {
     expect(parseCommand('{"verb":"open","object":"zeppelin"}', vocab)).toEqual({
+      kind: 'abstain',
+    })
+  })
+
+  it('accepts an emitted scenery object so it is not dropped to "look" (BUG G)', () => {
+    // Room PSEUDO scenery the grammar can now emit must validate here too, or the
+    // model's "examine chain" gets rejected → abstain → the player's command is
+    // silently lost (this is the mechanism behind the look-mangle).
+    const sc: Vocab = { ...vocab, scenery: ['chain'] }
+    expect(parseCommand('{"verb":"open","object":"chain"}', sc)).toEqual({
+      kind: 'command',
+      text: 'open chain',
+    })
+    // Without scenery the unknown noun is rejected — the pre-fix behavior.
+    expect(parseCommand('{"verb":"open","object":"chain"}', vocab)).toEqual({
       kind: 'abstain',
     })
   })
@@ -856,6 +873,33 @@ describe('isVocabPassthrough (stage 4 + collision guard)', () => {
       true,
     )
   })
+  it('passes a line whose noun is a room PSEUDO scenery word (BUG G)', () => {
+    const sc: Vocab = { ...pvVocab, scenery: ['chain'] }
+    expect(isVocabPassthrough('open the chain', sc, null)).toBe(true)
+    // Without scenery the unknown noun routes to the LLM (the pre-fix leak).
+    expect(isVocabPassthrough('open the chain', pvVocab, null)).toBe(false)
+  })
+  // The v3 Z-parser truncates BOTH dictionary words and player input to 6 chars
+  // before matching, so a vocab stored in its truncated form must still accept the
+  // full word a player types. Mirrors parse.ts hasVerbForm / roundtrip.ts. Without
+  // this, a source-truncated ZIL verb head (the original BUG C: gsyntax 'INFLAT' vs
+  // typed 'inflate') silently leaks past stage-4 passthrough into the LLM.
+  it('truncation-aware: a >6-char token matches a 6-char-truncated vocab entry', () => {
+    // truncVocab holds only the truncated 'inflat' (no full 'inflate').
+    const truncVocab: Vocab = {
+      ...pvVocab,
+      verbs2: [...pvVocab.verbs2, 'inflat'],
+    }
+    expect(
+      isVocabPassthrough('inflate the small mailbox', truncVocab, null),
+    ).toBe(true)
+  })
+  it('truncation widening does not over-match an unknown long word', () => {
+    // 'zeppelinesque'[:6] = 'zeppel' is in no vocab field → still rejected.
+    expect(
+      isVocabPassthrough('zeppelinesque the small mailbox', pvVocab, null),
+    ).toBe(false)
+  })
 })
 
 // Task 8b: pin es conjoined+trailing-prep distribution (spec N3 coverage).
@@ -893,6 +937,134 @@ describe('canonical (DESC) words pass the vocab gate (Zork I)', () => {
     // Guard the real-data shape: emit is 'advertisement', synonyms exclude
     // 'leaflet', so only adding the canonical to the word set makes this pass.
     expect(isVocabPassthrough('take the leaflet', ZORK1_VOCAB, null)).toBe(true)
+  })
+})
+
+// BUG C (UAT 2026-06-22): the two-object verb 'inflate' appears in zork1/gsyntax.zil
+// as the v3 dictionary-truncated SYNTAX atom (<SYNTAX INFLAT OBJECT WITH OBJECT …>) —
+// the LONE truncated verb head (DEFLATE/EXTINGUISH/LAUNCH are full). The extractor
+// copied it verbatim, so verbs2 held 'inflat', and the English passthrough gate
+// exact-matches the typed 'inflate' against 'inflat', misses, and routes every inflate
+// command to the warm LLM, which mangles it ('inflate plastic with pump' → 'turn on
+// pump') and BREAKS the magic-boat puzzle (in grammar-only mode it would raw-send and
+// work — the warm-LLM trap). The 'inflat' ADJECTIVE on the boat object is a real
+// truncated dictionary word and is unaffected. Fix: the extractor de-truncates the
+// verb head to the in-game spelling 'inflate' the Z-parser accepts.
+describe('inflate verb passes the vocab gate (Zork I) — BUG C', () => {
+  it.each(['inflate plastic with pump', 'inflate the boat with the pump'])(
+    '%s clears the vocab gate (raw-sends, not the LLM)',
+    cmd => {
+      expect(isVocabPassthrough(cmd, ZORK1_VOCAB, null)).toBe(true)
+    },
+  )
+})
+
+// PREPOSITION SYNONYMS (UAT 2026-06-22, same class as BUG C): gsyntax.zil declares
+// each canonical prep WITH its synonyms — <SYNONYM IN INSIDE INTO>, <SYNONYM ON ONTO>,
+// <SYNONYM UNDER UNDERNEATH BENEATH BELOW>, <SYNONYM WITH USING THROUGH THRU>. The
+// extractor kept only the canonical HEAD (in/on/under/with) and dropped the members,
+// so the English vocab-passthrough gate missed the literal word a player types and
+// routed e.g. 'put painting into case' to the warm LLM, which mangled it ('take
+// painting'; 'look underneath rug' → 'look'). The Z-parser accepts the synonyms
+// natively, so raw-sending them is correct. Identical gap in Zork I/II/III (shared
+// generic SYNTAX file). Fix: zil.mjs retains the prep-block synonym members in `preps`.
+describe('preposition synonyms pass the vocab gate (Zork I)', () => {
+  it.each([
+    'put painting into case', // IN → into (was LLM-mangled to "take painting")
+    'put painting inside case', // IN → inside
+    'put coal onto machine', // ON → onto
+    'look underneath rug', // UNDER → underneath (was LLM-mangled to "look")
+    'look beneath rug', // UNDER → beneath
+    'look below rug', // UNDER → below
+    'attack troll using sword', // WITH → using
+    'look through window', // WITH → through
+    'look thru window', // WITH → thru
+  ])('%s clears the vocab gate (raw-sends, not the LLM)', cmd => {
+    expect(isVocabPassthrough(cmd, ZORK1_VOCAB, null)).toBe(true)
+  })
+})
+
+describe('preposition synonyms are present in every game vocab (parity)', () => {
+  const PREP_SYNONYMS = [
+    'inside',
+    'into',
+    'onto',
+    'underneath',
+    'beneath',
+    'below',
+    'using',
+    'through',
+    'thru',
+  ]
+  it.each([
+    ['Zork I', ZORK1_VOCAB],
+    ['Zork II', ZORK2_VOCAB],
+    ['Zork III', ZORK3_VOCAB],
+  ] as const)('%s preps include every synonym', (_label, vocab) => {
+    for (const syn of PREP_SYNONYMS) expect(vocab.preps).toContain(syn)
+  })
+})
+
+// BUG E (UAT 2026-06-22, same class as BUG C/D): the Z-parser's BUZZ noise words
+// (zork1/gsyntax.zil:11 — <BUZZ A AN THE IS AND OF THEN ALL ONE BUT EXCEPT \. \,
+// \" YES NO Y HERE>, identical in Zork I/II/III) are *ignored* during parsing, so
+// the game's own multi-word object NAMES embed them: "a pot of gold", "a clove of
+// garlic", "a small pile of coal", "a pair of candles", "a trunk of jewels", "a
+// leather bag of coins", "a large coil of rope". A player reading those very
+// descriptions and typing them verbatim is the most natural phrasing there is — but
+// vocabWordSet only seeded the/a/an, so the noise word "of" missed the gate and
+// routed every "X of Y" command to the warm LLM (browser-confirmed stage:"llm":
+// "take the pot of gold" → "take pot" this run, but LLM-nondeterministic — the same
+// lottery as BUG A/C/D). In grammar-only mode they raw-send and work; it is the warm
+// LLM that breaks them. Fix: seed vocabWordSet with the BUZZ noise words the parser
+// ignores. Conjunctions (and/then) are consumed upstream by splitClauses, the
+// quantifier "all" by the quantifier path, and yes/no/y by the confirmation path —
+// those are excluded so their dedicated paths stay authoritative; the remainder
+// (of/is/one/but/except/here) are pure noise words it is always safe to raw-send.
+describe('BUZZ noise words pass the vocab gate — "X of Y" object names (Zork I)', () => {
+  it.each([
+    'take the pot of gold',
+    'take the clove of garlic',
+    'take the small pile of coal',
+    'take the pair of candles',
+    'take the trunk of jewels',
+    'take the leather bag of coins',
+    'take the large coil of rope',
+  ])('%s clears the vocab gate (raw-sends, not the LLM)', cmd => {
+    expect(isVocabPassthrough(cmd, ZORK1_VOCAB, null)).toBe(true)
+  })
+
+  it('still rejects a command with a genuinely unknown word (no over-match)', () => {
+    // The noise word is permissive ONLY in combination with real game words;
+    // an unknown noun still fails the gate and falls through to the LLM.
+    expect(
+      isVocabPassthrough('take the pot of zeppelin', ZORK1_VOCAB, null),
+    ).toBe(false)
+  })
+})
+
+// BUG G (UAT 2026-06-23, same class as BUG C/D/E): room-level (PSEUDO "WORD" FUNC)
+// scenery (chain/dome/chasm/stream/gas/lake/nail(s)/odor/paint) names words the
+// Z-parser recognizes but that have NO <OBJECT>. extractNouns reads only <OBJECT>
+// forms, so these missed both the gate AND the grammar — and the warm LLM, unable
+// to emit a noun absent from its constrained grammar, DROPPED the object and
+// mangled "examine the iron chain" → "look" (browser-confirmed twice, stage:"llm",
+// {"verb":"look"} — a clean room redraw masking the lost command, the BUG C trap).
+// Fix: extractScenery feeds these words to vocabWordSet + buildGrammar + parseCommand.
+describe('room PSEUDO scenery passes the vocab gate (Zork I) — BUG G', () => {
+  it.each([
+    'examine the chain',
+    'examine the dome',
+    'examine the stream',
+    'examine the chasm',
+  ])('%s clears the vocab gate (raw-sends, not the LLM)', cmd => {
+    expect(isVocabPassthrough(cmd, ZORK1_VOCAB, null)).toBe(true)
+  })
+
+  it('an emitted scenery object validates (not dropped to abstain → "look")', () => {
+    expect(
+      parseCommand('{"verb":"examine","object":"chain"}', ZORK1_VOCAB),
+    ).toEqual({ kind: 'command', text: 'examine chain' })
   })
 })
 

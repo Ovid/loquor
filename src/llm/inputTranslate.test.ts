@@ -94,6 +94,21 @@ describe('parseCommand (vocab-gated, scope-free)', () => {
     })
   })
 
+  it('accepts an emitted scenery object so it is not dropped to "look" (BUG G)', () => {
+    // Room PSEUDO scenery the grammar can now emit must validate here too, or the
+    // model's "examine chain" gets rejected → abstain → the player's command is
+    // silently lost (this is the mechanism behind the look-mangle).
+    const sc: Vocab = { ...vocab, scenery: ['chain'] }
+    expect(parseCommand('{"verb":"open","object":"chain"}', sc)).toEqual({
+      kind: 'command',
+      text: 'open chain',
+    })
+    // Without scenery the unknown noun is rejected — the pre-fix behavior.
+    expect(parseCommand('{"verb":"open","object":"chain"}', vocab)).toEqual({
+      kind: 'abstain',
+    })
+  })
+
   it('rejects an indirect object not in the vocab emit set', () => {
     expect(
       parseCommand(
@@ -858,6 +873,12 @@ describe('isVocabPassthrough (stage 4 + collision guard)', () => {
       true,
     )
   })
+  it('passes a line whose noun is a room PSEUDO scenery word (BUG G)', () => {
+    const sc: Vocab = { ...pvVocab, scenery: ['chain'] }
+    expect(isVocabPassthrough('open the chain', sc, null)).toBe(true)
+    // Without scenery the unknown noun routes to the LLM (the pre-fix leak).
+    expect(isVocabPassthrough('open the chain', pvVocab, null)).toBe(false)
+  })
   // The v3 Z-parser truncates BOTH dictionary words and player input to 6 chars
   // before matching, so a vocab stored in its truncated form must still accept the
   // full word a player types. Mirrors parse.ts hasVerbForm / roundtrip.ts. Without
@@ -1019,6 +1040,31 @@ describe('BUZZ noise words pass the vocab gate — "X of Y" object names (Zork I
     expect(
       isVocabPassthrough('take the pot of zeppelin', ZORK1_VOCAB, null),
     ).toBe(false)
+  })
+})
+
+// BUG G (UAT 2026-06-23, same class as BUG C/D/E): room-level (PSEUDO "WORD" FUNC)
+// scenery (chain/dome/chasm/stream/gas/lake/nail(s)/odor/paint) names words the
+// Z-parser recognizes but that have NO <OBJECT>. extractNouns reads only <OBJECT>
+// forms, so these missed both the gate AND the grammar — and the warm LLM, unable
+// to emit a noun absent from its constrained grammar, DROPPED the object and
+// mangled "examine the iron chain" → "look" (browser-confirmed twice, stage:"llm",
+// {"verb":"look"} — a clean room redraw masking the lost command, the BUG C trap).
+// Fix: extractScenery feeds these words to vocabWordSet + buildGrammar + parseCommand.
+describe('room PSEUDO scenery passes the vocab gate (Zork I) — BUG G', () => {
+  it.each([
+    'examine the chain',
+    'examine the dome',
+    'examine the stream',
+    'examine the chasm',
+  ])('%s clears the vocab gate (raw-sends, not the LLM)', cmd => {
+    expect(isVocabPassthrough(cmd, ZORK1_VOCAB, null)).toBe(true)
+  })
+
+  it('an emitted scenery object validates (not dropped to abstain → "look")', () => {
+    expect(
+      parseCommand('{"verb":"examine","object":"chain"}', ZORK1_VOCAB),
+    ).toEqual({ kind: 'command', text: 'examine chain' })
   })
 })
 

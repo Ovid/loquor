@@ -10,6 +10,7 @@ import {
   readForms,
   extractVerbsAndPreps,
   extractNouns,
+  extractScenery,
   extractDirections,
   buildVocabModule,
 } from './lib/zil.mjs'
@@ -70,7 +71,29 @@ function main() {
     const nounMerges = []
     const nouns = extractNouns(dungeon, globals, N, nounMerges)
     const movement = extractDirections(dungeon)
-    const vocab = { ...vp, movement, nouns }
+    // Words the parser already knows via real objects/verbs — a room PSEUDO word
+    // that collides with one (door/gate/gates) is NOT re-added as scenery.
+    const known = new Set()
+    const addWords = s => {
+      for (const w of String(s).toLowerCase().split(/\s+/)) if (w) known.add(w)
+    }
+    for (const v of [
+      ...vp.verbsOnly,
+      ...vp.verbs1,
+      ...vp.verbs2,
+      ...movement,
+      ...vp.preps,
+      ...vp.verbSynonyms,
+    ])
+      addWords(v)
+    for (const n of nouns) {
+      addWords(n.emit)
+      addWords(n.canonical)
+      for (const s of n.synonyms ?? []) addWords(s)
+      for (const a of n.adjectives ?? []) addWords(a)
+    }
+    const scenery = extractScenery(dungeon, known)
+    const vocab = { ...vp, movement, nouns, scenery }
 
     const outPath = join(ROOT, `src/llm/grammar/zork${N}.vocab.ts`)
     // Capture the committed verbsOnly BEFORE overwriting, for the drop diff below.
@@ -112,6 +135,9 @@ function main() {
     } else {
       console.log('  reconcile: no duplicate noun canonicals')
     }
+    console.log(
+      `  scenery (room PSEUDO) words: ${scenery.join(', ') || '(none)'}`,
+    )
     if (!vp.verbsOnly.includes('inventory')) {
       console.warn(
         `  WARNING: 'inventory' missing from zork${N} verbsOnly — it must stay emittable`,

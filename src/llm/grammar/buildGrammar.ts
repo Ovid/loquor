@@ -31,7 +31,10 @@ const ABSTAIN_TERM = `"{${DQ}verb${DQ}:${DQ}${ABSTAIN}${DQ}}"`
  * per locked decision 6.
  */
 export function buildGrammar(vocab: Vocab): string {
-  const nouns = vocab.nouns.map(n => n.emit)
+  // Room PSEUDO scenery (chain/dome/stream…) is emittable too: the model must be
+  // able to name it or it drops the object and mangles "examine chain" → "look"
+  // (BUG G). Scope is still a prompt hint only — these add to the full noun set.
+  const nouns = [...vocab.nouns.map(n => n.emit), ...(vocab.scenery ?? [])]
   const hasNouns = nouns.length > 0
   const hasV2 = hasNouns && vocab.verbs2.length > 0
 

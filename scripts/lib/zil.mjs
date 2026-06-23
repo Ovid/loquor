@@ -572,6 +572,35 @@ export function extractNouns(dungeonSrc, globalsSrc, N, mergeLog = []) {
   return entries
 }
 
+// Room-level (PSEUDO "WORD" FUNC …) properties name local scenery the Z-parser
+// recognizes (examine chain/dome/stream) with NO backing <OBJECT>. extractNouns
+// reads only <OBJECT> forms, so without this these words land in neither
+// vocabWordSet (the passthrough gate) nor the GBNF grammar — the warm LLM then
+// can't emit the unknown noun and DROPS it, mangling "examine the chain" into
+// "look" (UAT BUG G). Collected as a flat scenery word list that feeds the gate
+// + grammar (so the model can name them and English passthrough raw-sends them)
+// but NOT the scene tracker — pseudo-objects are stateless room-local flavor,
+// never an "it" antecedent, so they stay out of scope/antecedent resolution.
+// `knownWords` is the set of words the vocab already covers (real-object
+// dictionary words, verbs, preps…); a PSEUDO word already known there
+// (door/gate/gates back real objects) is dropped as a redundant duplicate.
+// Returns sorted-unique lowercase words.
+export function extractScenery(dungeonSrc, knownWords = new Set()) {
+  const out = new Set()
+  for (const f of readForms(dungeonSrc)) {
+    if (f.t !== 'list' || f.k !== '<' || headAtom(f) !== 'ROOM') continue
+    for (const it of f.items) {
+      if (it.t !== 'list' || it.k !== '(' || headAtom(it) !== 'PSEUDO') continue
+      for (const x of it.items)
+        if (x.t === 'str') {
+          const w = x.v.toLowerCase()
+          if (!knownWords.has(w)) out.add(w)
+        }
+    }
+  }
+  return [...out].sort()
+}
+
 // Render a Vocab literal as TypeScript source. Output is intentionally close to
 // the final shape; the generator runs Prettier over it so the committed file is
 // formatter-canonical (a fresh regenerate is a no-op diff).
@@ -602,6 +631,7 @@ export const ZORK${N}_VOCAB: Vocab = {
   nouns: [
 ${vocab.nouns.map(noun).join('\n')}
   ],
+  scenery: ${arr(vocab.scenery ?? [])},
   takeAck: TAKE_ACK,
   dropAck: DROP_ACK,
   absencePat: ABSENCE_PAT,

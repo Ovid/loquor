@@ -701,6 +701,7 @@ export const ZORK3_VOCAB: Vocab = {
     },
     { canonical: 'zorkmid', emit: 'zorkmid' },
   ],
+  scenery: ['torch', 'torche'],
   takeAck: TAKE_ACK,
   dropAck: DROP_ACK,
   absencePat: ABSENCE_PAT,

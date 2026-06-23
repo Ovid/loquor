@@ -357,6 +357,11 @@ export function vocabWordSet(vocab: Vocab): Set<string> {
     for (const s of n.synonyms ?? []) addWords(s)
     for (const adj of n.adjectives ?? []) addWords(adj)
   }
+  // Room PSEUDO scenery (chain/dome/stream…): parser-known words with no
+  // <OBJECT>, so a command made of them + real game words is safe to raw-send;
+  // without them the unknown noun misses the gate and routes to the warm LLM,
+  // which can't emit it and mangles "examine the chain" → "look" (BUG G).
+  for (const s of vocab.scenery ?? []) addWords(s)
   for (const m of META_COMMANDS) addWords(m)
   VOCAB_WORD_SETS.set(vocab, out)
   return out
@@ -648,7 +653,12 @@ export function parseCommand(rawJson: string, vocab: Vocab): TranslateResult {
   const object = typeof cmd.object === 'string' ? cmd.object : undefined
   const prep = typeof cmd.prep === 'string' ? cmd.prep : undefined
   const indirect = typeof cmd.indirect === 'string' ? cmd.indirect : undefined
-  const emits = new Set(vocab.nouns.map(n => n.emit))
+  // Scenery (room PSEUDO words) is nameable too — the grammar offers it, so the
+  // model's emitted object must validate here or it gets dropped to abstain (BUG G).
+  const emits = new Set([
+    ...vocab.nouns.map(n => n.emit),
+    ...(vocab.scenery ?? []),
+  ])
 
   const isOnly = vocab.verbsOnly.includes(verb) || vocab.movement.includes(verb)
   const is1 = vocab.verbs1.includes(verb)

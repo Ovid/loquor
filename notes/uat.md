@@ -718,3 +718,72 @@ disambiguation safely, type a non-button command like `look`. I2b (2-candidate) 
 not independently reachable (needs two same-noun objects in scope, late-game); the
 2-candidate template is the strictly-simpler sibling of the verified 4-candidate
 and is unit-pinned — covered by extension.
+
+## Walkthrough NL sweep (2026-06-22, branch `ovid/fix-the-it-bug`) — ⭐ BUG G: PSEUDO-scenery LLM mangle
+
+Ran the offline `isVocabPassthrough` sweep over 214 natural-English rephrasings of
+every Zork I walkthrough action (articles + the game's _display_ nouns + adjectives
+
+- verb synonyms), then the recommended ZIL cross-check, then live confirmation in a
+  warm-LLM browser session. **Two technique refinements that made the result rigorous:**
+
+* **Diff the game's WHOLE dictionary against our gate, not just the probes.** Extract
+  every `(SYNONYM …)` + `(ADJECTIVE …)` word from `1dungeon.zil`/`zork1.zil` (319
+  words) and check `our.has(g) || our.has(g[:6])` for each. Result: **0 of 318 game
+  dictionary words are rejected** by our gate when the player types the game's own
+  word — the BUG A–F fixes hold, the gate is healthy. So every sweep rejection is
+  EITHER flavor prose the game ALSO rejects (LLM route is correct) OR an edge class.
+* **The edge class the dictionary-diff misses: room-level `(PSEUDO "WORD" FUNC)`
+  scenery.** `extractNouns` (`scripts/lib/zil.mjs:483`) only scans `<OBJECT …>`
+  forms; `(PSEUDO …)` lives inside `<ROOM …>` blocks and is **never extracted**, so
+  those words reach neither `vocabWordSet` NOR the GBNF grammar. Grep them with
+  `grep -hoE '\(PSEUDO[^)]*\)' zork1/1dungeon.zil`. Zork I has 13 distinct PSEUDO
+  words; **10 are absent from our gate**: `chain, chasm, dome, gas, lake, nail,
+nails, odor, paint, stream` (`door`/`gate`/`gates` are covered by real objects).
+
+**⭐ BUG G (live-verified twice, full LLM mode, East-West Passage):** examining a
+PSEUDO-scenery object **silently mangles to `look`**. The grammar lacks the noun, so
+the constrained LLM cannot emit it and **drops the object entirely**:
+
+- `examine the iron chain` → `stage:"llm"`, `raw:{"verb":"look"}`, `result.text:"look"`
+  → prints the room description, +1 turn. Player's command silently lost.
+- `examine the dome` → `stage:"llm"`, `{"verb":"look"}` → same.
+- CONTRAST (why it's specifically the missing noun): `examine the sword of great
+antiquity` → `{"verb":"examine","object":"sword"}` → "There's nothing special about
+  the sword." The grammar-constrained LLM strips the flavor adjectives FINE when the
+  noun (`sword`) is in the grammar; it only fails when the noun itself is missing.
+  This is exactly the BUG C masking lesson — a clean-looking room redraw hides a
+  dropped command. The `[nl] clause` log is the only tell.
+- Also verified healthy this run: English conjoined objects `drop the lunch and the
+glass bottle` → two `stage:"vocab"` raw-sends, both "Dropped." (no LLM); and the
+  modified-quantifier fixes (`drop all but the lamp` / `put all in case` / `take all
+except the lamp`) all worked in the resumed transcript (BUG F holds).
+
+**RESOLVED 2026-06-23 (Ovid go-ahead "A" → option A, TDD).** Added a NEW
+`extractScenery(dungeonSrc, knownWords)` in `scripts/lib/zil.mjs` that reads room
+`(PSEUDO "WORD" FUNC …)` properties (the part of `<ROOM>` blocks `extractNouns`
+never sees), deduped/sorted, EXCLUDING words already known via real objects/verbs
+(door/gate/gates back real objects → not re-added). Chose a **separate
+`Vocab.scenery?: string[]` field** (NOT folding scenery into `nouns`) so the words
+feed ONLY the GBNF grammar (`buildGrammar` noun production) + the passthrough gate
+(`vocabWordSet`) + the `parseCommand` emit-validation set — and stay OUT of the
+scene tracker (`mentions`/`surfaceForms`/antecedent). Rationale: pseudo-objects are
+stateless room-local flavor, never an "it" referent, and this avoids perturbing the
+scope/"it" machinery (the very thing this `ovid/fix-the-it-bug` branch is about) and
+the emit-uniqueness/collision logic. Regenerated `zork{1,2,3}.vocab.ts`: zork1
+scenery = `chain chasm dome gas lake nail nails odor paint stream` (the 10 leaking
+words exactly); zork2 got `homunculi mortar owl pestle riddle stalactite stalagmite`;
+zork3 `torch torche`. **Live-verified in a fresh tab:** `examine the chain` →
+`stage:"vocab"` raw-send; `examine the iron chain` → `stage:"llm"` now emits
+`{"verb":"examine","object":"chain"}` (object PRESERVED) → both print Zork's honest
+"You can't see any chain here!" instead of the silent "look" room-redraw. `make all`
+green (1322). Pins: `scripts/lib/zil.test.mjs` (extractScenery + buildVocabModule),
+`buildGrammar.test.ts`, `inputTranslate.test.ts` (gate + parseCommand, fixture AND
+real ZORK1_VOCAB "examine the chain"), `vocab-invariants.test.ts` (scenery set,
+disjoint-from-nouns, door/gate/gates excluded, grammar-emittable). Multilingual: the
+scenery words are the GAME's English nouns → they help ALL LLM input languages
+(fr/de/es scenery typed in-language → lexicon miss → LLM can now emit the English
+canonical) + English passthrough; ka (output-only, raw-sends English) is unaffected
+on input, exactly as required. Note for a future pass: Zork II/III scenery is now
+extracted too but was NOT live-played this session (zork1 only) — worth a quick
+in-game scenery probe when those games get a UAT.

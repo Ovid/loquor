@@ -446,6 +446,11 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
   // es counterpart was already pinned, the fr one was missing.
   'You are in the living room. There is a doorway to the east, a wooden door with strange gothic lettering to the west, which appears to be nailed shut, a trophy case, and a rug lying beside an open trap door.':
     "Vous êtes dans le salon. Il y a une porte à l'est, une porte en bois à l'ouest couverte d'étranges caractères gothiques, qui semble clouée, une vitrine à trophées, et un tapis posé à côté d'une trappe ouverte.",
+  // Rug moved, trap door CLOSED, pre-cyclops (west door still nailed shut). The
+  // golden-path state between `move rug` and `open trap door` (UAT 2026-06-23),
+  // missing from every corpus. Nailed-shut prefix + closed-trap-door suffix.
+  'You are in the living room. There is a doorway to the east, a wooden door with strange gothic lettering to the west, which appears to be nailed shut, a trophy case, and a closed trap door at your feet.':
+    "Vous êtes dans le salon. Il y a une porte à l'est, une porte en bois à l'ouest couverte d'étranges caractères gothiques, qui semble clouée, une vitrine à trophées, et une trappe fermée à vos pieds.",
   // Same moved-rug / open-trap-door state, AFTER the cyclops smashes the west
   // door into a cyclops-shaped opening:
   'You are in the living room. There is a doorway to the east. To the west is a cyclops-shaped opening in an old wooden door, above which is some strange gothic lettering, a trophy case, and a rug lying beside an open trap door.':

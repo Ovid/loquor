@@ -9,6 +9,12 @@ describe('Zork I × Georgian — runtime-composed Living Room variants (UAT)', (
   const c = compileCorpus(ZORK1_KA)
   const preCyclops =
     'You are in the living room. There is a doorway to the east, a wooden door with strange gothic lettering to the west, which appears to be nailed shut, a trophy case, and a rug lying beside an open trap door.'
+  // Rug moved, trap door CLOSED, BEFORE the cyclops is defeated (west door still
+  // nailed shut). The golden-path state between `move rug` and `open trap door`:
+  // a player who looks after moving the rug hits it. Surfaced in UAT 2026-06-23
+  // — every corpus had the post-cyclops closed-trap variant but not this one.
+  const preCyclopsClosedTrap =
+    'You are in the living room. There is a doorway to the east, a wooden door with strange gothic lettering to the west, which appears to be nailed shut, a trophy case, and a closed trap door at your feet.'
   const postCyclops =
     'You are in the living room. There is a doorway to the east. To the west is a cyclops-shaped opening in an old wooden door, above which is some strange gothic lettering, a trophy case, and a rug lying beside an open trap door.'
   const postCyclopsClosedTrap =
@@ -16,6 +22,7 @@ describe('Zork I × Georgian — runtime-composed Living Room variants (UAT)', (
 
   for (const [name, en] of Object.entries({
     preCyclops,
+    preCyclopsClosedTrap,
     postCyclops,
     postCyclopsClosedTrap,
   })) {

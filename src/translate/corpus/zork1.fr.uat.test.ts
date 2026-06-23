@@ -157,6 +157,21 @@ describe('Zork I × French — moved-rug / open-trap-door Living Room variants (
     expect(out).toContain('cyclope')
     expect(out).toContain('trappe ouverte')
   })
+
+  // Rug moved, trap door CLOSED, BEFORE the cyclops is defeated (west door still
+  // nailed shut) — the golden-path state between `move rug` and `open trap door`.
+  // UAT 2026-06-23: every corpus had the post-cyclops closed-trap variant but
+  // not this pre-cyclops one, so it leaked English after moving the rug.
+  it('translates the pre-cyclops closed-trap-door variant', () => {
+    const en =
+      'You are in the living room. There is a doorway to the east, a wooden door with strange gothic lettering to the west, which appears to be nailed shut, a trophy case, and a closed trap door at your feet.'
+    const out = matchLine(c, en)
+    expect(out).not.toBeNull()
+    expect(out).not.toBe(en)
+    expect(out).toContain('salon')
+    expect(out).toContain('clouée')
+    expect(out).toContain('trappe fermée')
+  })
 })
 
 // French mirror of the es book-disambiguation finding (F3). The parser's "Which

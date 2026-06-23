@@ -411,6 +411,13 @@ export const ZORK1_KA_STRINGS: Record<string, string> = {
     'მისაღებ ოთახში ხარ. აღმოსავლეთით კარია, დასავლეთით უცნაური გოთური წარწერებიანი ხის კარი, რომელიც, როგორც ჩანს, ლურსმნებითაა ჩაჭედილი, ჯილდოების ვიტრინა და ოთახის შუაში დიდი აღმოსავლური ხალიჩა.',
   'You are in the living room. There is a doorway to the east, a wooden door with strange gothic lettering to the west, which appears to be nailed shut, a trophy case, and a rug lying beside an open trap door.':
     'მისაღებ ოთახში ხარ. აღმოსავლეთით კარია, დასავლეთით უცნაური გოთური წარწერებიანი ხის კარი, რომელიც, როგორც ჩანს, ლურსმნებითაა ჩაჭედილი, ჯილდოების ვიტრინა და ხალიჩა, ღია საიდუმლო ხაფანგ-კარის გვერდით გაშლილი.',
+  // NATIVE-REVIEW-DRAFT — rug moved, trap door CLOSED, pre-cyclops (west door
+  // still nailed shut). Golden-path state between `move rug` and `open trap
+  // door` (UAT 2026-06-23). Composed from the two authored variants: the
+  // nailed-shut prefix (oriental-rug variant) + the closed-trap-door suffix
+  // (post-cyclops closed-trap variant).
+  'You are in the living room. There is a doorway to the east, a wooden door with strange gothic lettering to the west, which appears to be nailed shut, a trophy case, and a closed trap door at your feet.':
+    'მისაღებ ოთახში ხარ. აღმოსავლეთით კარია, დასავლეთით უცნაური გოთური წარწერებიანი ხის კარი, რომელიც, როგორც ჩანს, ლურსმნებითაა ჩაჭედილი, ჯილდოების ვიტრინა და ფეხებთან დახურული საიდუმლო ხაფანგ-კარი.',
   'You are in the living room. There is a doorway to the east. To the west is a cyclops-shaped opening in an old wooden door, above which is some strange gothic lettering, a trophy case, and a rug lying beside an open trap door.':
     'მისაღებ ოთახში ხარ. აღმოსავლეთით კარია. დასავლეთით ძველ ხის კარში ციკლოპის ფორმის ხვრელია, რომლის ზემოთაც უცნაური გოთური წარწერებია, ჯილდოების ვიტრინა და ხალიჩა, ღია საიდუმლო ხაფანგ-კარის გვერდით გაშლილი.',
   'You are in the living room. There is a doorway to the east. To the west is a cyclops-shaped opening in an old wooden door, above which is some strange gothic lettering, a trophy case, and a closed trap door at your feet.':

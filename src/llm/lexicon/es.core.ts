@@ -347,6 +347,9 @@ export const ES_CORE: CoreLexicon = {
   // already have this; ES_CORE lacked it, so 'deja todo' missed (UAT-es-3).
   // Bare English 'all'/'everything' too, for the player who mixes in English.
   quantifiersAll: ['todo', 'todos', 'toda', 'todas', 'all', 'everything'],
+  // Exclusion words for the modified quantifier ('deja todo EXCEPTO la lampara'
+  // → 'drop all except light').
+  quantifiersExcept: ['excepto', 'salvo', 'menos'],
   // NOTE (personal-`a` hazard, for the deterministic parser — Task 13):
   // Spanish marks animate DIRECT objects with `a`/`al` ('ataca al troll',
   // 'sigue al ladron') — the same surface form as the indirect-object prep

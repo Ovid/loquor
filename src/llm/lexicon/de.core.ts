@@ -376,6 +376,9 @@ export const DE_CORE: CoreLexicon = {
   // (as in fr/es): a German-picker player typing English "take all" hits the
   // same gap, and without it falls to the LLM (UAT Bug A).
   quantifiersAll: ['alles', 'alle', 'all', 'everything'],
+  // Exclusion words for the modified quantifier ('lass alles AUSSER die lampe' →
+  // 'drop all except light'). Folded ('außer' → 'ausser' via fold's ß→ss).
+  quantifiersExcept: ['ausser'],
   metaAliases: {
     inventar: 'inventory', // migrated from META_ALIASES
     diagnose: 'diagnose',

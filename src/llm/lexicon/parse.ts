@@ -275,7 +275,10 @@ export function resolveEnglishQuantifier(
  * immediately after it, there IS a remainder (the bare form is
  * resolveEnglishQuantifier's job), and every remainder token is a word the parser
  * knows (vocabWordSet, 6-char-truncation-aware) — so a fuzzy phrase still falls to
- * the LLM rather than raw-sending garbage. A miss leaves the clause for the caller. */
+ * the LLM rather than raw-sending garbage. A miss leaves the clause for the caller.
+ * The fr/de/es equivalent is parseLexicon's MODIFIED-quantifier branch, which
+ * TRANSLATES the localized tail (prep via core.preps, exclusion via
+ * core.quantifiersExcept) rather than raw-sending it (I1). */
 export function resolveEnglishQuantifierPhrase(
   clause: string,
   vocab: Vocab,
@@ -368,6 +371,33 @@ export function parseLexicon(
     return verbArity1or2(verb, vocab)
       ? { kind: 'command', text: `${verb} all` }
       : MISS
+
+  // --- MODIFIED "all" quantifier (fr/de/es parity for the English BUG F path):
+  // '<verb> <all> <prep> <noun>' ('mets tout dans la caisse' → 'put all in
+  // case') or '<verb> <all> <except> <noun>' ('pose tout sauf la lampe' → 'drop
+  // all except light'). The English equivalent (resolveEnglishQuantifierPhrase)
+  // RAW-SENDS because the player's words are already English; a localized tail
+  // must be TRANSLATED — the prep mapped via core.preps, the exclusion via
+  // core.quantifiersExcept (emitted as the canonical 'except'), the noun
+  // resolved. Without it these natural endgame phrasings fell to the LLM, which
+  // mangled them like bare 'take all' did pre-Bug-A ('put all in case' → 'take
+  // large bag'). A tail we can't translate falls through (never raw-send foreign
+  // words) — the later stages MISS on the leading quantifier. ---
+  if (tokens.length >= 3 && (core.quantifiersAll ?? []).includes(tokens[0])) {
+    const rest = tokens.slice(1)
+    if ((core.quantifiersExcept ?? []).includes(rest[0])) {
+      const obj = resolveNoun(rest.slice(1), core, nouns, vocab, scene)
+      if (obj && verbArity1or2(verb, vocab))
+        return { kind: 'command', text: `${verb} all except ${obj.emit}` }
+    } else {
+      const prep = core.preps[rest[0]]
+      if (prep && vocab.preps.includes(prep)) {
+        const obj = resolveNoun(rest.slice(1), core, nouns, vocab, scene)
+        if (obj && verbArityOk(verb, vocab, 2))
+          return { kind: 'command', text: `${verb} all ${prep} ${obj.emit}` }
+      }
+    }
+  }
 
   // --- Pronoun-only remainder (clitics already split by fold: 'prends le').
   // Standalone le/la/les (no following noun) is a PRONOUN; in leading position

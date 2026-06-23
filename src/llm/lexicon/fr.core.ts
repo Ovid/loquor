@@ -315,6 +315,9 @@ export const FR_CORE: CoreLexicon = {
   // 'tout/tous/toute/toutes' (folded) and the bare English 'all'/'everything'
   // → ALL (English words for the player who mixes in English; Bug A parity).
   quantifiersAll: ['tout', 'tous', 'toute', 'toutes', 'all', 'everything'],
+  // Exclusion words for the modified quantifier ('pose tout SAUF la lampe' →
+  // 'drop all except light'). Folded ('excepté' → 'excepte').
+  quantifiersExcept: ['sauf', 'excepte', 'hormis'],
   metaAliases: {
     inventaire: 'inventory', // fr (migrated from META_ALIASES)
     diagnostic: 'diagnose', // F5

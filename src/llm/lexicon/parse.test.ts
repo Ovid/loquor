@@ -116,11 +116,13 @@ const FR_NOUNS: NounLexicon = {
 const DE_NOUNS: NounLexicon = {
   'brass lantern': ['lampe', 'laterne'],
   'trap door': ['falltur'],
+  'trophy case': ['kiste', 'vitrine'],
   sword: ['schwert'],
   rope: ['seil'],
 }
 const ES_NOUNS: NounLexicon = {
   'brass lantern': ['lampara', 'linterna'],
+  'trophy case': ['vitrina'],
   sword: ['espada'],
   troll: ['troll'],
 }
@@ -839,5 +841,76 @@ describe('parseLexicon — bare English "all" maps in EVERY language (Bug A pari
     expect(
       parseLexicon('take everything', ES_CORE, ES_NOUNS, vocab, empty),
     ).toEqual({ kind: 'command', text: 'take all' })
+  })
+})
+
+// BUG F parity (I1): the English raw-send (resolveEnglishQuantifierPhrase)
+// catches the MODIFIED quantifier ("put all in case", "drop all but the lamp")
+// because the player's words are already English. fr/de/es got only the BARE
+// single-token quantifier in parseLexicon, so the localized endgame
+// treasure-casing shortcut ("mets tout dans la caisse") fell to the LLM — the
+// exact "take large bag" mangle the English fix was added to prevent. The
+// localized tail must be TRANSLATED (prep via core.preps / exclusion via
+// core.quantifiersExcept / noun resolved), emitting the canonical
+// "all <prep> <noun>" / "all except <noun>".
+describe('parseLexicon — MODIFIED "all" quantifier in fr/de/es (Bug F parity, I1)', () => {
+  it('French prep form: "mets tout dans la vitrine" → "put all in case"', () => {
+    expect(
+      parseLexicon(
+        'mets tout dans la vitrine',
+        FR_CORE,
+        FR_NOUNS,
+        vocab,
+        empty,
+      ),
+    ).toEqual({ kind: 'command', text: 'put all in case' })
+  })
+  it('French except form: "pose tout sauf la lampe" → "drop all except light"', () => {
+    expect(
+      parseLexicon('pose tout sauf la lampe', FR_CORE, FR_NOUNS, vocab, empty),
+    ).toEqual({ kind: 'command', text: 'drop all except light' })
+  })
+  it('German prep form: "leg alles in die kiste" → "put all in case"', () => {
+    expect(
+      parseLexicon('leg alles in die kiste', DE_CORE, DE_NOUNS, vocab, empty),
+    ).toEqual({ kind: 'command', text: 'put all in case' })
+  })
+  it('German except form (außer folds to ausser): "lass alles außer die lampe" → "drop all except light"', () => {
+    expect(
+      parseLexicon(
+        'lass alles außer die lampe',
+        DE_CORE,
+        DE_NOUNS,
+        vocab,
+        empty,
+      ),
+    ).toEqual({ kind: 'command', text: 'drop all except light' })
+  })
+  it('Spanish prep form: "pon todo en la vitrina" → "put all in case"', () => {
+    expect(
+      parseLexicon('pon todo en la vitrina', ES_CORE, ES_NOUNS, vocab, empty),
+    ).toEqual({ kind: 'command', text: 'put all in case' })
+  })
+  it('Spanish except form: "deja todo excepto la lampara" → "drop all except light"', () => {
+    expect(
+      parseLexicon(
+        'deja todo excepto la lampara',
+        ES_CORE,
+        ES_NOUNS,
+        vocab,
+        empty,
+      ),
+    ).toEqual({ kind: 'command', text: 'drop all except light' })
+  })
+  it('misses (falls to the LLM) when the tail noun is unknown — never raw-sends foreign words', () => {
+    expect(
+      parseLexicon('mets tout dans le zeppelin', FR_CORE, FR_NOUNS, vocab, empty),
+    ).toEqual({ kind: 'miss' })
+  })
+  it('bare "<verb> tout" still resolves via the single-token path (unchanged)', () => {
+    expect(parseLexicon('pose tout', FR_CORE, FR_NOUNS, vocab, empty)).toEqual({
+      kind: 'command',
+      text: 'drop all',
+    })
   })
 })

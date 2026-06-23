@@ -441,11 +441,14 @@ export function parseLexicon(
     const obj = resolveNoun(tokens.slice(0, -1), core, nouns, vocab, scene)
     if (!obj || !scene.antecedent) return MISS
     if (scene.antecedent === obj.canonical) return MISS // F-E: in itself
-    const container = byCanonical(vocab, scene.antecedent)
+    // antecedentObject (not bare byCanonical) so an ambiguous-synonym container
+    // ("window", no vocab canonical) emits verbatim like the direct-pronoun
+    // branch instead of missing to the LLM (I1).
+    const container = antecedentObject(vocab, scene.antecedent)
     if (!container || !verbArityOk(verb, vocab, 2)) return MISS
     return {
       kind: 'command',
-      text: `${verb} ${obj.emit} ${containerPronoun.prep} ${container.emit}`,
+      text: `${verb} ${obj.emit} ${containerPronoun.prep} ${container}`,
     }
   }
 

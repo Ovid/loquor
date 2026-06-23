@@ -274,6 +274,21 @@ describe('parseLexicon — French', () => {
       ),
     ).toEqual({ kind: 'miss' })
   })
+  it('container anaphora resolves an ambiguous-synonym antecedent (window) — I1', () => {
+    // 'window' is a shared synonym (boarded/kitchen window), NOT a vocab
+    // canonical, so byCanonical misses it; antecedentObject emits it verbatim,
+    // matching the direct-pronoun branch. Real ZORK1 data (the fixture has no
+    // ambiguous synonym for a container).
+    expect(
+      parseLexicon(
+        'mets le tableau dedans',
+        FR_CORE,
+        FR_ZORK1,
+        ZORK1_VOCAB,
+        scene([], 'window'),
+      ),
+    ).toEqual({ kind: 'command', text: 'put painting in window' })
+  })
   it('strictness: one unrecognized content token → miss', () => {
     expect(
       parseLexicon(

@@ -129,6 +129,19 @@ linguistically unverified; the per-line native-review worklist is
 speaker signs off). `composed-lines.uat.test.ts` was retired — its 7 UAT pins are now
 seed families asserted by the gate.
 
+**UAT 2026-06-23 follow-ups** (black-box play in the browser, all four langs):
+- ✅ **FIXED** — a Living Room state variant (west door *nailed shut* + *closed trap door at
+  your feet*: rug moved, trap closed, cyclops not yet defeated) was unpinned in **every**
+  corpus and leaked raw English right after `move rug`. Pinned in all four + regression tests
+  (added a German uat suite; de had none). Commit `fix(translate): pin pre-cyclops closed-trap
+  Living Room variant`.
+- ⏳ **OPEN — parser implicit-object parenthetical `(with the <obj>)` / `(<obj>)`** is a
+  **recon gap**: it is not in `composed-families.ts`. fr/de/es generalize it with a template;
+  **`ka` has only the `(with the match)` pin**, so `attack troll` → raw `(with the sword)`
+  leaks for Georgian on the golden path. Fix = add the family + author the `ka` instrumental
+  form with native review (the §4 case problem — instrumental is deliberately un-templated).
+  Full diagnosis + recommended fix: `notes/georgian-native-review-followup.md`.
+
 ### P2.2 — Dynamic disambiguation prompts (all langs)
 
 **STATUS: PARTIALLY DONE — ka-only (branch `ovid/zork1-input-parity`). fr/de/es

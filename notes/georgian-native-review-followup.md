@@ -56,6 +56,31 @@ Run the app in Georgian, play through, and capture any awkward line. The corpus-
   **`notes/georgian-composed-line-review.md`** (the per-line wording worklist for native
   review — 60 authored `ka` composed lines).
 
+- **STILL OPEN — parser implicit-object parenthetical `(with the <obj>)` / `(<obj>)`**
+  (UAT 2026-06-23, NOT yet gated — a recon miss). When the parser auto-supplies a missing
+  object it announces the assumption on its own line: `attack trophy case` with a weapon in
+  reach prints **`(with the sword)`**, `open` with one openable present prints `(the door)`,
+  etc. (`zork1/gparser.zil`). This is a **golden-path** line — `attack troll` → `(with the
+  sword)` is THE combat command. fr/de/es **generalize** it with a template
+  (`(with the {obj})` → `(mit {obj.bare})` / `(con {obj.def})` / `(avec {obj.def})`, plus the
+  bare `({obj})` form), so German renders `(mit Schwert)` deterministically. **`ka` has only a
+  single per-object string pin** — `'(with the match)': '(ასანთით)'` — and **no general
+  template**, so EVERY other object leaks raw English to a Georgian player (confirmed in
+  basic-mode play: `attack trophy case` → raw `(with the sword)`). This is exactly the
+  coverage-asymmetry trap the P2.1 spec describes: pinning a couple of instances (sword/knife)
+  would false-pass the gate while the rest still leak.
+  - **Why it isn't fixed in this UAT pass:** the natural `ka` form is INSTRUMENTAL
+    (`X-ით`), which `zork1.ka.templates.ts` (header note) deliberately does **not** template —
+    it is the §4 case problem (per-object stem/case). Authoring a general `ka` instrumental
+    template (or per-object instrumental pins for every auto-suppliable weapon/tool) is a
+    Georgian-gift case decision that needs native review, not an unsupervised guess — so it is
+    surfaced here per CLAUDE.md "talk to me first" rather than half-fixed.
+  - **Recommended fix:** register `(with the {obj})` and `({obj})` as families in
+    `composed-families.ts` (object binding = `all-objects`, so the union-drive exposes every
+    leaking object); add the fr/de/es templates to the drive (already present → green); author
+    the `ka` instrumental form with the native reviewer (safe-but-stiff over natural-but-wrong),
+    marked `NATIVE-REVIEW-DRAFT`. The gate will then enforce it like every other family.
+
 ## Provisional `ka` draft lines (NATIVE-REVIEW-DRAFT) — two batches
 
 > **Two separate batches, both NATIVE-REVIEW-DRAFT:** the 5 lines below were added on the

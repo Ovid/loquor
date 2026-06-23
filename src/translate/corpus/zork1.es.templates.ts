@@ -53,6 +53,15 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
     en: 'Which book do you mean, the {obj} or the {obj2}?',
     out: '¿A qué libro te refieres, {obj.def} o {obj2.def}?',
   },
+  // Generic disambiguation for any OTHER same-noun set (e.g. the dam buttons):
+  // DROP the queried noun ({raw} matched, not echoed) — the translated candidates
+  // disambiguate on their own, so no raw English noun is forced on a non-English
+  // reader in basic mode (deterministic-no-english goal; the `push button` dam
+  // prompt was LLM-routed → an EN leak with no model). «cuál» is gender-neutral.
+  // Sorts AFTER the literal book pin, so book keeps its natural «libro» mention.
+  { en: 'Which {raw} do you mean, the {obj} or the {obj2}?', out: '¿A cuál te refieres, {obj.def} o {obj2.def}?' },
+  { en: 'Which {raw} do you mean, the {obj}, the {obj2}, or the {obj3}?', out: '¿A cuál te refieres, {obj.def}, {obj2.def} o {obj3.def}?' },
+  { en: 'Which {raw} do you mean, the {obj}, the {obj2}, the {obj3}, or the {obj4}?', out: '¿A cuál te refieres, {obj.def}, {obj2.def}, {obj3.def} o {obj4.def}?' },
   // Parser orphan prompt (gparser.zil:760-774): "What do you want to <verb>[ the
   // <noun>] <prep>?". Off-walkthrough, runtime-composed, so both gates miss it; it
   // leaked RAW English (UAT 2026-06-20). {verb}/{raw} capture the player's echoed

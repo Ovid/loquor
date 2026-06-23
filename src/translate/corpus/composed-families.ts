@@ -121,6 +121,45 @@ export const COMPOSED_FAMILIES: readonly Family[] = [
     note: 'Orphan no-noun variant. Generic verb-less out in every language (player verb is on-screen). {verb} matched but not rendered.',
     bindings: { verb: { sample: 'take' } },
   },
+
+  // ── WHICH-PRINT object disambiguation (gparser.zil, looped 2-4 candidates).
+  //    The game echoes the player's queried noun ({raw}) then lists candidates.
+  //    Instance-driven by the dam buttons (a real same-noun set; `push button` in
+  //    the Maintenance Room is a guaranteed golden-path 4-candidate prompt). ka
+  //    echoes {raw} (the player's own typed word — English input today; revisit at
+  //    Phase-2 Georgian input); fr/de/es DROP the noun (drop-the-noun reframe —
+  //    translated candidates disambiguate on their own), so no English token is
+  //    forced on a non-English reader in basic mode (deterministic-no-english
+  //    goal). The shipped literal-"book" pins stay (specificity sorts them first →
+  //    natural noun mention for the book case).
+  {
+    en: 'Which {raw} do you mean, the {obj} or the {obj2}?',
+    reach: 'reachable',
+    note: 'gparser.zil WHICH-PRINT, 2-candidate. Dam buttons (blue/red). ka template ships; fr/de/es drop-noun generic added.',
+    instances: [{ raw: 'button', obj: 'blue button', obj2: 'red button' }],
+  },
+  {
+    en: 'Which {raw} do you mean, the {obj}, the {obj2}, or the {obj3}?',
+    reach: 'reachable',
+    note: 'gparser.zil WHICH-PRINT, 3-candidate. Dam buttons (blue/red/yellow).',
+    instances: [
+      { raw: 'button', obj: 'blue button', obj2: 'red button', obj3: 'yellow button' },
+    ],
+  },
+  {
+    en: 'Which {raw} do you mean, the {obj}, the {obj2}, the {obj3}, or the {obj4}?',
+    reach: 'reachable',
+    note: 'gparser.zil WHICH-PRINT, 4-candidate. The 4 dam buttons — `push button` golden-path prompt on the dam puzzle. ka template ships; fr/de/es drop-noun generic added (was LLM-routed → basic-mode EN leak).',
+    instances: [
+      {
+        raw: 'button',
+        obj: 'yellow button',
+        obj2: 'brown button',
+        obj3: 'red button',
+        obj4: 'blue button',
+      },
+    ],
+  },
 ]
 
 /** fr/de/es families deliberately routed to the LLM instead of a shared
@@ -143,8 +182,9 @@ export const EXPECTED_DEFERRED: readonly string[] = []
 /** Floor on the reachable-family count. RAISE when you add families; NEVER
  *  lower. Guards against a refactor silently emptying the inventory (spec
  *  honesty). Seed = 6 families (the two E-pins are one put-in family); +2 orphan
- *  families (with-prep + no-noun, Task 4) → 8. */
-export const REACHABLE_FLOOR = 8
+ *  families (with-prep + no-noun, Task 4) → 8; +3 WHICH-PRINT disambiguation
+ *  arities (2/3/4-candidate, Task 5) → 11. */
+export const REACHABLE_FLOOR = 11
 
 /** Skeleton-fidelity escape hatch for `extractStrings` ANCHORING MISSES only:
  *  a distinctive span that is verified-correct game text (read in the local ZIL /

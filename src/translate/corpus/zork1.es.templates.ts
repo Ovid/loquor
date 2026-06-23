@@ -53,22 +53,17 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
     en: 'Which book do you mean, the {obj} or the {obj2}?',
     out: '¿A qué libro te refieres, {obj.def} o {obj2.def}?',
   },
-  // Parser incomplete-`put` prompt (gparser.zil): "What do you want to put the
-  // {obj} in?" — printed when the player names an object but no destination.
-  // Off-walkthrough, runtime-composed, so both gates miss it; it leaked RAW
-  // English (UAT 2026-06-20). The named object is the player's ECHOED noun, which
-  // can be a lexicon-emit synonym that is NOT an object-table key («advertisement»
-  // for the leaflet), so we bind {raw} (any token), not {obj} (table-only), and
-  // DROP the object on the out side («lo», the unmarked default clitic — no
-  // agreeing slot) so every object renders and none leaks.
-  // NB (UAT 2026-06-20): only the bare `put X` orphan (defaulting to "in") is
-  // reachable. `put X on` resolves to the WEAR verb and `put X under` / `behind`
-  // are unparsed, so the on/under/behind orphan prompts are never emitted — those
-  // templates were removed as unreachable dead code.
-  {
-    en: 'What do you want to put the {raw} in?',
-    out: '¿Dónde quieres ponerlo?',
-  },
+  // Parser orphan prompt (gparser.zil:760-774): "What do you want to <verb>[ the
+  // <noun>] <prep>?". Off-walkthrough, runtime-composed, so both gates miss it; it
+  // leaked RAW English (UAT 2026-06-20). {verb}/{raw} capture the player's echoed
+  // tokens for MATCHING; the out is verb-neutral generic (drops both — «lo», the
+  // unmarked default clitic, no agreeing slot). One template per confirmed
+  // orphaning prep covers every verb that orphans on it. Reachable preps: `in`
+  // (bare `put X`) and `with` (`cut`/`strike X`); `on`->WEAR and
+  // `under`/`behind`->unparsed never orphan, so they are not authored.
+  { en: 'What do you want to {verb} the {raw} in?', out: '¿Dónde quieres ponerlo?' },
+  { en: 'What do you want to {verb} the {raw} with?', out: '¿Con qué quieres hacerlo?' },
+  { en: 'What do you want to {verb}?', out: '¿Qué quieres hacer?' },
 
   // ── Presence & listings ─────────────────────────────────────────────────
   { en: 'There is a {obj} here.', out: 'Hay {obj.indef} aquí.' },

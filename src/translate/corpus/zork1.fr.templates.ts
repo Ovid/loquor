@@ -97,20 +97,17 @@ export const ZORK1_FR_TEMPLATES: readonly Template[] = [
     en: 'Which book do you mean, the {obj} or the {obj2}?',
     out: 'De quel livre parlez-vous, {obj.def} ou {obj2.def} ?',
   },
-  // Parser incomplete-`put` prompt (gparser.zil): "What do you want to put the
-  // {obj} in?". Off-walkthrough, runtime-composed; leaked RAW English (UAT
-  // 2026-06-20). The named object is the player's echoed noun — possibly a
-  // lexicon-emit synonym absent from the object table — so bind {raw} (any token)
-  // and drop the object on the out side (« le », unmarked default). Vous-form to
-  // match the rest of this corpus.
-  // NB (UAT 2026-06-20): only the bare `put X` orphan (defaulting to "in") is
-  // reachable. `put X on` resolves to the WEAR verb and `put X under` / `behind`
-  // are unparsed, so the on/under/behind orphan prompts are never emitted — those
-  // templates were removed as unreachable dead code.
-  {
-    en: 'What do you want to put the {raw} in?',
-    out: 'Où voulez-vous le mettre ?',
-  },
+  // Parser orphan prompt (gparser.zil:760-774): "What do you want to <verb>[ the
+  // <noun>] <prep>?". Off-walkthrough, runtime-composed; leaked RAW English (UAT
+  // 2026-06-20). {verb}/{raw} capture the player's echoed tokens for MATCHING; the
+  // out is verb-neutral generic (drops both — « le », unmarked default). Vous-form
+  // to match the rest of this corpus. One template per confirmed orphaning prep
+  // covers every verb that orphans on it. Reachable preps: `in` (bare `put X`) and
+  // `with` (`cut`/`strike X`); `on`->WEAR and `under`/`behind`->unparsed never
+  // orphan, so they are not authored.
+  { en: 'What do you want to {verb} the {raw} in?', out: 'Où voulez-vous le mettre ?' },
+  { en: 'What do you want to {verb} the {raw} with?', out: 'Avec quoi voulez-vous le faire ?' },
+  { en: 'What do you want to {verb}?', out: 'Que voulez-vous faire ?' },
 
   // ── Presence & listings (gverbs.zil DESCRIBE-OBJECT :1704-1725,
   //    PRINT-CONT :1835; thief treasure listing 1actions.zil:2053) ─────────

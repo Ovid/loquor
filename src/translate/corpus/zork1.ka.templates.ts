@@ -86,25 +86,18 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
     out: 'რომელ {raw}-ს გულისხმობ — {obj.indef}, {obj2.indef}, {obj3.indef} თუ {obj4.indef}?',
   },
 
-  // ── Parser incomplete-`put` prompt (gparser.zil): "What do you want to put the
-  //    {obj} in?" — printed when the player names an object but no destination.
-  //    The object slot is the player's ECHOED (English) noun, possibly a
-  //    lexicon-emit synonym, so it binds {raw} (verbatim). Naming the object would
-  //    put it in a CASE (the locative "in X" → X-ში, §4) we cannot compose onto a
-  //    citation form, so the `out` DROPS the object (like the examine-default
-  //    line) and asks caselessly with მისი ("its"/"it"). fr/de/es route this to
-  //    the LLM fallback; ka has none, so without this template Georgian leaks raw
-  //    English (UAT 2026-06-20). NATIVE-REVIEW-DRAFT (ka §4 case forms):
-  //    provisional wording pending native review.
-  {
-    en: 'What do you want to put the {raw} in?',
-    out: 'რაში გსურთ მისი ჩადება?',
-  },
-  // NB (UAT 2026-06-20): only the bare `put X` orphan (defaulting to "in") is
-  // reachable. `put X on` resolves to the WEAR verb ("You can't wear the {obj}.")
-  // and `put X under` / `put X behind` are unparsed ("That sentence isn't one I
-  // recognize."), so the on/under/behind orphan prompts are never emitted —
-  // their templates were removed as unreachable dead code.
+  // === COMPOSED-GATE-DRAFTS (P2.1) BEGIN — NATIVE-REVIEW-DRAFT (all entries to
+  //     END are machine-authored, provisional, pending native review:
+  //     notes/georgian-composed-line-review.md). Verb-neutral caseless reframes:
+  //     the `out` drops {verb}/{raw} (en-side for matching only), like the shipped
+  //     put-in line — so ka never declines an echoed English token (§4 sidestep).
+  { en: 'What do you want to {verb} the {raw} in?', out: 'რაში გსურთ მისი ჩადება?' },
+  { en: 'What do you want to {verb} the {raw} with?', out: 'რით გსურთ მისი გაკეთება?' },
+  { en: 'What do you want to {verb}?', out: 'რისი გაკეთება გსურს?' },
+  // === COMPOSED-GATE-DRAFTS (P2.1) END ===
+  // NB (UAT 2026-06-20 / recon 2026-06-23): orphan preps `in` (bare `put X`) and
+  // `with` (`cut`/`strike X`) are templated above; `on`->WEAR and
+  // `under`/`behind`->unparsed never orphan, so they are intentionally not authored.
 
   // ── Presence & listings — {obj} is the NOMINATIVE subject of არის, or a bare
   //    listing entry (no case marker). These are the productive caseless slots.

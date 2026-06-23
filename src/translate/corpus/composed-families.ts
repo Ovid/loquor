@@ -102,6 +102,25 @@ export const COMPOSED_FAMILIES: readonly Family[] = [
     note: 'UAT-G 2026-06-20. gverbs.zil. ka reuses the reviewed "დახურულია" predicate. Drives the union object set.',
     bindings: { obj: 'all-objects' },
   },
+
+  // ── Orphan parser prompt (gparser.zil:760-774, decision 7). The GAME builds it
+  //    as "What do you want to " + verb + [" the " + typed-noun] + [" " + prep] +
+  //    "?". {verb}/{raw} capture the player's echoed tokens for MATCHING; the
+  //    translated `out` is verb-neutral generic (drops both). One template PER
+  //    confirmed prep covers every orphaning verb (leak-safe for ka). The in-prep
+  //    family is the seed E entry above.
+  {
+    en: 'What do you want to {verb} the {raw} with?',
+    reach: 'reachable',
+    note: 'Orphan, prep=with (cut/strike — gsyntax CUT/STRIKE OBJECT WITH OBJECT, no one-object form). Confirmed reachable recon 2026-06-23. Verb-neutral out → no ka case problem (drops the noun), NATIVE-REVIEW-DRAFT.',
+    bindings: { verb: { sample: 'attack' }, raw: { sample: 'troll' } },
+  },
+  {
+    en: 'What do you want to {verb}?',
+    reach: 'reachable',
+    note: 'Orphan no-noun variant. Generic verb-less out in every language (player verb is on-screen). {verb} matched but not rendered.',
+    bindings: { verb: { sample: 'take' } },
+  },
 ]
 
 /** fr/de/es families deliberately routed to the LLM instead of a shared
@@ -123,8 +142,9 @@ export const EXPECTED_DEFERRED: readonly string[] = []
 
 /** Floor on the reachable-family count. RAISE when you add families; NEVER
  *  lower. Guards against a refactor silently emptying the inventory (spec
- *  honesty). Seed = 6 families (the two E-pins are one put-in family). */
-export const REACHABLE_FLOOR = 6
+ *  honesty). Seed = 6 families (the two E-pins are one put-in family); +2 orphan
+ *  families (with-prep + no-noun, Task 4) → 8. */
+export const REACHABLE_FLOOR = 8
 
 /** Skeleton-fidelity escape hatch for `extractStrings` ANCHORING MISSES only:
  *  a distinctive span that is verified-correct game text (read in the local ZIL /

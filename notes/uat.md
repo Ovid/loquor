@@ -18,6 +18,22 @@ session loses time to something avoidable.
   lines, Turns counter frozen). After any gap, screenshot fresh, find the
   `> type a command…` line at its CURRENT position, click it, and verify
   the turn counter moved before batching more.
+- **CORRECTION (2026-06-23): most "window resized between shots" drift was
+  actually the transcript NOT scrolled to the bottom — now fixed (commit
+  127243c).** Root-caused in-browser via `/systematic-debugging`:
+  `Scrollback.tsx` auto-scrolled once in a `useEffect([lines])` and landed a
+  dead-stable **56px short** of the bottom (the command prompt is the last
+  child of the `div.scroll` container; its box lays out AFTER the scroll), so
+  the prompt sat clipped and content rendered ~one line off the y you read a
+  moment earlier. The viewport itself was stable (`innerW/H` constant;
+  screenshot px == CSS px), so it was **scroll, not resize**. Fixed with
+  `useLayoutEffect` + a `requestAnimationFrame` re-assert. **Belt-and-braces
+  for any session, even post-fix:** before reading a y-coordinate or zooming,
+  pin the bottom yourself —
+  `document.querySelector('div.scroll')?.scrollTo(0, 1e9)` — so a screenshot
+  and a follow-up click/zoom see the SAME scroll position. Genuine viewport
+  resizes still happen occasionally (screenshot dims jumped 1384→1456 once
+  this session), so still re-screenshot fresh after a real size change.
 - **Quoted-passthrough (`"take all"`) makes the transcript read
   all-English.** It's the reliable way to reach exact game responses, but
   it skips the target-language `you` line, leaving only the English `> …`

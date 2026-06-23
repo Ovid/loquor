@@ -513,6 +513,26 @@ describe('isEnglishPronounClause — richer pronoun forms (BUG H)', () => {
     expect(isEnglishPronounClause('open it', ZORK1_VOCAB)).toBe(true)
     expect(isEnglishPronounClause('take them', ZORK1_VOCAB)).toBe(true)
   })
+  it('does NOT raw-send a single-letter meta/direction verb ("q it"/"i it"/"n it") — I2', () => {
+    // Single-char Zork verbs are exclusively intransitive direction/meta
+    // abbreviations (i=inventory, q=quit, n=north…); accepting one as a
+    // transitive lead raw-sent a malformed command (and "q it" could trip the
+    // quit-confirm path). A real transitive verbSynonym ("get it") still passes.
+    expect(isEnglishPronounClause('q it', ZORK1_VOCAB)).toBe(false)
+    expect(isEnglishPronounClause('i it', ZORK1_VOCAB)).toBe(false)
+    expect(isEnglishPronounClause('n it', ZORK1_VOCAB)).toBe(false)
+    expect(isEnglishPronounClause('get it', ZORK1_VOCAB)).toBe(true) // regression guard
+  })
+  it('resolveEnglishPronoun: miss for a single-letter meta verb ("q it") — I2', () => {
+    // The verb filter, not a missing antecedent, is the reason for the miss:
+    // a good verb with the same antecedent resolves.
+    expect(
+      resolveEnglishPronoun('q it', ZORK1_VOCAB, scene([], 'window')),
+    ).toEqual({ kind: 'miss' })
+    expect(
+      resolveEnglishPronoun('get it', ZORK1_VOCAB, scene([], 'window')),
+    ).toEqual({ kind: 'command', text: 'get window' })
+  })
   it('does NOT raw-send a clause with an unknown (non-pronoun) token', () => {
     // a fuzzy/foreign word stays the LLM's job — we only raw-send commands Zork
     // can fully parse on its own.

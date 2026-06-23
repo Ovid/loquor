@@ -27,7 +27,13 @@ and that.
 
 ---
 
-## Current state (2026-06-20, post `ovid/zork1-input-parity`)
+## Current state (2026-06-23, post `ovid/fix-the-it-bug`)
+
+> Since the 2026-06-20 `ovid/zork1-input-parity` table below, three branches
+> landed: an English NL UAT sweep (BUG A–G — vocab-gate hardening, modified
+> quantifiers, scenery extraction that helps all LLM input languages),
+> `ovid/status-bar` + `ovid/localize-change-story` (UI/a11y), and
+> `ovid/fix-the-it-bug` (**P2.3 anaphora "it" — now RESOLVED**, see below).
 
 | Lang   | Read (output corpus)                                                               | Type (input)                                                                              |
 | ------ | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
@@ -162,8 +168,27 @@ en esa frase!` (Zork's bare-noun reply), and it can't help mid-prompt because th
 
 ### P2.3 — Anaphora "it"
 
-`notes/TODO.md`: "it" doesn't always resolve (`open it` after a sentence). Cross
--language scene/antecedent handling in the NL layer.
+**STATUS: RESOLVED 2026-06-23 (branch `ovid/fix-the-it-bug`, merged).** Two bugs
+found+fixed TDD, live-confirmed; sweep recorded in `notes/uat.md` ("Pronoun /
+'it'-resolution sweep").
+
+- **BUG H** (commit ae43cc9) — richer English pronoun forms (`turn it on`, `put
+  painting in it`, `give it to thief`) leaked to the warm LLM and got mangled.
+  Fix: `isEnglishPronounClause` now raw-sends any clause that leads with a known
+  vocab verb + holds exactly one `it`/`them` + every other token is a Z-parser
+  word — Zork's native "it" tracker is authoritative (it even beat our own
+  scene-tracker's stale antecedent). English-specific; fr/de/es already resolve
+  container/direct pronouns in `parseLexicon` (`pronounsContainer`/`pronounsDirect`)
+  — the English particle-in-the-middle construction has no fr/de/es analog.
+- **BUG I** (commit fdffbe4) — `examine bottle` then `open it` opened the *wrong*
+  object: `ABSENCE_PAT`'s "X is empty" clause wrongly scrubbed the container from
+  scope. Fix: dropped that alternative (examining an empty container is a success,
+  not an absence). Shared EN/FR/DE/ES.
+- Plus I1/I2/I3 follow-ups (commits 5f8fb73, c4c55af, 09f19dc): ambiguous-synonym
+  container antecedents (`put X in it`), single-letter meta-verb guard, internal-
+  whitespace collapse in `directObject`.
+
+`notes/TODO.md` line ("'it' doesn't always resolve") is now satisfied for Zork I.
 
 ---
 

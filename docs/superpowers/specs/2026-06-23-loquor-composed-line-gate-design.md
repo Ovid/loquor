@@ -41,7 +41,7 @@ composition mechanisms, ~140 families total:
 | --- | --- | --- | --- |
 | **Single-line object splice** — `<TELL "…" D ,PRSO "…">` | `gverbs.zil`, `1actions.zil` | **124 distinct** | one fixed response with the object name spliced in (`The {obj} isn't open.`, `You can't wear the {obj}.`) + a long tail of exotic-verb joke-insults |
 | **Contents-listing engine** — `DESCRIBE-OBJECT` / `PRINT-CONT` / `PRINT-CONTENTS` / `FIRSTER` | `gverbs.zil:1681–1850` | **~14** | glues a line from many literals: `"There is a "` + name + `" here"` + `" (providing light)"`; the `", "` / `"and "` / `"a "` inventory joins; `"The {obj} contains:"`, `"Sitting on the {obj} is:"`, `"You are carrying:"`, `"Your collection of treasures consists of:"`, `"Opening the {obj} reveals "` + contents |
-| **Parser prompts** — `WHICH-PRINT`, the orphan prompt | `gparser.zil:760, 1146` | **2** | `"Which {raw} do you mean, the {obj}, … or the {obj}?"` (built by looping candidates with `", "` / `" or "`) and `"What do you want to {verb} the {raw}?"` |
+| **Parser prompts** — `WHICH-PRINT`, the orphan prompt | `gparser.zil:760, 1146` | **2** | `"Which {raw} do you mean, the {obj}, … or the {obj}?"` (built by looping candidates with `", "` / `" or "`) and the orphan prompt `"What do you want to {verb} the {raw} {prep}?"` (+ its no-noun-phrase variant). **Both are `reachable` and asserted** — the orphan prompt fires on standard-set verbs (`put`/`attack`/`drop`/`move`), so it is solved deterministically (decision 7), not deferred. |
 
 Every one of these is invisible to the two existing gates.
 
@@ -72,8 +72,10 @@ honest.
    The exotic-verb joke-insult tail is **listed but deferred** (logged, not
    asserted). "Reachable" has a concrete definition (§ Family classification).
 2. **`ka` faithfulness = drive every eligible object.** Per family, drive **all**
-   Zork I objects (object-agnostic families) or the specific object(s) through the
-   real `matchLine`, and assert a translation. No false-pass; strategy-agnostic
+   Zork I objects (object-agnostic families — the **union** object set across all
+   corpora, not `ka`'s own keys, so a `ka`-missing object is a MISS, not a silent
+   skip) or the specific object(s) through the real `matchLine`, and assert a
+   translation. No false-pass; strategy-agnostic
    (it checks rendered output, not whether `ka` used a template or a pin). Not a
    VM replay — `matchLine` on committed corpus data, exactly like the two existing
    gates.
@@ -94,6 +96,61 @@ honest.
 6. **Gate structure = one systematic gate (Approach C).** Absorb the 7 existing
    UAT pins into the family inventory (carrying their provenance as annotations)
    and retire `composed-lines.uat.test.ts`.
+7. **Orphan parser prompt = in scope, solved deterministically** (not deferred).
+   The orphan prompt (`gparser.zil:760–774`) — `What do you want to {verb} the
+   {raw} {prep}?` and its no-noun-phrase variant — fires on **standard-set**
+   verbs (`put`; `attack` → "…attack the troll with?"; `drop`; `move`), so it is
+   `reachable` and a `ka` raw-English leak today. (The §Family-classification
+   rule already tags both parser prompts `reachable`; this decision is what makes
+   that tag *satisfiable* — without it the gate would have a red cell it could
+   only silence with an exemption.) Its only genuinely-variable span is the
+   player's typed noun phrase, which `{raw}` already captures (proven by the
+   shipped `What do you want to put the {raw} in?` template). The verb and
+   preposition are a **bounded** grammar enumerable from `gsyntax.zil`, *not*
+   unbounded — the "not cleanly templatable" note
+   (`georgian-native-review-followup.md`) was over-pessimistic and conflated this
+   with the genuinely-hard **answer**-routing problem (`next.md` P2.2), which
+   stays out (Non-goals). **Verdict (recon 2026-06-23, `gsyntax.zil`):** `gsyntax`
+   has two-object prep syntaxes for *many* standard-set verbs (`PUT…IN/ON/UNDER/
+   BEHIND`, `DROP…IN/ON`, `MOVE…WITH/TO`, `STRIKE…WITH` = attack, `CUT…WITH`,
+   `TURN…TO`, `TIE…TO`, …) — **well over three** reachable verb×prep pairs. Per the
+   "≤3 → no code change; more → add the slot" rule, this means **add the `{verb}`
+   passthrough** — and it is the **leak-safe** choice: one template *per
+   preposition* with `{verb}` as a passthrough covers **every verb that orphans on
+   that prep**, so an unforeseen verb cannot leak (decisive for `ka`, which has no
+   LLM net). Implementation — a small `match.ts` extension adding **one new slot,
+   `{verb}`**, a *second match-only passthrough* (distinct group name so the
+   one-`{raw}`-per-template rule still holds). Its sole purpose is to give a
+   with-prep template a **second open wildcard** alongside `{raw}` — exactly as
+   `{obj2}` exists so a template can hold a second object slot. It is **matched but
+   not rendered**: no language echoes it, so the change touches only `SLOT` and the
+   `compile` passthrough branch — **`OUT_REF` is unchanged** (nothing references
+   `{verb}` on the `out` side). Two shapes:
+   - **With-prep** `What do you want to {verb} the {raw} {prep}?` — **prep stays a
+     literal**, one template per prep (NOT a third open passthrough: a second `.+?`
+     on the tail would fight `{raw}` over an internal space —
+     `…attack the brass lantern with?` → `raw="brass"`, `prep="lantern with"` —
+     so the literal prep is what keeps a multi-word `{raw}` anchored by the
+     trailing `" <prep>?"`). The `out` is **verb-neutral generic** ("with what do
+     you want to do it?") — `{verb}`/`{raw}` are dropped from the output, like the
+     shipped put-in line. A verb-neutral phrasing bakes *no* verb's meaning, so one
+     per-prep template serves every orphaning verb (and no English verb is mixed
+     into Georgian/French/etc. output).
+   - **No-noun-phrase** `What do you want to {verb}?` — `{verb}` is matched (so the
+     line resolves for any verb) and the `out` renders a **generic, verb-less**
+     question (the player's verb is on-screen already).
+   **Which preps actually orphan must be confirmed EMPIRICALLY** (the plan plays
+   the candidates): static syntax overstates — committed UAT 2026-06-20 records
+   `put…on` resolving to WEAR (`You can't wear the {obj}.`, already templated) and
+   `put…under/behind` printing "That sentence isn't one I recognize," i.e. **not**
+   orphaning despite the `gsyntax` lines. The gate's red output is the backstop for
+   any prep that turns out reachable. The verb-neutral generic `out` also
+   **sidesteps the `ka` case problem** the `georgian-native-review-followup`
+   caution flagged: by dropping the noun *and* verb (a caseless per-prep reframe,
+   like the shipped put-in line) `ka` never has to decline an echoed English token.
+   Still safe-but-stiff and all `NATIVE-REVIEW-DRAFT`, on the worklist.
+   Exotic-verb orphans (`give…to`, `dig…with`, …) stay `deferred`. The gate itself
+   stays committed-data + `match.ts`.
 
 ## Components & data flow
 
@@ -103,9 +160,12 @@ zork1/*.zil ──(recon, one-time, dev-only)──► composed-families.ts   (c
    ┌─────────────────────────────────────────────────┘
    │  Family = { en skeleton, slots[] (binding per slot), reach, arity, note }
    ▼
-composed-lines.test.ts  (the gate — committed data + match.ts only; no ZIL/VM/network)
+composed-lines.test.ts  (the gate — committed data + match.ts + the committed
+                          story file's decoded strings; no ZIL/VM/network)
+   fidelity: every skeleton's literal spans ∈ extractStrings(zork1.z3)  ← input IS real game text
    for each family where reach === 'reachable':
-     ka      ─► for every eligible object: matchLine(compile(ZORK1_KA), fill) ≠ null ∧ ≠ en
+     ka      ─► for every eligible object (UNION object set, not ka's keys):
+                  matchLine(compile(ZORK1_KA), fill) ≠ null ∧ ≠ en ∧ has-Georgian-char
      fr/de/es ─► generic-slot fill: matchLine(...) ≠ null ∧ ≠ en,  unless family ∈ exemptions[lang]
    log() the deferred families (count + names)         ← honesty: green never overstates
    meta-test: inventory size ≥ floor                    ← a refactor can't empty the gate
@@ -120,7 +180,11 @@ One entry per family:
   {num2} {raw}` (the set `match.ts` already understands).
 - **`slots`** — per-slot **binding**:
   - `all-objects` (agnostic) — generic response, object merely spliced. Drives
-    `Object.keys(corpus.objects)`. This is a deliberate **safe over-approximation**:
+    the **language-independent** object set — the union of every corpus's keys
+    for the signature (`corporaFor(ZORK1_SIG).flatMap(c =>
+    Object.keys(c.corpus.objects))`), **not** `ka`'s own table — so an object
+    missing from `ka` surfaces as a MISS (red), not a silent skip (decision 2).
+    This is a deliberate **safe over-approximation**:
     some object × frame combinations a player can't actually reach get driven too
     (e.g. `wear` + a creature), which is harmless — covering a combination that
     never occurs costs nothing, while *missing* a reachable one is the leak we are
@@ -142,11 +206,40 @@ One entry per family:
 
 ### `composed-lines.test.ts` (the gate)
 
-- `ka`: faithful per-object drive (decision 2). The existing `translated()`
-  helper's two checks — `matchLine` non-null **and** `≠ en` (an echo is a leak,
-  not a translation).
+- **Skeleton fidelity (every family, runs first).** Before any translation check,
+  assert each family's `en` skeleton is **real game text**. A composed line is
+  glued from sub-fragments (`"What do you want to"` + verb + `"the"` + noun + prep
+  + `"?"`), so the test joins the decoded **display lines**
+  (`displayLines(extractStrings(public/games/zork1.z3))` — the same decoder +
+  normalization `inventory.test.ts` uses, in CI, no VM) into one **haystack** and
+  asserts each of the skeleton's
+  literal spans — split on slots **and the runtime listing joins** (`,` / ` or ` /
+  ` and `, so a span never straddles a join the game inserts at runtime),
+  **edge-punctuation-stripped** (so `"with?"` = prep + `?` becomes the real word
+  `"with"`, and a leading `": "` join is dropped), then kept only if **longer than
+  a trivial-glue floor** (≥4 chars) — is a **substring** of that haystack. The
+  value is concentrated in the
+  *distinctive* response fragments (`"You can't wear the"`, `"is extremely heavy
+  and cannot be carried"`, `"What do you want to"`) — each is itself a decoded
+  fragment, so a skeleton mis-transcribed from the (CI-absent) ZIL by a wrong
+  article, word, or punctuation in the response text fails here instead of passing
+  green while the real composed line leaks (worst for `ka`). `ponytail:` the floor
+  lets trivial glue through unchecked — acceptable, the leak risk lives in the
+  distinctive spans; tighten only if a glue-level transcription bug is ever found.
+  Net effect: the gate is as ground-truthed as the inventory gate on the part that
+  matters.
+- `ka`: faithful per-object drive (decision 2). **Three** checks — `matchLine`
+  non-null, `≠ en` (an echo is a leak, not a translation), **and the output
+  contains ≥1 Georgian (Mkhedruli, `\p{Script=Georgian}`) character** so a pure-
+  or *mostly*-English render can't slip past `≠ en` (e.g. an object whose `indef`
+  was accidentally left English, or a frame with an English tail). Safe from
+  false-fail: every `ka` composed line carries Georgian framing, even the
+  `{raw}`-echo prompts (`რომელ leaflet-ს…`).
 - fr/de/es: one generic-slot fill, same two checks, skipped iff the family is in
-  `exemptions[lang]`.
+  `exemptions[lang]`. ("Generic-slot fill" is unambiguous for an `all-objects`
+  family; for a `string[]` (specific-object) or `raw` family there is no generic
+  slot — drive the named object(s) / the representative `raw` token once, the
+  same value `ka` drives, just not the full object set.)
 - **`exemptions`** — committed map `{ fr: [...], de: [...], es: [...] }`; **each
   entry requires an inline `why`** (e.g. "disambiguation prompt — deliberately
   LLM-routed, recon 2026-06-19"). The escape hatch can't be used silently.
@@ -163,14 +256,24 @@ One entry per family:
 ## Family classification rules
 
 **`reach`:**
-- `reachable` = produced on a 350/350 walkthrough, **or** by the standard verb set
+- `reachable` = produced on a 350/350 walkthrough, **or** a standard-set verb
   (`take/drop/open/close/examine/read/wear/turn on/turn off/put/attack/move/enter`)
-  applied to in-scope objects, **or** structural (every listing-engine family +
-  both parser prompts — they fire constantly). Concrete, not a vibe: if a
-  standard-set verb can produce the line, it is reachable.
-- `deferred` = needs an exotic verb a winning/exploring player will not type
-  (`send for`, `mung`, `\`-prefixed, "pray", …). Listed; the gate logs them by
-  name.
+  can emit the frame, **or** structural (every listing-engine family + both parser
+  prompts — they fire constantly; the orphan prompt is made assertable by decision
+  7). Object scope does **not** filter here — the union drive (decision 2) covers
+  the object axis — so reachability is purely "can a standard-set verb produce
+  this line?" Concrete, not a vibe.
+- `deferred` = needs an exotic verb a winning/exploring player will not type.
+  **Each `deferred` entry must name its gating exotic verb as a string** (`deferred:
+  "send for"`, `"mung"`, `` "`" ``-prefixed, `"pray"`, …) so a reviewer audits the
+  deferral from the one data file — a checkable claim, not a vibe. **When
+  reachability is uncertain, tag `reachable`, not `deferred`.** Driving a
+  rarely-reached family is harmless (the same "safe over-approximation" rationale
+  as the object axis: covering a line players seldom see costs one authored `ka`
+  line; *missing* a reachable one is the leak). Listed; the gate logs them by name.
+  This closes the third vacuous-pass path the meta-tests can't: a *reachable*
+  family hand-tagged `deferred` drops silently out of the asserted set, and CI
+  can't catch it because the `reach` tag isn't machine-verifiable (ZIL is absent).
 
 **`binding`:** `all-objects` | `string[]` | `raw`, as above.
 
@@ -224,9 +327,28 @@ language exactly right?" artifact.
 - The gate `log()`s the **count + names of `deferred` families** it did not
   assert. A green run prints "N reachable gated; M deferred (listed)".
 - Every `exemptions[lang]` entry carries a `why` string.
-- A **meta-test** asserts the inventory size ≥ a floor, so a refactor can't
-  silently empty the gate into a vacuous pass (the same class of risk the
-  responsive-layout section of CLAUDE.md flags for CSS).
+- A **meta-test** guards against a vacuous pass two ways: (1) inventory size ≥ a
+  **named floor constant** set to the `reachable`-family count at authoring time
+  — *raise* it when you add families, **never lower** — so a refactor can't
+  silently empty the data file; and (2) a **completeness assertion** — the number
+  of families the gate actually iterated and asserted equals the number tagged
+  `reachable` in `composed-families.ts`, so a refactor can't drop entries from the
+  loop while leaving the inventory full. The floor catches "data emptied"; the
+  completeness check catches "loop skips entries" (the same class of risk the
+  responsive-layout section of CLAUDE.md flags for CSS). The **third** vacuous-pass
+  path — a *reachable* family hand-tagged `deferred` — is not machine-checkable
+  (the `reach` tag can't be verified against the CI-absent ZIL), so it is closed
+  by **data discipline**: every `deferred` entry names its gating verb and the tag
+  biases to `reachable` when unsure (§Family classification).
+- The **skeleton-fidelity** assertion (see the gate section) is itself an honesty
+  mechanism: it guarantees a green cell is about a line the game actually emits,
+  not a mis-transcribed skeleton — so green can't overstate by testing fiction.
+- **Green proves coverage, not correctness.** A green gate means *no English
+  leak* — it does **not** certify Georgian case-correctness or naturalness; only
+  the native review (`georgian-native-review-followup.md`) does. The `(beta)`
+  marker and the `NATIVE-REVIEW-DRAFT` worklist remain the sole gate for *correct*
+  Georgian and **must not be dropped on a green run**: "P2.1 done" is not
+  "Georgian is done".
 
 **Error handling / edge cases:**
 - A skeleton referencing an object absent from a language's table is a **MISS**
@@ -234,18 +356,34 @@ language exactly right?" artifact.
   MISS, not a crash") — a real gap surfacing.
 - `{raw}` slots are filled with a representative token **including a known
   lexicon-emit synonym** (`advertisement`).
-- The gate imports only committed corpus data + `match.ts` — **no ZIL, no VM, no
+- The gate imports committed corpus data + `match.ts` + the committed story
+  file's decoded strings (`extractStrings(public/games/zork1.z3)`, exactly as
+  `inventory.test.ts` does, for the skeleton-fidelity check) — **no ZIL, no VM, no
   network** — so it runs in CI exactly like the existing gates.
 
 ## Deliverables
 
 - `src/translate/corpus/composed-families.ts` — annotated family inventory.
 - `src/translate/corpus/composed-lines.test.ts` — the systematic gate (absorbs +
-  retires `composed-lines.uat.test.ts`).
+  retires `composed-lines.uat.test.ts`); includes the skeleton-fidelity assertion
+  (every skeleton's literal spans ∈ `extractStrings(zork1.z3)`).
 - `exemptions` map (fr/de/es), each entry with a `why`.
 - Georgian fills (rung 1→3, all `NATIVE-REVIEW-DRAFT`) for every `reachable`
   family, + matching fr/de/es coverage where regressed.
 - `notes/georgian-composed-line-review.md` — native-review worklist.
+- `src/translate/match.ts` — one new `{verb}` passthrough slot (decision 7; the
+  spec's only runtime-code change). The preposition is **enumerated as a literal**
+  (one template per prep), not a passthrough — so a multi-word `{raw}` stays
+  anchored.
+- Orphan-prompt templates, all four languages (`ka` `NATIVE-REVIEW-DRAFT`): one
+  **with-prep template per empirically-confirmed prep** (`…{verb} the {raw} in?`
+  extends the shipped put-in; `…{verb} the {raw} with?` is new) using the new
+  `{verb}` passthrough, **plus** the no-noun `What do you want to {verb}?` (generic
+  verb-less `out`). Driven by representative `{verb}`/`{raw}` instances (incl. an
+  emit synonym). Preps `gsyntax` lists but UAT shows don't orphan (`on`→WEAR,
+  `under`/`behind`→unparsed) are **not** authored.
+- `notes/georgian-native-review-followup.md` — the "Known ka raw-English leaks
+  (deferred)" orphan-prompt entry repointed: no longer a deferred leak.
 - `notes/next.md` updated: P2.1 marked done, pointer to the new gate; old
   `.uat.test.ts` references repointed.
 
@@ -255,8 +393,10 @@ language exactly right?" artifact.
 - **The `deferred` joke-insult tail** — listed + logged, not filled. Documented
   follow-up.
 - **Georgian input (Phase 2)** — output-only; no `ka` lexicon work.
-- **Disambiguation-answer routing (P2.2 remainder)** — separate turn-boundary
-  branch.
+- **Disambiguation/orphan *answer* routing (P2.2 remainder)** — the
+  genuinely-hard cousin: a player's reply *to* a prompt raw-sends past
+  `nl.translate` (a turn-boundary/queue fix). The orphan **prompt** itself is now
+  in scope (decision 7); only the **answer** routing stays a separate branch.
 - **VM-replay / Playwright harness** — out; `matchLine` on committed data.
 - **Native-review sign-off itself** — the worklist is the deliverable; the human
   review is the colleagues' follow-up that drops the `(beta)` marker.
@@ -265,7 +405,8 @@ language exactly right?" artifact.
 
 A Georgian player driving Zork I from West of House to a 350/350 win, using any
 verb in the standard set on any in-scope object, **never sees a raw-English
-composed line** — and the gate fails in CI the moment that stops being true.
+composed line** (including the orphan parser prompt — decision 7) — and the gate
+fails in CI the moment that stops being true.
 
 ## References
 

@@ -29,5 +29,12 @@ export const SOFT_NOOP_PAT = /\bis already\b|\byou already have\b/i
 // brass lantern", which resolves to no canonical, so the explicitly-absent
 // object leaked back into scope (review C6). Consumers resolve the captured
 // phrase against the vocab's surface forms / the acted object's words.
+//
+// "X is empty" is DELIBERATELY NOT an absence here (BUG I): it names a PRESENT
+// container whose unnamed CONTENTS are absent, so capturing X suppressed the
+// container itself — "examine bottle" then "open it" resolved to the PREVIOUS
+// object ("open sword") because the bottle was scrubbed from scope/antecedent.
+// An empty container must stay in scope; its (unnamed) contents were never a
+// mention to suppress, so there is nothing for this pattern to do.
 export const ABSENCE_PAT =
-  /\bno\s+([a-z]+(?:[^\S\n]+[a-z]+){0,2})\b|\b([a-z]+)\s+is\s+empty\b|can(?:'t|not)\s+see\s+(?:any\s+|a\s+)?([a-z]+(?:[^\S\n]+[a-z]+){0,2})\b/gi
+  /\bno\s+([a-z]+(?:[^\S\n]+[a-z]+){0,2})\b|can(?:'t|not)\s+see\s+(?:any\s+|a\s+)?([a-z]+(?:[^\S\n]+[a-z]+){0,2})\b/gi

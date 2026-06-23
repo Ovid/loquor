@@ -40,8 +40,10 @@ describe('shared output patterns', () => {
       return out
     }
     expect(grab('There is no lamp here.')[0]).toMatch(/^lamp\b/)
-    expect(grab('The trophy case is empty.')).toContain('case')
     expect(grab("You can't see any troll here.")[0]).toMatch(/^troll\b/)
+    // "X is empty" is NOT an absence of X (BUG I): X (a container) is present,
+    // only its unnamed contents are absent — so it must capture nothing.
+    expect(grab('The trophy case is empty.')).toEqual([])
   })
 
   describe('SOFT_NOOP_PAT (NL v2 §10, F-G)', () => {

@@ -217,6 +217,23 @@ describe('reduceScene — antecedent precedence', () => {
     expect(s.inScope.find(o => o.canonical === 'lamp')?.carried).toBe(true)
   })
 
+  it('tier 2: a double-spaced article-led take ("take  the lamp") still updates the antecedent (I3)', () => {
+    // command is only trimmed, not whitespace-collapsed, so a double space left
+    // the article-strip head empty and the acted object was lost (stale "it").
+    const prev = reduceScene(
+      emptySceneState,
+      ev({ outputText: 'A lamp and a rug are here.' }),
+      vocab,
+    )
+    expect(prev.antecedent).toBe('rug')
+    const s = reduceScene(
+      prev,
+      ev({ lastCommand: 'take  the lamp', outputText: 'Taken.' }),
+      vocab,
+    )
+    expect(s.antecedent).toBe('lamp') // not the stale "rug"
+  })
+
   it('tier 3: prior antecedent carries over when nothing new fires', () => {
     const prev = reduceScene(
       emptySceneState,

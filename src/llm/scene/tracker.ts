@@ -115,7 +115,9 @@ function directObject(command: string, vocab: Vocab): string | null {
     ...vocab.verbsOnly,
     ...vocab.movement,
   ].sort((a, b) => b.length - a.length)
-  let rest = command.trim().toLowerCase()
+  // Collapse internal whitespace too: a double space ("take  the lamp") left the
+  // article-strip head empty and lost the acted object → stale "it" (I3).
+  let rest = command.trim().toLowerCase().replace(/\s+/g, ' ')
   for (const v of verbs) {
     if (rest === v) return null
     if (rest.startsWith(v + ' ')) {

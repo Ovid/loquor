@@ -61,7 +61,7 @@ Run the app in Georgian, play through, and capture any awkward line. The corpus-
   object it announces the assumption on its own line: `attack trophy case` with a weapon in
   reach prints **`(with the sword)`**, `open` with one openable present prints `(the door)`,
   etc. (`zork1/gparser.zil`). This is a **golden-path** line — `attack troll` → `(with the
-  sword)` is THE combat command. fr/de/es **generalize** it with a template
+sword)` is THE combat command. fr/de/es **generalize** it with a template
   (`(with the {obj})` → `(mit {obj.bare})` / `(con {obj.def})` / `(avec {obj.def})`, plus the
   bare `({obj})` form), so German renders `(mit Schwert)` deterministically. **`ka` has only a
   single per-object string pin** — `'(with the match)': '(ასანთით)'` — and **no general

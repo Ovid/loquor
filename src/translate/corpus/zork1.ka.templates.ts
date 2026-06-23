@@ -94,6 +94,21 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
   { en: 'What do you want to {verb} the {raw} in?', out: 'რაში გსურთ მისი ჩადება?' },
   { en: 'What do you want to {verb} the {raw} with?', out: 'რით გსურთ მისი გაკეთება?' },
   { en: 'What do you want to {verb}?', out: 'რისი გაკეთება გსურს?' },
+  // ── Listing engine (P2.1 Task 6; gverbs.zil DESCRIBE-OBJECT/PRINT-CONT). ka
+  //    shipped only per-object pins, so the lit BRASS LANTERN, the vehicle tail,
+  //    the surface header and the actor "is holding:" leaked raw English. Each
+  //    keeps {obj} in the NOMINATIVE citation form (no case agreement) or drops
+  //    the noun where a case would be forced (§4).
+  { en: 'There is a {obj} here (providing light).', out: 'აქ {obj.indef} არის (ანათებს).' },
+  { en: 'A {obj} (providing light)', out: '{obj.indef} (ანათებს)' },
+  // Vehicle tail — a colon avoids declining the boat (mirrors de "(außerhalb: …)").
+  { en: 'There is a {obj} here. (outside the {obj2})', out: 'აქ {obj.indef} არის. (გარეთ: {obj2.indef})' },
+  // Surface header — the surface would need the -ზე postposition case (§4) and is
+  // on-screen, so drop it: "on top lies:".
+  { en: 'Sitting on the {obj} is:', out: 'ზედ დევს:' },
+  // Actor-contents header — reuse the reviewed "contains" predicate (de/es also
+  // render "is holding" → "contains"); {obj} stays the nominative subject.
+  { en: 'The {obj} is holding:', out: '{obj.indef} შეიცავს:' },
   // === COMPOSED-GATE-DRAFTS (P2.1) END ===
   // NB (UAT 2026-06-20 / recon 2026-06-23): orphan preps `in` (bare `put X`) and
   // `with` (`cut`/`strike X`) are templated above; `on`->WEAR and

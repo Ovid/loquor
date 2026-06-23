@@ -160,6 +160,82 @@ export const COMPOSED_FAMILIES: readonly Family[] = [
       },
     ],
   },
+
+  // ── Listing engine (gverbs.zil DESCRIBE-OBJECT :1692-1725 / PRINT-CONT
+  //    :1833-1835; thief treasure listing 1actions.zil). Every line is glued at
+  //    runtime from a fixed header/tail + spliced object name(s), so none is a
+  //    full decoded fragment — invisible to both existing gates. fr/de/es already
+  //    GENERALIZE the whole engine (templates); ka shipped only per-object pins,
+  //    so the lit BRASS LANTERN ("(providing light)"), the vehicle tail, the
+  //    surface header, and the actor "is holding:" leaked raw English for Georgian
+  //    players. This group registers the engine + the ka general templates it was
+  //    missing (NATIVE-REVIEW-DRAFT, sectioned in zork1.ka.templates.ts).
+  {
+    en: 'There is a {obj} here.',
+    reach: 'reachable',
+    note: 'gverbs.zil:1707 DESCRIBE-OBJECT level-0 generic. All langs ship it (ka :105).',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'There is a {obj} here (providing light).',
+    reach: 'reachable',
+    note: 'gverbs.zil:1705-1707. Lit (ONBIT) object in a room — brass lantern once touched, torch. ka general template authored this group (was: candles/matchbook string pins only → the lantern leaked).',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'A {obj} (providing light)',
+    reach: 'reachable',
+    note: 'gverbs.zil:1711-1712. Lit object nested/in inventory (lit lantern in `inventory`). ka general template authored this group.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'A {obj} (being worn)',
+    reach: 'reachable',
+    note: 'gverbs.zil:1714-1715. Worn object in inventory. All langs ship it (ka :110).',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'There is a {obj} here. (outside the {obj2})',
+    reach: 'reachable',
+    note: 'gverbs.zil:1725 vehicle tail (the magic boat is the only VEHBIT object). ka colon-sidestep template authored (caseless). The span "here. (outside the" straddles two runtime TELLs (:1707 + :1725) → FIDELITY_ALLOW.',
+    instances: [{ obj: 'leaflet', obj2: 'magic boat' }],
+  },
+  {
+    en: 'A {obj}, with a {obj2}',
+    reach: 'reachable',
+    note: '1actions.zil thief-death treasure listing, one-content case. Only the jeweled egg (holding the canary) reaches it. ka pins that ONE instance as a full string (zork1.ka.strings.ts) — the general form needs the INSTRUMENTAL case (§4); fr/de/es generalize.',
+    instances: [
+      { obj: 'jewel-encrusted egg', obj2: 'golden clockwork canary' },
+    ],
+  },
+  {
+    en: 'The {obj} contains:',
+    reach: 'reachable',
+    note: 'gverbs.zil:1835 PRINT-CONT container header. All langs ship it (ka :140).',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'Sitting on the {obj} is:',
+    reach: 'reachable',
+    note: 'PRINT-CONT surface header (table/pedestal). ka drop-noun "ზედ დევს:" authored — the surface would need the -ზე postposition case (§4) and is on-screen anyway.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'The {obj} is holding:',
+    reach: 'reachable',
+    note: 'gverbs.zil:1833 actor-contents header (thief/cyclops). ka reuses the reviewed "შეიცავს" predicate (de/es also collapse "is holding" → "contains"); {obj} stays the nominative subject.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'You are carrying:',
+    reach: 'reachable',
+    note: 'V-INVENTORY header. Full-line string pin in every corpus (ka :1381); also inventory-gate covered. No slot.',
+  },
+  {
+    en: 'Your collection of treasures consists of:',
+    reach: 'reachable',
+    note: 'Treasure/score listing header. Full-line string pin in every corpus (ka :28). No slot.',
+  },
 ]
 
 /** fr/de/es families deliberately routed to the LLM instead of a shared
@@ -183,12 +259,26 @@ export const EXPECTED_DEFERRED: readonly string[] = []
  *  lower. Guards against a refactor silently emptying the inventory (spec
  *  honesty). Seed = 6 families (the two E-pins are one put-in family); +2 orphan
  *  families (with-prep + no-noun, Task 4) → 8; +3 WHICH-PRINT disambiguation
- *  arities (2/3/4-candidate, Task 5) → 11. */
-export const REACHABLE_FLOOR = 11
+ *  arities (2/3/4-candidate, Task 5) → 11; +11 listing-engine families (Task 6:
+ *  there-is ×2-light, A×providing/worn, vehicle tail, thief with-a, contains,
+ *  sitting-on, is-holding, carrying, treasures) → 22. */
+export const REACHABLE_FLOOR = 22
 
 /** Skeleton-fidelity escape hatch for `extractStrings` ANCHORING MISSES only:
  *  a distinctive span that is verified-correct game text (read in the local ZIL /
  *  seen in play) but absent from the anchored decode. NOT for transcription bugs
  *  (re-model spliced parts as slots) — each entry needs an inline `// why:` ZIL
  *  citation. Empty by default; adding one is a deliberate, reviewed exception. */
-export const FIDELITY_ALLOW: readonly string[] = []
+export const FIDELITY_ALLOW: readonly string[] = [
+  // Both spans straddle a runtime TELL boundary in DESCRIBE-OBJECT (gverbs.zil),
+  // so they are absent from the anchored decode even though every half is verified
+  // real game text — exactly the splice case this allow-list exists for.
+  // why: the level-0 " here" literal (end of `<TELL "There is a " D .OBJ " here">`
+  // gverbs.zil:1705) and the ONBIT tail (`<TELL " (providing light)">` :1707) are
+  // SEPARATE TELLs; "(providing light)" alone IS in the decode.
+  'here (providing light',
+  // why: the level-0 period (`<TELL ".">` :1708) and the vehicle tail
+  // (`<TELL " (outside the " D .AV ")">` :1725) are SEPARATE TELLs; both halves
+  // ("here", "(outside the") are independently verified real game text.
+  'here. (outside the',
+]

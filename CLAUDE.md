@@ -177,6 +177,22 @@ npx vitest run -t "substring of test name"    # by name
   transform) applies to EN/FR/DE/ES but **must not** be wired into `ka`; an
   *output*-side change (corpus, display notices, a11y of translated text) does
   include `ka`. Don't add `ka` to the input path until Phase 2 (Georgian input).
+- **The north star of output translation: a player who switched to a language
+  must never be forced to read English.** When you pick a language, you see that
+  language — if you can't read English, you never have to. This holds **even in
+  "basic mode"** (a language is picked but the WebLLM model is not downloaded),
+  where an uncovered fr/de/es line falls back to raw English. This is *why* the
+  deterministic-coverage rule below matters: an LLM-routed line leaks English the
+  moment the model is absent, and `ka` has no model at all. So **minimize LLM
+  exemptions** — reserve them for cases where the deterministic output would be
+  *wrong*, never merely "the LLM reads more naturally." When a composed line would
+  echo an English token that can't be translated (e.g. the WHICH-PRINT
+  disambiguation prompt echoes the parser's English noun), **drop the token** —
+  the drop-the-noun reframe ("Do you mean X or Y?" with translated candidates) —
+  rather than echo English or defer to the LLM. (`ka` still echoes the player's
+  *own* typed English noun in disambiguation today, acceptable only because ka
+  input is English; **Phase-2 Georgian input must revisit every `ka` {raw}-echo**,
+  since an echoed English vocab word then becomes forced English.)
 - **Deterministic (non-LLM) behavior must work for EVERY applicable language —
   not just the ones that happen to be easy.** A deterministic path — a corpus
   template/string, a lexicon entry, a prompt intercept, a clause transform, a

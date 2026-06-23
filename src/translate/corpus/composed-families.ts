@@ -314,6 +314,25 @@ export const COMPOSED_FAMILIES: readonly Family[] = [
     note: 'gverbs.zil:1126 V-PUT-ON onto a non-surface. ka drop-noun "ამაზე ვერაფერს დადებ." (you can\'t put anything on this) — the surface would need the -ზე case (§4) and is on-screen.',
     bindings: { obj: 'all-objects' },
   },
+
+  // ── 7c Multi-command labels ("<obj>: <outcome>" from `take all`/`drop all`).
+  //    The success labels are object-agnostic (the {obj}: prefix is a caseless
+  //    nominative label). The per-object FAILURE reasons are seed D (rug + trophy
+  //    case) — the only objects in `take all` scope with a custom take message;
+  //    every other untakeable object gives a GENERIC yuk / "load is too heavy"
+  //    (no object splice → plain strings, not families).
+  {
+    en: '{obj}: Taken.',
+    reach: 'reachable',
+    note: 'gverbs.zil:1387 multi-take success. All langs ship it (ka :150). Caseless nominative label.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: '{obj}: Dropped.',
+    reach: 'reachable',
+    note: 'gverbs.zil:481 multi-drop success. All langs ship it (ka :146). Caseless nominative label.',
+    bindings: { obj: 'all-objects' },
+  },
 ]
 
 /** fr/de/es families deliberately routed to the LLM instead of a shared
@@ -342,8 +361,9 @@ export const EXPECTED_DEFERRED: readonly string[] = []
  *  sitting-on, is-holding, carrying, treasures) → 22; +6 state/idempotent (Task
  *  7a: is-now-closed/on/off, opens, is-closed, is-empty) → 28; +5 container/
  *  placement failures (Task 7b: already-in, isn't-in, don't-have, isn't-here,
- *  no-surface) → 33. */
-export const REACHABLE_FLOOR = 33
+ *  no-surface) → 33; +2 multi-command labels (Task 7c: Taken/Dropped; rug+trophy
+ *  failures are seed D) → 35. */
+export const REACHABLE_FLOOR = 35
 
 /** Skeleton-fidelity escape hatch for `extractStrings` ANCHORING MISSES only:
  *  a distinctive span that is verified-correct game text (read in the local ZIL /

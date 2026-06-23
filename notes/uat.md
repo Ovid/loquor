@@ -787,3 +787,80 @@ canonical) + English passthrough; ka (output-only, raw-sends English) is unaffec
 on input, exactly as required. Note for a future pass: Zork II/III scenery is now
 extracted too but was NOT live-played this session (zork1 only) — worth a quick
 in-game scenery probe when those games get a UAT.
+
+## Pronoun / "it"-resolution sweep (2026-06-23, branch `ovid/fix-the-it-bug`) — ⭐ BUG H + BUG I
+
+The vocab gate is healthy after BUG A–G, so this pass mined the OTHER NL surface
+the branch is named for: **English "it"/"them" resolution.** The walkthrough spells
+out every object, but a real player leans on pronouns constantly ("take lamp; turn
+it on", "open coffin; take it", "put it in the case"). Two new bugs, both live-
+confirmed and fixed (TDD), both in the same family the deterministic-pronoun path
+was built to close.
+
+**Technique — offline scene-tracker replay + a `runClause` LLM-sentinel.** No new
+gate sweep needed; instead replay walkthrough turns through the REAL machinery in a
+throwaway `*.test.ts`:
+
+- Fold `reduceScene(prev, {location, outputText, lastCommand}, ZORK1_VOCAB)` over
+  the walkthrough's own command/output pairs to build the live `antecedent`/`inScope`
+  at each step (the walkthrough IS the game output, so the replay is faithful).
+- Classify a probe by calling the REAL `runClause(clause, scene, 'en', null, false,
+deps)` with `generateRaw: async () => { throw LLM_SENTINEL }`. Any probe that
+  throws the sentinel REACHES THE LLM (= candidate "it"-bug, since the LLM ignores
+  the antecedent and anchors the pronoun to a constant noun). A probe that returns
+  `stage:"vocab"`/`"lexicon"` is safe.
+- Then confirm live in a warm-LLM English session and read `window.__nlClauses`
+  (`[nl] clause` capture hook) — the screen LIES (BUG C lesson): "turn it on" printed
+  the correct "It is already on." while the log showed `stage:"llm"`,
+  `raw:{"verb":"turn on","object":"light"}` — the LLM dropped "it" and hit the lamp
+  only by luck (light≈lamp). The decisive proof is comparing the LLM route to the
+  quoted raw-send escape hatch: `put lunch in it` → LLM → "take food" → "You already
+  have that!" vs. `"put lunch in it"` (quoted, raw-sent) → Zork's correct "There's no
+  room." **Zork's native "it" is authoritative — it even beat our tracker (which had
+  a stale `antecedent`).**
+
+**⭐ BUG H (RESOLVED 2026-06-23, commit ae43cc9):** richer English pronoun forms —
+particle `turn it on` / `pick it up`, container `put painting in it`, prep-tail
+`give it to thief` — fell through BOTH `resolveEnglishPronoun` AND the old
+`isEnglishPronounClause` to the warm LLM, which mangled them. Root cause:
+`englishVerbBeforeTail` only matches a pronoun in FINAL position after EXACTLY one
+verb phrase, so word order alone decided the outcome (`turn on it` → deterministic
+"turn on lamp", but `turn it on` → LLM). Fix: broaden `isEnglishPronounClause` (the
+raw-send net, parse.ts) to raw-send ANY clause that leads with a known vocab verb,
+holds exactly one `it`/`them` token, and whose every other token is a Z-parser word
+(`vocabKnows`, truncation-aware) — Zork's parser tracks "it" natively. Bare-form
+`resolveEnglishPronoun` (deterministic substitution, nicer echo) unchanged and still
+runs first. ENGLISH-SPECIFIC: raw-send presumes the English VM; fr/de/es already
+resolve container/direct pronouns in `parseLexicon`'s `pronounsContainer`/
+`pronounsDirect` branches (the English particle-in-the-middle construction has no
+fr/de/es analog — they attach a clitic, a different path). Pinned:
+`parse.test.ts` "richer pronoun forms (BUG H)". Live-verified fresh tab: `turn it
+on`/`put lunch in it` now `stage:"vocab"`, correct Zork responses.
+
+**⭐ BUG I (RESOLVED 2026-06-23, commit fdffbe4):** examining/looking-in an EMPTY
+container scrubbed it from scope, so `examine bottle` then `open it` opened the
+PREVIOUSLY-referenced object (live: `examine sword` → `examine bottle` → `open it`
+→ "You must tell me how to do that to a sword."; log `stage:"lexicon"`,
+`text:"open sword"`). Root cause: `ABSENCE_PAT`'s `"X is empty"` clause (present
+since the first scene-tracker commit) captured the CONTAINER named before "is empty"
+and `suppressed()` removed it — but "X is empty" means X is PRESENT, only its unnamed
+CONTENTS are absent, so suppressing X is backwards (and there were never named
+contents to suppress). Fix: drop the `\b([a-z]+)\s+is\s+empty\b` alternative from
+`ABSENCE_PAT` (patterns.ts). Correct on all three consumers — `suppressed()`
+(tracker), `clauseFailed()` (compound abort), `refusalApplies()` (`failurePat`, never
+used "is empty" anyway): examining an empty container is a SUCCESSFUL command, not an
+absence/failure. Multilingual: `ABSENCE_PAT` is shared EN/FR/DE/ES, so all input
+languages get the corrected scope; output corpora unaffected. Pinned:
+`tracker.test.ts` "an empty-container line keeps the container as the antecedent";
+the two tests that pinned the old suppression (`patterns.test.ts`, `tracker.test.ts`
+"absence/negation suppresses a mention") updated to corrected behavior. Live-verified
+fresh tab: `open it` after `examine bottle` → `stage:"lexicon"`,
+`antecedent:"glass bottle"`, "open bottle".
+
+**Confirmed healthy this pass (no bug):** compound + pronoun (`drop sword and take
+it` → clause 2 `take it` → "take sword"; the compound loop observes between clauses);
+`look in it` after `examine bottle` (raw-send net covers `verbsOnly` verbs);
+bare `open it`/`read it`/`take it` still deterministically substitute via
+`resolveEnglishPronoun`. The emit-form echo (`take it` → "take advertisement" for the
+leaflet) is BY DESIGN — `advertisement` is a real Zork dictionary word, so it
+resolves correctly; only the nl-source echo looks odd.

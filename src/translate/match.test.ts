@@ -433,3 +433,48 @@ describe('open form keys contract (spec §4, §7.1 — fake declined language)',
     )
   })
 })
+
+describe('{verb} match-only slot', () => {
+  const mkCorpus = (templates: TranslationCorpus['templates']): TranslationCorpus => ({
+    strings: {},
+    objects: {},
+    templates,
+  })
+
+  it('matches a verb wildcard and coexists with {raw}; {verb} is dropped from out', () => {
+    const c = compileCorpus(
+      mkCorpus([
+        { en: 'What do you want to {verb} the {raw} with?', out: 'N={raw}' },
+      ]),
+    )
+    // {verb} is consumed by the regex (so the line resolves) but not rendered.
+    expect(
+      matchLine(c, 'What do you want to attack the troll with?'),
+    ).toBe('N=troll')
+  })
+
+  it('keeps a MULTI-WORD {raw} anchored by the literal prep', () => {
+    const c = compileCorpus(
+      mkCorpus([
+        { en: 'What do you want to {verb} the {raw} with?', out: 'N={raw}' },
+      ]),
+    )
+    // The hazard the literal prep prevents: raw must be "brass lantern", not "brass".
+    expect(
+      matchLine(c, 'What do you want to attack the brass lantern with?'),
+    ).toBe('N=brass lantern')
+  })
+
+  it('renders a fixed, verb-less out for the no-noun orphan', () => {
+    const c = compileCorpus(
+      mkCorpus([{ en: 'What do you want to {verb}?', out: 'FIXED' }]),
+    )
+    expect(matchLine(c, 'What do you want to take?')).toBe('FIXED')
+  })
+
+  it('still throws on a duplicated slot (rule preserved)', () => {
+    expect(() =>
+      compileCorpus(mkCorpus([{ en: '{verb} and {verb}', out: 'x' }])),
+    ).toThrow(/repeated slot/)
+  })
+})

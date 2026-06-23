@@ -25,7 +25,7 @@ export interface CompiledCorpus {
 // as share a noun, and Zork I's max co-located same-noun set is the 4 dam buttons
 // ("the A, the B, the C, or the D?"). {obj2}/{obj3}/{obj4} are the 2nd–4th
 // occurrences (a slot may still appear at most once each).
-const SLOT = /\{(obj[234]?|num2?|raw)\}/g
+const SLOT = /\{(obj[234]?|num2?|raw|verb)\}/g
 
 function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -92,8 +92,13 @@ export function compileCorpus(corpus: TranslationCorpus): CompiledCorpus {
       if (/^obj[234]?$/.test(slot)) src += `(?<${slot}>${objAlt})`
       else if (slot === 'num' || slot === 'num2') src += `(?<${slot}>-?\\d+)`
       else {
+        // {raw} and {verb}: open passthrough wildcards with distinct group names
+        // (the at-most-once rule still holds; verb may co-occur with raw). {verb}
+        // is match-only — no `out` references it (OUT_REF is unchanged). Both
+        // count as "loose" for the specificity tie-break, so a resolved {obj}
+        // still wins on equal literals.
         rawCount++
-        src += '(?<raw>.+?)'
+        src += `(?<${slot}>.+?)`
       }
       last = m.index! + m[0].length
     }

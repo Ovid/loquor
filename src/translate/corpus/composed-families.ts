@@ -423,6 +423,60 @@ export const COMPOSED_FAMILIES: readonly Family[] = [
   { en: "It seems that a {obj} won't do.", reach: 'reachable', note: 'MSWITCH-FUNCTION (wrong tool for the machine). ka DN.', bindings: { obj: 'all-objects' } },
   { en: 'Why would you tie up a {obj}?', reach: 'reachable', note: 'ROPE-FUNCTION (tie up). ka DN.', bindings: { obj: 'all-objects' } },
   { en: 'It looks pretty much like a {obj}.', reach: 'reachable', note: 'DUMB-CONTAINER examine. ka DN.', bindings: { obj: 'all-objects' } },
+
+  // ── 7d-iii Exotic multi-slot + the two all-language gaps (author-all). give/
+  //    destroy/cut/water are templated in fr/de/es (ka DN drafts); "is
+  //    extinguished" (V-POUR-ON) and "burns and is consumed" (HOT-BELL-F, the
+  //    Hades exorcism) were uncovered in ALL FOUR — authored fresh as nominative-
+  //    subject lines ({obj.def}/{obj.indef}).
+  {
+    en: "You can't give a {obj} to a {obj2}!",
+    reach: 'reachable',
+    note: 'gverbs.zil:715 V-GIVE. ka DN "ამის მიცემა ვერ მოახერხებ!".',
+    instances: [{ obj: 'leaflet', obj2: 'sword' }],
+  },
+  {
+    en: 'Trying to destroy the {obj} with a {obj2} is futile.',
+    reach: 'reachable',
+    note: 'PRE-MUNG (destroy/mung with a tool). ka DN.',
+    instances: [{ obj: 'leaflet', obj2: 'sword' }],
+  },
+  {
+    en: 'Trying to destroy the {obj} with your bare hands is futile.',
+    reach: 'reachable',
+    note: 'PRE-MUNG (destroy bare-handed). ka DN. Span "with your bare hands is futile" straddles TELLs → FIDELITY_ALLOW.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'Your skillful {obj}smanship slices the {obj2} into innumerable slivers which blow away.',
+    reach: 'reachable',
+    note: 'gverbs.zil:394 V-CUT success (with a weapon). The "{obj}smanship" pun is untranslatable — ka DN "ოსტატურად დააქუცმაცებ." (both slots dropped).',
+    instances: [{ obj: 'sword', obj2: 'leaflet' }],
+  },
+  {
+    en: 'The "cutting edge" of a {obj} is hardly adequate.',
+    reach: 'reachable',
+    note: 'gverbs.zil V-CUT (non-weapon tool). ka DN.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'The water leaks out of the {obj} and evaporates immediately.',
+    reach: 'reachable',
+    note: '1actions.zil:192 WATER-F (pour from a non-bottle). ka DN (the container is dropped).',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'The {obj} is extinguished.',
+    reach: 'reachable',
+    note: 'gverbs.zil:1028 V-POUR-ON (douse a flame). Authored fresh in all 4 (was uncovered everywhere). Nominative subject.',
+    bindings: { obj: 'all-objects' },
+  },
+  {
+    en: 'The {obj} burns and is consumed.',
+    reach: 'reachable',
+    note: '1actions.zil:356 HOT-BELL-F (the Hades exorcism). Authored fresh in all 4. Nominative subject.',
+    bindings: { obj: 'all-objects' },
+  },
 ]
 
 /** fr/de/es families deliberately routed to the LLM instead of a shared
@@ -455,8 +509,10 @@ export const EXPECTED_DEFERRED: readonly string[] = []
  *  failures are seed D) → 35; +8 standard-verb refusals (Task 7d-i: move ×2,
  *  board, wear, not-carrying, read, attack-hold, examine) → 43; +30 exotic-verb
  *  single-object refusals (Task 7d-ii: burn/dig/cut/knock/listen/smell/tie/wind/
- *  …; V-ENCHANT filch/puff dropped — Zork II/III only) → 73. */
-export const REACHABLE_FLOOR = 73
+ *  …; V-ENCHANT filch/puff dropped — Zork II/III only) → 73; +8 exotic multi-slot
+ *  + all-language gaps (Task 7d-iii: give, destroy ×2, cut-success, cut-edge,
+ *  water-leak, extinguished, burns-consumed) → 81. */
+export const REACHABLE_FLOOR = 81
 
 /** Skeleton-fidelity escape hatch for `extractStrings` ANCHORING MISSES only:
  *  a distinctive span that is verified-correct game text (read in the local ZIL /
@@ -475,4 +531,8 @@ export const FIDELITY_ALLOW: readonly string[] = [
   // (`<TELL " (outside the " D .AV ")">` :1725) are SEPARATE TELLs; both halves
   // ("here", "(outside the") are independently verified real game text.
   'here. (outside the',
+  // why: PRE-MUNG composes "…with " + "your bare hands" + " is futile." across
+  // separate TELLs, so this span isn't contiguous in the decode; "Trying to
+  // destroy the" and each half are independently real game text.
+  'with your bare hands is futile',
 ]

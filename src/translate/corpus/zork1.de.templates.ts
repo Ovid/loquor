@@ -184,6 +184,9 @@ export const ZORK1_DE_TEMPLATES: readonly Template[] = [
     out: 'Du müsstest {obj.akkDef} erst öffnen.',
   },
   { en: 'The {obj} is empty.', out: 'In {obj.akkDef} ist nichts hinein.' },
+  // V-POUR-ON / HOT-BELL-F (Hades exorcism) — nominative subject.
+  { en: 'The {obj} is extinguished.', out: '{obj.def} erlischt.' },
+  { en: 'The {obj} burns and is consumed.', out: '{obj.def} verbrennt vollständig.' },
   {
     en: 'The {obj} is already in the {obj2}.',
     out: '{obj.def} ist bereits da, {obj2.bare} braucht nichts mehr.',

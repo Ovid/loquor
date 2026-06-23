@@ -162,6 +162,17 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
   { en: "It seems that a {obj} won't do.", out: 'როგორც ჩანს, ამით არ გამოვა.' },
   { en: 'Why would you tie up a {obj}?', out: 'ამას რად შეკრავ?' },
   { en: 'It looks pretty much like a {obj}.', out: 'ჩვეულებრივ რამეს ჰგავს.' },
+  // ── 7d-iii Exotic multi-slot + all-language gaps. give/destroy/cut/water drop
+  //    to demonstratives (DN, §4); the {obj}smanship pun drops both slots;
+  //    extinguished/burns keep {obj} as the nominative subject (NS).
+  { en: "You can't give a {obj} to a {obj2}!", out: 'ამის მიცემა ვერ მოახერხებ!' },
+  { en: 'Trying to destroy the {obj} with a {obj2} is futile.', out: 'ამის დანგრევა ამით ფუჭია.' },
+  { en: 'Trying to destroy the {obj} with your bare hands is futile.', out: 'ამის ხელით დანგრევა ფუჭია.' },
+  { en: 'Your skillful {obj}smanship slices the {obj2} into innumerable slivers which blow away.', out: 'ოსტატურად დააქუცმაცებ.' },
+  { en: 'The "cutting edge" of a {obj} is hardly adequate.', out: 'ამის პირი საჭრელად არ ვარგა.' },
+  { en: 'The water leaks out of the {obj} and evaporates immediately.', out: 'წყალი გადმოიღვრება და მაშინვე აორთქლდება.' },
+  { en: 'The {obj} is extinguished.', out: '{obj.indef} ჩაქრა.' },
+  { en: 'The {obj} burns and is consumed.', out: '{obj.indef} იწვის და ნადგურდება.' },
   // === COMPOSED-GATE-DRAFTS (P2.1) END ===
   // NB (UAT 2026-06-20 / recon 2026-06-23): orphan preps `in` (bare `put X`) and
   // `with` (`cut`/`strike X`) are templated above; `on`->WEAR and

@@ -164,6 +164,9 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
     out: 'Primero habría que abrir {obj.def}.',
   },
   { en: 'The {obj} is empty.', out: 'No hay nada en {obj.def}.' },
+  // V-POUR-ON / HOT-BELL-F (Hades exorcism) — nominative subject.
+  { en: 'The {obj} is extinguished.', out: '{obj.def} se apaga.' },
+  { en: 'The {obj} burns and is consumed.', out: '{obj.def} se quema y se consume.' },
   {
     en: 'The {obj} is already in the {obj2}.',
     out: 'Ya hay {obj.def} en {obj2.def}.',

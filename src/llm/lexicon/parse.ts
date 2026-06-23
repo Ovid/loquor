@@ -295,12 +295,32 @@ export function resolveEnglishQuantifierPhrase(
   return { kind: 'command', text: [verb, 'all', ...rest].join(' ') }
 }
 
-/** Is `clause` a well-formed "<verb> <pronoun>" command? When resolveEnglishPronoun
- * misses (no antecedent, or one not mappable to a vocab object), such a clause is
- * raw-sent to Zork — whose parser tracks "it" natively — instead of the LLM,
- * which hallucinates a noun ("open it" → "open chests"). */
+/** Does `clause` carry a single English pronoun ('it'/'them') in a command Zork's
+ * own parser can resolve? Such a clause is RAW-SENT to Zork — whose parser tracks
+ * "it"/"them" natively (and, per live UAT, more reliably than our heuristic
+ * antecedent) — instead of the warm LLM, which ignores the pronoun and anchors it
+ * to a constant noun ("put lunch in it" → "take food"; "turn it on" → "turn on
+ * light"; "open it" → "open chests"). It fires when the clause LEADS with a known
+ * vocab verb, contains EXACTLY ONE 'it'/'them' token, and every OTHER token is a
+ * word the Z-parser knows (vocabWordSet, 6-char-truncation-aware) — so only a
+ * command Zork can fully parse raw-sends; a fuzzy/foreign phrase still falls to
+ * the LLM. This generalizes the old exact "<verb> it" form to the natural particle
+ * ('turn it on'), container ('put painting in it'), and prep-tail ('give it to
+ * thief') shapes the deterministic substitutor (resolveEnglishPronoun) can't see —
+ * englishVerbBeforeTail only matches a pronoun in FINAL position after exactly one
+ * verb phrase. resolveEnglishPronoun still runs FIRST upstream for the bare form
+ * (nicer nl-source echo); this is the raw-send net for everything else.
+ * English-only by construction: raw-send presumes the English VM, and fr/de/es
+ * resolve their pronouns in parseLexicon's pronounsDirect/pronounsContainer
+ * branches. */
 export function isEnglishPronounClause(clause: string, vocab: Vocab): boolean {
-  return englishPronounVerb(clause, vocab) !== null
+  const tokens = tokenize(clause)
+  if (tokens.length < 2) return false
+  if (tokens.filter(t => EN_PRONOUNS.includes(t)).length !== 1) return false
+  // Lead with a real vocab verb so we never raw-send a noun-led non-command.
+  if (!findVerbPhrase([tokens[0]], vocab)) return false
+  const words = vocabWordSet(vocab)
+  return tokens.every(t => EN_PRONOUNS.includes(t) || vocabKnows(words, t))
 }
 
 export function parseLexicon(

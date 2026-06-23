@@ -477,6 +477,43 @@ describe('resolveEnglishPronoun (the "open advertisement" fix)', () => {
   })
 })
 
+describe('isEnglishPronounClause — richer pronoun forms (BUG H)', () => {
+  // A natural pronoun command beyond the bare "<verb> it" form (particle in the
+  // middle, container, or prep-tail) must RAW-SEND to Zork — whose parser tracks
+  // "it"/"them" natively — instead of falling to the warm LLM, which ignores the
+  // antecedent and mangles it (live UAT: "put lunch in it" → LLM → "take food" →
+  // "You already have that!"; raw-sent it → Zork's correct "There's no room.").
+  it('raw-sends the particle form "turn it on"', () => {
+    expect(isEnglishPronounClause('turn it on', ZORK1_VOCAB)).toBe(true)
+    expect(isEnglishPronounClause('turn it off', ZORK1_VOCAB)).toBe(true)
+  })
+  it('raw-sends the container form "put X in it"', () => {
+    expect(isEnglishPronounClause('put painting in it', ZORK1_VOCAB)).toBe(true)
+    expect(isEnglishPronounClause('put lunch in it', ZORK1_VOCAB)).toBe(true)
+  })
+  it('raw-sends the prep-tail form "give it to thief"', () => {
+    expect(isEnglishPronounClause('give it to thief', ZORK1_VOCAB)).toBe(true)
+  })
+  it('still recognizes the bare "<verb> it/them" form', () => {
+    expect(isEnglishPronounClause('open it', ZORK1_VOCAB)).toBe(true)
+    expect(isEnglishPronounClause('take them', ZORK1_VOCAB)).toBe(true)
+  })
+  it('does NOT raw-send a clause with an unknown (non-pronoun) token', () => {
+    // a fuzzy/foreign word stays the LLM's job — we only raw-send commands Zork
+    // can fully parse on its own.
+    expect(isEnglishPronounClause('turn it frobnicate', ZORK1_VOCAB)).toBe(
+      false,
+    )
+    expect(isEnglishPronounClause('put squizzle in it', ZORK1_VOCAB)).toBe(
+      false,
+    )
+  })
+  it('does NOT raw-send a non-verb-led clause or a two-pronoun clause', () => {
+    expect(isEnglishPronounClause('it on', ZORK1_VOCAB)).toBe(false) // no leading verb
+    expect(isEnglishPronounClause('put it in it', ZORK1_VOCAB)).toBe(false) // ambiguous
+  })
+})
+
 describe('parseLexicon — UAT-3 regressions', () => {
   // UAT-3 N-3: the extracted vocab stores the v3 dictionary form 'inflat'
   // (words truncate to 6 chars), but the lexicons map gonfle/aufblasen/infla
@@ -904,7 +941,13 @@ describe('parseLexicon — MODIFIED "all" quantifier in fr/de/es (Bug F parity, 
   })
   it('misses (falls to the LLM) when the tail noun is unknown — never raw-sends foreign words', () => {
     expect(
-      parseLexicon('mets tout dans le zeppelin', FR_CORE, FR_NOUNS, vocab, empty),
+      parseLexicon(
+        'mets tout dans le zeppelin',
+        FR_CORE,
+        FR_NOUNS,
+        vocab,
+        empty,
+      ),
     ).toEqual({ kind: 'miss' })
   })
   it('bare "<verb> tout" still resolves via the single-token path (unchanged)', () => {

@@ -628,8 +628,11 @@ describe('Terminal', () => {
         expect(bar).toContainElement(ka)
         // Decision 1: the English half is GONE from the beta notice.
         expect(bar).not.toHaveTextContent(/Georgian is a beta translation/)
-        // The relocated tip is permanent visible content in the bar.
-        expect(bar).toHaveTextContent(/რჩევა: ბრძანებები აკრიფეთ ინგლისურად/)
+        // The relocated tip is permanent visible content in the bar. On Zork I
+        // (ka input-active) it is the Phase-2 Georgian-INPUT tip ("type in
+        // Georgian (beta)"); Task 20 gates Zork II/III back to the type-English
+        // tip by signature.
+        expect(bar).toHaveTextContent(/რჩევა: ბრძანებები აკრიფეთ ქართულად/)
       } finally {
         nlOverride = null
       }

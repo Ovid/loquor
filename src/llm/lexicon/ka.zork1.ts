@@ -64,7 +64,10 @@ export const KA_ZORK1: NounLexicon = {
   'brass lantern': ['სპილენძის ფარან', 'ფარან'], // ფარანი → ფარან; UAT trap (lamp/lantern)
   'broken clockwork canary': ['გატეხილ მექანიკურ კანარა', 'კანარა'], // კანარა vowel-final
   // jeweled = -იანი adjective (M2 opt b: corpus simplified off the -ით participle).
-  'broken jewel-encrusted egg': ['გატეხილ თვლებიან კვერცხ', 'კვერცხ'], // კვერცხი → კვერცხ (egg)
+  // ablative 'კანარა კვერცხიდან' (take canary FROM egg): expandGeorgian splits
+  // -დან but does NOT re-strip the stem's -ი, so the residue is 'კვერცხი' (not
+  // 'კვერცხ') — list both so the ablative source resolves (review reconciliation).
+  'broken jewel-encrusted egg': ['გატეხილ თვლებიან კვერცხ', 'კვერცხ', 'კვერცხი'], // კვერცხი → კვერცხ (egg)
   'broken lantern': ['გატეხილ ფარან', 'ფარან'], // ფარანი → ფარან
   'broken timber': ['გადატეხილ ძელ', 'ძელ'], // ძელი → ძელ (timber)
   'brown button': ['ყავისფერ ღილაკ', 'ღილაკ'], // ღილაკი → ღილაკ
@@ -92,11 +95,18 @@ export const KA_ZORK1: NounLexicon = {
   'green bubble': ['მწვანე ბუშტ', 'ბუშტ'], // bubble ბუშტი → ბუშტ
   ground: ['მიწა'], // vowel-final (ground/floor)
   'group of tool chests': ['ხელსაწყოების ყუთებ', 'ყუთებ'], // ყუთები → ყუთებ (chests)
-  'hand-held air pump': ['ხელის ჰაერის ტუმბო', 'ტუმბო'], // ტუმბო vowel-final (pump)
+  // ტუმბო is vowel-final. Its FORMAL instrumental 'ტუმბოთი' fuses -ით → -თი,
+  // which expandGeorgian's -ი strip leaves as 'ტუმბოთ' (the -ით postposition never
+  // matches -თი) — i.e. no 'with' prep token is emitted and the prep-split can't
+  // fire. The walkthrough fixture therefore uses the SPLIT-SAFE instrumental
+  // 'ტუმბოით' → [ით, ტუმბო] (← review: confirm this colloquial -ით form vs formal
+  // -თი). 'ტუმბოთ' is listed too so the formal form still resolves as the bare
+  // object if a player types it.
+  'hand-held air pump': ['ხელის ჰაერის ტუმბო', 'ტუმბო', 'ტუმბოთ'], // ტუმბო vowel-final (pump)
   'huge diamond': ['უზარმაზარ ბრილიანტ', 'ბრილიანტ'], // ბრილიანტი → ბრილიანტ (diamond)
   'jade figurine': ['ნეფრიტის ფიგურა', 'ფიგურა', 'ნეფრიტ'], // ფიგურა vowel-final; jade ნეფრიტი → ნეფრიტ
   // jeweled = -იანი adjective (M2 opt b: corpus simplified off the -ით participle).
-  'jewel-encrusted egg': ['თვლებიან კვერცხ', 'კვერცხ'], // კვერცხი → კვერცხ
+  'jewel-encrusted egg': ['თვლებიან კვერცხ', 'კვერცხ', 'კვერცხი'], // კვერცხი → კვერცხ; +ablative residue (see broken-egg note)
   'kitchen table': ['სამზარეულოს მაგიდა', 'მაგიდა'], // table მაგიდა vowel-final
   'kitchen window': ['სამზარეულოს ფანჯარა', 'ფანჯარა'], // window ფანჯარა vowel-final
   'large bag': ['დიდ ტომარა', 'ტომარა'], // ტომარა vowel-final (the thief's bag)
@@ -113,7 +123,14 @@ export const KA_ZORK1: NounLexicon = {
   matchbook: ['ასანთის კოლოფ', 'ასანთ'], // head-noun matches ასანთი → ასანთ
   mirror: ['სარკე'], // vowel-final
   'mountain range': ['მთათა ქედ', 'მთა', 'მთებ'], // mountain მთა (vowel-final) / plural მთები → მთებ
-  'nasty knife': ['საზიზღარ დანა', 'დანა'], // დანა vowel-final (knife)
+  // დანა is vowel-final, so its instrumental 'დანით' (kill thief WITH knife)
+  // reduces to 'დან' after the -ით split — list that residue too (review M2-style
+  // reconciliation). NOTE: 'დან' is also the ablative postposition word, but a
+  // postposition is only ever split off as a SEPARATE prep token (index > 0),
+  // never handed to resolveNoun as a whole object span, so the overlap is inert
+  // for the walkthrough — the only ablative command (take canary from egg) keeps
+  // 'დან' as a prep, never an object. ← review: revisit if a real -დან object collides.
+  'nasty knife': ['საზიზღარ დანა', 'დანა', 'დან'], // დანა vowel-final (knife)
   'number of ghosts': ['მოჩვენებებ'], // მოჩვენებები → მოჩვენებებ (ghosts/spirits)
   painting: ['ნახატ'], // ნახატი → ნახატ
   'pair of candles': ['ორ სანთელ', 'სანთელ'], // candles სანთელი → სანთელ

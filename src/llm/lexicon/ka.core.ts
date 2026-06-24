@@ -42,6 +42,10 @@ export const KA_CORE: CoreLexicon = {
     დაათვალიერე: 'examine',
     შეხედე: 'examine',
     მიმოიხედე: 'look',
+    // look-into: a SEPARATE verb (not a postposition) → the 'look in' verb phrase,
+    // so 'ჩახედე კალათა' → 'look in cage' (look is verbsOnly, so the bare prep-split
+    // path can't emit the container; the multiword verb target carries the 'in').
+    ჩახედე: 'look in', // ← review: confirm 'look into' reads naturally as ჩახედე
     // attack / kill
     დაესხი: 'attack',
     შეუტიე: 'attack',
@@ -85,6 +89,10 @@ export const KA_CORE: CoreLexicon = {
     // climb / cross / launch / pray / wait
     აძვერი: 'climb',
     ჩაძვერი: 'climb',
+    // climb-down: the 'climb down' verb phrase (verbs1), so 'ჩამოძვერი ხე' →
+    // 'climb down tree' — the player descends the tree he climbed for the egg.
+    // (Bare descent is the direction 'down', owned by directions.ts.)
+    ჩამოძვერი: 'climb down', // ← review: confirm ჩამოძვერი reads as "climb down"
     გადაკვეთე: 'cross',
     გაუშვი: 'launch',
     ილოცე: 'pray',

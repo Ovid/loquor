@@ -18,6 +18,11 @@ import type { ViewState, BufferLine, TurnResult } from '../glkote-react/types'
 import { ZORK1_SIG, ZORK2_SIG } from './grammar/index'
 import { ZORK1_VOCAB } from './grammar/zork1.vocab'
 import * as LexiconIndex from './lexicon/index'
+import {
+  GEORGIAN_ACTIVATION_TIP,
+  GEORGIAN_ACTIVATION_TIP_TYPE_ENGLISH,
+} from './notices'
+import { helpResponse, helpResponseTypeEnglish } from './help'
 
 // A test that fails (or times out) between useFakeTimers/useRealTimers must
 // not poison every later test in the file with fake timers.
@@ -529,6 +534,48 @@ describe('useNaturalLanguage', () => {
     expect(hook.result.current.notice).toBeNull()
   })
 
+  it('ka activation announce is the Phase-2 Georgian-input tip on Zork I, the Phase-1 type-English tip on Zork II', async () => {
+    // The announce content now splits by signature: the per-call kaInput flag is
+    // kaInputActive(active, signature). Zork I has a ka lexicon → Phase-2
+    // "type in Georgian" tip; Zork II/III has none (raw-sends English) → Phase-1
+    // "type in English" tip (so we never tell a player Georgian input works where
+    // it doesn't). vocab present in BOTH (enables NL); the SIGNATURE gates ka input.
+    const { hook: hz1 } = setup({
+      engine: new FakeLlmEngine({ cached: true }),
+      vocab: ZORK1_VOCAB,
+      signature: ZORK1_SIG,
+    })
+    await waitFor(() =>
+      expect(hz1.result.current.state).toMatchObject({
+        phase: 'off',
+        installed: true,
+      }),
+    )
+    act(() => hz1.result.current.setLanguage('ka'))
+    await waitFor(() =>
+      expect(hz1.result.current.announce).toBe(GEORGIAN_ACTIVATION_TIP),
+    )
+
+    localStorage.clear()
+    const { hook: hz2 } = setup({
+      engine: new FakeLlmEngine({ cached: true }),
+      vocab: ZORK1_VOCAB, // vocab present (enables NL); the SIGNATURE gates ka input
+      signature: ZORK2_SIG,
+    })
+    await waitFor(() =>
+      expect(hz2.result.current.state).toMatchObject({
+        phase: 'off',
+        installed: true,
+      }),
+    )
+    act(() => hz2.result.current.setLanguage('ka'))
+    await waitFor(() =>
+      expect(hz2.result.current.announce).toBe(
+        GEORGIAN_ACTIVATION_TIP_TYPE_ENGLISH,
+      ),
+    )
+  })
+
   it('keeps the fr activation nudge on the inline notice channel (not announce)', async () => {
     // Input languages (fr/de/es) keep their one-time nudge inline — only the
     // output-only ka tip moves to the dedicated announce region.
@@ -542,6 +589,24 @@ describe('useNaturalLanguage', () => {
     act(() => hook.result.current.setLanguage('fr'))
     await waitFor(() => expect(hook.result.current.notice).toMatch(/^Astuce/))
     expect(hook.result.current.announce).toBeNull()
+  })
+
+  it('showHelp routes ka to the type-English help block (Zork II/III raw-send), fr to its own', async () => {
+    // showHelp is reached ONLY via Terminal's kaRawSend (no-lexicon Zork II/III)
+    // path: ka there raw-sends English, so its help must be the type-English block
+    // (helpResponse('ka') is the Phase-2 "type Georgian" help, wrong on a raw-send
+    // game). en/fr/de/es get help from inside translate and never reach showHelp;
+    // the fr branch is defensive but pinned here.
+    const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
+    // Let the mount-time capability/activation effect settle before driving
+    // showHelp, so its async state update doesn't flush outside act() below.
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
+    )
+    act(() => hook.result.current.showHelp('ka'))
+    expect(hook.result.current.notice).toBe(helpResponseTypeEnglish())
+    act(() => hook.result.current.showHelp('fr'))
+    expect(hook.result.current.notice).toBe(helpResponse('fr'))
   })
 
   it('boot restore: a stored language reactivates against a cached model', async () => {

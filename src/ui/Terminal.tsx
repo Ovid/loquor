@@ -21,7 +21,9 @@ import {
   thinking,
   queuedChip,
   commandLabel,
+  commandLabelTypeEnglish,
   commandPlaceholder,
+  commandPlaceholderTypeEnglish,
 } from '../llm/notices'
 import { useNaturalLanguage } from '../llm/useNaturalLanguage'
 import { kaInputActive } from '../llm/lexicon/index'
@@ -307,13 +309,25 @@ export function Terminal({
             inputRef={inputRef}
             // When the NL layer is on, localize the field's name + placeholder so
             // the headline feature isn't hidden behind classic copy (S3): English
-            // invites plain English; fr/de/es invite plain language; ka raw-sends
-            // English on a no-lexicon game (Zork II/III), so its Phase-1 copy says
-            // "type in English" (Task 18/20 revise the Zork I copy). Only 'off'
-            // keeps the classic copy.
-            label={nlOn ? commandLabel(activeLang) : 'Game command'}
+            // invites plain English; fr/de/es invite plain language. ka splits by
+            // SIGNATURE (Task 20): on a no-lexicon game (Zork II/III, kaRawSend) it
+            // raw-sends English, so its Phase-1 copy says "type in English"; on
+            // Zork I (input-active) it invites Georgian via commandLabel/Placeholder.
+            // kaRawSend ⟹ nlOn (outLang==='ka' implies phase 'on'), so testing it
+            // first is safe. Only 'off' keeps the classic copy.
+            label={
+              kaRawSend
+                ? commandLabelTypeEnglish() // Zork II/III ka raw-sends English → Phase-1 name
+                : nlOn
+                  ? commandLabel(activeLang) // Zork I ka (+ en/fr/de/es): input-language name
+                  : 'Game command'
+            }
             placeholder={
-              nlOn ? commandPlaceholder(activeLang) : 'type a command…'
+              kaRawSend
+                ? commandPlaceholderTypeEnglish() // Zork II/III ka: Phase-1 "type in English"
+                : nlOn
+                  ? commandPlaceholder(activeLang)
+                  : 'type a command…'
             }
             // The field's VALUE is what `lang` governs for a screen reader, and
             // the value is in the INPUT language — not the display language. ka

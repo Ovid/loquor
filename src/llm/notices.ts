@@ -328,13 +328,17 @@ function escapeHatchOnActivation(
  * re-notify). The hook owns one instance; mirrors the once-per-stint education
  * latch (`educatedRef`) but keyed per language. Re-picking a different language
  * still gets its own one-time notice. `kaInput` (the active game's Georgian-input
- * flag) selects the Phase-1 vs Phase-2 ka tip; it defaults to false so existing
- * callers are unchanged, and Task 20 passes the real `kaInputActive`. */
-export function makeActivationNotice(
-  kaInput = false,
-): (lang: ActiveLanguage) => string | null {
+ * flag) selects the Phase-1 vs Phase-2 ka tip; it is now passed PER CALL by the
+ * hook (`kaInputActive(active, signature)`), NOT baked at construction — the hook
+ * builds this latch once at mount, before the signature/language are known, so the
+ * flag must reflect the active game at notice-fire time. It defaults to false so a
+ * bare `notice(lang)` call is the Phase-1 path. */
+export function makeActivationNotice(): (
+  lang: ActiveLanguage,
+  kaInput?: boolean,
+) => string | null {
   const shown = new Set<ActiveLanguage>()
-  return lang => {
+  return (lang, kaInput = false) => {
     if (shown.has(lang)) return null
     shown.add(lang)
     return escapeHatchOnActivation(lang, kaInput)

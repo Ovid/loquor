@@ -90,3 +90,17 @@ export function helpResponse(lang: ActiveLanguage): string {
       ].join('\n')
   }
 }
+
+/** The Phase-1 type-English ka help block, RETAINED for ka on a no-input game
+ * (Zork II/III): there ka raw-sends English, so the help must say "type in
+ * English" — the Phase-2 {@link helpResponse}('ka') ("type in Georgian") would
+ * wrongly claim Georgian input works. No quoted-escape line (quoting is
+ * meaningless without an input path). NATIVE-REVIEW-DRAFT (ka §4 case forms). */
+export function helpResponseTypeEnglish(): string {
+  // NATIVE-REVIEW-DRAFT (ka §4 case forms): type-English help (Zork II/III ka).
+  return [
+    'დახმარება — ბრძანებები აკრიფეთ ინგლისურად; ტექსტი ქართულად ჩანს.',
+    'სპეციალური ბრძანებები (აკრიფეთ ინგლისურად): save (შენახვა), restore (აღდგენა), restart (თავიდან დაწყება), quit (გასვლა), score (ქულა), diagnose (მდგომარეობა), look (ყურება), inventory (ინვენტარი), verbose / brief (გრძელი / მოკლე აღწერები). version აჩვენებს თამაშის ვერსიას.',
+    'ამ შეტყობინების ხელახლა სანახავად აკრიფეთ help.',
+  ].join('\n')
+}

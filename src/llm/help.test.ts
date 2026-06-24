@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { helpResponse, isHelpTrigger, ESCAPE_EXAMPLE } from './help'
+import {
+  helpResponse,
+  helpResponseTypeEnglish,
+  isHelpTrigger,
+  ESCAPE_EXAMPLE,
+} from './help'
 
 describe('localized help', () => {
   it('triggers on the localized aliases per language', () => {
@@ -75,5 +80,19 @@ describe('localized help', () => {
     const h = helpResponse('ka')
     expect(h).toMatch(/ქართულ/) // tells the player to type in Georgian
     expect(h).toContain(ESCAPE_EXAMPLE) // the quoted-English escape is now relevant
+  })
+  it('ka type-English help (Zork II/III raw-send): says type-English, no quoted escape', () => {
+    // The Phase-1 ka help RETAINED for a no-input game (Zork II/III), where ka
+    // raw-sends English: it must tell the player to type in English (no Georgian
+    // input path), with NO quoted-escape line (quoting is meaningless without an
+    // input path). It differs from the Phase-2 helpResponse('ka') block.
+    const h = helpResponseTypeEnglish()
+    expect(h).toMatch(/[Ⴀ-ჿ]/) // it is Georgian (display language)
+    expect(h).toMatch(/ინგლისურ/) // tells the player to type in English
+    // No quoted-escape example (the block legitimately contains "ქართულად ჩანს"
+    // = "shows in Georgian", so we DON'T assert absence of ქართულ broadly).
+    expect(h).not.toContain('"')
+    // It is NOT the Phase-2 "type in Georgian" block.
+    expect(h).not.toBe(helpResponse('ka'))
   })
 })

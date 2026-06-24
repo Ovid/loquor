@@ -67,8 +67,9 @@ describe('escape-hatch activation notice (P3)', () => {
   it('ka with input INACTIVE (Zork II/III): Phase-1 type-English tip, no quotes', () => {
     // kaInput=false is the Phase-1 path (a no-input game): tell the player to
     // type in English, Georgian display text, NO quoted-escape instruction.
-    const notice = makeActivationNotice(false)
-    const ka = notice('ka')
+    // The flag is now passed PER CALL (Task 20), not baked at construction.
+    const notice = makeActivationNotice()
+    const ka = notice('ka', false)
     expect(ka).not.toBeNull()
     expect(ka).toMatch(/ინგლისურ/) // "English" stem in Georgian
     expect(ka).not.toContain('"') // no quote-escape example in Phase-1 tip
@@ -77,9 +78,9 @@ describe('escape-hatch activation notice (P3)', () => {
 
   it('ka with input ACTIVE (Zork I, Phase 2): Georgian-input tip with quoted escape', () => {
     // kaInput=true is the Phase-2 path: invite Georgian + the now-meaningful
-    // quoted-English escape hatch.
-    const notice = makeActivationNotice(true)
-    const ka = notice('ka')
+    // quoted-English escape hatch. The flag is now passed PER CALL (Task 20).
+    const notice = makeActivationNotice()
+    const ka = notice('ka', true)
     expect(ka).not.toBeNull()
     expect(ka).toMatch(/ქართულ/) // mentions Georgian
     expect(ka).toContain('"') // quoted-English escape is now meaningful
@@ -89,8 +90,8 @@ describe('escape-hatch activation notice (P3)', () => {
   it('exposes the ka activation tips as shared consts so the bottom bar cannot drift', () => {
     // The bottom bar renders one of these strings visibly while the latch
     // announces it once — they must be the SAME string (spec Decision 6).
-    expect(makeActivationNotice(true)('ka')).toBe(GEORGIAN_ACTIVATION_TIP)
-    expect(makeActivationNotice(false)('ka')).toBe(
+    expect(makeActivationNotice()('ka', true)).toBe(GEORGIAN_ACTIVATION_TIP)
+    expect(makeActivationNotice()('ka', false)).toBe(
       GEORGIAN_ACTIVATION_TIP_TYPE_ENGLISH,
     )
   })

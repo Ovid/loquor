@@ -321,8 +321,9 @@ describe('Terminal', () => {
             themeToggle={null}
           />,
         )
-        // The placeholder is signature-independent, but kaInputActive keys on the
-        // RESOLVED Zork I signature — so sync on the Georgian beta notice (gated on
+        // The placeholder is now signature-DEPENDENT for ka (Task 20): kaInputActive
+        // keys on the RESOLVED Zork I signature, so the field shows the Phase-2
+        // Georgian-input copy. Sync on the Georgian beta notice (gated on
         // corpusFor(signature,'ka'), true only once the Zork I signature resolves)
         // before submitting, else kaInputActive('ka','') is false at submit time.
         await screen.findByText(
@@ -330,7 +331,9 @@ describe('Terminal', () => {
           {},
           { timeout: 8000 },
         )
-        const input = screen.getByPlaceholderText(/ინგლისურ/)
+        // Phase-2 ka placeholder mentions Georgian (ქართულ); the type-English copy
+        // does NOT — so this discriminates the Zork I (Georgian-input) split.
+        const input = screen.getByPlaceholderText(/ქართულ/)
         // a11y (WCAG 3.1.2): the field VALUE is Georgian on Zork I, so the input
         // is tagged lang="ka" — a screen reader voices it with Georgian phonemes
         // (the Zork II test below pins the opposite: English value, no lang="ka").
@@ -381,6 +384,10 @@ describe('Terminal', () => {
           {},
           { timeout: 8000 },
         )
+        // Zork II ka raw-sends English → the field shows the Phase-1 type-English
+        // placeholder (commandPlaceholderTypeEnglish), which has NO ქართულ — so
+        // this pins the signature split (the Phase-2 Zork I copy would contain it).
+        expect(input.getAttribute('placeholder')).not.toMatch(/ქართულ/)
         fireEvent.change(input, { target: { value: 'open mailbox' } })
         fireEvent.submit(input)
         expect(sendLine).toHaveBeenCalledWith('open mailbox')
@@ -524,6 +531,11 @@ describe('Terminal', () => {
           { name: /ინგლისურ/ },
           { timeout: 8000 },
         )
+        // The Phase-1 type-English LABEL (commandLabelTypeEnglish) has NO ქართულ;
+        // the bilingual commandLabel('ka') (Zork I) DOES — so this proves the
+        // signature gating fired (Task 20), not just that the field has SOME name.
+        // CommandInput renders the accessible name via aria-label.
+        expect(input.getAttribute('aria-label')).not.toMatch(/ქართულ/)
         // ...but the input VALUE is English (ka raw-sends on Zork II), so the
         // field's `lang` must NOT be 'ka'.
         expect(input).not.toHaveAttribute('lang', 'ka')

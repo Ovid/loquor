@@ -8,7 +8,7 @@ import type {
   ViewContext,
 } from './types'
 import { OUTPUT_ONLY_LANGS } from './types'
-import { helpResponse } from './help'
+import { helpResponse, helpResponseTypeEnglish } from './help'
 import { EngineGate } from '../shared/engineGate'
 import type { ViewState, TurnResult } from '../glkote-react/types'
 import type { Vocab } from './grammar/types'
@@ -84,9 +84,12 @@ export interface UseNaturalLanguage {
   /** True while a compound sequence is mid-flight (Terminal's observe effect defers to the hook). */
   isSequencing: () => boolean
   /** Surface the localized help block via the shared `notice` aria-live seam.
-   * Drives the Loquor-level help intercept for OUTPUT-ONLY languages (ka),
-   * which raw-send English and so never reach the in-pipeline help intercept
-   * (translatePipeline). en/fr/de/es get help from inside translate instead. */
+   * Drives the Loquor-level help intercept for the OUTPUT-ONLY raw-send path
+   * (ka on a no-lexicon Zork II/III game), which raw-sends English and so never
+   * reaches the in-pipeline help intercept (translatePipeline). For ka this is
+   * the type-English help block (it raw-sends English there, so its help must say
+   * "type in English"), NOT the Phase-2 "type Georgian" `helpResponse('ka')`.
+   * en/fr/de/es get help from inside translate instead and never reach here. */
   showHelp: (lang: ActiveLanguage) => void
 }
 
@@ -226,14 +229,19 @@ export function useNaturalLanguage(
     if (modalOpen) return
     prevActiveLangRef.current = active
     if (active === 'off') return
-    const msg = activationNoticeRef.current(active)
+    // `kaInput` is read per-fire (not baked into the latch): the ka activation
+    // tip is Phase-2 (Georgian-input) on Zork I and Phase-1 (type-English) on a
+    // no-lexicon game. `signature` is a dep so a late-resolving signature is seen,
+    // but the `active === prevActiveLangRef` guard above means a signature change
+    // alone (same language) won't re-fire the once-per-language nudge.
+    const msg = activationNoticeRef.current(active, kaInputActive(active, signature))
     // OUTPUT-ONLY languages (ka) route their must-read tip to the dedicated
     // one-shot `announce` live region; input languages keep the inline notice.
     if (msg) {
       if (OUTPUT_ONLY_LANGS.has(active)) setAnnounce(msg)
       else setNotice(msg)
     }
-  }, [internal, modalOpen])
+  }, [internal, modalOpen, signature])
 
   const state: NlState = useMemo(() => {
     if (!hasVocab) return { phase: 'disabled' } // silent: this game has no vocab
@@ -377,7 +385,12 @@ export function useNaturalLanguage(
   // activation notices use (one aria-live region). Centralizing it here lets the
   // OUTPUT-ONLY raw-send path (ka, which never calls translate) show help too.
   const showHelp = useCallback(
-    (lang: ActiveLanguage) => setNotice(helpResponse(lang)),
+    // Reached ONLY via Terminal's kaRawSend (no-lexicon Zork II/III) path: ka there
+    // raw-sends English, so its help is the type-English block — helpResponse('ka')
+    // is the Phase-2 "type Georgian" help, wrong on a raw-send game. (en/fr/de/es get
+    // help from inside translate and never reach here; the branch is defensive.)
+    (lang: ActiveLanguage) =>
+      setNotice(lang === 'ka' ? helpResponseTypeEnglish() : helpResponse(lang)),
     [],
   )
 

@@ -100,3 +100,62 @@ describe('coverage (spec §5.2 — every vocab noun has an entry per language)',
     },
   )
 })
+
+// Georgian (ka) is INPUT-side Zork I only (spec §6 / §1): it has no Zork II/III
+// noun lexicon, so it CANNOT join the GAMES×LANGS loops above (they assert a
+// non-null lexicon for all three games). This dedicated block is ka's
+// structural-correctness gate: verb targets resolve to real vocab, prep targets
+// are real preps, noun keys are real canonicals, every stored form is
+// pre-folded, and no accidental English collision exists. The completeness bars
+// (corpus round-trip + walkthrough parse) live in their own gates, NOT here, so
+// ka is deliberately ABSENT from the full-vocab COVERED block.
+describe('ka lexicon validation (Zork I only — spec §6)', () => {
+  const core = coreLexicon('ka')
+  const lex = nounLexicon('ka', ZORK1_SIG)!
+  const allVerbs = new Set([
+    ...ZORK1_VOCAB.verbsOnly,
+    ...ZORK1_VOCAB.verbs1,
+    ...ZORK1_VOCAB.verbs2,
+    ...ZORK1_VOCAB.movement,
+    ...ZORK1_VOCAB.verbSynonyms,
+  ])
+  // The Z-machine truncates dictionary words to 6 chars; the vocab stores the
+  // truncated form (e.g. 'inflat'), so a target matches exactly OR by 6-prefix.
+  const inV = (t: string, s: ReadonlySet<string>) =>
+    s.has(t) || s.has(t.slice(0, 6))
+
+  it('every mapped verb target exists in Zork I vocab', () => {
+    const targets = [
+      ...Object.values(core.verbs),
+      ...core.verbIdioms.map(v => v.to),
+    ]
+    expect(targets.filter(t => !inV(t, allVerbs))).toEqual([])
+  })
+  // The verb KEYS are the Georgian imperatives a player types: each must be a
+  // real fold-stable form. A '_'-placeholder key (Task 4 deferred two here) is
+  // not a typeable Georgian word — lexiconWordSet would index it as one bogus
+  // token — so this assertion is the forcing function that surfaces them.
+  it('every verb/idiom KEY is fold-idempotent and placeholder-free', () => {
+    const keys = [...Object.keys(core.verbs), ...core.verbIdioms.map(v => v.phrase)]
+    expect(keys.filter(k => k.includes('_'))).toEqual([])
+    for (const k of keys) expect(fold(k), `key ${k}`).toBe(k)
+  })
+  it('every prep/postposition target is a Zork I vocab prep', () => {
+    const preps = new Set(ZORK1_VOCAB.preps)
+    expect(Object.values(core.preps).filter(p => !preps.has(p))).toEqual([])
+  })
+  it('every noun-lexicon key is a Zork I vocab canonical', () => {
+    const canon = new Set(ZORK1_VOCAB.nouns.map(n => n.canonical))
+    expect(Object.keys(lex).filter(k => !canon.has(k))).toEqual([])
+  })
+  it('every noun-lexicon VALUE is fold-idempotent (stored pre-folded)', () => {
+    for (const [c, words] of Object.entries(lex))
+      for (const w of words) expect(fold(w), `${c} → ${w}`).toBe(w)
+  })
+  it('collisions with English vocab match KNOWN_COLLISIONS.ka (expected [])', () => {
+    const overlap = [...lexiconWordSet('ka', ZORK1_SIG)]
+      .filter(w => vocabWordSet(ZORK1_VOCAB).has(w))
+      .sort()
+    expect(overlap).toEqual([...(KNOWN_COLLISIONS.ka[ZORK1_SIG] ?? [])].sort())
+  })
+})

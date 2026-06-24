@@ -71,7 +71,9 @@ export const KA_CORE: CoreLexicon = {
     ჩაუშვი: 'lower',
     // tie / inflate / wind / ring / wave / rub / dig / turn
     მიაბი: 'tie',
-    გახსენი_თოკი: 'untie', // ← review: ensure not colliding with open; rename if so
+    // untie: ახსენი (aorist 2sg of untie/unbind) — DISTINCT from გახსენი (open),
+    // resolving the Task-4 placeholder + its self-flagged open-collision.
+    ახსენი: 'untie', // ← review: confirm the untie sense reads naturally
     გაბერე: 'inflate',
     დააქოქე: 'wind up',
     დარეკე: 'ring',
@@ -80,22 +82,25 @@ export const KA_CORE: CoreLexicon = {
     თხარე: 'dig',
     მოატრიალე: 'turn',
     დაატრიალე: 'turn',
-    // climb / cross / launch / pray / wait / echo
+    // climb / cross / launch / pray / wait
     აძვერი: 'climb',
     ჩაძვერი: 'climb',
     გადაკვეთე: 'cross',
     გაუშვი: 'launch',
     ილოცე: 'pray',
     დაიცადე: 'wait',
-    // unlock
-    გააღე_გასაღებით: 'unlock', // ← review: prefer an idiom (see verbIdioms)
+    // unlock — no single-word verb key: the 'გასაღებით გააღე' idiom below
+    // (open-with-key) is the natural Georgian form; the Task-4 placeholder
+    // (გააღე_გასაღებით) is removed since the idiom covers it.
   },
   verbIdioms: [
     // unlock = open-with-key; the contiguous idiom consumes verb+instrument
     // marker so the door resolves as the object. Review for naturalness.
     { phrase: 'გასაღებით გააღე', to: 'unlock' },
-    // echo (Loud Room): the player types the English game verb verbatim.
-    { phrase: 'echo', to: 'echo' },
+    // echo (Loud Room): like fr/de, ka does NOT idiom-map the English game verb
+    // 'echo' — a player typing 'echo' (plain ASCII) raw-sends via §5.5, the
+    // English-ASCII passthrough. An 'echo'→'echo' idiom would inject an English
+    // token into the ka lexicon word set (KNOWN_COLLISIONS.ka must stay []).
   ],
   particleVerbs: [], // Georgian preverbs are fused, not separable (spec §4.1)
   // "all" quantifier — Georgian ყველა / ყველაფერი, plus bare English for mixers.

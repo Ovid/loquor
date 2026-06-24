@@ -58,9 +58,11 @@ by typing Georgian. Forcing function: a Georgian walkthrough-parse gate (§6).
   `CoreLexicon.postpositions` field — a no-op for fr/de/es (§3).
 - Georgian direction words added to `directions.ts` (its documented extension
   point — §3.3).
-- Runtime graduation: a new `InputLexLang` type; `ka` joins the input lexicon,
-  leaves `OUTPUT_ONLY_LANGS`, routes through `nl.translate`, is forced
-  grammar-only, and keeps English-ASCII raw-send (§5).
+- Runtime graduation: a new `InputLexLang` type; `ka` joins the input lexicon
+  **(Zork I only)**, leaves `OUTPUT_ONLY_LANGS`, routes through `nl.translate`
+  **when `kaInputActive` (Zork I)**, is forced grammar-only via the `model` field,
+  and keeps English-ASCII raw-send (§5). On Zork II/III `ka` stays Phase-1
+  type-English (§5.6).
 - **Georgian `ka` strings for every input-path notice the player can hit** —
   activation, abstain/couldn't-translate, help block + escape instruction, input
   placeholder (§7). This is a hard CLAUDE.md "no forced English" requirement, not
@@ -218,16 +220,19 @@ export type InputLexLang = LexLang | 'ka'
 `ka: KA_CORE` and `ka: { [ZORK1_SIG]: KA_ZORK1 }` (Zork I only). The LLM modules
 keep importing `LexLang` and gain nothing for `ka`.
 
-### 5.2 The `lex` memo (finding-3 fix)
+### 5.2 The `lex` memo (finding-3 fix) — gated to Zork I
 **`src/llm/useNaturalLanguage.ts:266`** guards `if (language !== 'fr' && language
 !== 'de' && language !== 'es') return null`, so today `ka` gets no lexicon.
-Generalize it to admit any `InputLexLang` (membership, not a hardcoded triple), so
-`ka` routes to `parseLexicon`.
+Generalize it to admit any `InputLexLang` (membership, not a hardcoded triple) **but
+gate `ka` on the signature** via `kaInputActive(language, signature)` (§5.6), so `ka`
+routes to `parseLexicon` **only on Zork I**; on Zork II/III `ka` keeps `lex === null`
+and stays Phase-1 type-English.
 
-### 5.3 The Terminal route + test inversions (finding-3 fix)
+### 5.3 The Terminal route + test inversions (finding-3 fix) — Zork I only
 **`src/ui/Terminal.tsx`** raw-sends for `ka` today (so the picker drives display
-only). Phase 2 routes the `ka` command field through `nl.translate`. The pinned
-tests change:
+only). Phase 2 routes the `ka` command field through `nl.translate` **only when
+`kaInputActive(outLang, signature)` (Zork I, §5.6)**; on Zork II/III `ka` keeps
+raw-sending (Phase-1 behavior). The pinned tests change:
 - `Terminal.test.tsx:296` ("ka raw-sends English, never nl.translate") → inverts:
   ka routes through `nl.translate`; **plain-ASCII English still reaches the engine**
   via the §5.5 fallback (so the *spirit* of "English works" is preserved).
@@ -237,11 +242,23 @@ tests change:
   longer output-only), still lands on the Georgian help block.
 - `:423` (no model-download modal for ka) → **unchanged**; ka still offers no
   model (forced grammar-only).
+- **NEW** — a Zork II `ka` test pins that input still raw-sends and the
+  placeholder/notice stay the Phase-1 type-English copy (the `kaInputActive` gate,
+  §5.6).
 
-### 5.4 Forced grammar-only for `ka` (findings 2, 10 fix)
-A single predicate, e.g. `isForcedGrammarOnly(lang): boolean` (`ka ∈`), consulted
-at the **one** LLM-dispatch point in `translatePipeline.ts`, so `ka` never calls
-`generateRaw` even when a model is downloaded for fr/de/es. **`CORPUS_ONLY_LANGS`
+### 5.4 Forced grammar-only for `ka` (findings 2, 10 fix) — via the `model` field
+Grammar-only is **already** derived from `internal.model === 'grammar'`
+(`useNaturalLanguage.ts:202` builds public `state.model` from it; `:252` threads it
+into the pipeline's `grammarOnly` flag). `model` is **session-global**, so a player
+who downloaded the model for fr/de/es (`model: 'full'`) then switched to `ka` would
+carry `'full'` into the `ka` session and could reach the LLM. **Fix it at the state
+boundary: force `internal.model = 'grammar'` whenever the active language is `ka`.**
+That makes **every** existing `model === 'grammar'` consumer correct for free — the
+input `grammarOnly` dispatch in `translatePipeline.ts`, the public `state.model`,
+the picker `· basic` / `✦ improve` markers, and the model-download-modal suppression
+— with **no new `isForcedGrammarOnly` predicate** to keep in sync across read sites
+(the same single-source-of-truth discipline §5.1 applies to `LexLang`). So `ka`
+never calls `generateRaw` even when a model is downloaded for fr/de/es. **`CORPUS_ONLY_LANGS`
 (output) is unchanged** — output stays corpus-only; this is the input twin.
 Removing `ka` from `OUTPUT_ONLY_LANGS` (below) **also disables the queue bail at
 `translatePipeline.ts:972`** (`OUTPUT_ONLY_LANGS.has(live.language)`), which today
@@ -260,6 +277,33 @@ is the decided resolution of the §7 behavior-change concern — see §7.)
 fr/de/es input routing is unchanged: every new branch is reachable only via
 `InputLexLang` membership / the `ka` predicates.
 
+### 5.6 The Zork-I input gate (`kaInputActive`) — issue-1 fix
+
+`ka` graduates to Georgian *input* **only on Zork I**, because `NOUNS.ka` carries a
+noun lexicon for `ZORK1_SIG` alone (Phase 1 scoped the corpus the same way). A
+single shared predicate
+
+```ts
+const kaInputActive = (lang: NlLanguage, sig: string) =>
+  lang === 'ka' && sig === ZORK1_SIG   // ka has a noun lexicon only here
+```
+
+is consulted at **all four** `ka` input sites so they cannot drift apart:
+1. the **lex memo** (§5.2) — admit the `ka` lexicon only when `kaInputActive`;
+   otherwise `lex === null` (no Georgian input).
+2. the **Terminal route** (§5.3) — send the `ka` command field through
+   `nl.translate` only when `kaInputActive`; otherwise raw-send (Phase-1 behavior).
+3. the **input placeholder** (§7) — "type in Georgian or English" only when
+   `kaInputActive`; else the Phase-1 "type in English".
+4. the **activation notice** (§7) — the Georgian-input bilingual message only when
+   `kaInputActive`; else the Phase-1 type-English message.
+
+On **Zork II/III**, `ka` is therefore byte-for-byte its Phase-1 self: English
+display (no `ka` corpus there), English raw-send input, type-English copy — **no
+regression and no misleading invite** to type Georgian that would only abstain
+(`nounLexicon('ka', sig)` is `null` for those signatures). A test pins Zork II `ka`
+raw-sends + shows the type-English copy.
+
 ---
 
 ## 6. Gates (executable acceptance criteria)
@@ -272,7 +316,10 @@ fr/de/es input routing is unchanged: every new branch is reachable only via
 - **Input-lexicon round-trip** (`src/llm/lexicon/roundtrip.test.ts:22`). Add `'ka'`
   to `LANGS` (now `InputLexLang[]`). Every `ka` noun word, fed `<take> <word>`,
   parses to `take <emit>` through `fold()` + `expandGeorgian`. Pin an `-ით`
-  instrumental form and any `-ი`-stem noun (finding-4).
+  instrumental form and any `-ი`-stem noun (finding-4). **`ka` has a noun lexicon
+  only for Zork I** (`NOUNS.ka = { [ZORK1_SIG]: … }`), so the `GAMES × LANGS` loop
+  must **skip `ka × {zork2,zork3}`** (null `nounLexicon`) — confirm fr/de/es already
+  skip a null lexicon, or add the guard (issue-1).
 - **Display↔input round-trip** (`src/translate/corpus/roundtrip.test.ts:34`). Add
   a `ka` `Row` (`headExtra: []`). **Finding-9 task:** this folds the Phase-1
   *display* object forms back to the new input lexicon — audit them; expect
@@ -284,9 +331,15 @@ fr/de/es input routing is unchanged: every new branch is reachable only via
   to that guard only (finding-8).
 - **Input UAT pins** (`src/llm/lexicon/parse.ka-uat.test.ts`). Puzzle-critical
   verbs + every confirmed finding, mirroring `parse.es-uat.test.ts`.
-- **`ka`-notice no-English-leak** (finding-5). A test asserts every input-path
-  notice `ka` can surface (abstain, help, escape instruction, placeholder) is
-  non-English, tied to the project's minimize-English-leak discipline.
+- **`ka`-notice copy gates** (finding-5 + issue-2, **two complementary
+  assertions**). **(a) No English-script leak:** every input-path notice `ka` can
+  surface (abstain, help, escape instruction, placeholder) contains no English
+  script — the minimize-English-leak discipline. **(b) New-semantics pin (§7):** the
+  activation notice mentions Georgian input + `(beta)`, the placeholder is the "type
+  in Georgian or English" form, and the **old type-English-only `ka` strings are
+  gone**. **(a) alone is insufficient** — the existing Phase-1 `ka` copy is already
+  Georgian *script* yet says "type English", so (a) is already green on the
+  un-inverted copy and cannot catch the migration; **(b) is what enforces Phase 2.**
 - **`NATIVE-REVIEW-DRAFT` marker test** (mirrors Phase 1).
 - `make all` clean.
 
@@ -300,24 +353,35 @@ fr/de/es input routing is unchanged: every new branch is reachable only via
 working; Georgian input is added on top. So there is **no regression** to escalate
 — by design choice, not by an incorrect "nothing changed" claim.
 
-**Georgian copy to author** (hard "no forced English" requirement — today these
-are English or say "type in English"):
+**Georgian copy to revise** (hard "no forced English" requirement). **NOTE
+(issue-2):** `ka` arms **already exist** — `help.ts` (`case 'ka':`,
+`HELP_ALIASES.ka`) and `notices.ts` (`ka:` entries) carry Phase-1 *type-English*
+copy (e.g. `ka: 'აკრიფეთ ინგლისურად — მაგ. open the mailbox'`). This is a
+**revision (inversion)** of existing entries, **not** greenfield authoring; a plan
+must find and flip them, not add duplicate arms. The Georgian-**input** copy below
+shows **only when `kaInputActive` (Zork I, §5.6)** — on Zork II/III `ka` the
+Phase-1 type-English copy is retained unchanged:
 - **Activation notice** — replace the Phase-1 "commands are typed in English"
   message with a bilingual one: Georgian input now works (beta); an unrecognized
   command can be sent verbatim via `"quoted English"`. Reuse the existing
   `aria-live` notice plumbing; no new live region.
-- **Help block + escape instruction** (`help.ts`) — author the `ka` arm (today
-  en/fr/de/es only). The escape *example* `"wind up canary"` stays English by
-  necessity (quoting bypasses translation); the *instruction around it* is
-  Georgian.
+- **Help block + escape instruction** (`help.ts`) — **revise** the existing `ka`
+  arm (currently Phase-1 type-English). The escape *example* `"wind up canary"`
+  stays English by necessity (quoting bypasses translation); the *instruction
+  around it* is Georgian.
 - **Abstain / couldn't-translate / nothing-sent / ran-out notices**
-  (`notices.ts`) — author the `ka` entries (today `Partial<Record<'ka'>>`, mostly
-  absent → English fallback).
-- **Input placeholder** — "type in Georgian or English" (was "type in English").
+  (`notices.ts`) — **revise** the existing `ka` entries (the type is already
+  `Partial<Record<'ka'>>`; the present Phase-1 `ka` strings say "type English").
+- **Input placeholder** — "type in Georgian or English" (was "type in English"),
+  **Zork I only** (`kaInputActive`).
 - **`(beta)` marker** stays (textual, non-colour, announced); drops only on native
   sign-off (§9).
-- **Tests** assert the updated `ka` accessible copy is Georgian; an a11y/English-
-  leak regression fails the suite.
+- **Tests** assert the **new Phase-2 semantics** (§6 gate (b)), not merely "is
+  Georgian": the activation notice mentions Georgian input + `(beta)`, the
+  placeholder is the "type in Georgian or English" form, and the old
+  type-English-only strings are gone — a *separate* assertion from the
+  no-English-script leak check (§6 gate (a)), which is already green on the stale
+  Phase-1 `ka` copy. An a11y/English-leak regression fails the suite.
 
 ---
 
@@ -376,7 +440,8 @@ strings.
 | `expandGeorgian` mis-splits a stem (`-ი` vs `-ით`) | Fixed precedence (§3.2): postposition split to fixpoint **before** the `-ი` strip; round-trip gate + `-ით`/`-ი`-stem UAT pins catch disagreement. ka has no LLM net, so this ordering is contractual, not plan-deferred. |
 | Widening the input type leaks `ka` into LLM maps | `InputLexLang` ≠ `LexLang` (§5.1); a `ka` LLM-map entry is a type error by construction. |
 | Editing the input pipeline regresses fr/de/es | Every new branch gated by `InputLexLang` membership / `core.postpositions` / `ka` predicates; regression test pins fr/de/es byte-identical output. |
-| `ka` accidentally reaches the LLM | `isForcedGrammarOnly` predicate at the single dispatch point (§5.4); test pins `ka` abstains rather than calling the LLM even with a model present. |
+| `ka` accidentally reaches the LLM (e.g. model downloaded for fr/de/es, then switch to `ka`) | Force `internal.model='grammar'` for `ka` at the state boundary (§5.4); the existing `model==='grammar'`→`grammarOnly` path then abstains. Test pins `ka` abstains rather than calling the LLM even with a model present. |
+| `ka` input invited on Zork II/III, where it has no noun lexicon (objects always abstain) | `kaInputActive(lang, sig)` gates the lex memo, route, placeholder, and notice to `ZORK1_SIG` (§5.6); Zork II/III `ka` stays Phase-1 type-English; test pins it. |
 | `ka` abstain shows **English** notice | Author Georgian `ka` notice/help/escape strings (§7); no-English-leak gate (§6). |
 | Removing `ka` from `OUTPUT_ONLY_LANGS` breaks the line-972 queue bail | §5.4: reproduce `ka` queue behavior via the normal grammar-only path; test the queue drains for `ka`. |
 | Mkhedruli in CI / fixtures | BMP (U+10A0–10FF); hyphen-free fold-normalized data + `fold(entry)===entry` gate; verify the suite green in CI before merge. |
@@ -392,8 +457,10 @@ strings.
 - **Suffix precedence contractual (postposition before `-ი`); not "provably safe"** → §3.2. ✓
 - **Directions via `directions.ts`, not a dead core field** → §3.3. ✓
 - **Real seams named: lex memo, Terminal route + test inversions, line-972 guard** → §5.2–5.4. ✓
+- **Input gated to Zork I via shared `kaInputActive`; Zork II/III stays type-English (no misleading invite)** → §1, §5.6, §6, §11. ✓
+- **Forced grammar-only via the `model` field at the state boundary, not a fragile new predicate** → §5.4, §11. ✓
 - **English-ASCII raw-send kept (finding-6 owner decision); no regression** → §5.5, §7. ✓
-- **Georgian notice/help/escape/placeholder strings authored; no-English-leak gate** → §6, §7. ✓
+- **Georgian notice/help/escape/placeholder strings _revised_ (arms already exist); two-part copy gate (no-English-script + new-semantics pin)** → §6, §7. ✓
 - **Both round-trips enrolled; display-corpus audit; validate scoped; input-UAT + marker** → §6. ✓
 - **"it" deferral verified against the real walkthrough (zero pronoun steps)** → §1, §8. ✓
 - **Native-review loop first-class** → §9. ✓

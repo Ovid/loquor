@@ -36,6 +36,9 @@ export function queueFullDropped(lang: ActiveLanguage, line: string): string {
       fr: `File d’attente pleine — ignoré : « ${line} »`,
       de: `Warteschlange voll — verworfen: „${line}“`,
       es: `Cola llena — descartado: «${line}»`,
+      // NATIVE-REVIEW-DRAFT (ka §7): no-LLM ka queue-drop notice; ${line} is the
+      // player's own dropped Georgian text. "Queue full — dropped: …".
+      ka: `რიგი სავსეა — გაუქმდა: „${line}"`,
     },
     lang,
   )
@@ -189,6 +192,9 @@ export function thinking(lang: ActiveLanguage): string {
       fr: '…réflexion',
       de: '…denke nach',
       es: '…pensando',
+      // NATIVE-REVIEW-DRAFT (ka §7): no-LLM ka still shows the in-flight indicator
+      // while a Georgian line is translating. "…translating".
+      ka: '…ითარგმნება',
     },
     lang,
   )
@@ -216,7 +222,14 @@ export function basicChip(lang: ActiveLanguage): string {
 /** Chip on a typed-ahead line waiting for the translator. */
 export function queuedChip(lang: ActiveLanguage): string {
   return byLang(
-    { en: 'queued', fr: 'en attente', de: 'wartet', es: 'en cola' },
+    {
+      en: 'queued',
+      fr: 'en attente',
+      de: 'wartet',
+      es: 'en cola',
+      // NATIVE-REVIEW-DRAFT (ka §7): no-LLM ka typed-ahead chip word. "in queue".
+      ka: 'რიგში',
+    },
     lang,
   )
 }
@@ -353,6 +366,9 @@ export function queueClearedNeedsAnswer(lang: ActiveLanguage): string {
       fr: 'File d’attente vidée — le jeu attend d’abord une réponse.',
       de: 'Warteschlange geleert — das Spiel braucht zuerst eine Antwort.',
       es: 'Cola vaciada — el juego necesita una respuesta primero.',
+      // NATIVE-REVIEW-DRAFT (ka §7): no-LLM ka queue-cleared notice when the game
+      // raises an interactive prompt. "Queue cleared — the game needs an answer first."
+      ka: 'რიგი გასუფთავდა — თამაშს ჯერ პასუხი სჭირდება.',
     },
     lang,
   )

@@ -104,9 +104,20 @@ removes his head.` (the troll's-own-attack variants and the death-fog line **are
   This is a **golden-path** leak (every player fights the troll) that the walkthrough-coverage
   gate misses because combat messages are **probabilistic** — only the variants in the recorded
   walkthrough run got captured. **Out of scope for the `(with the …)` branch and pre-existing**
-  (the branch only added the instrumental pins). Needs native Georgian combat strings (likely a
-  broader sweep: troll + thief + cyclops attack/parry/wound variants) — raised with Ovid for a
-  decision; not auto-fixed (machine-translated combat prose would bypass this review).
+  (the branch only added the instrumental pins). Raised with Ovid; not auto-fixed
+  (machine-translated combat prose would bypass this review).
+  - **SCOPED 2026-06-24 (Ovid's call, read-only) → full inventory in
+    `notes/georgian-combat-coverage-worklist.md`.** Zork I has **132** distinct runtime
+    combat strings (`zork1/1actions.zil` MELEE tables); **59 leak in `ka`** (73 covered).
+    **Same issue with the thief: YES** — the `HERO-MELEE` table (the _player's_ attacks) is
+    **villain-agnostic**, so its 44 missing lines leak identically for troll AND thief
+    (the thief fight is golden-path late game). Enemy-attack tables are mostly covered
+    (`TROLL-MELEE` 21/25, `THIEF-MELEE` 25/28, `CYCLOPS-MELEE` 12/14); their only misses,
+    plus ~10 in `HERO-MELEE`, are the **`F-WEP` (weapon-bearing) lines, which have ZERO `ka`
+    coverage mechanism** (no string, no template) and need a **weapon-slot template reusing
+    the Group H §4 instrumental forms**. Two fix shapes: (A) ~39 per-villain full strings
+    (mirror the already-covered other-villain forms), (B) ~20 `F-WEP` templates. All would
+    be `NATIVE-REVIEW-DRAFT` + gated + pinned; `(beta)` stays.
 
 ## Provisional `ka` draft lines (NATIVE-REVIEW-DRAFT) — two batches
 

@@ -17,15 +17,26 @@
 // G1 dative recipients (thief, wooden railing) list BOTH the bare nominative
 // stem AND the dative -ს form, so the dative path resolves e.g. ქურდს → thief.
 //
-// KNOWN RECONCILIATION ITEM for Task 10/11 (the -ით collision): four corpus
-// indef forms embed an instrumental-looking participle (თვლებით / მონეტებით /
-// საფირონებით). expandGeorgian's postposition split is per-token and longest-
-// first, so it shears -ით off those tokens, mangling the FULL phrase (e.g.
-// 'გატეხილი თვლებით მოოჭვილი კვერცხი' → 'გატეხილ ით თვლებ მოოჭვილ კვერცხ').
-// No player types that, so we DROP the garbled full phrase for those objects
-// and rely on the clean bare head-noun synonym (კვერცხ / მონეტებ / სამაჯურ).
-// Task 10's round-trip should either accept the bare form as coverage or the
-// corpus should switch those participles to a non-ით citation form.
+// KNOWN RECONCILIATION ITEM #1 for Task 10/11 (per-token -ი strip hits
+// ADJECTIVES/NUMERALS too): expandGeorgian runs per-token over the WHOLE phrase,
+// so every nominative -ი is dropped — not just the head noun's, but the
+// adjective's/numeral's as well (e.g. corpus 'შავი წიგნი' → stored 'შავ წიგნ';
+// 'ლამაზი ... ' → 'ლამაზ ...'; 'ორი ...' → 'ორ ...'). Every multi-word value
+// here is therefore the FULLY reduced form. Task 10's round-trip MUST compare
+// against expandGeorgian-produced forms (via its `reduce` step), NOT the raw
+// corpus indef strings — else 'შავი წიგნი' won't match the stored 'შავ წიგნ'.
+//
+// KNOWN RECONCILIATION ITEM #2 for Task 10/11 (the -ით collision): four corpus
+// indef forms embed an instrumental-looking participle: 'broken jewel-encrusted
+// egg' and 'jewel-encrusted egg' (თვლებით), 'leather bag of coins' (მონეტებით),
+// 'sapphire-encrusted bracelet' (საფირონებით). expandGeorgian's postposition
+// split is per-token and longest-first, so it shears -ით off those tokens,
+// mangling the FULL phrase (e.g. 'გატეხილი თვლებით მოოჭვილი კვერცხი' →
+// 'გატეხილ ით თვლებ მოოჭვილ კვერცხ'). No player types that, so we DROP the
+// garbled full phrase for those objects and rely on the clean bare head-noun
+// synonym (კვერცხ / მონეტებ / სამაჯურ). Task 10's round-trip should either
+// accept the bare form as coverage or the corpus should switch those
+// participles to a non-ით citation form.
 import type { NounLexicon } from './types'
 
 export const KA_ZORK1: NounLexicon = {

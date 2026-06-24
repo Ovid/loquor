@@ -142,8 +142,14 @@ Living Room variant`.
   on the golden path. Both shapes are now registered as families in `composed-families.ts`
   (REACHABLE_FLOOR 82→84) and `ka`-templated: bare → nominative `({obj.indef})`; `(with the
 {obj})` → drop-noun `(ამით)` (instrumental is the §4 case problem; the match pin keeps its
-  named `(ასანთით)`). Browser-verified in basic mode. NATIVE-REVIEW open question (drop-noun
-  vs. per-object instrumental) logged in `notes/georgian-native-review-followup.md`.
+  named `(ასანთით)`). Browser-verified in basic mode.
+  - **FOLLOW-UP DONE (2026-06-24):** the NATIVE-REVIEW open question is **resolved — Ovid chose
+    per-object instrumental**. The drop-noun `(ამით)` was upgraded to 14 named instrumental
+    string pins in `zork1.ka.strings.ts` (`(with the sword)` → `(მახვილით)`, etc.); `(ამით)`
+    stays as the leak-proof fallback for any un-pinned auto-supply. Still `NATIVE-REVIEW-DRAFT`
+    (the ⚠ multi-word/syncope §4 cases need a native check); the `(beta)` marker stays.
+    Pins + per-row notes: Group H (rows 63–76) of `notes/georgian-composed-line-review.md`;
+    regression pins in `zork1.ka.uat.test.ts`.
 
 ### P2.2 — Dynamic disambiguation prompts (all langs)
 

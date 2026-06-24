@@ -70,17 +70,23 @@ troll` → `(with the sword)` is THE combat command. It was a **recon miss** in 
   templates added (`zork1.ka.templates.ts`, COMPOSED-GATE-DRAFTS block, **NATIVE-REVIEW-DRAFT**):
   - **Bare `({obj})`** → nominative citation `({obj.indef})` (rung 1, caseless — like the
     listing-engine subject). Browser-verified: `turn off` → `(სპილენძის ფარანი)`.
-  - **`(with the {obj})`** → drop-noun `(ამით)` ("with this"), the same reframe the orphan
-    with-prep prompt uses, because the instrumental `X-ით` is the §4 case problem (per-object
-    stem + multi-word adjective agreement). GWIM fires only when ONE instrument is eligible, so
-    the demonstrative is unambiguous. The `(with the match)` → `(ასანთით)` pin keeps its named
-    instrumental (specificity wins). Browser-verified: `attack trophy case` → `(ამით)`.
-  - **NATIVE-REVIEW decision for the colleagues:** is the drop-noun `(ამით)` acceptable, or
-    should `(with the {obj})` be upgraded to per-object **instrumental** pins (naming the
-    weapon/tool, like the match pin)? The named form is more informative but needs the §4
-    instrumental for each auto-suppliable weapon/tool (sword/knives/axe/stiletto/sceptre/
-    torch/candles/shovel/pump/screwdriver/wrench/key/putty). Either way is leak-free; this is
-    a naturalness call, not a coverage gap.
+  - **`(with the {obj})`** → originally the drop-noun `(ამით)` ("with this"); **now upgraded
+    (this branch, 2026-06-24) to per-object named INSTRUMENTAL string pins** in
+    `zork1.ka.strings.ts` (`(with the sword)` → `(მახვილით)`, etc.), modelled on the
+    pre-existing `(with the match)` → `(ასანთით)`. Each pin beats the template by specificity;
+    the drop-noun `(ამით)` **stays as the leak-proof fallback** for any auto-suppliable object
+    not pinned. GWIM fires only when ONE instrument is eligible, so the fallback is unambiguous.
+  - **NATIVE-REVIEW decision — RESOLVED: per-object instrumental chosen** (Ovid's naturalness
+    call, upgrading the drop-noun). All 14 auto-suppliable weapons/tools are now pinned with a
+    named instrumental (sword/stiletto/sceptre/torch/shovel/screwdriver + the ⚠ multi-word
+    nasty-knife/rusty-knife/bloody-axe/skeleton-key/viscous-material/wrench, the numeral
+    `pair of candles`, and the genitive-chain `hand-held air pump`). **What we still need from
+    a native reviewer:** confirm the §4 case of each — especially the ⚠ multi-word adj+noun
+    (head noun declined, attributive adjective left in its `-ი` citation form) and the
+    syncopated stems (torch `ჩირაღდნ-`, candles `სანთლ-`). Pins + per-row case notes are in the
+    Group H worklist of `notes/georgian-composed-line-review.md` (rows 63–76); a focused
+    regression test (`zork1.ka.uat.test.ts`) pins each named form against a regression back to
+    `(ამით)`. Still `NATIVE-REVIEW-DRAFT`; the `(beta)` marker stays.
 
 ## Provisional `ka` draft lines (NATIVE-REVIEW-DRAFT) — two batches
 

@@ -3,11 +3,13 @@
 > **A request to our Georgian colleagues.** Loquor wants a Georgian player to read
 > Zork I entirely in Georgian — never forced back into English. To get there we had
 > to translate dozens of lines the game _builds at runtime_ by gluing fragments and
-> object names together ("composed lines"). The 62 lines below were **machine-drafted
+> object names together ("composed lines"). The 76 lines below were **machine-drafted
 > by a non-native author** and are deliberately **safe but stiff**: where the object
 > is the grammatical subject we kept it (`{obj.indef}` as a nominative); everywhere
 > else we **dropped the object** to a caseless demonstrative (ამას / ამაზე / ამაში /
-> ამით) to dodge §4 case agreement we couldn't be sure of. They pass the coverage
+> ამით) to dodge §4 case agreement we couldn't be sure of. The exception is Group H
+> rows 63–76 (added later), where we **named the weapon/tool in the instrumental**
+> (`-ით`) per object — those most need your §4 case check. They pass the coverage
 > gate (non-English, Georgian-bearing) — they are **not** confirmed natural. This is
 > the worklist where a native speaker fixes the wording. The **`(beta)` marker stays
 > until you sign off.** Thank you — and sorry in advance for the stiff ones.
@@ -26,7 +28,9 @@
     caseless demonstrative (ამას/ამაზე/ამაში/ამით) or folded away entirely. Chosen
     when the object would need an oblique case we weren't sure of. **Review: is the
     reframe natural, or would you rather name the object (with the right case)?**
-  - **pin** = a full-string pin (none in this batch; all 62 are templates).
+  - **pin** = a full-string pin. The 14 named-instrument parentheticals (Group H, rows
+    63–76) are pins in `zork1.ka.strings.ts`; the other 62 lines are templates.
+    **Review: is the instrumental case (and any adjective agreement) right?**
 - ⚠ marks the drafts the author was **least confident** about — start here.
 
 The templates live in `src/translate/corpus/zork1.ka.templates.ts`, inside the
@@ -158,22 +162,46 @@ which were **uncovered in every language** and authored fresh.
 
 ---
 
-## Group H — Parser implicit-object parenthetical (2)
+## Group H — Parser implicit-object parenthetical (16)
 
-Added UAT 2026-06-24. When the parser auto-supplies a uniquely-determined missing
-object it prints it on its own line — bare `(<obj>)` or `(with the <obj>)`. fr/de/es
-generalize both; `ka` had only the `(with the match)` → `(ასანთით)` pin, so e.g.
-`attack troll` → `(with the sword)` leaked raw English. **One open question for you:**
-for `(with the {obj})` we used the caseless drop-noun `(ამით)` ("with this") rather
-than risk the instrumental case per object — **would you rather name the weapon/tool
-in the instrumental** (like the existing `(ასანთით)` = "with the match")? Both are
-leak-free; this is naturalness only. The auto-supply fires only when ONE instrument is
-eligible, so `(ამით)` is unambiguous.
+Added UAT 2026-06-24, **named-instrument pins added 2026-06-24 (this branch).** When
+the parser auto-supplies a uniquely-determined missing object it prints it on its own
+line — bare `(<obj>)` or `(with the <obj>)`. fr/de/es generalize both; `ka` had only
+the `(with the match)` → `(ასანთით)` pin, so e.g. `attack troll` → `(with the sword)`
+leaked raw English.
 
-| #   | EN source          | Draft Georgian  | Rung | Note                                                                                                                                     |
-| --- | ------------------ | --------------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| 61  | `({obj})`          | `({obj.indef})` | NS   | bare auto-supplied object, e.g. `(brass lantern)` → `(სპილენძის ფარანი)` — nominative citation                                           |
-| 62  | `(with the {obj})` | `(ამით)`        | DN   | ⚠ "(with this)" — instrument dropped (§4 instrumental); `(with the match)` keeps its named `(ასანთით)` pin. Name the instrument instead? |
+**The open question (drop-noun vs. name-the-weapon) is now RESOLVED — Ovid chose to
+name the weapon/tool in the instrumental.** So rows 63–76 below are **per-object named
+INSTRUMENTAL string pins** in `zork1.ka.strings.ts` (each beats the `(with the {obj})`
+template by specificity), modelled on the pre-existing `(ასანთით)` = "with the match".
+The caseless drop-noun `(ამით)` (row 62) **stays as the leak-proof fallback** for any
+auto-suppliable object not pinned. **What we need from you:** confirm the §4 case of
+each pin — especially the ⚠ multi-word adj+noun / numeral / genitive-chain rows, where
+we declined the head noun and left the attributive adjective in its `-ი` citation form
+(our best guess at instrumental attributive agreement). The auto-supply fires only when
+ONE instrument is eligible, so the caseless fallback is unambiguous.
+
+| #   | EN source                       | Draft Georgian           | Rung | Note                                                                                                |
+| --- | ------------------------------- | ------------------------ | ---- | --------------------------------------------------------------------------------------------------- |
+| 61  | `({obj})`                       | `({obj.indef})`          | NS   | bare auto-supplied object, e.g. `(brass lantern)` → `(სპილენძის ფარანი)` — nominative citation      |
+| 62  | `(with the {obj})`              | `(ამით)`                 | DN   | leak-proof **fallback** for any un-pinned auto-supply → "(with this)"; ONE-eligible, so unambiguous |
+| 63  | `(with the sword)`              | `(მახვილით)`             | pin  | მახვილი → -ით                                                                                       |
+| 64  | `(with the stiletto)`           | `(სტილეტით)`             | pin  | სტილეტი → -ით                                                                                       |
+| 65  | `(with the sceptre)`            | `(სკიპტრით)`             | pin  | სკიპტრა → -ა truncates → -ით                                                                        |
+| 66  | `(with the torch)`              | `(ჩირაღდნით)`            | pin  | ⚠ syncopated stem ჩირაღდანი → ჩირაღდნ- (corpus-attested via ჩირაღდნის) → -ით; confirm               |
+| 67  | `(with the shovel)`             | `(ნიჩაბით)`              | pin  | ნიჩაბი → -ით (transparent; no oblique attested — confirm if syncope ნიჩბით is natural)              |
+| 68  | `(with the screwdriver)`        | `(სახრახნისით)`          | pin  | სახრახნისი → -ით                                                                                    |
+| 69  | `(with the nasty knife)`        | `(საზიზღარი დანით)`      | pin  | ⚠ adj+noun: დანა → დანით, adj kept `-ი`                                                             |
+| 70  | `(with the rusty knife)`        | `(დაჟანგული დანით)`      | pin  | ⚠ adj+noun                                                                                          |
+| 71  | `(with the bloody axe)`         | `(სისხლიანი ცულით)`      | pin  | ⚠ adj+noun: ცული → ცულით                                                                            |
+| 72  | `(with the skeleton key)`       | `(ღია გასაღებით)`        | pin  | ⚠ adj+noun: გასაღები → გასაღებით, adj ღია (vowel-stem) unchanged                                    |
+| 73  | `(with the viscous material)`   | `(ბლანტი მასალით)`       | pin  | ⚠ adj+noun: მასალა → მასალით                                                                        |
+| 74  | `(with the wrench)`             | `(სასხლეტი გასაღებით)`   | pin  | ⚠ corpus renders wrench as two words (adj+noun): გასაღები → გასაღებით                               |
+| 75  | `(with the pair of candles)`    | `(ორი სანთლით)`          | pin  | ⚠ numeral + syncope: ორი + სანთელი → სანთლ- → -ით                                                   |
+| 76  | `(with the hand-held air pump)` | `(ხელის ჰაერის ტუმბოთი)` | pin  | ⚠ genitive chain: head ტუმბო (stable -ო) → -თი; modifiers ხელის ჰაერის kept genitive                |
+
+> `(with the match)` → `(ასანთით)` is the pre-existing pin this pattern was modelled on
+> (it lives by the match strings in `zork1.ka.strings.ts`); not re-listed here.
 
 ---
 
@@ -197,8 +225,12 @@ the echoed English — or the same drop-the-token reframe used in Group A.
 
 ## Reviewer priority
 
-If time is short, fix the ⚠ rows first (rows 15, 21, 28, 37, 44, 52, 56, 62) — they are
+If time is short, fix the ⚠ rows first (rows 15, 21, 28, 37, 44, 52, 56) — they are
 the heaviest reframes and the `{obj}smanship` pun (56) is the biggest flavour loss.
-Then sweep the DN rows: for each, decide whether naming the object (in the right §4
-case) reads better than the caseless demonstrative. The NS rows mostly need a tense /
-agreement check (e.g. is `იხურება` "closes" right for "is now closed"?).
+Then check the **Group H instrumental pins** (rows 63–76): the ⚠ multi-word ones —
+adj+noun (69–74), numeral+syncope (75 candles), genitive-chain (76 pump) — plus the
+two syncopated single words (66 torch, 67 shovel) need a native case/agreement check;
+the clean `-ი`/`-ა` single words (63 sword, 64 stiletto, 65 sceptre, 68 screwdriver)
+are lower risk. Then sweep the DN rows: for each, decide whether naming the object (in
+the right §4 case) reads better than the caseless demonstrative. The NS rows mostly need
+a tense / agreement check (e.g. is `იხურება` "closes" right for "is now closed"?).

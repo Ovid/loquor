@@ -406,6 +406,85 @@ describe('requestDownload', () => {
   })
 })
 
+describe('ka (Georgian) model-guard: must never reach model:full', () => {
+  it('picking ka with a cached model stays grammar-only (setLanguage path)', async () => {
+    // ka has no input LLM. Even when a model is installed/cached (from a prior
+    // fr/de/es session), picking ka must never promote to model:'full'.
+    const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
+    await waitFor(() => expect(hook.result.current.installed).toBe(true))
+    act(() => hook.result.current.setLanguage('ka'))
+    expect(hook.result.current.internal).toEqual({
+      phase: 'on',
+      language: 'ka',
+      model: 'grammar',
+    })
+  })
+
+  it('picking ka with a cached model stays grammar-only (boot-probe path)', async () => {
+    // A persisted 'ka' preference with a cached model must restore to grammar,
+    // not full — the isCached probe must apply the same guard.
+    writeNlPref({ language: 'ka' })
+    const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
+    await waitFor(() =>
+      expect(hook.result.current.internal).toMatchObject({ phase: 'on' }),
+    )
+    expect(hook.result.current.internal).toEqual({
+      phase: 'on',
+      language: 'ka',
+      model: 'grammar',
+    })
+  })
+
+  it('ka picked before probe resolves stays grammar-only even when model is cached (race path)', async () => {
+    // Mirrors the [I1] race test for fr, but ka must NOT be promoted to full
+    // when the probe resolves — the race-promote guard must exclude ka.
+    let resolveCached!: (v: boolean) => void
+    const engine: LlmEngine = {
+      load: async () => {},
+      unload: async () => {},
+      isLoaded: () => false,
+      isCached: () =>
+        new Promise<boolean>(r => {
+          resolveCached = r
+        }),
+      generate: async () => '',
+    }
+    const { hook } = setup({ engine })
+    act(() => hook.result.current.setLanguage('ka'))
+    expect(hook.result.current.internal).toEqual({
+      phase: 'on',
+      language: 'ka',
+      model: 'grammar',
+    })
+    // Probe resolves: model IS cached — but ka must still stay grammar-only.
+    await act(async () => {
+      resolveCached(true)
+      await Promise.resolve()
+    })
+    expect(hook.result.current.internal).toEqual({
+      phase: 'on',
+      language: 'ka',
+      model: 'grammar',
+    })
+    // installed becomes true (the flag is about engine availability, not ka-specific)
+    expect(hook.result.current.installed).toBe(true)
+  })
+
+  it('fr/de/es with a cached model still promote to full (guard is ka-specific)', async () => {
+    // Regression guard: the ka exclusion must not accidentally break other langs.
+    for (const lang of ['fr', 'de', 'es'] as const) {
+      const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
+      await waitFor(() => expect(hook.result.current.installed).toBe(true))
+      act(() => hook.result.current.setLanguage(lang))
+      expect(hook.result.current.internal).toEqual({
+        phase: 'on',
+        language: lang,
+        model: 'full',
+      })
+    }
+  })
+})
+
 describe('setLanguage', () => {
   it('a cached model activates the chosen language immediately as full and persists it', async () => {
     const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })

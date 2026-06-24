@@ -23,7 +23,7 @@
 **New files:**
 - `src/llm/lexicon/ka.core.ts` — `KA_CORE: CoreLexicon` (verbs, postpositions, preps, metaAliases; pronoun arrays empty).
 - `src/llm/lexicon/ka.zork1.ts` — `KA_ZORK1: NounLexicon` (Zork I nouns, bare-stem forms; dative recipients for G1).
-- `src/llm/lexicon/expandGeorgian.ts` — the gated pre-stage (`expandGeorgian`, `KA_DATIVE_RECIPIENTS` helper).
+- `src/llm/lexicon/expandGeorgian.ts` — the gated pre-stage (`expandGeorgian`).
 - `src/llm/lexicon/expandGeorgian.test.ts` — unit tests for the pre-stage.
 - `src/llm/lexicon/parse.ka-walkthrough.test.ts` — the Georgian walkthrough-parse gate (forcing function).
 - `src/llm/lexicon/parse.ka-uat.test.ts` — Georgian input-UAT pins.
@@ -36,16 +36,21 @@
 - `src/llm/directions.test.ts` — Georgian directions case.
 - `src/llm/lexicon/validate.test.ts` — `ka` (Zork I-only) validation block.
 - `src/llm/lexicon/roundtrip.test.ts` — add `ka` to `LANGS` with null-skip.
-- `src/translate/corpus/roundtrip.test.ts` — add `ka` `Row` with an `expandGeorgian` reduce.
-- `src/translate/corpus/ka-native-review-draft.test.ts` — extend marker coverage to the `ka` input files.
-- `src/llm/types.ts` — remove `'ka'` from `OUTPUT_ONLY_LANGS`.
+- `src/translate/corpus/roundtrip.test.ts` — add `ka` `Row` with a nominative-strip reduce.
+- `src/translate/corpus/ka-native-review-draft.test.ts` — extend marker coverage to the `ka` input files; fix the disambiguation locator (Task 22).
 - `src/llm/useModelDownload.ts` — force `model: 'grammar'` for `ka` at every model-set site.
-- `src/llm/useNaturalLanguage.ts` — lex memo admits `ka` only when `kaInputActive`.
-- `src/llm/translatePipeline.ts` — simplify the queue bail (drop the now-empty `OUTPUT_ONLY_LANGS` `ka` clause).
-- `src/ui/Terminal.tsx` — route `ka` input via `kaInputActive`; Zork-I-gated copy.
+- `src/llm/useNaturalLanguage.ts` — lex memo admits `ka` only when `kaInputActive`; activation-tip split by signature (Task 20).
+- `src/llm/translatePipeline.ts` — queue bail keys on `!liveRef.current.lex` (C2), drop the `OUTPUT_ONLY_LANGS` import.
+- `src/ui/Terminal.tsx` — route `ka` input via `kaInputActive`; Zork-I-gated copy; drop the now-unused `outputOnly`/`OUTPUT_ONLY_LANGS` import.
 - `src/ui/Terminal.test.tsx` — invert the four `ka` tests; add the Zork II raw-send pin.
-- `src/llm/notices.ts` — revise `ka` placeholder/label/abstain/activation copy to Georgian-input semantics.
+- `src/llm/notices.ts` — revise `ka` placeholder/label/abstain/activation copy; retain Phase-1 strings under new names; `escapeHatchOnActivation` takes the input flag (S1/S2).
 - `src/llm/help.ts` — revise the `ka` help arm to Georgian-input semantics.
+- `src/translate/corpus/zork1.ka.templates.ts` — disambiguation drop-the-noun reframe (Task 22).
+- `src/translate/corpus/zork1.ka.uat.test.ts` — invert the `{raw}`-echo disambiguation pins (Task 22).
+
+> **NOT modified (review-fix C2):** `src/llm/types.ts` — `OUTPUT_ONLY_LANGS` keeps
+> `ka` (output stays corpus-only). The input decision is `kaInputActive`, never
+> `OUTPUT_ONLY_LANGS`.
 
 ---
 
@@ -96,8 +101,11 @@ In `src/llm/lexicon/types.ts`, after the `LexLang` declaration (line 8) add:
 
 ```ts
 /** Languages with an INPUT lexicon. `ka` has one (Phase 2) but must NEVER key the
- *  LLM machinery (FEWSHOTS, xlPrompt TARGET/SHIMMER, notices ByLang, fallbackResolve),
- *  which stay Record<LexLang,…> so a `ka` LLM entry is a type error by construction. */
+ *  LLM machinery. The LLM-keyed maps that are STRICT Record<LexLang,…> (so a `ka`
+ *  entry is a type error) are `fallbackResolve` and the prompt's per-language
+ *  tables; note that `FEWSHOTS` and notices' `ByLang` already widen to optional
+ *  `ka` (review S3 — the guarantee is "ka is not REQUIRED in the LLM path", not
+ *  "ka is structurally impossible everywhere"). Keep new LLM maps `Record<LexLang>`. */
 export type InputLexLang = LexLang | 'ka'
 ```
 
@@ -261,8 +269,9 @@ import { FR_ZORK1 } from './fr.zork1'
 describe('expandGeorgian wiring (spec §3) — gated on core.postpositions', () => {
   const empty = { inScope: [], antecedent: null }
   // A minimal Georgian-shaped core: postpositions present → expandGeorgian runs.
+  // NOTE გახსენი ENDS IN -ი — it exercises the C1 verb-not-mangled regression.
   const kaCore = {
-    verbs: { აიღე: 'take' },
+    verbs: { აიღე: 'take', გახსენი: 'open' },
     verbIdioms: [],
     particleVerbs: [],
     preps: { ში: 'in' },
@@ -273,13 +282,19 @@ describe('expandGeorgian wiring (spec §3) — gated on core.postpositions', () 
     metaAliases: {},
     postpositions: { ში: 'in' },
   }
-  const kaNouns = { mailbox: ['ფოსტა'] }
+  const nouns = { mailbox: ['ფოსტ'] } // bare stem
 
   it('ka: a nominative object resolves after the -ი strip', () => {
-    // ფოსტა is vowel-final; use a -ი form to exercise the strip.
-    const nouns = { mailbox: ['ფოსტ'] }
+    // ფოსტი (nominative) → ფოსტ (bare stem)
     const r = parseLexicon('აიღე ფოსტი', kaCore, nouns, ZORK1_VOCAB, empty)
     expect(r).toEqual({ kind: 'command', text: 'take small mailbox' })
+  })
+
+  it('ka: a -ი-FINAL verb is NOT mangled by the strip (review-fix C1)', () => {
+    // გახსენი (open) ends in -ი; the strip MUST run after verb resolution, else
+    // გახსენი → გახსენ misses the verb lookup. Object ფოსტი → ფოსტ resolves.
+    const r = parseLexicon('გახსენი ფოსტი', kaCore, nouns, ZORK1_VOCAB, empty)
+    expect(r).toEqual({ kind: 'command', text: 'open small mailbox' })
   })
 
   it('fr/de/es are byte-identical before/after (no postpositions → no expand)', () => {
@@ -297,9 +312,9 @@ describe('expandGeorgian wiring (spec §3) — gated on core.postpositions', () 
 })
 ```
 
-> If `mailbox`'s emit is not `small mailbox`, adjust both expectations to the
-> actual `byCanonical(ZORK1_VOCAB,'mailbox').emit` — read it from
-> `src/llm/grammar/zork1.vocab.ts`. The point is identity, not the literal.
+> If `mailbox`'s emit is not `small mailbox`, adjust the expectations to the
+> actual mailbox `emit` — look it up in `src/llm/grammar/zork1.vocab.ts`. The
+> point is identity, not the literal.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -314,27 +329,29 @@ In `src/llm/lexicon/parse.ts`, add to the imports (line 8 area):
 import { expandGeorgian } from './expandGeorgian'
 ```
 
-In `parseLexicon`, replace the first line of the body (line 342):
+**C1 — run the pre-stage AFTER the verb is resolved, on the remainder.** Leave
+`let tokens = tokenize(clause)` (line 342) UNCHANGED. Insert the `expandGeorgian`
+call **after the verb-resolution block** — immediately after `if (!verb) return
+MISS` (line 386) and before the "No remainder" check (line 389):
 
 ```ts
-  let tokens = tokenize(clause)
+  if (!verb) return MISS
+
+  // Georgian pre-stage (spec §3.2, review-fix C1): postposition split +
+  // nominative -ი strip on the OBJECT-SPAN remainder, AFTER the verb is
+  // resolved. A Georgian imperative often ends in -ი (მიეცი/მოკალი/გახსენი), so
+  // stripping the WHOLE clause before verb lookup would mangle the verb into a
+  // non-key and MISS with no LLM net. Only when this core declares postpositions
+  // (i.e. only ka); fr/de/es have none, so this is a no-op (byte-identical).
+  if (core.postpositions) tokens = expandGeorgian(tokens, core.postpositions)
 ```
 
-with:
-
-```ts
-  // Georgian pre-stage (spec §3.2): postposition split + nominative -ი strip,
-  // ONLY when this core declares postpositions (i.e. only ka). fr/de/es have no
-  // `postpositions`, so this is a no-op and their behavior is byte-identical.
-  let tokens = core.postpositions
-    ? expandGeorgian(tokenize(clause), core.postpositions)
-    : tokenize(clause)
-```
-
-> The prep merge (spec §3.1) is satisfied by authoring `KA_CORE.preps` to
-> CONTAIN the postposition suffixes (Task 4): after `ყუთში` → `[ში, ყუთ]`, the
-> existing prep-split reads `core.preps['ში'] = 'in'`. No change to the prep-split
-> loop is required.
+> Verb idioms / particle verbs (lines 348–385) and the single-word verb lookup
+> (line 366) all run on the RAW tokens — `KA_CORE` stores imperatives in their
+> full `-ი`-bearing form, so they match before any strip. The prep merge (spec
+> §3.1) is satisfied by authoring `KA_CORE.preps` to CONTAIN the postposition
+> suffixes (Task 4): after `ყუთში` → `[ში, ყუთ]`, the existing prep-split reads
+> `core.preps['ში'] = 'in'`. No change to the prep-split loop is required.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -494,9 +511,10 @@ export const KA_CORE: CoreLexicon = {
     // unlock = open-with-key; the contiguous idiom consumes verb+instrument
     // marker so the door resolves as the object. Review for naturalness.
     { phrase: 'გასაღებით გააღე', to: 'unlock' },
-    // wind up canary (Songbird): the natural causative if a single verb reads
-    // wrong to the reviewer.
-    { phrase: 'დააქოქე', to: 'wind up' },
+    // wind up canary (Songbird): `დააქოქე` → 'wind up' is the single-word verb
+    // (added under `verbs` below), NOT an idiom — a one-token idiom would just
+    // shadow the verb entry (m3). Only add a MULTIWORD wind-up idiom here if the
+    // reviewer needs one (e.g. 'მექანიზმი დააქოქე').
     // echo (Loud Room): the player types the English game verb verbatim.
     { phrase: 'echo', to: 'echo' },
   ],
@@ -934,7 +952,8 @@ git commit -m "test(georgian): ka lexicon validation gate (Zork I only)"
 **Files:**
 - Modify: `src/llm/lexicon/roundtrip.test.ts:22` (LANGS) + the noun loop (null-skip)
 - Modify: `src/llm/lexicon/parse.ts` (the G1 dative path)
-- Modify: `src/llm/lexicon/expandGeorgian.ts` (export `KA_DATIVE_RECIPIENTS` if used)
+- (No `expandGeorgian.ts` change — the G1 dative path lives in `parse.ts` and
+  resolves recipients via the dative forms listed in `KA_ZORK1`, M3.)
 
 **G1 design (resolving the Open Decision):** `give egg to thief` →
 `მიეცი კვერცხი ქურდს`. `expandGeorgian` strips `-ი` from `კვერცხი` (→ `კვერცხ`) but
@@ -1082,9 +1101,14 @@ Extend `Row`:
 
 ```ts
   /** Optional per-language reduction applied to the folded display form before
-   * the membership check — mirrors the language's input pre-stage. ka reduces
-   * via expandGeorgian (nominative -ი strip + postposition split) so display
-   * nominatives reconcile with stored bare stems (finding-9). */
+   * the membership check — mirrors the language's input pre-stage. ka applies the
+   * NOMINATIVE -ი STRIP ONLY (not the postposition split) so display nominatives
+   * reconcile with stored bare stems (finding-9). The split is deliberately
+   * OMITTED here (review M2): some object NAMES carry genuine instrumental
+   * morphology — e.g. `ტყავის ტომარა მონეტებით` ("leather bag of coins") ends in
+   * -ით — and splitting that would mangle the display name, not a player's
+   * postpositional input. expandGeorgian(tokens, {}) runs only the -ი strip
+   * (no suffix matches the empty map). */
   reduce?: (folded: string) => string
 ```
 
@@ -1098,8 +1122,8 @@ Add the `ka` row to `LANGS`:
     objects: ZORK1_KA_OBJECTS,
     canonical: ZORK1_KA_CANONICAL,
     headExtra: [], // Georgian has no articles
-    reduce: f =>
-      expandGeorgian(f.split(' '), KA_CORE.postpositions ?? {}).join(' '),
+    // Nominative -ი strip only (empty postpositions → no split, M2):
+    reduce: f => expandGeorgian(f.split(' '), {}).join(' '),
   },
 ```
 
@@ -1124,8 +1148,14 @@ missing from `KA_ZORK1` (the finding-9 work-list).
 - [ ] **Step 3: Fill `KA_ZORK1` to green** — for each failure
 `"<en>".indef = "<form>" → "<reduced>" missing from ka["<canonical>"]`, add
 `<reduced>` to that canonical's list in `ka.zork1.ts` (in vocab canonical order).
-This is the bulk noun-completion task, mechanically derived from the display
-corpus.
+This is the bulk noun-completion task, **mostly mechanical** (the reduced display
+form drops straight in) — but **with hand-judgment exceptions** (review M2): a
+display NAME that bakes in case morphology (instrumental `…მონეტებით`, genitive
+chains) won't reduce to a clean head-noun stem, so either (a) list the reduced
+display form verbatim AND add a bare head-noun synonym players actually type, or
+(b) simplify the display corpus form — finding-9 explicitly anticipated possible
+**display-corpus edits** here. The gate names each case; resolve it, don't
+auto-apply.
 
 - [ ] **Step 4: Run to verify it passes**
 
@@ -1514,37 +1544,46 @@ git commit -m "feat(georgian): lex memo admits ka only when kaInputActive (Zork 
 
 ---
 
-### Task 16: Remove `ka` from `OUTPUT_ONLY_LANGS` + simplify the queue bail
+### Task 16: Re-point the queue bail to the input-lexicon (NOT empty `OUTPUT_ONLY_LANGS`)
 
 **Files:**
-- Modify: `src/llm/types.ts:19`
-- Modify: `src/llm/translatePipeline.ts:~975`
+- Modify: `src/llm/translatePipeline.ts:~972`
+
+**Review-fix C2 — `OUTPUT_ONLY_LANGS` is NOT emptied.** The first draft removed
+`ka` from the set; that was wrong. The set has five other consumers that stay
+correct for `ka` (the WebLLM-modal suppression `useModelDownload.ts:324`, the
+screen-reader announce routing `useNaturalLanguage.ts:233`, the title-only display
+`nlModeSummary.ts:53`, the picker copy, and the `types.test.ts` invariant
+`OUTPUT_ONLY_LANGS ⊇ CORPUS_ONLY_LANGS`). `ka` output **stays** corpus-only, so it
+must **stay** in `OUTPUT_ONLY_LANGS`. `types.ts` is **unchanged**, `types.test.ts`
+stays green, and Task 17 does NOT use `OUTPUT_ONLY_LANGS` for the input decision.
+
+The only fix here is the queue bail: today it bails for `ka` via
+`OUTPUT_ONLY_LANGS.has(live.language)`, but `ka`-on-Zork-I now HAS an input queue
+that must drain. Re-point the bail to **"no input lexicon present"** — which is
+exactly what `liveRef.current.lex` already tracks (it's `null` for en/off and for
+`ka`-on-non-Zork-I, non-null for `ka`-on-Zork-I and fr/de/es).
 
 - [ ] **Step 1: Write the failing test** — add to the pipeline test suite a
 ka-queue-drains assertion (mirror an existing fr queue-drain test): two queued
-Georgian lines under `ka` (Zork I, grammar-only) both run, the queue is not
-abandoned.
+Georgian lines under `ka` (Zork I, grammar-only, `lex` present) both run, the
+queue is not abandoned. Add a second: `ka`-on-Zork-II (`lex === null`) still bails
+(raw-send path — no queue is built, but assert the bail predicate holds).
 
-- [ ] **Step 2: Run to verify it fails / changes** — removing `ka` from the set
-will be needed for the queue to drain rather than bail.
+- [ ] **Step 2: Run to verify it fails** — today the bail fires for `ka` (still in
+`OUTPUT_ONLY_LANGS`), so the Zork-I queue is wrongly abandoned.
 
-- [ ] **Step 3: Remove `ka` + simplify the bail** — In `src/llm/types.ts`:
-
-```ts
-// No INPUT-less display languages remain (ka graduated in Phase 2). Kept as the
-// seam for any future read-only language; empty today.
-export const OUTPUT_ONLY_LANGS: ReadonlySet<NlLanguage> = new Set([])
-```
-
-Update the doc comment above it (it currently says "Phase 2 removes 'ka'" — now done).
-
-In `src/llm/translatePipeline.ts`, simplify the queue bail (line ~975) — the
-`OUTPUT_ONLY_LANGS.has(live.language)` clause is now always false; the `ka`
-behavior is reproduced by the normal grammar-only path:
+- [ ] **Step 3: Re-point the bail** — In `src/llm/translatePipeline.ts`, the queue
+bail (line ~972). `liveRef.current` carries both `internal` and `lex`, so read
+`lex` alongside `internal`:
 
 ```ts
-        const live = liveRef.current.internal
-        if (live.phase !== 'on') {
+        const live = liveRef.current
+        // Bail when NL is off OR this game has no INPUT lexicon (en/off, and
+        // ka-on-non-Zork-I). ka-on-Zork-I has a `lex`, so its queue drains
+        // normally (review-fix C2 — replaces the OUTPUT_ONLY_LANGS.has check,
+        // which would wrongly abandon ka's Zork I input queue).
+        if (live.internal.phase !== 'on' || !live.lex) {
           lastCommandRef.current = null
           queueRef.current = []
           syncQueue()
@@ -1553,19 +1592,25 @@ behavior is reproduced by the normal grammar-only path:
         }
 ```
 
-(Remove the `OUTPUT_ONLY_LANGS` import in `translatePipeline.ts` if now unused;
-keep it in `Terminal.tsx` only if Task 17 still references it — it won't.)
+Remove the now-unused `OUTPUT_ONLY_LANGS` import from `translatePipeline.ts` (it
+is no longer referenced there). **Do NOT touch `src/llm/types.ts`.**
 
-- [ ] **Step 4: Run to verify it passes** + the pipeline suite.
+> Verify `LiveState` exposes `lex` at the bail site — `liveRef` is typed
+> `useRef<LiveState>({ internal, lex })` in `useNaturalLanguage.ts`, so
+> `liveRef.current.lex` is in scope. If the pipeline only destructured
+> `.internal` before, widen the read.
 
-Run: `npx vitest run src/llm/translatePipeline.test.ts`
-Expected: PASS — ka queue drains; fr/de/es queue behavior unchanged.
+- [ ] **Step 4: Run to verify it passes** + the pipeline suite + `types.test.ts`.
+
+Run: `npx vitest run src/llm/translatePipeline.test.ts src/llm/types.test.ts`
+Expected: PASS — ka Zork-I queue drains; `types.test.ts` invariant intact (ka
+still in both sets); fr/de/es queue behavior unchanged.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/llm/types.ts src/llm/translatePipeline.ts
-git commit -m "refactor(georgian): retire ka from OUTPUT_ONLY_LANGS; simplify queue bail"
+git add src/llm/translatePipeline.ts
+git commit -m "fix(georgian): queue bail keys on input lexicon, not OUTPUT_ONLY_LANGS (C2)"
 ```
 
 ---
@@ -1576,9 +1621,14 @@ git commit -m "refactor(georgian): retire ka from OUTPUT_ONLY_LANGS; simplify qu
 - Modify: `src/ui/Terminal.tsx`
 - Modify: `src/ui/Terminal.test.tsx`
 
-`outputOnly` (from the now-empty `OUTPUT_ONLY_LANGS`) is dead. Replace the `ka`
-input gating with `kaInputActive(outLang, signature)`: route `ka` through
-`nl.translate` on Zork I; raw-send (+ boundary help-intercept) on Zork II/III.
+`OUTPUT_ONLY_LANGS` stays (review-fix C2), so Terminal's `outputOnly` is still a
+valid value (true for `ka`) — but it must **no longer drive the INPUT decision**.
+Replace the `outputOnly`-based input gating with `kaInputActive(outLang,
+signature)`: route `ka` through `nl.translate` on Zork I; raw-send (+ boundary
+help-intercept) on Zork II/III. After this change `outputOnly` is unused in
+Terminal — delete the local `const outputOnly` (line ~149) and its `OUTPUT_ONLY_LANGS`
+import (the SET stays defined in `types.ts` for its other five consumers; only
+Terminal stops importing it).
 
 - [ ] **Step 1: Invert the tests** — In `src/ui/Terminal.test.tsx`:
 
@@ -1685,12 +1735,25 @@ describe('ka Georgian-input copy (spec §7)', () => {
 
 - [ ] **Step 3: Revise the `ka` entries** — In `src/llm/notices.ts`:
 
-`commandPlaceholder` `ka` (line ~215):
+**S1 — PRESERVE the Phase-1 type-English strings (Task 20 needs them for Zork
+II/III).** Do not overwrite in place; rename the old strings and add the new ones
+alongside.
+
+`commandPlaceholder` `ka` (line ~215) — make the DEFAULT the Georgian-input copy,
+and add a sibling `commandPlaceholderTypeEnglish` exporting the OLD string:
 
 ```ts
       // NATIVE-REVIEW-DRAFT (ka §7): Georgian input now works (Zork I, beta);
       // English also raw-sends.
       ka: 'აკრიფეთ ქართულად ან ინგლისურად — მაგ. აიღე ფარანი',
+```
+
+```ts
+/** The Phase-1 type-English ka field copy, RETAINED for ka on a no-input game
+ * (Zork II/III, spec §5.6). Terminal uses this when !kaInputActive. */
+export function commandPlaceholderTypeEnglish(): string {
+  return 'აკრიფეთ ინგლისურად — მაგ. open the mailbox'
+}
 ```
 
 `commandLabel` `ka` (line ~230):
@@ -1699,13 +1762,28 @@ describe('ka Georgian-input copy (spec §7)', () => {
       ka: 'თამაშის ბრძანება — ქართული ან ინგლისური',
 ```
 
-`GEORGIAN_ACTIVATION_TIP` (line ~248) — Georgian-input + the quoted-English
-escape (now meaningful, since `ka` has an input path on Zork I):
+`GEORGIAN_ACTIVATION_TIP` — add the Georgian-INPUT tip as the NEW name and KEEP
+the Phase-1 tip under a retained name (the hook chooses between them per
+`kaInputActive`, Task 20 / S2):
 
 ```ts
+/** Phase-1 ka tip (type English; text shows in Georgian). RETAINED for ka on a
+ * no-input game (Zork II/III). NATIVE-REVIEW-DRAFT. */
+export const GEORGIAN_ACTIVATION_TIP_TYPE_ENGLISH =
+  'რჩევა: ბრძანებები აკრიფეთ ინგლისურად; ტექსტი ქართულად ჩანს. დახმარებისთვის აკრიფეთ help.'
+
+/** Phase-2 ka tip: Georgian input (Zork I, beta) + the quoted-English escape
+ * (now meaningful, since ka has an input path). NATIVE-REVIEW-DRAFT. */
 export const GEORGIAN_ACTIVATION_TIP =
   'რჩევა: ბრძანებები აკრიფეთ ქართულად (beta); ამოუცნობი ბრძანება გააგზავნეთ ზუსტად ინგლისურად ბრჭყალებში, მაგ. "wind up canary". დახმარებისთვის აკრიფეთ help.'
 ```
+
+> The `escapeHatchOnActivation(lang)` switch (notices.ts) currently returns
+> `GEORGIAN_ACTIVATION_TIP` for `ka`. Make it take the input-active flag —
+> `escapeHatchOnActivation(lang, kaInput: boolean)` — and for `ka` return
+> `kaInput ? GEORGIAN_ACTIVATION_TIP : GEORGIAN_ACTIVATION_TIP_TYPE_ENGLISH`.
+> `makeActivationNotice()` threads the flag through (Task 20 passes it from the
+> hook). The once-per-language latch is unchanged.
 
 Add Georgian `ka` entries to `couldntTranslate`, `nothingSent`,
 `grammarOnlyFirstMiss`, `ranOfActions` (the input-side abstain/partial notices a
@@ -1768,50 +1846,79 @@ git commit -m "feat(georgian): revise ka help block to Georgian-input semantics"
 
 ---
 
-### Task 20: Activation tip + placeholder gated to Zork I in Terminal
+### Task 20: Gate the Zork-I-vs-II/III `ka` copy split — announce in the HOOK, placeholder in Terminal
 
 **Files:**
-- Modify: `src/ui/Terminal.tsx`
+- Modify: `src/llm/useNaturalLanguage.ts` (the announce-tip selection — S2)
+- Modify: `src/llm/notices.ts` (`escapeHatchOnActivation` takes the input flag — S2)
+- Modify: `src/ui/Terminal.tsx` (the placeholder override — kaRawSend)
 
-The Georgian-input activation tip / placeholder must show only on Zork I
-(`kaActive`); on Zork II/III `ka`, retain the Phase-1 type-English copy so a
-player isn't told Georgian input works where it doesn't.
+The Georgian-input tip/placeholder must show only on Zork I (`kaInputActive`); on
+Zork II/III `ka`, retain the Phase-1 type-English copy so a player isn't told
+Georgian input works where it doesn't.
 
-- [ ] **Step 1: Write the failing test** — add to `src/ui/Terminal.test.tsx`: on
-Zork II `ka`, the activation announce / placeholder is the Phase-1 type-English
-copy; on Zork I `ka`, it's the Georgian-input copy. (Two renders, different
-signatures.)
+**S2 — the announce tip is latched INSIDE the hook, not in Terminal.** The agent
+review caught that `nl.announce` is set in `useNaturalLanguage.ts:233`
+(`if (OUTPUT_ONLY_LANGS.has(active)) setAnnounce(msg)`), where `msg` comes from
+the activation-notice latch. Terminal cannot retroactively change which string was
+latched — so the Zork-I-vs-II/III split MUST happen in the hook, which already has
+the `signature`. The placeholder (a pure prop) is gated in Terminal.
 
-- [ ] **Step 2: Run to verify it fails.**
+- [ ] **Step 1: Write the failing tests**
+  - Hook test (renderHook): `ka` + `ZORK1_SIG` → `nl.announce` is the
+    `GEORGIAN_ACTIVATION_TIP` (Georgian-input); `ka` + `ZORK2_SIG` → the
+    `GEORGIAN_ACTIVATION_TIP_TYPE_ENGLISH`.
+  - Terminal test (`Terminal.test.tsx`): Zork I `ka` placeholder is the
+    Georgian-input copy; Zork II `ka` placeholder is the type-English copy.
 
-- [ ] **Step 3: Gate the copy** — In `src/ui/Terminal.tsx`, where the activation
-notice / placeholder source is chosen, branch on `kaActive`. If the placeholder
-is driven by `commandPlaceholder(activeLang)` (now Georgian-input for `ka`),
-override for the raw-send ka case:
+- [ ] **Step 2: Run to verify they fail.**
+
+- [ ] **Step 3a: Split the announce in the hook** — In `src/llm/notices.ts`, make
+the activation latch input-aware:
+
+```ts
+// escapeHatchOnActivation now takes whether ka INPUT is active (Zork I):
+case 'ka':
+  return kaInput ? GEORGIAN_ACTIVATION_TIP : GEORGIAN_ACTIVATION_TIP_TYPE_ENGLISH
+```
+
+(Thread a `kaInput: boolean` param through `escapeHatchOnActivation(lang, kaInput)`
+and the `makeActivationNotice()` returned fn `(lang, kaInput) => …`.) In
+`src/llm/useNaturalLanguage.ts` where the activation notice is computed (≈ line
+233 region), pass `kaInputActive(active, signature)` as the flag:
+
+```ts
+      const msg = activationNotice(active, kaInputActive(active, signature))
+      if (OUTPUT_ONLY_LANGS.has(active)) setAnnounce(msg)
+```
+
+(`OUTPUT_ONLY_LANGS.has(active)` STILL routes `ka`'s tip to the announce region —
+C2 keeps `ka` in the set; only the tip CONTENT now splits by signature.)
+
+- [ ] **Step 3b: Gate the placeholder in Terminal** — In `src/ui/Terminal.tsx`:
 
 ```ts
             placeholder={
               kaRawSend
-                ? commandPlaceholderTypeEnglish('ka') // Phase-1 type-English copy
+                ? commandPlaceholderTypeEnglish() // Zork II/III ka: Phase-1 copy
                 : nlOn
-                  ? commandPlaceholder(activeLang)
+                  ? commandPlaceholder(activeLang) // Zork I ka: Georgian-input
                   : 'type a command…'
             }
 ```
 
-> Add a small `commandPlaceholderTypeEnglish('ka')` helper in `notices.ts` that
-> returns the OLD Phase-1 `'აკრიფეთ ინგლისურად — …'` string (kept for the
-> no-lexicon ka games), OR keep the old string under a renamed export and use it
-> here. Likewise gate `nl.announce`/the activation tip: the Georgian-input
-> `GEORGIAN_ACTIVATION_TIP` only when `kaActive`, else the Phase-1 tip.
+(`commandPlaceholderTypeEnglish` is the retained Phase-1 helper added in Task 18.)
 
-- [ ] **Step 4: Run to verify it passes.** Expected: PASS — copy matches the game.
+- [ ] **Step 4: Run to verify they pass.** Expected: PASS — announce + placeholder
+match the game.
+
+Run: `npx vitest run src/llm/useNaturalLanguage.test.tsx src/ui/Terminal.test.tsx`
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/ui/Terminal.tsx src/llm/notices.ts
-git commit -m "feat(georgian): gate Georgian-input copy to Zork I; type-English on II/III"
+git add src/llm/useNaturalLanguage.ts src/llm/notices.ts src/ui/Terminal.tsx
+git commit -m "feat(georgian): split ka activation tip by signature in the hook; placeholder in Terminal"
 ```
 
 ---
@@ -1887,7 +1994,88 @@ git commit -m "test(georgian): ka copy gate — no-English-leak + new-semantics"
 
 ---
 
-### Task 22: Full-suite verification
+### Task 22: `ka` disambiguation — drop-the-noun reframe (no forced English on Georgian input)
+
+**Files:**
+- Modify: `src/translate/corpus/zork1.ka.templates.ts:64–86` (the 3 which-print templates)
+- Modify: `src/translate/corpus/zork1.ka.uat.test.ts` (invert the `{raw}`-echo pins)
+- Modify: `src/translate/corpus/ka-native-review-draft.test.ts` (the locator)
+
+**Why (CLAUDE.md cross-cut, caught by the review).** Today the `ka` which-print
+prompt echoes the player's typed noun verbatim:
+`out: 'რომელ {raw}-ს გულისხმობ — {obj.indef} თუ {obj2.indef}?'`. That was fine in
+Phase 1 because `ka` input was **English** — the echoed `{raw}` was the player's
+own English word. Once the player types **Georgian** (Phase 2, Zork I), an echoed
+English vocab token (`lamp`, `button`) becomes **forced English** — a CLAUDE.md
+"no forced English" violation, and `ka` has no LLM net. fr/de/es already use the
+**drop-the-noun reframe** (`{raw}` matched but NOT echoed; translated candidates
+disambiguate alone). Mirror it for `ka`.
+
+- [ ] **Step 1: Invert the `ka` disambiguation UAT pins** — In
+`src/translate/corpus/zork1.ka.uat.test.ts`, the existing tests assert the typed
+English noun is KEPT (`expect(out).toContain('lamp')`, `…toContain('button')`).
+Flip them to assert it's GONE, mirroring the fr/de/es "no leaked English frame"
+shape:
+
+```ts
+    // drop-the-noun reframe (Phase 2): the queried English noun is NOT echoed.
+    expect(out).not.toContain('lamp')
+    expect(out).not.toContain('Which')
+    expect(out).not.toContain('do you mean')
+    // translated candidates still render (Georgian)
+    expect(out).toContain('სპილენძის ფარანი')
+    expect(out).toContain('გატეხილი ფარანი')
+```
+
+(Do the same for the 3-candidate knife test and the 4-candidate dam-button test —
+remove every `toContain('button')`/`toContain('lamp')`/`toContain('knife')`.)
+
+- [ ] **Step 2: Run to verify they fail**
+
+Run: `npx vitest run src/translate/corpus/zork1.ka.uat.test.ts`
+Expected: FAIL — the templates still echo `{raw}`.
+
+- [ ] **Step 3: Reframe the 3 templates** — In `src/translate/corpus/zork1.ka.templates.ts`
+(lines 64–86), drop `{raw}` from each `out` and use a noun-free Georgian frame:
+
+```ts
+  // NATIVE-REVIEW-DRAFT (drop-the-noun reframe, Phase 2): no {raw} echo — the
+  // translated candidates disambiguate (mirrors fr/de/es; deterministic-no-English).
+  { en: 'Which {raw} do you mean, the {obj} or the {obj2}?',
+    out: 'რომელი გულისხმობ — {obj.indef} თუ {obj2.indef}?' },
+  { en: 'Which {raw} do you mean, the {obj}, the {obj2}, or the {obj3}?',
+    out: 'რომელი გულისხმობ — {obj.indef}, {obj2.indef} თუ {obj3.indef}?' },
+  { en: 'Which {raw} do you mean, the {obj}, the {obj2}, the {obj3}, or the {obj4}?',
+    out: 'რომელი გულისხმობ — {obj.indef}, {obj2.indef}, {obj3.indef} თუ {obj4.indef}?' },
+```
+
+> The `en` side KEEPS `{raw}` (it must still MATCH the English prompt, where the
+> noun varies); only the `out` side drops it. `რომელი გულისხმობ` ≈ "which do you
+> mean" with no echoed noun. Native-review-draft wording.
+
+- [ ] **Step 4: Fix the marker-test locator** — `ka-native-review-draft.test.ts`
+finds the disambiguation entry by a line containing BOTH `{raw}` and
+`{obj.indef}`. After the reframe the `out` line has `{obj.indef}` but no `{raw}`,
+so the locator must change to match the new `out` (e.g. find the Georgian line
+containing `{obj.indef}` and `{obj2.indef}`), then assert the marker governs it.
+
+- [ ] **Step 5: Run to verify they pass** + the corpus suites (no fr/de/es change).
+
+Run: `npx vitest run src/translate/corpus/`
+Expected: PASS — `ka` disambiguation renders Georgian-only; marker test green;
+the composed-line gate / walkthrough-coverage still green (the `en` side still
+matches).
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/translate/corpus/zork1.ka.templates.ts src/translate/corpus/zork1.ka.uat.test.ts src/translate/corpus/ka-native-review-draft.test.ts
+git commit -m "feat(georgian): drop-the-noun disambiguation reframe for ka (no forced English)"
+```
+
+---
+
+### Task 23: Full-suite verification
 
 **Files:** none (verification only)
 
@@ -1921,11 +2109,30 @@ git commit -m "chore(georgian): make all green — Phase 2 input complete (beta)
 - **§5.1 InputLexLang (ka out of LLM maps); §5.2 lex memo; §5.3 Terminal route; §5.4 model:grammar; §5.5 English raw-send; §5.6 kaInputActive** → Tasks 1, 6, 15, 17, 14, 17, 6/17. ✓
 - **§6 gates: walkthrough-parse, both round-trips, validate, input-UAT, marker, no-English-leak** → Tasks 11, 9, 10, 8, 12, 13, 21. ✓
 - **§7 Georgian copy revised + new-semantics gate** → Tasks 18, 19, 20, 21. ✓
+- **§7 disambiguation drop-the-noun reframe (CLAUDE.md `{raw}`-echo cross-cut)** → Task 22. ✓
 - **§8 deferrals (it-anaphora, II/III, general morphology)** → pronoun arrays empty (Task 4); ka Zork I only (Task 6); no segmenter. ✓
 - **Issue-1 Zork-I gate** → `kaInputActive` (Tasks 6, 15, 17, 20) + round-trip null-skip (Task 9). ✓
 - **Issue-2 two-part copy gate** → Task 21. ✓
 - **Issue-3 model:grammar at state boundary** → Task 14. ✓
 - **G1 dative recipient (spec gap, flagged)** → Task 9. ✓ *(owner may redirect.)*
+
+**Plan-review fixes applied (agent pushback, `…-plan-pushback.md`):**
+- **C1** — `expandGeorgian` runs AFTER verb resolution on the object-span
+  remainder (Task 3), so `-ი`-final verbs aren't mangled; pinned by a dedicated
+  test. ✓
+- **C2** — `OUTPUT_ONLY_LANGS` is NOT emptied (`ka` stays, output still
+  corpus-only); the input decision uses `kaInputActive` and the queue bail keys on
+  `!liveRef.current.lex` (Tasks 16, 17). `types.ts`/`types.test.ts` untouched. ✓
+- **S1/S2** — Phase-1 `ka` copy strings preserved under retained names; the
+  activation-tip split happens in the hook (signature-aware), not Terminal
+  (Tasks 18, 20). ✓
+- **S3** — `InputLexLang` comment softened to the accurate guarantee (Task 1). ✓
+- **M2** — corpus `reduce` is nominative-strip-only (no postposition split), with
+  hand-judgment for case-bearing display names (Task 10). ✓
+- **M3** — dangling `KA_DATIVE_RECIPIENTS` reference removed; G1 lives in
+  `parse.ts` + `KA_ZORK1` dative entries (Task 9). ✓
+- **m1–m6** — unused binding removed, `byCanonical` note reworded, redundant
+  `wind up` idiom dropped (Tasks 3, 4). ✓
 
 **Known follow-ups (native loop, spec §9):** all `ka` lexicon/copy is
 `NATIVE-REVIEW-DRAFT` behind `(beta)`; the Tbilisi loop refines forms and, on

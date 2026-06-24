@@ -128,6 +128,7 @@ describe('ka lexicon validation (Zork I only — spec §6)', () => {
     const targets = [
       ...Object.values(core.verbs),
       ...core.verbIdioms.map(v => v.to),
+      ...core.particleVerbs.map(p => p.to), // always [] for ka (spec §4.1); parity with roundtrip gate
     ]
     expect(targets.filter(t => !inV(t, allVerbs))).toEqual([])
   })

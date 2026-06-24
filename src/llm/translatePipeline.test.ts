@@ -837,4 +837,98 @@ describe('createTranslate grammar-only + demotion', () => {
     expect(sendLine).not.toHaveBeenCalled() // does NOT reach the Z-parser
     expect(sendCanonical).not.toHaveBeenCalled()
   })
+
+  describe('§5.5 ka English-ASCII raw-send on miss', () => {
+    // Both tests use createTranslate directly (not makeTranslate) with the real
+    // ka lexicon + ZORK1_VOCAB, same pattern as the C2 queue-drain test above.
+    // makeTranslate uses TEST_VOCAB, which lacks the ka noun resolvers that
+    // guarantee the test input actually reaches Stage 8 as a genuine miss.
+
+    function makeKaZork1Translate(opts: {
+      setNotice: TranslateDeps['setNotice']
+      sendLine: (text: string) => void
+    }): (line: string) => Promise<string | null> {
+      const engine = new FakeLlmEngine({ default: 'X' }) // never reached
+      const internalOn: Internal & { phase: 'on' } = {
+        phase: 'on',
+        language: 'ka',
+        model: 'grammar',
+      }
+      const kaLex: Lex = {
+        core: coreLexicon('ka'),
+        nouns: nounLexicon('ka', ZORK1_SIG),
+        words: lexiconWordSet('ka', ZORK1_SIG),
+      }
+      const liveRef = { current: { internal: internalOn, lex: kaLex } }
+      const generateRaw = createGenerateRaw({
+        engine,
+        watchdogMs: 1000,
+        engineGate: new EngineGate(),
+      })
+      const deps: TranslateDeps = {
+        internal: internalOn,
+        vocab: ZORK1_VOCAB,
+        grammar: buildGrammar(ZORK1_VOCAB),
+        generateRaw,
+        watchdogMs: 1000,
+        getContext: () => ({ location: '', recentOutput: '' }),
+        echoLocal: () => {},
+        sendLine: opts.sendLine,
+        sendCanonical: () => {},
+        awaitTurn: async () => ({ view: emptyView, reason: 'line' as const }),
+        refs: {
+          trackerRef: { current: new TextSceneTracker(ZORK1_VOCAB) },
+          translatingRef: { current: false },
+          queueRef: { current: [] },
+          queueIdRef: { current: 0 },
+          lastCommandRef: { current: null },
+          inSequenceRef: { current: false },
+          epochRef: { current: 0 },
+          liveRef,
+          educatedRef: { current: false },
+        },
+        demote: vi.fn(),
+        setPending: () => {},
+        setNotice: opts.setNotice,
+        syncQueue: () => {},
+      }
+      return createTranslate(deps)
+    }
+
+    it('a missed ASCII (English) line raw-sends to the engine, like en', async () => {
+      // ka, Zork I, grammar-only. 'frobnate' is NOT in ZORK1_VOCAB (not a vocab
+      // passthrough), not a meta command, not a direction, not in the ka core/noun
+      // lexicon — so it flows through stages 3–6 as a miss, hits stage 7 which
+      // abstains (grammar-only), and reaches Stage 8 with done===0. Before §5.5
+      // this ka non-English-arm abstained; after §5.5 it raw-sends like 'en'.
+      const setNotice = vi.fn()
+      const sendLine = vi.fn()
+      const t = makeKaZork1Translate({ setNotice, sendLine })
+      await t('frobnate')
+      // The ASCII miss must raw-send the line to the engine.
+      expect(sendLine).toHaveBeenCalledWith('frobnate')
+      // No couldntTranslate / grammarOnlyFirstMiss notice must be shown.
+      expect(setNotice).not.toHaveBeenCalledWith(grammarOnlyFirstMiss('ka'))
+      expect(setNotice).not.toHaveBeenCalledWith(couldntTranslate('ka'))
+    })
+
+    it('a missed line containing Georgian abstains (notice, nothing sent)', async () => {
+      // 'ბედნიერი' (happy) contains Georgian codepoints and is NOT in the ka
+      // verbs or ZORK1_VOCAB noun lexicon — it falls through stages 3–6 as a
+      // miss, hits stage 7 (grammar-only → abstain), and reaches Stage 8.
+      // Because it contains Georgian it must NOT raw-send; it must show a notice.
+      const setNotice = vi.fn()
+      const sendLine = vi.fn()
+      const t = makeKaZork1Translate({ setNotice, sendLine })
+      await t('ბედნიერი')
+      // Nothing must have been sent to the engine.
+      expect(sendLine).not.toHaveBeenCalled()
+      // A grammar-only or couldntTranslate notice must appear.
+      const noticeArgs = setNotice.mock.calls.map(c => c[0] as string | null)
+      const hasNotice = noticeArgs.some(
+        n => n === grammarOnlyFirstMiss('ka') || n === couldntTranslate('ka'),
+      )
+      expect(hasNotice).toBe(true)
+    })
+  })
 })

@@ -65,6 +65,16 @@ import type { Internal } from './useModelDownload'
 
 const log = createLogger('nl')
 
+// §5.5: a line with NO Georgian codepoint is treated as English and raw-sends on
+// a ka miss; only a line containing Georgian abstains (Georgian and English ASCII
+// cannot collide). Range U+10A0–10FF covers Asomtavruli + Mkhedruli (the two
+// mainstream blocks players actually type), matching the /[Ⴀ-ჿ]/ test used in the
+// ka corpus tests (zork1.ka.uat.test.ts, ka-native-review-draft.test.ts). Georgian
+// Extended (Mtavruli, U+1C90–1CBF) and Supplement (U+2D00–2D2F) are intentionally
+// NOT covered — typing them raw-sends instead of abstaining (safe degradation),
+// and the shared range stays consistent across the ka layers.
+const containsGeorgian = (s: string) => /[Ⴀ-ჿ]/.test(s)
+
 /** EN-only "translator broke, so the raw line went to the Z-parser" notice.
  * Intentionally NOT in notices.ts (which is multilingual): it fires only in
  * English mode — a non-EN player abstains instead (`nothingSent`) — so there is
@@ -902,6 +912,11 @@ export function createTranslate(
           }
         } else if (activeLang === 'en') {
           sendTracked(line)
+        } else if (activeLang === 'ka' && !containsGeorgian(line)) {
+          // §5.5: a ka player's English (ASCII) line that missed the Georgian
+          // lexicon raw-sends exactly as en does — degrade, never block. Only a
+          // line containing Georgian falls through to the abstain notice below.
+          sendTracked(line)
         } else if (grammarOnly && !educatedRef.current) {
           // First grammar-only abstain this stint: connect the miss to the
           // declined/absent upgrade at the moment of confusion (once per stint).
@@ -910,10 +925,12 @@ export function createTranslate(
         } else {
           setNotice(couldntTranslate(activeLang))
         }
-        // Every non-English branch above sends NOTHING (only the EN arms
-        // raw-send); when that nothing-sent line is the player's typed input,
-        // hand it back so the field can restore it instead of discarding it (M8).
-        if (!fromQueue && activeLang !== 'en') retainTyped = line
+        // Only the NOTICE branches retain the typed line; the raw-send arms (en,
+        // and ka-ASCII via §5.5) consumed it — don't re-populate the input field.
+        const rawSent =
+          activeLang === 'en' ||
+          (activeLang === 'ka' && !containsGeorgian(line))
+        if (!fromQueue && !rawSent) retainTyped = line
       } else if (done < total) {
         // Truncated sequence → make it visible (decision 7); an engine
         // error labels the notice so it can't pass for a quiet stop ([B]).

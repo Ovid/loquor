@@ -10,10 +10,13 @@ export function isNlLanguage(v: unknown): v is NlLanguage {
   return (NL_LANGUAGES as readonly unknown[]).includes(v)
 }
 
-/** Languages with a DISPLAY corpus but no INPUT support yet (Phase 1). The
- * command field raw-sends English for these — exactly as 'off' does — so the
- * player reads Georgian while typing English. Phase 2 (Georgian input) removes
- * 'ka' from this set, and it graduates to the normal nl.translate input path.
+/** Languages with a DISPLAY corpus but no LLM INPUT support (review-fix C2).
+ * Phase 2 (Georgian input) does NOT remove 'ka' from this set — 'ka' stays
+ * here because it is still corpus-only output with no LLM fallback. Georgian
+ * input activation on Zork I is tracked by `kaInputActive` / the `lex` memo
+ * in useNaturalLanguage, NOT by removing 'ka' from this set. Consumers of
+ * this set (WebLLM-modal suppression, screen-reader routing, title-only
+ * display, picker copy, the types invariant test) all remain correct.
  * Distinct from translate/corpus/index.ts's CORPUS_ONLY_LANGS (output: no LLM
  * fallback) — same membership today, different jobs in different layers. */
 export const OUTPUT_ONLY_LANGS: ReadonlySet<NlLanguage> = new Set(['ka'])

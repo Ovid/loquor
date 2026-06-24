@@ -963,13 +963,22 @@ export function createTranslate(
         // is abandoned with a notice instead of being translated by a
         // layer the player just turned off. Unreachable for the first
         // (typed) line — translate gated on phase with no await since.
-        // Also bail when the player switched to an output-only language
-        // ([I3]): ka has no input lexicon and raw-sends English, so a
-        // queue drained under activeLang='ka' would wrongly fall through to
-        // the input LLM (no language switch bumps the epoch). Treat it like
-        // 'off' for the input path and abandon the queue.
-        const live = liveRef.current.internal
-        if (live.phase !== 'on' || OUTPUT_ONLY_LANGS.has(live.language)) {
+        // Also bail when a NO-LLM (output-only) language has no input lexicon
+        // for this game ([I3], review-fix C2): ka-on-Zork-I has a real lex and
+        // its queue MUST drain; ka-on-Zork-II/III has lex===null with no LLM
+        // fallback, so there is nothing to drain it with — bail. The bare
+        // `!lex` predicate the plan first sketched is WRONG: en (and the
+        // fr/de/es test harnesses) run phase==='on' with lex===null but must
+        // NOT bail — en raw-sends, fr/de/es fall back to the LLM. The property
+        // that actually warrants a bail is "no-LLM language AND no lexicon",
+        // which is exactly OUTPUT_ONLY_LANGS.has(language) && lex===null — the
+        // coupling is the meaning here, not a leftover (the Task 17 INPUT
+        // ROUTING decision is what C2 keeps off OUTPUT_ONLY_LANGS).
+        const live = liveRef.current
+        if (
+          live.internal.phase !== 'on' ||
+          (OUTPUT_ONLY_LANGS.has(live.internal.language) && live.lex === null)
+        ) {
           lastCommandRef.current = null
           queueRef.current = []
           syncQueue()

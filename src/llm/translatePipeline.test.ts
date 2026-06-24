@@ -596,6 +596,97 @@ describe('createTranslate grammar-only + demotion', () => {
     )
   })
 
+  // Task 16 (C2): queue bail narrowed from `OUTPUT_ONLY_LANGS.has(lang)` alone
+  // to `OUTPUT_ONLY_LANGS.has(lang) && lex === null`. ka-on-Zork-I has a real
+  // input lexicon → queue MUST NOT be abandoned. ka-on-Zork-II/III has no ka
+  // noun lexicon → bail still fires (lex === null).
+  it('ka Zork I (lex present): queue drains — NOT abandoned ([C2] review-fix)', async () => {
+    // Two Georgian commands from parse.ka-walkthrough.test.ts verified against ZORK1_VOCAB:
+    //   'გააღე ყუთი' → 'open mailbox' (ZORK1_VOCAB canonical: 'small mailbox' → emit: 'mailbox')
+    //   'აიღე ყუთი' → 'take mailbox' (ZORK1_VOCAB canonical: 'small mailbox' → emit: 'mailbox')
+    // Uses ZORK1_VOCAB + the real ka lexicon so parseLexicon resolves the Georgian nouns.
+    // makeTranslate always uses TEST_VOCAB, so this test calls createTranslate directly.
+    // With a real lex the bail predicate (OUTPUT_ONLY_LANGS.has(lang) &&
+    // lex === null) is false → the queue drains (review-fix C2).
+    const engine = new FakeLlmEngine({ default: '{"verb":"look"}' })
+    const setNotice = vi.fn()
+    const sendCanonical = vi.fn()
+    const kaLex: Lex = {
+      core: coreLexicon('ka'),
+      nouns: nounLexicon('ka', ZORK1_SIG),
+      words: lexiconWordSet('ka', ZORK1_SIG),
+    }
+    const internalOn: Internal & { phase: 'on' } = { phase: 'on', language: 'ka', model: 'grammar' }
+    const liveRef = { current: { internal: internalOn, lex: kaLex } }
+    const watchdogMs = 1000
+    const generateRaw = createGenerateRaw({
+      engine,
+      watchdogMs,
+      engineGate: new EngineGate(),
+    })
+    const deps: TranslateDeps = {
+      internal: internalOn,
+      vocab: ZORK1_VOCAB,
+      grammar: buildGrammar(ZORK1_VOCAB),
+      generateRaw,
+      watchdogMs,
+      getContext: () => ({ location: '', recentOutput: '' }),
+      echoLocal: () => {},
+      sendLine: () => {},
+      sendCanonical,
+      awaitTurn: async () => ({ view: emptyView, reason: 'line' as const }),
+      refs: {
+        trackerRef: { current: new TextSceneTracker(ZORK1_VOCAB) },
+        translatingRef: { current: false },
+        queueRef: { current: [] },
+        queueIdRef: { current: 0 },
+        lastCommandRef: { current: null },
+        inSequenceRef: { current: false },
+        epochRef: { current: 0 },
+        liveRef,
+        educatedRef: { current: false },
+      },
+      demote: vi.fn(),
+      setPending: () => {},
+      setNotice,
+      syncQueue: () => {},
+    }
+    const t = createTranslate(deps)
+    // First call acquires translatingRef=true synchronously; second finds it set
+    // and queues. Drain processes both lines before p1 resolves.
+    const p1 = t('გააღე ყუთი') // open mailbox — verified Georgian form
+    const p2 = t('აიღე ყუთი') // take mailbox — queued, drained after p1
+    await Promise.all([p1, p2])
+    // The bail must NOT have fired: "Queue cleared" notice absent.
+    const notices = setNotice.mock.calls.map(c => c[0] as string | null)
+    expect(notices).not.toContain('Queue cleared — natural language is off.')
+    // Grammar-only: LLM never invoked. Lexicon stage → sendCanonical called.
+    expect(engine.generateCalls).toBe(0)
+    expect(sendCanonical).toHaveBeenCalled()
+  })
+
+  it('ka Zork II (lex null): queue bail still fires — no ka noun lexicon ([C2])', async () => {
+    // ka on Zork II: no ka noun lexicon → lex=null, and ka ∈ OUTPUT_ONLY_LANGS,
+    // so the bail predicate is true → fires exactly as the pre-fix path did.
+    const engine = new FakeLlmEngine({ default: '{"verb":"look"}' })
+    const setNotice = vi.fn()
+    const sendCanonical = vi.fn()
+    const t = makeTranslate({
+      engine,
+      internalOn: on('ka', 'grammar'),
+      setNotice,
+      demote: vi.fn(),
+      educatedRef: { current: false },
+      sendCanonical,
+      // lex omitted → null (Task 15 guard: kaInputActive is false for Zork II)
+    })
+    await t('გააღე ყუთი') // Georgian input, but lex is null → bail
+    expect(engine.generateCalls).toBe(0)
+    expect(sendCanonical).not.toHaveBeenCalled()
+    expect(setNotice).toHaveBeenLastCalledWith(
+      'Queue cleared — natural language is off.',
+    )
+  })
   it('grammar-only: a stage-7-bound non-EN line abstains with the educational notice (once)', async () => {
     const engine = new FakeLlmEngine({ default: 'X' })
     const setNotice = vi.fn()

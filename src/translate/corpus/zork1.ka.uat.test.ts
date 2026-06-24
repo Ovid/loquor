@@ -240,3 +240,95 @@ describe('Zork I × Georgian — parser implicit-instrument parenthetical (UAT-2
     expect(matchLine(c, '(with the brass lantern)')).toBe(DROP_NOUN)
   })
 })
+
+describe('Zork I × Georgian — combat coverage (UAT-2026-06-24 follow-up)', () => {
+  const c = compileCorpus(ZORK1_KA)
+  // Mkhedruli (modern Georgian). The pins assert NOUN ROOTS, not full §4 case
+  // forms, so a native case tweak can't fight the gate — but a regression to raw
+  // English (or to a different language) fails. Combat is golden-path
+  // (everyone fights the troll; killing the thief is required to win), runtime-
+  // composed, and probabilistic — the walkthrough/inventory gates never see it,
+  // so these pins (plus the composed-line gate families) are what keep ka from
+  // leaking English mid-fight (notes/georgian-combat-coverage-worklist.md). ka
+  // has NO LLM net, so a gap here is a guaranteed leak. See UAT-6 (notes/uat-6.md).
+  const GEORGIAN = /[Ⴀ-ჿ]/
+  // No raw-English word (a 4+ run of Latin letters) may survive in a ka line.
+  const LATIN_WORD = /[A-Za-z]{4,}/
+
+  // Shape A — HERO-MELEE (player attacks) + FRAME full-line pins. HERO-MELEE is
+  // villain-agnostic, so each template renders for BOTH troll and thief; pin a
+  // representative spread of result classes for each, asserting the villain noun
+  // root survives (the line NAMES who you hit) with no English leak.
+  const SHAPE_A: [en: string, villainRoot: string][] = [
+    ['A good slash, but it misses the troll by a mile.', 'ტროლ'],
+    ['A good slash, but it misses the thief by a mile.', 'ქურდ'],
+    ['The troll is battered into unconsciousness.', 'ტროლ'],
+    ['The thief is knocked out!', 'ქურდ'],
+    ['The troll is staggered, and drops to his knees.', 'ტროლ'],
+    ['The force of your blow knocks the thief back, stunned.', 'ქურდ'],
+    ['The fatal blow strikes the troll square in the heart: He dies.', 'ტროლ'],
+    ['The thief takes a fatal blow and slumps to the floor dead.', 'ქურდ'],
+    ['Attacking the troll is pointless.', 'ტროლ'],
+    ['The unconscious troll cannot defend himself: He dies.', 'ტროლ'],
+    ['The unarmed thief cannot defend himself: He dies.', 'ქურდ'],
+    ['The troll slowly regains his feet.', 'ტროლ'],
+  ]
+  for (const [en, root] of SHAPE_A) {
+    it(`Shape A: "${en}" → Georgian, names the villain, no English`, () => {
+      const out = matchLine(c, en)
+      expect(out).not.toBeNull()
+      expect(out).not.toBe(en)
+      expect(out).toMatch(GEORGIAN)
+      expect(out).toContain(root) // names troll/thief, not "(someone)"
+      expect(out).not.toMatch(LATIN_WORD) // no raw-English leak
+    })
+  }
+
+  // Shape B — F-WEP weapon-slot lines. ka drops the specific weapon → renders the
+  // generic "იარაღი" (weapon), so the line is WEAPON-AGNOSTIC: every weapon
+  // yields the same Georgian, and no English weapon name ever leaks.
+  it('Shape B: the kill line drops the weapon, weapon/villain-agnostic, no English', () => {
+    const out = matchLine(
+      c,
+      "It's curtains for the troll as your sword removes his head.",
+    )
+    expect(out).not.toBeNull()
+    expect(out).toMatch(GEORGIAN)
+    expect(out).not.toMatch(LATIN_WORD) // no "sword" / "curtains" / "troll"
+    // weapon- AND villain-agnostic: a different weapon and villain yield the same
+    expect(
+      matchLine(
+        c,
+        "It's curtains for the thief as your bloody axe removes his head.",
+      ),
+    ).toBe(out)
+  })
+
+  it('Shape B: an enemy-disarm line names the generic weapon "იარაღი", not English', () => {
+    const sword = matchLine(
+      c,
+      'The Cyclops grabs your sword, tastes it, and throws it to the ground in disgust.',
+    )
+    expect(sword).not.toBeNull()
+    expect(sword).toContain('იარაღ') // generic "weapon"
+    expect(sword).not.toMatch(LATIN_WORD) // no "sword" / "Cyclops"
+    // weapon-agnostic: every weapon yields the same Georgian
+    expect(
+      matchLine(
+        c,
+        'The Cyclops grabs your stiletto, tastes it, and throws it to the ground in disgust.',
+      ),
+    ).toBe(sword)
+  })
+
+  it('Shape B: "Fortunately, you still have a {obj}" NAMES the weapon (Georgian "have" → nominative)', () => {
+    // The one F-WEP line where the weapon is correctly NAMED: Georgian "have"
+    // takes the nominative, so {obj.indef} composes (no drop needed).
+    expect(matchLine(c, 'Fortunately, you still have a sword.')).toContain(
+      'მახვილ',
+    )
+    expect(matchLine(c, 'Fortunately, you still have a stiletto.')).toContain(
+      'სტილეტ',
+    )
+  })
+})

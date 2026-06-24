@@ -118,15 +118,37 @@ removes his head.` (the troll's-own-attack variants and the death-fog line **are
     the Group H §4 instrumental forms**. Two fix shapes: (A) ~39 per-villain full strings
     (mirror the already-covered other-villain forms), (B) ~20 `F-WEP` templates. All would
     be `NATIVE-REVIEW-DRAFT` + gated + pinned; `(beta)` stays.
+  - **✅ AUTHORED 2026-06-24 (Ovid's "author now, all four" call) — branch
+    `ovid/composed-line-gate`.** Both shapes landed in three commits + a pins/notes commit;
+    the 59 leaking `ka` lines are covered, gated by the composed-line family gate
+    (`REACHABLE_FLOOR` 84→127), and regression-pinned (`zork1.ka.uat.test.ts` combat block).
+    **Shape A**: 39 per-villain `ka` full-line pins in a `COMBAT-DRAFTS` sentinel block of
+    `zork1.ka.strings.ts` (each mirrors the covered other-villain sibling). **Shape B**: 15
+    `ka` templates in the `COMPOSED-GATE-DRAFTS` block of `zork1.ka.templates.ts` that DROP
+    the weapon slot and render the generic `იარაღი` ("weapon") declined by hand (fr's
+    «votre arme» analog), covering all weapons; the one exception, "Fortunately, you still
+    have a {obj}", NAMES the weapon (`{obj.indef}`, since Georgian "have" takes the
+    nominative). The original Shape-B sketch (reuse Group H instrumental) was set aside as
+    fragile across the non-instrumental F-WEP roles — see the worklist's RESOLVED banner;
+    a native reviewer may upgrade specific F-WEP lines to a named weapon. **All
+    NATIVE-REVIEW-DRAFT** — review tracked in the third batch below.
 
-## Provisional `ka` draft lines (NATIVE-REVIEW-DRAFT) — two batches
+## Provisional `ka` draft lines (NATIVE-REVIEW-DRAFT) — three batches
 
-> **Two separate batches, both NATIVE-REVIEW-DRAFT:** the 5 lines below were added on the
-> PRIOR branch `ovid/zork1-input-parity`. Branch `ovid/composed-line-gate` adds **62 more**
+> **Three separate batches, all NATIVE-REVIEW-DRAFT:** the 5 lines below were added on the
+> PRIOR branch `ovid/zork1-input-parity`. Branch `ovid/composed-line-gate` adds **62**
 > composed-line templates inside the `COMPOSED-GATE-DRAFTS (P2.1)` sentinel block of
 > `zork1.ka.templates.ts` — those have their **own dedicated worklist**,
 > **`notes/georgian-composed-line-review.md`** (grouped by family, with the rung/case notes
-> a reviewer needs). Review both; don't let the two lists drift.
+> a reviewer needs). **Third batch — combat (UAT-2026-06-24):** the 39 HERO-MELEE/FRAME
+> full-line pins in the `COMBAT-DRAFTS (UAT-2026-06-24)` sentinel block of
+> `zork1.ka.strings.ts` + 15 F-WEP templates appended to the `COMPOSED-GATE-DRAFTS` block;
+> inventory + `ka` rendering decisions in **`notes/georgian-combat-coverage-worklist.md`**
+> (RESOLVED banner). For the combat batch a native reviewer should check: (1) the §4 case
+> of the villain in each Shape-A full line (troll/thief as direct/oblique object); (2)
+> whether the generic `იარაღი` ("weapon") drop reads naturally vs. naming the weapon in
+> the F-WEP lines; (3) combat-register idioms (`გონებას კარგავს`, `ბარბაცებს`, `უგონოდ
+ვარდება`). Review all three; don't let the lists drift.
 
 These Georgian strings were added on `ovid/zork1-input-parity` and each carries a
 `// NATIVE-REVIEW-DRAFT (ka §4 case forms)` marker. A test pins the markers in place

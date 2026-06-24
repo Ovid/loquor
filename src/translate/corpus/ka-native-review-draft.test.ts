@@ -149,4 +149,35 @@ describe('ka provisional Georgian strings carry a NATIVE-REVIEW-DRAFT marker', (
     ).length
     expect(outside).toBe(PRE_SECTION_KA_GEORGIAN)
   })
+
+  // Combat Shape A full-line pins (UAT-2026-06-24) live in their own sentinel-
+  // delimited COMBAT-DRAFTS block of zork1.ka.strings.ts; the whole block is
+  // NATIVE-REVIEW-DRAFT. Guard: the section exists, the BEGIN sentinel carries
+  // the marker, and it holds Georgian pins. (No outside-count pin here —
+  // zork1.ka.strings.ts is a large pre-existing reviewed corpus; the sentinel
+  // block + a marked BEGIN is what keeps these drafts from being silently
+  // promoted to final, mirroring the templates.ts drafts section above.)
+  it('zork1.ka.strings.ts: the COMBAT-DRAFTS block is sectioned and marker-gated', () => {
+    const rel = './zork1.ka.strings.ts'
+    const lines = read(rel)
+    const begin = lines.findIndex(l =>
+      l.includes('COMBAT-DRAFTS (UAT-2026-06-24) BEGIN'),
+    )
+    const end = lines.findIndex(l =>
+      l.includes('COMBAT-DRAFTS (UAT-2026-06-24) END'),
+    )
+    expect(
+      begin,
+      'expected the COMBAT-DRAFTS BEGIN sentinel',
+    ).toBeGreaterThanOrEqual(0)
+    expect(end).toBeGreaterThan(begin)
+    expect(lines[begin]).toContain(MARKER) // the BEGIN sentinel carries the marker
+    const inSection = lines
+      .slice(begin, end + 1)
+      .filter(l => GEORGIAN.test(l)).length
+    expect(
+      inSection,
+      'the COMBAT-DRAFTS block should hold Georgian pins',
+    ).toBeGreaterThan(0)
+  })
 })

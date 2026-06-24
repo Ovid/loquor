@@ -1,5 +1,34 @@
 # Georgian (`ka`) combat-message coverage — scope worklist (UAT-6 follow-up, 2026-06-24)
 
+> ## ✅ RESOLVED (2026-06-24, branch `ovid/composed-line-gate`) — drafts authored + gated
+>
+> This worklist is now **executed** (Ovid's "author now, all four languages" call). The
+> 59 leaking `ka` combat lines are covered, gated by the composed-line family gate, and
+> regression-pinned. Three commits:
+>
+> 1. **Shape A HERO-MELEE** — 21 F-DEF families (drive troll+thief) + 3 plain HERO lines;
+>    34 `ka` full-line pins in the `COMBAT-DRAFTS` block of `zork1.ka.strings.ts`.
+> 2. **Shape A FRAME** — 4 families (regains-feet / attacking-pointless / unconscious+
+>    unarmed cannot-defend); 5 `ka` pins.
+> 3. **Shape B F-WEP** — 15 families; 15 `ka` templates in the `COMPOSED-GATE-DRAFTS`
+>    block of `zork1.ka.templates.ts`.
+>
+> **`ka` Shape B decision (drop-the-weapon, generic `იარაღი`).** Georgian carries one
+> nominative citation form and F-WEP appears across instrumental/genitive/dative/
+> postpositional roles, so the `ka` templates DROP the specific weapon slot and render
+> the generic **`იარაღი`** ("weapon") declined by hand — the agreement-free analog of
+> fr's «votre arme» — covering EVERY weapon; villain slots drop to `მას/მის`. **One
+> exception:** "Fortunately, you still have a {obj}" keeps `{obj.indef}` (Georgian "have"
+> takes the nominative, so the weapon is correctly NAMED). The named-instrumental
+> "(with the …)" Group H pins are a different surface and were NOT touched. This diverges
+> from the original Shape-B sketch (reuse Group H instrumental forms) — flagged for Ovid;
+> a native reviewer may upgrade specific F-WEP lines to a named weapon if more natural.
+> **fr/de/es** already templated all of these (basic-mode parity confirmed by the gate).
+> All new `ka` lines are **NATIVE-REVIEW-DRAFT**; the `(beta)` marker stays. `REACHABLE_FLOOR`
+> 84→127. Gate + UAT pins green (`composed-lines.test.ts`, `zork1.ka.uat.test.ts` combat
+> block, `ka-native-review-draft.test.ts` COMBAT-DRAFTS guard). Native review still owed:
+> `notes/georgian-native-review-followup.md`.
+
 **Why this exists.** UAT-6 (`notes/uat-6.md`) surfaced raw-English leaks in `ka`
 during the live troll fight. Ovid asked to **scope the full combat family first**
 (read-only) before deciding on a fix. This is that scope — every Zork I combat-message
@@ -70,8 +99,9 @@ Two independent causes, both invisible to the green test suite:
   so it's the heavier half. Until built, these leak for all weapons.
 
 All new lines must be `NATIVE-REVIEW-DRAFT` and gated + regression-pinned, consistent
-with the rest of the `ka` corpus; the `(beta)` marker stays. **Not done in this
-session** (read-only scope only, per Ovid).
+with the rest of the `ka` corpus; the `(beta)` marker stays. **Done 2026-06-24** — see
+the RESOLVED banner at the top of this file (Ovid's "author now, all four" call; the
+read-only scope this section originally described has been executed).
 
 ---
 

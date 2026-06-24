@@ -97,6 +97,12 @@ screwdriver/wrench/putty in the Maintenance Room — both on the documented dam 
 
 ## Incidental finding (OUT OF SCOPE, pre-existing) — ⚠ raw-English combat-line leaks in `ka`
 
+> **✅ RESOLVED 2026-06-24 (same branch).** After this UAT, Ovid scoped the full combat
+> family (`notes/georgian-combat-coverage-worklist.md`) and then called "author now, all
+> four languages." The 59 leaking `ka` combat lines are now authored, gated by the
+> composed-line family gate, and regression-pinned (`zork1.ka.uat.test.ts` combat block).
+> All NATIVE-REVIEW-DRAFT; `(beta)` stays. See the worklist's RESOLVED banner.
+
 While driving the live troll fight (the headline combat use), **6 player-attack combat
 result lines leaked raw English** in `ka` (logged in `loquorMisses()`):
 

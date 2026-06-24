@@ -77,7 +77,7 @@ export function lexiconWordSet(lang: InputLexLang, sig: string): Set<string> {
  * when the picker is that language (stage-4 guard) — verify each entry is
  * what you want.
  *
- * DEVIATION from the plan's `Record<LexLang, readonly string[]>`: noun
+ * DEVIATION from the plan's `Record<InputLexLang, readonly string[]>`: noun
  * lexicons are per-game, so genuine collisions differ per game (fr 'troll'
  * exists only in Zork I's vocab, fr 'glacier' only in Zork II's…). Keying by
  * signature keeps the per-game assertion honest instead of unioning.

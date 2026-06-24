@@ -7,6 +7,14 @@
  * 'ka' here when the Georgian input lexicon exists. */
 export type LexLang = 'fr' | 'de' | 'es'
 
+/** Languages with an INPUT lexicon. `ka` has one (Phase 2) but must NEVER key the
+ *  LLM machinery. The LLM-keyed maps that are STRICT Record<LexLang,…> (so a `ka`
+ *  entry is a type error) are `fallbackResolve` and the prompt's per-language
+ *  tables; note that `FEWSHOTS` and notices' `ByLang` already widen to optional
+ *  `ka` (review S3 — the guarantee is "ka is not REQUIRED in the LLM path", not
+ *  "ka is structurally impossible everywhere"). Keep new LLM maps `Record<LexLang>`. */
+export type InputLexLang = LexLang | 'ka'
+
 /** German separable verb: leading verb + clause-final particle (spec §5.1). */
 export interface ParticleVerb {
   readonly verb: string // e.g. 'schalte'
@@ -51,6 +59,11 @@ export interface CoreLexicon {
   quantifiersExcept?: readonly string[]
   /** Localized meta words → raw English command (migrates META_ALIASES). */
   metaAliases: Readonly<Record<string, string>>
+  /** Georgian postposition suffix (folded, hyphen-free) → canonical English prep.
+   *  The English value MUST be in vocab.preps. Present only for languages whose
+   *  adpositions are noun-suffixes (Georgian); absent for fr/de/es, so every
+   *  expandGeorgian code path is unreachable for them (spec §3.1). */
+  postpositions?: Readonly<Record<string, string>>
 }
 
 /** Per-game noun lexicon: vocab CANONICAL → foreign surface words/phrases

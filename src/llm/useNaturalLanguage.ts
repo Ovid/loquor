@@ -16,7 +16,12 @@ import type { SceneEvent } from './scene/types'
 import { TextSceneTracker } from './scene/tracker'
 import { buildGrammar } from './grammar/buildGrammar'
 import { viewToContext } from './prompt'
-import { coreLexicon, nounLexicon, lexiconWordSet, kaInputActive } from './lexicon/index'
+import {
+  coreLexicon,
+  nounLexicon,
+  lexiconWordSet,
+  kaInputActive,
+} from './lexicon/index'
 import type { InputLexLang } from './lexicon/types'
 import { useModelDownload } from './useModelDownload'
 import {
@@ -234,7 +239,10 @@ export function useNaturalLanguage(
     // no-lexicon game. `signature` is a dep so a late-resolving signature is seen,
     // but the `active === prevActiveLangRef` guard above means a signature change
     // alone (same language) won't re-fire the once-per-language nudge.
-    const msg = activationNoticeRef.current(active, kaInputActive(active, signature))
+    const msg = activationNoticeRef.current(
+      active,
+      kaInputActive(active, signature),
+    )
     // OUTPUT-ONLY languages (ka) route their must-read tip to the dedicated
     // one-shot `announce` live region; input languages keep the inline notice.
     if (msg) {
@@ -273,8 +281,12 @@ export function useNaturalLanguage(
   const lex = useMemo(() => {
     // fr/de/es always have an input lexicon; ka only on a game that has one
     // (Zork I — kaInputActive, spec §5.6). en/off get no lexicon.
-    if (!kaInputActive(language, signature) && language !== 'fr' &&
-        language !== 'de' && language !== 'es')
+    if (
+      !kaInputActive(language, signature) &&
+      language !== 'fr' &&
+      language !== 'de' &&
+      language !== 'es'
+    )
       return null
     const lang: InputLexLang = language as InputLexLang
     return {

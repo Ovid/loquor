@@ -12,7 +12,7 @@
 ## Source Control Conflicts
 
 None — no conflicts with recent changes. Every commit after the spec is the spec
-docs themselves; recent work is all Phase-1 `ka` *output* translation, which Phase 2
+docs themselves; recent work is all Phase-1 `ka` _output_ translation, which Phase 2
 leaves untouched. The spec's line-number pins were spot-checked and hold:
 `translatePipeline.ts:972` queue bail ✓, `useNaturalLanguage.ts:265` lex memo ✓,
 `LexLang = 'fr'|'de'|'es'` ✓, `isMetaCommand` runs before `metaAlias` ✓,
@@ -20,12 +20,13 @@ leaves untouched. The spec's line-number pins were spot-checked and hold:
 DIRECTION_WORDS/LEAD" extension point ✓.
 
 **Two "current state" claims in §7 are inaccurate** (feed Issue [2]):
+
 - §7 says the help block is "today en/fr/de/es only" — false. `help.ts` already has a
   `ka` arm (`case 'ka':`, `HELP_ALIASES.ka = new Set(['help'])`), currently Phase-1
   "type in English" copy.
 - §7 says notices are "mostly absent → English fallback" — `notices.ts` already has
   `ka` entries (e.g. `ka: 'აკრიფეთ ინგლისურად — მაგ. open the mailbox'`). The work is
-  *revising* existing entries, not authoring fresh ones.
+  _revising_ existing entries, not authoring fresh ones.
 
 ## Scope Shape
 
@@ -38,6 +39,7 @@ serves incremental rollout. **No split worth forcing.**
 ## Issues Reviewed
 
 ### [1] Georgian input isn't gated to Zork I, but only Zork I has a `ka` noun lexicon
+
 - **Category:** omissions / player-experience
 - **Severity:** serious
 - **Issue:** The spec scopes input to **Zork I only** (§1, §8: "`NOUNS.ka` holds only
@@ -57,6 +59,7 @@ serves incremental rollout. **No split worth forcing.**
   presented as if it works. It also bites a gate — §6 adds `'ka'` to the round-trip
   `LANGS`, which iterates `GAMES (zork1/2/3) × LANGS`, so `ka × zork2` hits a `null`
   noun lexicon and must be skipped (NPE risk).
+
 - **Resolution:** **Option 1.** Gate the whole input graduation on
   `signature === ZORK1_SIG` via one shared `kaInputActive(lang, sig)` predicate, reused
   at all four sites (lex-memo admit, Terminal route, placeholder, activation notice).
@@ -65,10 +68,11 @@ serves incremental rollout. **No split worth forcing.**
   round-trip gate skip `ka × {zork2,zork3}` null lexicons.
 
 ### [2] The "no-English-leak" gate passes on the stale Phase-1 copy
+
 - **Category:** ambiguity / gate-completeness
 - **Severity:** moderate
 - **Issue:** §6's `ka`-notice no-English-leak gate (finding-5) and §7's "tests assert the
-  updated `ka` copy is Georgian" enforce *script*, not *semantics*. The `ka` copy already
+  updated `ka` copy is Georgian" enforce _script_, not _semantics_. The `ka` copy already
   exists and is already mostly-Georgian — and currently tells the player to type English
   (`notices.ts`: `აკრიფეთ ინგლისურად — მაგ. open the mailbox`; `help.ts` `case 'ka':`
   Phase-1 arm). A gate asserting "`ka` copy is non-English" is **already green on the
@@ -77,14 +81,15 @@ serves incremental rollout. **No split worth forcing.**
   migration). Compounded by §7's inaccurate "today en/fr/de/es only" / "mostly absent"
   wording, a plan written literally from §7 could author duplicate arms instead of
   inverting the existing ones.
-- **Resolution:** **Option 1.** Make the gate assert the new *semantics*: pin that the
+- **Resolution:** **Option 1.** Make the gate assert the new _semantics_: pin that the
   activation notice mentions Georgian input (and `(beta)`), the placeholder is the "type
-  in Georgian or English" form, and the *old* "type-English-only" strings are **gone** —
+  in Georgian or English" form, and the _old_ "type-English-only" strings are **gone** —
   kept as a separate assertion from the no-English-script check. Reword §7 to "revise the
   existing `ka` arms (currently Phase-1 type-English)" so the plan inverts rather than
   re-authors.
 
 ### [3] `isForcedGrammarOnly` is a second source of truth for a flag `model` already carries
+
 - **Category:** feasibility / design-clarity
 - **Severity:** minor
 - **Issue:** §5.4 proposes a new `isForcedGrammarOnly(lang)` predicate, but grammar-only
@@ -92,7 +97,7 @@ serves incremental rollout. **No split worth forcing.**
   **session-global**, not per-language (`useNaturalLanguage.ts:202` builds public
   `state.model` from it; `:252` passes `model: internal.model`). The real hole the
   predicate plugs — a player who downloaded the model for fr/de/es (`model: 'full'`) then
-  switches to `ka` — is genuine. But a `ka`-only predicate at the *input dispatch point*
+  switches to `ka` — is genuine. But a `ka`-only predicate at the _input dispatch point_
   leaves the **public `state.model` reading `'full'` for `ka`**, so anything keyed on it
   (picker `· basic` / `✦ improve` markers, the §5.3 `:423` "no model-download modal"
   expectation) would treat a `ka` session as model-capable. The predicate patches one of

@@ -328,7 +328,9 @@ function escapeHatchOnActivation(
     case 'es':
       return `Consejo: escribe en español. Para enviar un comando exacto en inglés, ponlo entre comillas, p. ej. ${ESCAPE_EXAMPLE}. Escribe «ayuda» para la ayuda.`
     case 'ka':
-      return kaInput ? GEORGIAN_ACTIVATION_TIP : GEORGIAN_ACTIVATION_TIP_TYPE_ENGLISH
+      return kaInput
+        ? GEORGIAN_ACTIVATION_TIP
+        : GEORGIAN_ACTIVATION_TIP_TYPE_ENGLISH
     case 'en':
     default:
       return null // English raw-sends — no fallback to advertise.

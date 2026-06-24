@@ -57,7 +57,8 @@ function resolveKa(input: string): string | null {
   // them an active-ka-lexicon word — Georgian script never collides) raw-sends
   // verbatim. ka passes null for activeLexiconWords here: the only inputs that
   // reach this branch are pure-English magic words / proper nouns / bare meta.
-  if (isVocabPassthrough(stripped, ZORK1_VOCAB, null)) return stripped.toLowerCase()
+  if (isVocabPassthrough(stripped, ZORK1_VOCAB, null))
+    return stripped.toLowerCase()
   return null
 }
 
@@ -365,8 +366,10 @@ describe('Georgian walkthrough-parse gate (spec §6)', () => {
     const failures: string[] = []
     for (const [en, { ka, expect: want }] of Object.entries(FIXTURE)) {
       const got = resolveKa(ka)
-      if (got === null) failures.push(`${en}: "${ka}" → miss (deterministic abstain)`)
-      else if (got !== want) failures.push(`${en}: "${ka}" → "${got}" (want "${want}")`)
+      if (got === null)
+        failures.push(`${en}: "${ka}" → miss (deterministic abstain)`)
+      else if (got !== want)
+        failures.push(`${en}: "${ka}" → "${got}" (want "${want}")`)
     }
     expect(failures).toEqual([])
   })

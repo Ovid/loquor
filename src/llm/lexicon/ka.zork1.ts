@@ -67,7 +67,11 @@ export const KA_ZORK1: NounLexicon = {
   // ablative 'კანარა კვერცხიდან' (take canary FROM egg): expandGeorgian splits
   // -დან but does NOT re-strip the stem's -ი, so the residue is 'კვერცხი' (not
   // 'კვერცხ') — list both so the ablative source resolves (review reconciliation).
-  'broken jewel-encrusted egg': ['გატეხილ თვლებიან კვერცხ', 'კვერცხ', 'კვერცხი'], // კვერცხი → კვერცხ (egg)
+  'broken jewel-encrusted egg': [
+    'გატეხილ თვლებიან კვერცხ',
+    'კვერცხ',
+    'კვერცხი',
+  ], // კვერცხი → კვერცხ (egg)
   'broken lantern': ['გატეხილ ფარან', 'ფარან'], // ფარანი → ფარან
   'broken timber': ['გადატეხილ ძელ', 'ძელ'], // ძელი → ძელ (timber)
   'brown button': ['ყავისფერ ღილაკ', 'ღილაკ'], // ღილაკი → ღილაკ

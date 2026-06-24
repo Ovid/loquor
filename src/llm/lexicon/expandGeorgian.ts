@@ -15,18 +15,21 @@ export function expandGeorgian(
   postpositions: Readonly<Record<string, string>>,
 ): string[] {
   // Longest-first so -ით wins over a -ი strip and over shorter suffixes.
-  const suffixes = Object.keys(postpositions).sort((a, b) => b.length - a.length)
+  const suffixes = Object.keys(postpositions).sort(
+    (a, b) => b.length - a.length,
+  )
   const out: string[] = []
   for (const token of tokens) {
-    const post = suffixes.find(s => token.length > s.length && token.endsWith(s))
+    const post = suffixes.find(
+      s => token.length > s.length && token.endsWith(s),
+    )
     if (post) {
       // Emit [suffix, stem]: prep token precedes the noun (spec §3.2).
       out.push(post, token.slice(0, token.length - post.length))
       continue
     }
     // Nominative -ი strip — only when no postposition matched.
-    if (token.length > 1 && token.endsWith('ი'))
-      out.push(token.slice(0, -1))
+    if (token.length > 1 && token.endsWith('ი')) out.push(token.slice(0, -1))
     else out.push(token)
   }
   return out

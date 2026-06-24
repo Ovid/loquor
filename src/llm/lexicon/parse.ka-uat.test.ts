@@ -42,7 +42,10 @@ describe('Georgian UAT — instrumental & dative', () => {
 describe('Georgian UAT — idioms & nominative', () => {
   it('wind up canary', () => {
     // walkthrough fixture: 'დააქოქე კანარა' → 'wind up canary'
-    expect(ka('დააქოქე კანარა')).toEqual({ kind: 'command', text: 'wind up canary' })
+    expect(ka('დააქოქე კანარა')).toEqual({
+      kind: 'command',
+      text: 'wind up canary',
+    })
   })
   it('nominative -ი strip resolves the lamp', () => {
     // walkthrough fixture: 'აიღე ფარანი' → 'take lamp'

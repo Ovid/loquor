@@ -114,7 +114,8 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
                 // Output-only langs (ka) have no input LLM; they must always stay
                 // grammar regardless of cache state. Other languages get full when
                 // cached so the model is available without a re-download prompt.
-                model: cached && !OUTPUT_ONLY_LANGS.has(lang) ? 'full' : 'grammar',
+                model:
+                  cached && !OUTPUT_ONLY_LANGS.has(lang) ? 'full' : 'grammar',
               }
             // Race ([I1]): the player picked a language before this probe
             // resolved, landing in on/grammar (installed was still false) with a

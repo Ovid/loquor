@@ -109,7 +109,8 @@ describe('noun entries round-trip through the parser (every word, every game)', 
       // ka has a noun lexicon only for Zork I (NOUNS.ka = { [ZORK1_SIG]: … }),
       // so skip ka × {zork2,zork3} (null lexicon) — issue-1.
       if (!nouns) {
-        it(`${lang}/${name}: no lexicon (skipped)`, () => expect(true).toBe(true))
+        it(`${lang}/${name}: no lexicon (skipped)`, () =>
+          expect(true).toBe(true))
         continue
       }
       // A 'take'-class verb every language has — resolved from the core data
@@ -155,7 +156,9 @@ describe('noun entries round-trip through the parser (every word, every game)', 
             const as = input === w ? '' : ` (as ${input})`
             if (r.kind !== 'command') failures.push(`${w}${as} → miss`)
             else if (r.text !== `take ${entry.emit}`)
-              failures.push(`${w}${as} → '${r.text}' (want 'take ${entry.emit}')`)
+              failures.push(
+                `${w}${as} → '${r.text}' (want 'take ${entry.emit}')`,
+              )
           }
         }
         expect(failures).toEqual([])

@@ -36,7 +36,10 @@ export function coreLexicon(lang: InputLexLang): CoreLexicon {
   return CORES[lang]
 }
 
-export function nounLexicon(lang: InputLexLang, sig: string): NounLexicon | null {
+export function nounLexicon(
+  lang: InputLexLang,
+  sig: string,
+): NounLexicon | null {
   return NOUNS[lang][sig] ?? null
 }
 

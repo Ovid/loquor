@@ -204,10 +204,9 @@ describe('ka INPUT lexicon is NATIVE-REVIEW-DRAFT-marked', () => {
         'utf8',
       )
       const hasGeorgian = GEORGIAN.test(src)
-      expect(
-        hasGeorgian,
-        `expected ${rel} to contain Georgian (ka) data`,
-      ).toBe(true)
+      expect(hasGeorgian, `expected ${rel} to contain Georgian (ka) data`).toBe(
+        true,
+      )
       expect(
         src.includes(MARKER),
         `${rel} must carry a ${MARKER} marker (model-seeded data not yet native-reviewed)`,

@@ -25,10 +25,7 @@ describe('expandGeorgian', () => {
   })
   it('passes a verb token through untouched', () => {
     // აიღე (take, imperative) has no postposition/-ი: unchanged
-    expect(expandGeorgian(['აიღე', 'ფანარი'], POST)).toEqual([
-      'აიღე',
-      'ფანარ',
-    ])
+    expect(expandGeorgian(['აიღე', 'ფანარი'], POST)).toEqual(['აიღე', 'ფანარ'])
   })
   it('handles a whole put-in clause', () => {
     // ჩადე X ყუთში → [ჩადე, X, ში, ყუთ]

@@ -137,7 +137,10 @@ describe('ka lexicon validation (Zork I only — spec §6)', () => {
   // not a typeable Georgian word — lexiconWordSet would index it as one bogus
   // token — so this assertion is the forcing function that surfaces them.
   it('every verb/idiom KEY is fold-idempotent and placeholder-free', () => {
-    const keys = [...Object.keys(core.verbs), ...core.verbIdioms.map(v => v.phrase)]
+    const keys = [
+      ...Object.keys(core.verbs),
+      ...core.verbIdioms.map(v => v.phrase),
+    ]
     expect(keys.filter(k => k.includes('_'))).toEqual([])
     for (const k of keys) expect(fold(k), `key ${k}`).toBe(k)
   })

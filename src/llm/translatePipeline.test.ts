@@ -616,7 +616,11 @@ describe('createTranslate grammar-only + demotion', () => {
       nouns: nounLexicon('ka', ZORK1_SIG),
       words: lexiconWordSet('ka', ZORK1_SIG),
     }
-    const internalOn: Internal & { phase: 'on' } = { phase: 'on', language: 'ka', model: 'grammar' }
+    const internalOn: Internal & { phase: 'on' } = {
+      phase: 'on',
+      language: 'ka',
+      model: 'grammar',
+    }
     const liveRef = { current: { internal: internalOn, lex: kaLex } }
     const watchdogMs = 1000
     const generateRaw = createGenerateRaw({

@@ -68,6 +68,20 @@ export function compileCorpus(corpus: TranslationCorpus): CompiledCorpus {
   const objAlt = names.length > 0 ? names.map(escapeRe).join('|') : '(?!)' // never-match when empty
 
   const compile = (t: Template): CompiledTemplate => {
+    // OUT_REF consumes only {obj[234]?.form}/{num2?}/{raw}. Any OTHER token left
+    // in `out` — a match-only {verb}, a bare {obj} (no .form), or a typo — is
+    // invisible to matchOnce's .replace(): it would pass through VERBATIM into
+    // displayed output AND the template would still count as a successful match,
+    // suppressing the LLM fallback (and ka has none). One mistyped out token
+    // ships an undetected literal-brace English leak. Catch it here with a named,
+    // actionable error (review I2), mirroring the en-side repeated-slot guard.
+    const residual = t.out.replace(OUT_REF, '').match(/\{[^}]*\}/)
+    if (residual)
+      throw new Error(
+        `Template "${t.en}" has an unhandled out token ${residual[0]} — the out ` +
+          `side resolves only {obj.form}/{obj2..4.form}/{num}/{num2}/{raw} ` +
+          `({verb} is match-only and must never appear in out).`,
+      )
     let literal = 0
     let rawCount = 0
     let src = '^'

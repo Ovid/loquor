@@ -527,5 +527,25 @@ export function parseLexicon(
       }
   }
 
+  // --- G1 (Georgian dative recipient): `<give/tie-verb> <obj> <recipientDAT>`.
+  // Georgian marks the recipient with the dative case (-ს), which is NOT a
+  // splittable postposition (it collides with genitive -ის, e.g. სპილენძის
+  // "brass"), so expandGeorgian leaves it attached: `მიეცი კვერცხი ქურდს` →
+  // [give, კვერცხ, ქურდს]. The prep-split above can't fire (no prep token
+  // between the two nouns), so it falls through to here. When the verb takes a
+  // 'to' indirect object (verbs2), exactly two nouns remain, BOTH resolve, and
+  // the SECOND is a -ს-marked dative recipient surface, emit
+  // `<verb> <obj> to <recipient>`. Bounded to the closed Zork I recipient set
+  // listed in KA_ZORK1 in dative form (e.g. thief: ქურდს, wooden railing:
+  // მოაჯირს) — never a general -ს case analysis. core.postpositions gates this
+  // to ka (fr/de/es have no postpositions, so they never reach it). A
+  // nominative second noun (no -ს) falls through to MISS. (Spec §2 point 3, G1.)
+  if (core.postpositions && tokens.length === 2 && verbArityOk(verb, vocab, 2)) {
+    const obj = resolveNoun([tokens[0]], core, nouns, vocab, scene)
+    const rec = resolveNoun([tokens[1]], core, nouns, vocab, scene)
+    if (obj && rec && tokens[1].endsWith('ს'))
+      return { kind: 'command', text: `${verb} ${obj.emit} to ${rec.emit}` }
+  }
+
   return MISS // strictness: something didn't consume
 }

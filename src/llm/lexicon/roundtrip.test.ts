@@ -10,7 +10,7 @@ import { ZORK1_SIG, ZORK2_SIG, ZORK3_SIG } from '../grammar/index'
 import { ZORK1_VOCAB } from '../grammar/zork1.vocab'
 import { ZORK2_VOCAB } from '../grammar/zork2.vocab'
 import { ZORK3_VOCAB } from '../grammar/zork3.vocab'
-import type { LexLang } from './types'
+import type { InputLexLang } from './types'
 import type { Vocab } from '../grammar/types'
 import type { Scene } from '../scene/types'
 
@@ -19,7 +19,38 @@ const GAMES: [string, string, Vocab][] = [
   ['zork2', ZORK2_SIG, ZORK2_VOCAB],
   ['zork3', ZORK3_SIG, ZORK3_VOCAB],
 ]
-const LANGS: LexLang[] = ['fr', 'de', 'es']
+const LANGS: InputLexLang[] = ['fr', 'de', 'es', 'ka']
+
+// The form to FEED the parser for a stored lexicon value `w`, per language.
+//
+// fr/de/es store the literal surface a player types, so the input IS the stored
+// value (identity). ka is different: its stored values are the BARE-STEM form
+// `expandGeorgian` PRODUCES (nominative -ი dropped, postpositions split off),
+// NOT the form a player types. A Georgian player types the nominative citation
+// form (`ჩირაღდანი` torch, `ქოთანი` pot), which `parseLexicon`'s ka pre-stage
+// reduces back to the stored stem (`ჩირაღდან`, `ქოთან`) before resolving —
+// verified: `აიღე ჩირაღდანი` → `take torch`.
+//
+// So feeding the stored STEM straight in would double-apply `expandGeorgian`:
+// `ჩირაღდან`/`ქოთან` end in postposition-lookalikes (-დან ablative, -თან
+// adessive), so the second pass SPLITS them (`[დან, ჩირაღ]`) and the noun
+// misses. This is the SAME hazard the corpus round-trip already documents (the
+// M2 finding, Task 10): never re-apply the postposition split to an already-
+// reduced stem. There the display form is REDUCED to the stem; here the stem is
+// lifted back to the player's NOMINATIVE input by re-attaching -ი to a
+// consonant-final last token (the inverse of expandGeorgian's -ი strip;
+// vowel-final stems are citation forms already and keep their shape). The
+// parser's own ka pre-stage then reduces it back to the stored stem, so this
+// gate verifies the realistic round-trip: player nominative → stored stem → emit.
+const GEORGIAN_VOWELS = new Set(['ა', 'ე', 'ი', 'ო', 'უ'])
+function toInputForm(lang: InputLexLang, w: string): string {
+  if (lang !== 'ka') return w
+  const toks = w.split(' ')
+  const last = toks[toks.length - 1]
+  if (last && !GEORGIAN_VOWELS.has(last[last.length - 1]))
+    toks[toks.length - 1] = last + 'ი'
+  return toks.join(' ')
+}
 
 /**
  * Truncation-aware membership: the v3 Z-machine dictionary stores words
@@ -74,7 +105,13 @@ describe('noun entries round-trip through the parser (every word, every game)', 
   for (const lang of LANGS)
     for (const [name, sig, vocab] of GAMES) {
       const core = coreLexicon(lang)
-      const nouns = nounLexicon(lang, sig)!
+      const nouns = nounLexicon(lang, sig)
+      // ka has a noun lexicon only for Zork I (NOUNS.ka = { [ZORK1_SIG]: … }),
+      // so skip ka × {zork2,zork3} (null lexicon) — issue-1.
+      if (!nouns) {
+        it(`${lang}/${name}: no lexicon (skipped)`, () => expect(true).toBe(true))
+        continue
+      }
       // A 'take'-class verb every language has — resolved from the core data
       // itself so the test doesn't hardcode a word per language.
       const takeWord = Object.entries(core.verbs).find(
@@ -104,16 +141,21 @@ describe('noun entries round-trip through the parser (every word, every game)', 
               inScope: [{ canonical }],
               antecedent: null,
             }
+            // Feed the player-input form (identity for fr/de/es; nominative
+            // citation form for ka — see toInputForm). `parseLexicon`'s ka
+            // pre-stage reduces it back to the stored stem before resolving.
+            const input = toInputForm(lang, w)
             const r = parseLexicon(
-              `${takeWord} ${w}`,
+              `${takeWord} ${input}`,
               core,
               nouns,
               vocab,
               scoped,
             )
-            if (r.kind !== 'command') failures.push(`${w} → miss`)
+            const as = input === w ? '' : ` (as ${input})`
+            if (r.kind !== 'command') failures.push(`${w}${as} → miss`)
             else if (r.text !== `take ${entry.emit}`)
-              failures.push(`${w} → '${r.text}' (want 'take ${entry.emit}')`)
+              failures.push(`${w}${as} → '${r.text}' (want 'take ${entry.emit}')`)
           }
         }
         expect(failures).toEqual([])

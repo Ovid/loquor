@@ -40,7 +40,7 @@
 > (`შენი იარაღი დაეშვება და მას ძილში ჩააგდებს.`), both with the weapon dropped to generic
 > `იარაღი`; plus a TROLL-MELEE troll-own-attack ("axe sweeps past"). **`loquorMisses()` held
 > ZERO combat entries** across all 5 fights (only the pre-existing off-path `attack trophy
-> case` leak remained — separate, lower-priority, UAT-6). Sampled MISSED/UNCONSCIOUS/KILLED
+case` leak remained — separate, lower-priority, UAT-6). Sampled MISSED/UNCONSCIOUS/KILLED
 > classes + both F-WEP templates live; remaining classes (LIGHT/SERIOUS-WOUND, STAGGER,
 > the deeper THIEF/CYCLOPS-MELEE F-WEP) are exhaustively gate-covered + unit-pinned. The
 > **thief was NOT fought live** (deep-dungeon); HERO-MELEE is villain-agnostic (same path,

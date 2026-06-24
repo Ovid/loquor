@@ -61,20 +61,41 @@ export const ZORK1_DE_TEMPLATES: readonly Template[] = [
     en: 'Which book do you mean, the {obj} or the {obj2}?',
     out: 'Welches Buch meinst du, {obj.def} oder {obj2.def}?',
   },
-  // Parser incomplete-`put` prompt (gparser.zil): "What do you want to put the
-  // {obj} in?". Off-walkthrough, runtime-composed; leaked RAW English (UAT
-  // 2026-06-20). The named object is the player's echoed noun — possibly a
-  // lexicon-emit synonym absent from the object table — so bind {raw} (any token)
-  // and drop the object on the out side („es“, generic neuter). Informal du, like
-  // the rest of this corpus.
-  // NB (UAT 2026-06-20): only the bare `put X` orphan (defaulting to "in") is
-  // reachable. `put X on` resolves to the WEAR verb and `put X under` / `behind`
-  // are unparsed, so the on/under/behind orphan prompts are never emitted — those
-  // templates were removed as unreachable dead code.
+  // Generic disambiguation for any OTHER same-noun set (e.g. the dam buttons):
+  // DROP the queried noun ({raw} matched, not echoed) — the translated candidates
+  // disambiguate on their own, so no raw English noun is forced on a non-English
+  // reader in basic mode (deterministic-no-english goal; the `push button` dam
+  // prompt was LLM-routed → an EN leak with no model). Mirrors the reviewed book
+  // template's nominative-candidate listing, minus the noun; sorts after it.
   {
-    en: 'What do you want to put the {raw} in?',
+    en: 'Which {raw} do you mean, the {obj} or the {obj2}?',
+    out: 'Welches meinst du, {obj.def} oder {obj2.def}?',
+  },
+  {
+    en: 'Which {raw} do you mean, the {obj}, the {obj2}, or the {obj3}?',
+    out: 'Welches meinst du, {obj.def}, {obj2.def} oder {obj3.def}?',
+  },
+  {
+    en: 'Which {raw} do you mean, the {obj}, the {obj2}, the {obj3}, or the {obj4}?',
+    out: 'Welches meinst du, {obj.def}, {obj2.def}, {obj3.def} oder {obj4.def}?',
+  },
+  // Parser orphan prompt (gparser.zil:760-774): "What do you want to <verb>[ the
+  // <noun>] <prep>?". Off-walkthrough, runtime-composed; leaked RAW English (UAT
+  // 2026-06-20). {verb}/{raw} capture the player's echoed tokens for MATCHING; the
+  // out is verb-neutral generic (drops both — „es“, generic neuter). Informal du,
+  // like the rest of this corpus. One template per confirmed orphaning prep covers
+  // every verb that orphans on it. Reachable preps: `in` (bare `put X`) and `with`
+  // (`cut`/`strike X`); `on`->WEAR and `under`/`behind`->unparsed never orphan, so
+  // they are not authored.
+  {
+    en: 'What do you want to {verb} the {raw} in?',
     out: 'Wohin möchtest du es legen?',
   },
+  {
+    en: 'What do you want to {verb} the {raw} with?',
+    out: 'Womit möchtest du es tun?',
+  },
+  { en: 'What do you want to {verb}?', out: 'Was möchtest du tun?' },
 
   // ── Presence & listings ──────────────────────────────────────────────────
   { en: 'There is a {obj} here.', out: 'Hier ist {obj.indef}.' },
@@ -178,6 +199,12 @@ export const ZORK1_DE_TEMPLATES: readonly Template[] = [
     out: 'Du müsstest {obj.akkDef} erst öffnen.',
   },
   { en: 'The {obj} is empty.', out: 'In {obj.akkDef} ist nichts hinein.' },
+  // V-POUR-ON / HOT-BELL-F (Hades exorcism) — nominative subject.
+  { en: 'The {obj} is extinguished.', out: '{obj.def} erlischt.' },
+  {
+    en: 'The {obj} burns and is consumed.',
+    out: '{obj.def} verbrennt vollständig.',
+  },
   {
     en: 'The {obj} is already in the {obj2}.',
     out: '{obj.def} ist bereits da, {obj2.bare} braucht nichts mehr.',

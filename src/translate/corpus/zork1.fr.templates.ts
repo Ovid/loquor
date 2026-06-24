@@ -97,20 +97,41 @@ export const ZORK1_FR_TEMPLATES: readonly Template[] = [
     en: 'Which book do you mean, the {obj} or the {obj2}?',
     out: 'De quel livre parlez-vous, {obj.def} ou {obj2.def} ?',
   },
-  // Parser incomplete-`put` prompt (gparser.zil): "What do you want to put the
-  // {obj} in?". Off-walkthrough, runtime-composed; leaked RAW English (UAT
-  // 2026-06-20). The named object is the player's echoed noun — possibly a
-  // lexicon-emit synonym absent from the object table — so bind {raw} (any token)
-  // and drop the object on the out side (« le », unmarked default). Vous-form to
-  // match the rest of this corpus.
-  // NB (UAT 2026-06-20): only the bare `put X` orphan (defaulting to "in") is
-  // reachable. `put X on` resolves to the WEAR verb and `put X under` / `behind`
-  // are unparsed, so the on/under/behind orphan prompts are never emitted — those
-  // templates were removed as unreachable dead code.
+  // Generic disambiguation for any OTHER same-noun set (e.g. the dam buttons):
+  // DROP the queried noun ({raw} matched, not echoed) — the translated candidates
+  // disambiguate on their own, so no raw English noun is forced on a non-English
+  // reader in basic mode (deterministic-no-english goal; the `push button` dam
+  // prompt was LLM-routed → an EN leak with no model). Sorts AFTER the literal
+  // book pin (fewer literals), so book keeps its natural « livre » mention.
   {
-    en: 'What do you want to put the {raw} in?',
+    en: 'Which {raw} do you mean, the {obj} or the {obj2}?',
+    out: 'Vous voulez dire {obj.def} ou {obj2.def} ?',
+  },
+  {
+    en: 'Which {raw} do you mean, the {obj}, the {obj2}, or the {obj3}?',
+    out: 'Vous voulez dire {obj.def}, {obj2.def} ou {obj3.def} ?',
+  },
+  {
+    en: 'Which {raw} do you mean, the {obj}, the {obj2}, the {obj3}, or the {obj4}?',
+    out: 'Vous voulez dire {obj.def}, {obj2.def}, {obj3.def} ou {obj4.def} ?',
+  },
+  // Parser orphan prompt (gparser.zil:760-774): "What do you want to <verb>[ the
+  // <noun>] <prep>?". Off-walkthrough, runtime-composed; leaked RAW English (UAT
+  // 2026-06-20). {verb}/{raw} capture the player's echoed tokens for MATCHING; the
+  // out is verb-neutral generic (drops both — « le », unmarked default). Vous-form
+  // to match the rest of this corpus. One template per confirmed orphaning prep
+  // covers every verb that orphans on it. Reachable preps: `in` (bare `put X`) and
+  // `with` (`cut`/`strike X`); `on`->WEAR and `under`/`behind`->unparsed never
+  // orphan, so they are not authored.
+  {
+    en: 'What do you want to {verb} the {raw} in?',
     out: 'Où voulez-vous le mettre ?',
   },
+  {
+    en: 'What do you want to {verb} the {raw} with?',
+    out: 'Avec quoi voulez-vous le faire ?',
+  },
+  { en: 'What do you want to {verb}?', out: 'Que voulez-vous faire ?' },
 
   // ── Presence & listings (gverbs.zil DESCRIBE-OBJECT :1704-1725,
   //    PRINT-CONT :1835; thief treasure listing 1actions.zil:2053) ─────────
@@ -227,6 +248,12 @@ export const ZORK1_FR_TEMPLATES: readonly Template[] = [
     out: "Il faudrait d'abord ouvrir {obj.def}.",
   },
   { en: 'The {obj} is empty.', out: "Il n'y a rien dans {obj.def}." },
+  // V-POUR-ON / HOT-BELL-F (Hades exorcism) — nominative subject.
+  { en: 'The {obj} is extinguished.', out: "{obj.def} s'éteint." },
+  {
+    en: 'The {obj} burns and is consumed.',
+    out: '{obj.def} brûle et se consume.',
+  },
   {
     en: 'The {obj} is already in the {obj2}.',
     out: 'Il y a déjà {obj.def} dans {obj2.def}.',

@@ -18,6 +18,22 @@ session loses time to something avoidable.
   lines, Turns counter frozen). After any gap, screenshot fresh, find the
   `> type a command…` line at its CURRENT position, click it, and verify
   the turn counter moved before batching more.
+- **CORRECTION (2026-06-23): most "window resized between shots" drift was
+  actually the transcript NOT scrolled to the bottom — now fixed (commit
+  127243c).** Root-caused in-browser via `/systematic-debugging`:
+  `Scrollback.tsx` auto-scrolled once in a `useEffect([lines])` and landed a
+  dead-stable **56px short** of the bottom (the command prompt is the last
+  child of the `div.scroll` container; its box lays out AFTER the scroll), so
+  the prompt sat clipped and content rendered ~one line off the y you read a
+  moment earlier. The viewport itself was stable (`innerW/H` constant;
+  screenshot px == CSS px), so it was **scroll, not resize**. Fixed with
+  `useLayoutEffect` + a `requestAnimationFrame` re-assert. **Belt-and-braces
+  for any session, even post-fix:** before reading a y-coordinate or zooming,
+  pin the bottom yourself —
+  `document.querySelector('div.scroll')?.scrollTo(0, 1e9)` — so a screenshot
+  and a follow-up click/zoom see the SAME scroll position. Genuine viewport
+  resizes still happen occasionally (screenshot dims jumped 1384→1456 once
+  this session), so still re-screenshot fresh after a real size change.
 - **Quoted-passthrough (`"take all"`) makes the transcript read
   all-English.** It's the reliable way to reach exact game responses, but
   it skips the target-language `you` line, leaving only the English `> …`
@@ -864,3 +880,38 @@ bare `open it`/`read it`/`take it` still deterministically substitute via
 `resolveEnglishPronoun`. The emit-form echo (`take it` → "take advertisement" for the
 leaflet) is BY DESIGN — `advertisement` is a real Zork dictionary word, so it
 resolves correctly; only the nl-source echo looks odd.
+
+## Implicit-instrument parenthetical UAT (`ka (with the …)`, 2026-06-24, branch `ovid/composed-line-gate`)
+
+- **GWIM fires BEFORE the verb's scope check, so you can test ANY weapon's
+  `(with the X)` instrumental with ZERO combat risk** — hold exactly one weapon and
+  `attack <non-target>` (e.g. `attack trophy case`) or even `attack <gone-enemy>`
+  (`attack troll` after the troll is dead): the parenthetical prints, then the verb
+  refuses ("…you don't have…", "I can't see any troll here!"). This is how I confirmed
+  the **bloody axe** `(სისხლიანი ცულით)` with no live enemy: kill troll with sword →
+  `take axe` → `drop sword` → `attack troll` (gone) → GWIM auto-supplies the lone axe.
+- **"sole eligible member of the bit-class" is the whole trick.** Holding two weapons
+  makes `attack`/`cut` DISAMBIGUATE instead of auto-supplying — you'll never see the
+  parenthetical. `drop` the others first. (sword vs nasty knife: drop one to test the
+  other.)
+- **Check own-line-vs-glued via per-`<p>` DOM read, not screenshots.**
+  `[...document.querySelector('div[role="log"]').querySelectorAll('p,h1,h2')]
+.map(e=>({lang:e.getAttribute('lang'),text:e.textContent.trim()}))` shows each line as
+  its own element. The §6 "is the parenthetical glued to the combat result?" question is
+  answered instantly: `(მახვილით)` is its own `<p lang="ka">`, the result is a separate
+  `<p>`. Confirmed across 6 live `attack troll` rounds — gluing does NOT happen (GlkOte
+  newline-terminates the parenthetical regardless of verb).
+- **The autosave resumes a partly-played game** — this session resumed straight into a
+  lit Living Room with the sword/lantern on the floor (golden-path start, no replay
+  needed). A fresh tab + navigate resumed it cleanly.
+- **⭐ The troll fight is a corpus-LEAK MAGNET for no-LLM `ka`: combat messages are
+  PROBABILISTIC, so the walkthrough-coverage gate only captured the variants its one
+  recorded run happened to roll.** A 6-round troll fight surfaced 6 distinct
+  **player-attack-result** lines leaking raw English in `ka` (staggered/drops to knees,
+  regains feet, "good slash misses by a mile", "good stroke too slow; dodges", "knocks
+  back stunned", "It's curtains…removes his head") — while the **troll's-own-attack**
+  variants and the death-fog line WERE covered. Lesson for any `ka`/no-LLM output UAT:
+  **fight something for several rounds and read `loquorMisses()` after each** — the
+  randomized combat tail is exactly where the coverage gate is blind, and `ka` has no
+  LLM net to paper over it. (Logged 2026-06-24 as a native-review follow-up, not a
+  parenthetical-branch bug.)

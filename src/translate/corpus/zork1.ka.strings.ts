@@ -98,6 +98,101 @@ export const ZORK1_KA_STRINGS: Record<string, string> = {
   "The cyclops, hearing the name of his father's deadly nemesis, flees the room by knocking down the wall on the east of the room.":
     'ციკლოპი, რომელიც თავისი მამის მომაკვდინებელი მტრის სახელს გაიგონებს, ოთახიდან გარბის ოთახის აღმოსავლეთ კედლის ჩამოქცევით.',
 
+  // === COMBAT-DRAFTS (UAT-2026-06-24) BEGIN — NATIVE-REVIEW-DRAFT (ka §4 case
+  //     forms; inventory in notes/georgian-combat-coverage-worklist.md). The
+  //     HERO-MELEE table (the PLAYER's attacks) is villain-agnostic, so every
+  //     variant renders for whichever villain you hit; combat rolls are
+  //     probabilistic, so the walkthrough-coverage gate only ever captured the
+  //     few variants its one recorded run rolled — the rest leaked raw English
+  //     for a Georgian player (NO LLM net), confirmed in UAT-6 live troll play.
+  //     These are per-villain FULL-LINE pins (ka carries one nominative citation
+  //     form, so a villain in object/oblique case can't ride a {obj.indef}
+  //     template — the file-header §4 rule), each mirroring its already-covered
+  //     sibling with the other villain's name in the case the sentence needs.
+  //     Provisional machine quality; the (beta) marker stays. ──────────────────
+  // MISSED (1actions.zil:3614-:3619)
+  'A good slash, but it misses the troll by a mile.':
+    'კარგი მოქნევა, მაგრამ ტროლს მთელი მილით ააცდენს.',
+  'A good slash, but it misses the thief by a mile.':
+    'კარგი მოქნევა, მაგრამ ქურდს მთელი მილით ააცდენს.',
+  'You charge, but the thief jumps nimbly aside.':
+    'შენ მიიწევ, მაგრამ ქურდი მარდად გადახტება გვერდზე.',
+  'Clang! Crash! The thief parries.': 'წკრიალ! ჩახ! ქურდი დარტყმას იგერიებს.',
+  'A quick stroke, but the troll is on guard.':
+    'სწრაფი დარტყმა, მაგრამ ტროლი ფხიზლადაა.',
+  "A good stroke, but it's too slow; the troll dodges.":
+    'კარგი დარტყმა, მაგრამ მეტისმეტად ნელია; ტროლი თავს არიდებს.',
+  "A good stroke, but it's too slow; the thief dodges.":
+    'კარგი დარტყმა, მაგრამ მეტისმეტად ნელია; ქურდი თავს არიდებს.',
+  // UNCONSCIOUS (:3622-:3625)
+  'The troll is battered into unconsciousness.':
+    'ტროლი სასტიკი ცემით უგონოდ ვარდება.',
+  'The thief is battered into unconsciousness.':
+    'ქურდი სასტიკი ცემით უგონოდ ვარდება.',
+  'A furious exchange, and the troll is knocked out!':
+    'მძვინვარე გაცვლა-გამოცვლა, და ტროლი გონებას კარგავს!',
+  'The troll is knocked out!': 'ტროლი გონებას კარგავს!',
+  'The thief is knocked out!': 'ქურდი გონებას კარგავს!',
+  // KILLED (:3628-:3629)
+  'The fatal blow strikes the troll square in the heart: He dies.':
+    'საბედისწერო დარტყმა ტროლს პირდაპირ გულში მოხვდება: ის კვდება.',
+  'The fatal blow strikes the thief square in the heart: He dies.':
+    'საბედისწერო დარტყმა ქურდს პირდაპირ გულში მოხვდება: ის კვდება.',
+  'The troll takes a fatal blow and slumps to the floor dead.':
+    'ტროლი საბედისწერო დარტყმას იღებს და მკვდარი იატაკზე ეცემა.',
+  'The thief takes a fatal blow and slumps to the floor dead.':
+    'ქურდი საბედისწერო დარტყმას იღებს და მკვდარი იატაკზე ეცემა.',
+  // LIGHT-WOUND (:3631-:3634)
+  'The troll is struck on the arm; blood begins to trickle down.':
+    'ტროლი მკლავში დაიჭრება; სისხლი ნელა ჩამოედინება.',
+  'The thief is struck on the arm; blood begins to trickle down.':
+    'ქურდი მკლავში დაიჭრება; სისხლი ნელა ჩამოედინება.',
+  "The blow lands, making a shallow gash in the troll's arm!":
+    'დარტყმა ხვდება და ტროლის მკლავზე ზედაპირულ ჭრილობას ტოვებს!',
+  "The blow lands, making a shallow gash in the thief's arm!":
+    'დარტყმა ხვდება და ქურდის მკლავზე ზედაპირულ ჭრილობას ტოვებს!',
+  // SERIOUS-WOUND (:3636-:3637)
+  'The troll receives a deep gash in his side.':
+    'ტროლი გვერდში ღრმა ჭრილობას იღებს.',
+  'The thief receives a deep gash in his side.':
+    'ქურდი გვერდში ღრმა ჭრილობას იღებს.',
+  'A savage blow on the thigh! The troll is stunned but can still fight!':
+    'სასტიკი დარტყმა ბარძაყზე! ტროლი გაოგნებულია, მაგრამ ჯერ კიდევ შეუძლია ბრძოლა!',
+  'A savage blow on the thigh! The thief is stunned but can still fight!':
+    'სასტიკი დარტყმა ბარძაყზე! ქურდი გაოგნებულია, მაგრამ ჯერ კიდევ შეუძლია ბრძოლა!',
+  // STAGGER (:3641-:3645)
+  'The troll is staggered, and drops to his knees.':
+    'ტროლი ბარბაცებს და მუხლებზე ეცემა.',
+  "The troll is momentarily disoriented and can't fight back.":
+    'ტროლი წამით იბნევა და პასუხის დაბრუნება არ შეუძლია.',
+  "The thief is momentarily disoriented and can't fight back.":
+    'ქურდი წამით იბნევა და პასუხის დაბრუნება არ შეუძლია.',
+  'The force of your blow knocks the troll back, stunned.':
+    'შენი დარტყმის ძალა ტროლს უკან, გონდაკარგულს ისვრის.',
+  'The force of your blow knocks the thief back, stunned.':
+    'შენი დარტყმის ძალა ქურდს უკან, გონდაკარგულს ისვრის.',
+  "The troll is confused and can't fight back.":
+    'ტროლი დაბნეულია და პასუხის დაბრუნება არ შეუძლია.',
+  "The thief is confused and can't fight back.":
+    'ქურდი დაბნეულია და პასუხის დაბრუნება არ შეუძლია.',
+  'The quickness of your thrust knocks the troll back, stunned.':
+    'შენი დარტყმის სისწრაფე ტროლს უკან, გონდაკარგულს ისვრის.',
+  // LOSE-WEAPON (:3647-:3648)
+  "The thief's weapon is knocked to the floor, leaving him unarmed.":
+    'ქურდის იარაღი იატაკზე ვარდება და ის უიარაღოდ რჩება.',
+  'The troll is disarmed by a subtle feint past his guard.':
+    'ტროლი უიარაღოა მისი თავდაცვის ნატიფი მოტყუებით.',
+  // FRAME — engine recovery / finishing blows (VILLAIN-BLOW :3419, HERO-BLOW
+  // :3499-:3507). Each mirrors the already-covered other-villain sibling.
+  'The troll slowly regains his feet.': 'ტროლი ნელ-ნელა ფეხზე დგება.',
+  'Attacking the troll is pointless.': 'ტროლზე თავდასხმას აზრი არ აქვს.',
+  'Attacking the thief is pointless.': 'ქურდზე თავდასხმას აზრი არ აქვს.',
+  'The unconscious troll cannot defend himself: He dies.':
+    'უგონო ტროლი თავს ვერ იცავს: ის კვდება.',
+  'The unarmed thief cannot defend himself: He dies.':
+    'უიარაღო ქურდი თავს ვერ იცავს: ის კვდება.',
+  // === COMBAT-DRAFTS (UAT-2026-06-24) END ===
+
   // ── PIN LIST (full-line pins that beat agreement-blind templates) ───────
   'There is a pair of candles here (providing light).':
     'აქ ორი სანთელია (ანათებს).',
@@ -411,6 +506,13 @@ export const ZORK1_KA_STRINGS: Record<string, string> = {
     'მისაღებ ოთახში ხარ. აღმოსავლეთით კარია, დასავლეთით უცნაური გოთური წარწერებიანი ხის კარი, რომელიც, როგორც ჩანს, ლურსმნებითაა ჩაჭედილი, ჯილდოების ვიტრინა და ოთახის შუაში დიდი აღმოსავლური ხალიჩა.',
   'You are in the living room. There is a doorway to the east, a wooden door with strange gothic lettering to the west, which appears to be nailed shut, a trophy case, and a rug lying beside an open trap door.':
     'მისაღებ ოთახში ხარ. აღმოსავლეთით კარია, დასავლეთით უცნაური გოთური წარწერებიანი ხის კარი, რომელიც, როგორც ჩანს, ლურსმნებითაა ჩაჭედილი, ჯილდოების ვიტრინა და ხალიჩა, ღია საიდუმლო ხაფანგ-კარის გვერდით გაშლილი.',
+  // NATIVE-REVIEW-DRAFT — rug moved, trap door CLOSED, pre-cyclops (west door
+  // still nailed shut). Golden-path state between `move rug` and `open trap
+  // door` (UAT 2026-06-23). Composed from the two authored variants: the
+  // nailed-shut prefix (oriental-rug variant) + the closed-trap-door suffix
+  // (post-cyclops closed-trap variant).
+  'You are in the living room. There is a doorway to the east, a wooden door with strange gothic lettering to the west, which appears to be nailed shut, a trophy case, and a closed trap door at your feet.':
+    'მისაღებ ოთახში ხარ. აღმოსავლეთით კარია, დასავლეთით უცნაური გოთური წარწერებიანი ხის კარი, რომელიც, როგორც ჩანს, ლურსმნებითაა ჩაჭედილი, ჯილდოების ვიტრინა და ფეხებთან დახურული საიდუმლო ხაფანგ-კარი.',
   'You are in the living room. There is a doorway to the east. To the west is a cyclops-shaped opening in an old wooden door, above which is some strange gothic lettering, a trophy case, and a rug lying beside an open trap door.':
     'მისაღებ ოთახში ხარ. აღმოსავლეთით კარია. დასავლეთით ძველ ხის კარში ციკლოპის ფორმის ხვრელია, რომლის ზემოთაც უცნაური გოთური წარწერებია, ჯილდოების ვიტრინა და ხალიჩა, ღია საიდუმლო ხაფანგ-კარის გვერდით გაშლილი.',
   'You are in the living room. There is a doorway to the east. To the west is a cyclops-shaped opening in an old wooden door, above which is some strange gothic lettering, a trophy case, and a closed trap door at your feet.':
@@ -1686,6 +1788,34 @@ export const ZORK1_KA_STRINGS: Record<string, string> = {
   "Alas, there's not much left of the candles. Certainly not enough to burn.":
     'ვაჰ, სანთლები ბევრი აღარ დარჩა. ნამდვილად არა იმდენი, რომ ენთოს.',
   '(with the match)': '(ასანთით)',
+  // NATIVE-REVIEW-DRAFT — parser implicit-instrument parenthetical (gparser.zil
+  // GWIM; the auto-suppliable WEAPON/TOOL/FLAMEBIT set from zork1/gsyntax.zil +
+  // 1dungeon.zil). Per-object INSTRUMENTAL ("(X-ით)") NAMING the weapon/tool —
+  // Ovid's naturalness call, upgrading the caseless drop-noun "(ამით)" which STAYS
+  // as the leak-proof fallback template in zork1.ka.templates.ts for any object
+  // not pinned here. String pins beat the {obj} template by specificity (match.ts),
+  // so each listed instrument gets its named form and everything else drops to
+  // "(ამით)". §4 case: a nominative in -ი drops it + adds -ით (მახვილი→მახვილით);
+  // -ა truncates + -ით (დანა→დანით, მასალა→მასალით, სკიპტრა→სკიპტრით); -ო is stable
+  // + -თი (ტუმბო→ტუმბოთი). torch/candles use the syncopated oblique stem the
+  // corpus already attests (ჩირაღდნ-, სანთლ-). ⚠ = multi-word adj+noun / numeral /
+  // genitive-chain: the head noun is declined, the attributive adjective keeps its
+  // -ი citation form (which IS the instrumental attributive agreement) — flagged
+  // for native review of the agreement. See notes/georgian-composed-line-review.md.
+  '(with the sword)': '(მახვილით)',
+  '(with the stiletto)': '(სტილეტით)',
+  '(with the sceptre)': '(სკიპტრით)',
+  '(with the torch)': '(ჩირაღდნით)', // syncope ჩირაღდანი→ჩირაღდნ- (corpus-attested)
+  '(with the shovel)': '(ნიჩაბით)',
+  '(with the screwdriver)': '(სახრახნისით)',
+  '(with the nasty knife)': '(საზიზღარი დანით)', // ⚠ adj+noun
+  '(with the rusty knife)': '(დაჟანგული დანით)', // ⚠ adj+noun
+  '(with the bloody axe)': '(სისხლიანი ცულით)', // ⚠ adj+noun
+  '(with the skeleton key)': '(ღია გასაღებით)', // ⚠ adj+noun
+  '(with the viscous material)': '(ბლანტი მასალით)', // ⚠ adj+noun
+  '(with the wrench)': '(სასხლეტი გასაღებით)', // ⚠ adj+noun (corpus renders wrench as two words)
+  '(with the pair of candles)': '(ორი სანთლით)', // ⚠ numeral + syncope (სანთლ-)
+  '(with the hand-held air pump)': '(ხელის ჰაერის ტუმბოთი)', // ⚠ genitive chain
   'You should say what to light them with.': 'უნდა თქვა, რითი აანთო ისინი.',
   'You realize, just in time, that the candles are already lighted.':
     'სწორედ დროზე მიხვდები, რომ სანთლები უკვე ანთია.',

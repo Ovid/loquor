@@ -25,7 +25,7 @@ export interface CompiledCorpus {
 // as share a noun, and Zork I's max co-located same-noun set is the 4 dam buttons
 // ("the A, the B, the C, or the D?"). {obj2}/{obj3}/{obj4} are the 2nd–4th
 // occurrences (a slot may still appear at most once each).
-const SLOT = /\{(obj[234]?|num2?|raw)\}/g
+const SLOT = /\{(obj[234]?|num2?|raw|verb)\}/g
 
 function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -68,6 +68,20 @@ export function compileCorpus(corpus: TranslationCorpus): CompiledCorpus {
   const objAlt = names.length > 0 ? names.map(escapeRe).join('|') : '(?!)' // never-match when empty
 
   const compile = (t: Template): CompiledTemplate => {
+    // OUT_REF consumes only {obj[234]?.form}/{num2?}/{raw}. Any OTHER token left
+    // in `out` — a match-only {verb}, a bare {obj} (no .form), or a typo — is
+    // invisible to matchOnce's .replace(): it would pass through VERBATIM into
+    // displayed output AND the template would still count as a successful match,
+    // suppressing the LLM fallback (and ka has none). One mistyped out token
+    // ships an undetected literal-brace English leak. Catch it here with a named,
+    // actionable error (review I2), mirroring the en-side repeated-slot guard.
+    const residual = t.out.replace(OUT_REF, '').match(/\{[^}]*\}/)
+    if (residual)
+      throw new Error(
+        `Template "${t.en}" has an unhandled out token ${residual[0]} — the out ` +
+          `side resolves only {obj.form}/{obj2..4.form}/{num}/{num2}/{raw} ` +
+          `({verb} is match-only and must never appear in out).`,
+      )
     let literal = 0
     let rawCount = 0
     let src = '^'
@@ -92,8 +106,13 @@ export function compileCorpus(corpus: TranslationCorpus): CompiledCorpus {
       if (/^obj[234]?$/.test(slot)) src += `(?<${slot}>${objAlt})`
       else if (slot === 'num' || slot === 'num2') src += `(?<${slot}>-?\\d+)`
       else {
+        // {raw} and {verb}: open passthrough wildcards with distinct group names
+        // (the at-most-once rule still holds; verb may co-occur with raw). {verb}
+        // is match-only — no `out` references it (OUT_REF is unchanged). Both
+        // count as "loose" for the specificity tie-break, so a resolved {obj}
+        // still wins on equal literals.
         rawCount++
-        src += '(?<raw>.+?)'
+        src += `(?<${slot}>.+?)`
       }
       last = m.index! + m[0].length
     }

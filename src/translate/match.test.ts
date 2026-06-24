@@ -204,6 +204,41 @@ describe('compileCorpus: repeated-slot contract (review S9)', () => {
   })
 })
 
+describe('compileCorpus: out-side token contract (review I2)', () => {
+  // OUT_REF only consumes {obj[234]?.key}, {num2?}, {raw}. An UNHANDLED token on
+  // the `out` side — a {verb} (newly a valid en-side slot, but match-only — never
+  // rendered), a bare {obj} (missing .key), or a typo {foo} — was invisible to
+  // .replace(): it passed through VERBATIM into displayed output AND the template
+  // still counted as a successful match, suppressing the LLM fallback (and ka has
+  // none). One mistyped out token would ship an undetected literal-brace English
+  // leak. Catch it at compile time with a named, actionable error.
+  const out = (s: string): TranslationCorpus => ({
+    strings: {},
+    objects: { foo: { indef: 'le foo' } },
+    templates: [{ en: 'x {raw}', out: s }],
+  })
+  it('throws on a match-only {verb} reaching the out side', () => {
+    expect(() => compileCorpus(out('fais {verb} ça'))).toThrow(/\{verb\}/)
+  })
+  it('throws on a bare {obj} (missing .form) on the out side', () => {
+    expect(() => compileCorpus(out('{obj} ici'))).toThrow(/\{obj\}/)
+  })
+  it('throws on a typo token on the out side', () => {
+    expect(() => compileCorpus(out('{objj.indef} ici'))).toThrow(/out/i)
+  })
+  it('accepts the legitimate out tokens ({obj.key}/{num}/{raw})', () => {
+    expect(() =>
+      compileCorpus({
+        strings: {},
+        objects: { foo: { indef: 'le foo' } },
+        templates: [
+          { en: 'a {obj} {num} {raw}', out: '{obj.indef} {num} {raw}' },
+        ],
+      }),
+    ).not.toThrow()
+  })
+})
+
 describe('matchLine: glued input-prompt residue (UAT-4)', () => {
   // A CR-less question merges with the '>' line-input prompt into ONE
   // BufferLine ("… (Y is affirmative): >"). The residue is chrome, not
@@ -431,5 +466,52 @@ describe('open form keys contract (spec §4, §7.1 — fake declined language)',
     expect(matchLine(fc, 'You swing at the sword.')).toBe(
       'Du schlägst nach dem Schwert.',
     )
+  })
+})
+
+describe('{verb} match-only slot', () => {
+  const mkCorpus = (
+    templates: TranslationCorpus['templates'],
+  ): TranslationCorpus => ({
+    strings: {},
+    objects: {},
+    templates,
+  })
+
+  it('matches a verb wildcard and coexists with {raw}; {verb} is dropped from out', () => {
+    const c = compileCorpus(
+      mkCorpus([
+        { en: 'What do you want to {verb} the {raw} with?', out: 'N={raw}' },
+      ]),
+    )
+    // {verb} is consumed by the regex (so the line resolves) but not rendered.
+    expect(matchLine(c, 'What do you want to attack the troll with?')).toBe(
+      'N=troll',
+    )
+  })
+
+  it('keeps a MULTI-WORD {raw} anchored by the literal prep', () => {
+    const c = compileCorpus(
+      mkCorpus([
+        { en: 'What do you want to {verb} the {raw} with?', out: 'N={raw}' },
+      ]),
+    )
+    // The hazard the literal prep prevents: raw must be "brass lantern", not "brass".
+    expect(
+      matchLine(c, 'What do you want to attack the brass lantern with?'),
+    ).toBe('N=brass lantern')
+  })
+
+  it('renders a fixed, verb-less out for the no-noun orphan', () => {
+    const c = compileCorpus(
+      mkCorpus([{ en: 'What do you want to {verb}?', out: 'FIXED' }]),
+    )
+    expect(matchLine(c, 'What do you want to take?')).toBe('FIXED')
+  })
+
+  it('still throws on a duplicated slot (rule preserved)', () => {
+    expect(() =>
+      compileCorpus(mkCorpus([{ en: '{verb} and {verb}', out: 'x' }])),
+    ).toThrow(/repeated slot/)
   })
 })

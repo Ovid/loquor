@@ -53,22 +53,41 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
     en: 'Which book do you mean, the {obj} or the {obj2}?',
     out: '¿A qué libro te refieres, {obj.def} o {obj2.def}?',
   },
-  // Parser incomplete-`put` prompt (gparser.zil): "What do you want to put the
-  // {obj} in?" — printed when the player names an object but no destination.
-  // Off-walkthrough, runtime-composed, so both gates miss it; it leaked RAW
-  // English (UAT 2026-06-20). The named object is the player's ECHOED noun, which
-  // can be a lexicon-emit synonym that is NOT an object-table key («advertisement»
-  // for the leaflet), so we bind {raw} (any token), not {obj} (table-only), and
-  // DROP the object on the out side («lo», the unmarked default clitic — no
-  // agreeing slot) so every object renders and none leaks.
-  // NB (UAT 2026-06-20): only the bare `put X` orphan (defaulting to "in") is
-  // reachable. `put X on` resolves to the WEAR verb and `put X under` / `behind`
-  // are unparsed, so the on/under/behind orphan prompts are never emitted — those
-  // templates were removed as unreachable dead code.
+  // Generic disambiguation for any OTHER same-noun set (e.g. the dam buttons):
+  // DROP the queried noun ({raw} matched, not echoed) — the translated candidates
+  // disambiguate on their own, so no raw English noun is forced on a non-English
+  // reader in basic mode (deterministic-no-english goal; the `push button` dam
+  // prompt was LLM-routed → an EN leak with no model). «cuál» is gender-neutral.
+  // Sorts AFTER the literal book pin, so book keeps its natural «libro» mention.
   {
-    en: 'What do you want to put the {raw} in?',
+    en: 'Which {raw} do you mean, the {obj} or the {obj2}?',
+    out: '¿A cuál te refieres, {obj.def} o {obj2.def}?',
+  },
+  {
+    en: 'Which {raw} do you mean, the {obj}, the {obj2}, or the {obj3}?',
+    out: '¿A cuál te refieres, {obj.def}, {obj2.def} o {obj3.def}?',
+  },
+  {
+    en: 'Which {raw} do you mean, the {obj}, the {obj2}, the {obj3}, or the {obj4}?',
+    out: '¿A cuál te refieres, {obj.def}, {obj2.def}, {obj3.def} o {obj4.def}?',
+  },
+  // Parser orphan prompt (gparser.zil:760-774): "What do you want to <verb>[ the
+  // <noun>] <prep>?". Off-walkthrough, runtime-composed, so both gates miss it; it
+  // leaked RAW English (UAT 2026-06-20). {verb}/{raw} capture the player's echoed
+  // tokens for MATCHING; the out is verb-neutral generic (drops both — «lo», the
+  // unmarked default clitic, no agreeing slot). One template per confirmed
+  // orphaning prep covers every verb that orphans on it. Reachable preps: `in`
+  // (bare `put X`) and `with` (`cut`/`strike X`); `on`->WEAR and
+  // `under`/`behind`->unparsed never orphan, so they are not authored.
+  {
+    en: 'What do you want to {verb} the {raw} in?',
     out: '¿Dónde quieres ponerlo?',
   },
+  {
+    en: 'What do you want to {verb} the {raw} with?',
+    out: '¿Con qué quieres hacerlo?',
+  },
+  { en: 'What do you want to {verb}?', out: '¿Qué quieres hacer?' },
 
   // ── Presence & listings ─────────────────────────────────────────────────
   { en: 'There is a {obj} here.', out: 'Hay {obj.indef} aquí.' },
@@ -160,6 +179,12 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
     out: 'Primero habría que abrir {obj.def}.',
   },
   { en: 'The {obj} is empty.', out: 'No hay nada en {obj.def}.' },
+  // V-POUR-ON / HOT-BELL-F (Hades exorcism) — nominative subject.
+  { en: 'The {obj} is extinguished.', out: '{obj.def} se apaga.' },
+  {
+    en: 'The {obj} burns and is consumed.',
+    out: '{obj.def} se quema y se consume.',
+  },
   {
     en: 'The {obj} is already in the {obj2}.',
     out: 'Ya hay {obj.def} en {obj2.def}.',

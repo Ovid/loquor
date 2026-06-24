@@ -375,6 +375,11 @@ export const ZORK1_DE_STRINGS: Readonly<Record<string, string>> = {
     'Du befindest dich im Wohnzimmer. Es gibt einen Türdurchgang nach Osten, eine hölzerne Tür mit seltsamer gotischer Schrift nach Westen, die zugenagelt zu sein scheint, eine Trophäenvitrine und einen großen orientalischen Teppich in der Mitte des Raumes.',
   'You are in the living room. There is a doorway to the east, a wooden door with strange gothic lettering to the west, which appears to be nailed shut, a trophy case, and a rug lying beside an open trap door.':
     'Du befindest dich im Wohnzimmer. Es gibt einen Türdurchgang nach Osten, eine hölzerne Tür mit seltsamer gotischer Schrift nach Westen, die zugenagelt zu sein scheint, eine Trophäenvitrine und einen Teppich, der neben einer offenen Falltür liegt.',
+  // Rug moved, trap door CLOSED, pre-cyclops (west door still nailed shut). The
+  // golden-path state between `move rug` and `open trap door` (UAT 2026-06-23),
+  // missing from every corpus. Nailed-shut prefix + closed-trap-door suffix.
+  'You are in the living room. There is a doorway to the east, a wooden door with strange gothic lettering to the west, which appears to be nailed shut, a trophy case, and a closed trap door at your feet.':
+    'Du befindest dich im Wohnzimmer. Es gibt einen Türdurchgang nach Osten, eine hölzerne Tür mit seltsamer gotischer Schrift nach Westen, die zugenagelt zu sein scheint, eine Trophäenvitrine und eine geschlossene Falltür zu deinen Füßen.',
   'You are in the living room. There is a doorway to the east. To the west is a cyclops-shaped opening in an old wooden door, above which is some strange gothic lettering, a trophy case, and a rug lying beside an open trap door.':
     'Du befindest dich im Wohnzimmer. Es gibt einen Türdurchgang nach Osten. Im Westen ist eine zyklopenförmige Öffnung in einer alten hölzernen Tür, über der sich seltsame gotische Schrift befindet, eine Trophäenvitrine und ein Teppich, der neben einer offenen Falltür liegt.',
   'You are in the living room. There is a doorway to the east. To the west is a cyclops-shaped opening in an old wooden door, above which is some strange gothic lettering, a trophy case, and a closed trap door at your feet.':

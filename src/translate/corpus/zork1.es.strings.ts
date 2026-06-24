@@ -406,6 +406,11 @@ export const ZORK1_ES_STRINGS: Readonly<Record<string, string>> = {
   // here from the UAT miss log (spec §4 "Spanish UAT loop"). Pre-cyclops form:
   'You are in the living room. There is a doorway to the east, a wooden door with strange gothic lettering to the west, which appears to be nailed shut, a trophy case, and a rug lying beside an open trap door.':
     'Estás en el salón. Hay una puerta al este, una puerta de madera con extraños caracteres góticos al oeste que parece clavada, una vitrina y una alfombra tendida junto a una trampilla abierta.',
+  // Rug moved, trap door CLOSED, pre-cyclops (west door still nailed shut). The
+  // golden-path state between `move rug` and `open trap door` (UAT 2026-06-23),
+  // missing from every corpus. Nailed-shut prefix + closed-trap-door suffix:
+  'You are in the living room. There is a doorway to the east, a wooden door with strange gothic lettering to the west, which appears to be nailed shut, a trophy case, and a closed trap door at your feet.':
+    'Estás en el salón. Hay una puerta al este, una puerta de madera con extraños caracteres góticos al oeste que parece clavada, una vitrina y una trampilla cerrada a tus pies.',
   // Same, AFTER the cyclops smashes the west door into a cyclops-shaped opening:
   'You are in the living room. There is a doorway to the east. To the west is a cyclops-shaped opening in an old wooden door, above which is some strange gothic lettering, a trophy case, and a rug lying beside an open trap door.':
     'Estás en el salón. Hay una puerta al este. Al oeste hay una abertura con forma de cíclope en una vieja puerta de madera, sobre la que hay unos extraños caracteres góticos, una vitrina y una alfombra tendida junto a una trampilla abierta.',

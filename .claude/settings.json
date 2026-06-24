@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":\"CLAUDE.md reminders for this project: (1) Begin your reply by announcing that CLAUDE.md was read using the exact phrase ClAUDE.md read, and address the user as Ovid from time to time. (2) NEVER modify the read-only gitignored vendored directories (ifvms.js, web-llm, zork1, zork2, zork3, scratch, vendor/glkote); read from and copy out of them only.\"}}'",
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":\"CLAUDE.md reminders for this project: (1) Begin your reply by announcing that CLAUDE.md was read using the exact phrase CLAUDE.md read, and address the user as Ovid from time to time. (2) NEVER modify the read-only gitignored vendored directories (ifvms.js, web-llm, zork1, zork2, zork3, scratch, vendor/glkote); read from and copy out of them only. (3) Actually read CLAUDE.md if you have not read it.\"}}'",
             "statusMessage": "Re-injecting CLAUDE.md essentials"
           }
         ]

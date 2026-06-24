@@ -249,6 +249,12 @@ export function Terminal({
         <Scrollback
           lines={xl.lines}
           debug={debug}
+          // Out-of-band height signals (review I1): the thinking indicator,
+          // notice, and queued lines below render inside Scrollback from nl
+          // state, growing the transcript with no xl.lines change. Fold them
+          // into pinKey so the bottom is re-pinned (input not clipped) when they
+          // mount/change, not only on new game output.
+          pinKey={`${nl.pending}|${nl.queued.length}|${nl.notice ?? ''}`}
           onActivate={() => inputRef.current?.focus()}
         >
           {/* Lines typed ahead while a translation runs (F-A): dimmed, chipped,

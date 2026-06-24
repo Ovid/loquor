@@ -86,25 +86,262 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
     out: 'რომელ {raw}-ს გულისხმობ — {obj.indef}, {obj2.indef}, {obj3.indef} თუ {obj4.indef}?',
   },
 
-  // ── Parser incomplete-`put` prompt (gparser.zil): "What do you want to put the
-  //    {obj} in?" — printed when the player names an object but no destination.
-  //    The object slot is the player's ECHOED (English) noun, possibly a
-  //    lexicon-emit synonym, so it binds {raw} (verbatim). Naming the object would
-  //    put it in a CASE (the locative "in X" → X-ში, §4) we cannot compose onto a
-  //    citation form, so the `out` DROPS the object (like the examine-default
-  //    line) and asks caselessly with მისი ("its"/"it"). fr/de/es route this to
-  //    the LLM fallback; ka has none, so without this template Georgian leaks raw
-  //    English (UAT 2026-06-20). NATIVE-REVIEW-DRAFT (ka §4 case forms):
-  //    provisional wording pending native review.
+  // === COMPOSED-GATE-DRAFTS (P2.1) BEGIN — NATIVE-REVIEW-DRAFT (all entries to
+  //     END are machine-authored, provisional, pending native review:
+  //     notes/georgian-composed-line-review.md). Verb-neutral caseless reframes:
+  //     the `out` drops {verb}/{raw} (en-side for matching only), like the shipped
+  //     put-in line — so ka never declines an echoed English token (§4 sidestep).
   {
-    en: 'What do you want to put the {raw} in?',
+    en: 'What do you want to {verb} the {raw} in?',
     out: 'რაში გსურთ მისი ჩადება?',
   },
-  // NB (UAT 2026-06-20): only the bare `put X` orphan (defaulting to "in") is
-  // reachable. `put X on` resolves to the WEAR verb ("You can't wear the {obj}.")
-  // and `put X under` / `put X behind` are unparsed ("That sentence isn't one I
-  // recognize."), so the on/under/behind orphan prompts are never emitted —
-  // their templates were removed as unreachable dead code.
+  {
+    en: 'What do you want to {verb} the {raw} with?',
+    out: 'რით გსურთ მისი გაკეთება?',
+  },
+  { en: 'What do you want to {verb}?', out: 'რისი გაკეთება გსურს?' },
+  // ── Parser implicit-object parenthetical (P2.1 follow-up, UAT 2026-06-24;
+  //    gparser.zil GWIM :907-925). The parser announces a uniquely-determined
+  //    auto-supplied object on its own line. fr/de/es generalize both shapes; ka
+  //    had only the "(with the match)" → "(ასანთით)" string pin, so e.g.
+  //    `attack troll` → "(with the sword)" leaked raw English for Georgian.
+  //  - Bare "({obj})" (no prep) → nominative citation form (rung 1, caseless —
+  //    same role as the listing-engine "{obj.indef} არის" subject).
+  { en: '({obj})', out: '({obj.indef})' },
+  //  - "(with the {obj})" → this is now the leak-proof FALLBACK only. The §4 case
+  //    problem (per-object stem + multi-word adjective agreement) is solved per
+  //    object by named INSTRUMENTAL string pins in zork1.ka.strings.ts ("(with the
+  //    sword)" → "(მახვილით)", …), which beat this template by specificity. This
+  //    template now catches any auto-suppliable object NOT pinned there, dropping
+  //    the noun to the caseless demonstrative "(ამით)" ("with this") — the same
+  //    reframe the orphan with-prep prompt uses ("რით გსურთ…"). GWIM only fires
+  //    when ONE instrument is eligible, so the demonstrative is unambiguous, and
+  //    keeping it guarantees no raw-English leak for an instrument we missed.
+  { en: '(with the {obj})', out: '(ამით)' },
+  // ── Listing engine (P2.1 Task 6; gverbs.zil DESCRIBE-OBJECT/PRINT-CONT). ka
+  //    shipped only per-object pins, so the lit BRASS LANTERN, the vehicle tail,
+  //    the surface header and the actor "is holding:" leaked raw English. Each
+  //    keeps {obj} in the NOMINATIVE citation form (no case agreement) or drops
+  //    the noun where a case would be forced (§4).
+  {
+    en: 'There is a {obj} here (providing light).',
+    out: 'აქ {obj.indef} არის (ანათებს).',
+  },
+  { en: 'A {obj} (providing light)', out: '{obj.indef} (ანათებს)' },
+  // Vehicle tail — a colon avoids declining the boat (mirrors de "(außerhalb: …)").
+  {
+    en: 'There is a {obj} here. (outside the {obj2})',
+    out: 'აქ {obj.indef} არის. (გარეთ: {obj2.indef})',
+  },
+  // Surface header — the surface would need the -ზე postposition case (§4) and is
+  // on-screen, so drop it: "on top lies:".
+  { en: 'Sitting on the {obj} is:', out: 'ზედ დევს:' },
+  // Actor-contents header — reuse the reviewed "contains" predicate (de/es also
+  // render "is holding" → "contains"); {obj} stays the nominative subject.
+  { en: 'The {obj} is holding:', out: '{obj.indef} შეიცავს:' },
+  // ── 7a State/idempotent (gverbs.zil). {obj} is the nominative subject of the
+  //    predicate — caseless, so it composes safely (like the open-success line).
+  { en: 'The {obj} is now closed.', out: '{obj.indef} იხურება.' },
+  { en: 'The {obj} is empty.', out: '{obj.indef} ცარიელია.' },
+  // ── 7b Container/placement failures (gverbs.zil V-PUT). Two-object lines drop
+  //    the container (on-screen; -ში would shift a multi-word adjective, §4); the
+  //    rest keep {obj} as the nominative subject ("have" takes the nominative).
+  {
+    en: 'The {obj} is already in the {obj2}.',
+    out: '{obj.indef} უკვე შიგ დევს.',
+  },
+  { en: "The {obj} isn't in the {obj2}.", out: '{obj.indef} შიგ არ არის.' },
+  { en: "You don't have the {obj}.", out: '{obj.indef} არ გაქვს.' },
+  { en: "The {obj} isn't here!", out: '{obj.indef} აქ არ არის!' },
+  { en: "There's no good surface on the {obj}.", out: 'ამაზე ვერაფერს დადებ.' },
+  // ── 7d-i Standard-verb refusals/statuses (gverbs.zil). NS = {obj} kept as the
+  //    nominative subject; DN = dropped to a demonstrative (caseless, §4).
+  {
+    en: 'Moving the {obj} reveals nothing.',
+    out: 'გადაადგილებამ არაფერი გამოაჩინა.',
+  },
+  { en: "You can't move the {obj}.", out: '{obj.indef} ადგილიდან არ იძვრება.' },
+  { en: 'You are now in the {obj}.', out: 'ახლა შიგ ხარ.' },
+  { en: 'You are now wearing the {obj}.', out: 'ახლა {obj.indef} გაცვია.' },
+  { en: "You're not carrying the {obj}.", out: '{obj.indef} თან არ გაქვს.' },
+  { en: 'How does one read a {obj}?', out: 'ეს როგორ უნდა წაიკითხო?' },
+  {
+    en: "You aren't even holding the {obj}.",
+    out: '{obj.indef} ხელშიც კი არ გიჭირავს.',
+  },
+  // ── 7d-ii Exotic-verb refusals (author-all). NS keeps {obj} nominative; DN
+  //    drops the object to a fixed demonstrative (ამას/ამაზე/ამაში/ამით, §4-safe).
+  { en: 'The {obj} is rudely awakened.', out: '{obj.indef} უხეშად იღვიძებს.' },
+  { en: "The {obj} isn't sleeping.", out: '{obj.indef} არ სძინავს.' },
+  { en: 'With a {obj}??!?', out: 'ამით??!?' },
+  { en: "You can't burn a {obj}.", out: '{obj.indef} არ იწვის.' },
+  { en: "You can't climb onto the {obj}.", out: 'ამაზე ვერ აძვრები.' },
+  {
+    en: 'You must tell me how to do that to a {obj}.',
+    out: 'ვერ მივხვდი, რა გნებავთ.',
+  },
+  {
+    en: 'The {obj} pays no attention.',
+    out: '{obj.indef} ყურადღებას არ აქცევს.',
+  },
+  {
+    en: 'Strange concept, cutting the {obj}....',
+    out: 'ამის ჭრა? უცნაური აზრია....',
+  },
+  {
+    en: 'Digging with the {obj} is slow and tedious.',
+    out: 'ამით თხრა ნელი და მოსაბეზრებელია.',
+  },
+  { en: 'Digging with a {obj} is silly.', out: 'ამით თხრა სისულელეა.' },
+  {
+    en: 'The {obj} refuses it politely.',
+    out: '{obj.indef} თავაზიანად უარს ამბობს.',
+  },
+  { en: 'Why knock on a {obj}?', out: 'ამას რად აკაკუნებ?' },
+  { en: 'The {obj} makes no sound.', out: '{obj.indef} ხმას არ გამოსცემს.' },
+  { en: 'There is nothing behind the {obj}.', out: 'მის უკან არაფერია.' },
+  { en: 'Look on a {obj}???', out: 'ზედ რას ნახავ???' },
+  {
+    en: "It's not clear that a {obj} can be melted.",
+    out: '{obj.indef} ალბათ ვერ დნება.',
+  },
+  {
+    en: 'Ahoy -- {obj} overboard!',
+    out: 'ჰეი — {obj.indef} წყალში გადავარდა!',
+  },
+  { en: 'Pump it up with a {obj}?', out: 'ამით გაბერავ?' },
+  { en: 'How does one look through a {obj}?', out: 'ამაში როგორ გაიხედავ?' },
+  {
+    en: 'It is hardly likely that the {obj} is interested.',
+    out: '{obj.indef} ნაკლებად დაინტერესდება.',
+  },
+  { en: 'Why would you send for the {obj}?', out: 'ამას რად დაიბარებ?' },
+  { en: 'It smells like a {obj}.', out: 'უცნაური სუნი აქვს.' },
+  {
+    en: 'The {obj} does not understand this.',
+    out: '{obj.indef} ამას ვერ იგებს.',
+  },
+  { en: "You can't talk to the {obj}!", out: 'ამას ვერ დაელაპარაკები!' },
+  {
+    en: "You can't tie the {obj} to that.",
+    out: 'ამის იქ მიბმა ვერ მოხერხდება.',
+  },
+  { en: 'You cannot wind up a {obj}.', out: 'ამის დაჭიმვა ვერ მოხერხდება.' },
+  { en: 'A nice idea, but with a {obj}?', out: 'კარგი აზრია, მაგრამ ამით?' },
+  {
+    en: "It seems that a {obj} won't do.",
+    out: 'როგორც ჩანს, ამით არ გამოვა.',
+  },
+  { en: 'Why would you tie up a {obj}?', out: 'ამას რად შეკრავ?' },
+  { en: 'It looks pretty much like a {obj}.', out: 'ჩვეულებრივ რამეს ჰგავს.' },
+  // ── 7d-iii Exotic multi-slot + all-language gaps. give/destroy/cut/water drop
+  //    to demonstratives (DN, §4); the {obj}smanship pun drops both slots;
+  //    extinguished/burns keep {obj} as the nominative subject (NS).
+  {
+    en: "You can't give a {obj} to a {obj2}!",
+    out: 'ამის მიცემა ვერ მოახერხებ!',
+  },
+  {
+    en: 'Trying to destroy the {obj} with a {obj2} is futile.',
+    out: 'ამის დანგრევა ამით ფუჭია.',
+  },
+  {
+    en: 'Trying to destroy the {obj} with your bare hands is futile.',
+    out: 'ამის ხელით დანგრევა ფუჭია.',
+  },
+  {
+    en: 'Your skillful {obj}smanship slices the {obj2} into innumerable slivers which blow away.',
+    out: 'ოსტატურად დააქუცმაცებ.',
+  },
+  {
+    en: 'The "cutting edge" of a {obj} is hardly adequate.',
+    out: 'ამის პირი საჭრელად არ ვარგა.',
+  },
+  {
+    en: 'The water leaks out of the {obj} and evaporates immediately.',
+    out: 'წყალი გადმოიღვრება და მაშინვე აორთქლდება.',
+  },
+  { en: 'The {obj} is extinguished.', out: '{obj.indef} ჩაქრა.' },
+  {
+    en: 'The {obj} burns and is consumed.',
+    out: '{obj.indef} იწვის და ნადგურდება.',
+  },
+  // ── COMBAT Shape B — F-WEP weapon-slot lines (UAT-2026-06-24 follow-up;
+  //    1actions.zil MELEE tables). The player's weapon (F-WEP) appears here in
+  //    instrumental/genitive/dative/postpositional roles, none expressible on
+  //    ka's single nominative citation form — so the `out` DROPS the weapon slot
+  //    and renders the generic "იარაღი" (weapon), declined in place by hand
+  //    (the agreement-free analog of fr's «votre arme»), covering EVERY weapon.
+  //    Any villain slot is dropped too (object case, on-screen); "მას"/"მის"
+  //    ("him"/"his") carries the reference caselessly. EXCEPTION: the frame
+  //    "you still have a {obj}" keeps {obj.indef} — Georgian "have" takes the
+  //    nominative, so the weapon is correctly NAMED (NS). The named-instrumental
+  //    "(with the …)" parenthetical pins (Group H) are a different surface and
+  //    are NOT touched here.
+  {
+    en: 'Your {obj} misses the {obj2} by an inch.',
+    out: 'შენი იარაღი ერთი დიუმით ააცდენს.',
+  },
+  {
+    en: 'Your {obj} crashes down, knocking the {obj2} into dreamland.',
+    out: 'შენი იარაღი დაეშვება და მას ძილში ჩააგდებს.',
+  },
+  {
+    en: 'The haft of your {obj} knocks out the {obj2}.',
+    out: 'შენი იარაღის ტარი მას გონს დააკარგვინებს.',
+  },
+  {
+    en: "It's curtains for the {obj} as your {obj2} removes his head.",
+    out: 'შენი იარაღი მის თავს მოჰკვეთს — ბოლო მოეღო.',
+  },
+  {
+    en: "Your {obj} pinks the {obj2} on the wrist, but it's not serious.",
+    out: 'შენი იარაღი მას მაჯაზე დააკაწრავს, მაგრამ სერიოზული არაფერია.',
+  },
+  {
+    en: 'Fortunately, you still have a {obj}.',
+    out: 'საბედნიეროდ, ჯერ კიდევ {obj.indef} გაქვს.',
+  },
+  {
+    en: 'The troll charges, and his axe slashes you on your {obj} arm.',
+    out: 'ტროლი მოიწევს და მისი ცული შენს მკლავს გაგიკაწრავს.',
+  },
+  {
+    en: 'The axe hits your {obj} and knocks it spinning.',
+    out: 'ცული შენს იარაღს მოხვდება და ტრიალით გააგდებს.',
+  },
+  {
+    en: 'The troll swings, you parry, but the force of his blow knocks your {obj} away.',
+    out: 'ტროლი ცულს ჩაიქნევს, შენ იგერიებ, მაგრამ მისი დარტყმის ძალა შენს იარაღს განზე მოისვრის.',
+  },
+  {
+    en: 'The axe knocks your {obj} out of your hand. It falls to the floor.',
+    out: 'ცული შენს იარაღს ხელიდან გააგდებს. ის იატაკზე ვარდება.',
+  },
+  {
+    en: 'A long, theatrical slash. You catch it on your {obj}, but the thief twists his knife, and the {obj2} goes flying.',
+    out: 'გრძელი, თეატრალური მოქნევა. იარაღით აიგერიებ, მაგრამ ქურდი დანას გადაატრიალებს და იარაღი გაფრინდება.',
+  },
+  {
+    en: 'The thief neatly flips your {obj} out of your hands, and it drops to the floor.',
+    out: 'ქურდი მოხდენილად ააგდებს შენს იარაღს ხელიდან და ის იატაკზე ვარდება.',
+  },
+  {
+    en: 'You parry a low thrust, and your {obj} slips out of your hand.',
+    out: 'დაბალ დარტყმას იგერიებ და შენი იარაღი ხელიდან გისხლტება.',
+  },
+  {
+    en: 'The Cyclops grabs your {obj}, tastes it, and throws it to the ground in disgust.',
+    out: 'ციკლოპი შენს იარაღს სტაცებს, აგემოვნებს და ზიზღით მიწაზე დააგდებს.',
+  },
+  {
+    en: 'The monster grabs you on the wrist, squeezes, and you drop your {obj} in pain.',
+    out: 'ურჩხული მაჯაში გტაცებს, მოგიჭერს და ტკივილისგან იარაღს ხელიდან გაგივარდება.',
+  },
+  // === COMPOSED-GATE-DRAFTS (P2.1) END ===
+  // NB (UAT 2026-06-20 / recon 2026-06-23): orphan preps `in` (bare `put X`) and
+  // `with` (`cut`/`strike X`) are templated above; `on`->WEAR and
+  // `under`/`behind`->unparsed never orphan, so they are intentionally not authored.
 
   // ── Presence & listings — {obj} is the NOMINATIVE subject of არის, or a bare
   //    listing entry (no case marker). These are the productive caseless slots.

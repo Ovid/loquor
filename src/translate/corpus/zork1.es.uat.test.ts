@@ -17,6 +17,13 @@ describe('Zork I × Spanish — runtime-composed Living Room variants (UAT)', ()
   const preCyclops =
     'You are in the living room. There is a doorway to the east, a wooden door with strange gothic lettering to the west, which appears to be nailed shut, a trophy case, and a rug lying beside an open trap door.'
 
+  // Rug moved, trap door CLOSED, BEFORE the cyclops is defeated (west door still
+  // nailed shut) — the golden-path state between `move rug` and `open trap door`.
+  // Surfaced by UAT 2026-06-23: every corpus had the post-cyclops closed-trap
+  // variant but not this pre-cyclops one, so it leaked English after moving the rug.
+  const preCyclopsClosedTrap =
+    'You are in the living room. There is a doorway to the east, a wooden door with strange gothic lettering to the west, which appears to be nailed shut, a trophy case, and a closed trap door at your feet.'
+
   // Rug moved, trap door open, AFTER the cyclops smashes the west door.
   const postCyclops =
     'You are in the living room. There is a doorway to the east. To the west is a cyclops-shaped opening in an old wooden door, above which is some strange gothic lettering, a trophy case, and a rug lying beside an open trap door.'
@@ -50,6 +57,15 @@ describe('Zork I × Spanish — runtime-composed Living Room variants (UAT)', ()
     expect(out).not.toBe(postCyclopsClosedTrap)
     expect(out).toContain('salón')
     expect(out).toContain('cíclope')
+    expect(out).toContain('trampilla cerrada')
+  })
+
+  it('translates the pre-cyclops closed-trap-door variant', () => {
+    const out = matchLine(c, preCyclopsClosedTrap)
+    expect(out).not.toBeNull()
+    expect(out).not.toBe(preCyclopsClosedTrap)
+    expect(out).toContain('salón')
+    expect(out).toContain('clavada')
     expect(out).toContain('trampilla cerrada')
   })
 })

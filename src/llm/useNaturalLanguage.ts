@@ -16,8 +16,8 @@ import type { SceneEvent } from './scene/types'
 import { TextSceneTracker } from './scene/tracker'
 import { buildGrammar } from './grammar/buildGrammar'
 import { viewToContext } from './prompt'
-import { coreLexicon, nounLexicon, lexiconWordSet } from './lexicon/index'
-import type { LexLang } from './lexicon/types'
+import { coreLexicon, nounLexicon, lexiconWordSet, kaInputActive } from './lexicon/index'
+import type { InputLexLang } from './lexicon/types'
 import { useModelDownload } from './useModelDownload'
 import {
   createGenerateRaw,
@@ -263,8 +263,12 @@ export function useNaturalLanguage(
   const language: NlLanguage =
     internal.phase === 'on' ? internal.language : 'off'
   const lex = useMemo(() => {
-    if (language !== 'fr' && language !== 'de' && language !== 'es') return null
-    const lang: LexLang = language
+    // fr/de/es always have an input lexicon; ka only on a game that has one
+    // (Zork I — kaInputActive, spec §5.6). en/off get no lexicon.
+    if (!kaInputActive(language, signature) && language !== 'fr' &&
+        language !== 'de' && language !== 'es')
+      return null
+    const lang: InputLexLang = language as InputLexLang
     return {
       core: coreLexicon(lang),
       nouns: nounLexicon(lang, signature),

@@ -15,8 +15,9 @@ import {
 import { DOWNLOAD_RETRY_MS } from './config'
 import { emptyView } from '../glkote-react/types'
 import type { ViewState, BufferLine, TurnResult } from '../glkote-react/types'
-import { ZORK1_SIG } from './grammar/index'
+import { ZORK1_SIG, ZORK2_SIG } from './grammar/index'
 import { ZORK1_VOCAB } from './grammar/zork1.vocab'
+import * as LexiconIndex from './lexicon/index'
 
 // A test that fails (or times out) between useFakeTimers/useRealTimers must
 // not poison every later test in the file with fake timers.
@@ -2278,6 +2279,71 @@ describe('NL v2 pipeline stages (spec §4)', () => {
     expect(generateSpy).not.toHaveBeenCalled()
     expect(echoLocal).toHaveBeenCalledTimes(1)
     expect(hook.result.current.notice).toBeNull()
+  })
+
+  it('ka lex memo gates on kaInputActive — true on Zork I, false on Zork II (spec §5.6)', async () => {
+    // The lex useMemo in useNaturalLanguage must call kaInputActive(language,
+    // signature) to gate ka's lexicon on Zork I only. Before Task 15 the guard
+    // was `language !== 'fr' && … !== 'es'`, which returned null for ka and
+    // never called kaInputActive. After Task 15 the memo calls kaInputActive and
+    // admits ka+ZORK1_SIG (returns non-null lex). Stage-6 behavioral tests
+    // (Georgian verb → canonical send) land in Task 16 once the drain bail is
+    // also re-pointed; THIS test pins the memo gate itself.
+    const spy = vi.spyOn(LexiconIndex, 'kaInputActive')
+    try {
+      // Zork I: kaInputActive('ka', ZORK1_SIG) → true → lex non-null.
+      const { hook: hookZ1 } = setup({
+        engine: new FakeLlmEngine({ cached: true }),
+        vocab: ZORK1_VOCAB,
+        signature: ZORK1_SIG,
+      })
+      await waitFor(() =>
+        expect(hookZ1.result.current.state).toMatchObject({
+          phase: 'off',
+          installed: true,
+        }),
+      )
+      spy.mockClear()
+      act(() => hookZ1.result.current.setLanguage('ka'))
+      // After setLanguage the lex memo re-runs; kaInputActive must be called
+      // with the active language ('ka') and the Zork I signature, and return
+      // true (the value the guard negates to ADMIT the lex). We assert EVERY
+      // call returned true (not just "some call"), so a kaInputActive that
+      // silently returned false on Zork I would fail here.
+      // NOTE: this pins the call-site wiring + kaInputActive's return value, NOT
+      // the guard's branch direction (that the `!` is present so true→non-null
+      // lex). A guard inverted to `if (kaInputActive(...) ...) return null` would
+      // still call kaInputActive and see `true` here. The guard-direction /
+      // lex-non-null contract is pinned behaviorally by Task 16 (Georgian verb →
+      // canonical send, which only works when the lex was actually built).
+      expect(spy).toHaveBeenCalledWith('ka', ZORK1_SIG)
+      expect(spy.mock.results.length).toBeGreaterThan(0)
+      expect(spy.mock.results.every(r => r.value === true)).toBe(true)
+
+      // Zork II: kaInputActive('ka', ZORK2_SIG) → false → lex null.
+      // Clear persisted language from the Zork I hook above.
+      localStorage.clear()
+      const { hook: hookZ2 } = setup({
+        engine: new FakeLlmEngine({ cached: true }),
+        vocab: ZORK1_VOCAB,
+        signature: ZORK2_SIG,
+      })
+      await waitFor(() =>
+        expect(hookZ2.result.current.state).toMatchObject({
+          phase: 'off',
+          installed: true,
+        }),
+      )
+      spy.mockClear()
+      act(() => hookZ2.result.current.setLanguage('ka'))
+      // Zork II has no ka lexicon → kaInputActive returns false for every call,
+      // so the guard returns null (no lex). Same caveat as above re: direction.
+      expect(spy).toHaveBeenCalledWith('ka', ZORK2_SIG)
+      expect(spy.mock.results.length).toBeGreaterThan(0)
+      expect(spy.mock.results.every(r => r.value === false)).toBe(true)
+    } finally {
+      spy.mockRestore()
+    }
   })
 })
 

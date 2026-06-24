@@ -4,12 +4,20 @@ import type { DisplayLine } from '../translate/useOutputTranslation'
 export function Scrollback({
   lines,
   debug = false,
+  pinKey,
   onActivate,
   children,
 }: {
   lines: DisplayLine[]
   /** Debug view: show nl-canonical echoes and the ‹you› pill (default off). */
   debug?: boolean
+  /** Out-of-band content-height signal: a value that changes whenever children
+   *  rendered INSIDE this scroll container grow/shrink the transcript WITHOUT a
+   *  `lines` change — the NL thinking indicator, abstain notice, and queued
+   *  lines (Terminal passes them as children from nl state). The bottom-pin
+   *  effect watches it too, so the focused input isn't left clipped below the
+   *  fold during translation (WCAG 2.4.11 — review I1). */
+  pinKey?: string
   /** Focus the prompt when the player clicks into the transcript. */
   onActivate?: () => void
   /** The inline command prompt, rendered at the end of the transcript. */
@@ -28,6 +36,12 @@ export function Scrollback({
   // requestAnimationFrame re-try idiom in useFocusTrap. There is no automated
   // pixel guard (jsdom has no layout engine); the responsive spec's manual
   // checklist covers the rendered behavior — re-run it when touching this.
+  //
+  // Keyed on `lines` AND `pinKey` (review I1): the thinking indicator, abstain
+  // notice, and queued lines render as children INSIDE this scroller from nl
+  // state — they grow scrollHeight with NO `lines` change, so `lines` alone
+  // would not re-pin and the input would clip during translation. `pinKey`
+  // carries those out-of-band signals, so the same re-assert fires for them.
   useLayoutEffect(() => {
     const el = ref.current
     if (!el) return
@@ -35,7 +49,7 @@ export function Scrollback({
     toBottom()
     const raf = requestAnimationFrame(toBottom)
     return () => cancelAnimationFrame(raf)
-  }, [lines])
+  }, [lines, pinKey])
 
   // Toggling debug re-renders the whole history at once (canonical echoes appear/
   // disappear, nl-source flips pill↔command); that bulk mutation must NOT be

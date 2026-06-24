@@ -166,6 +166,31 @@ describe('Scrollback', () => {
     raf.mockRestore()
   })
 
+  // The NL thinking indicator / abstain notice / queued lines render INSIDE this
+  // scroll container (Terminal passes them as children) from nl state, separate
+  // from `lines` (xl.lines). They grow scrollHeight WITHOUT a `lines` change, so
+  // an effect keyed only on `lines` leaves the focused input clipped below the
+  // fold during translation (WCAG 2.4.11 — review I1). `pinKey` carries those
+  // out-of-band signals so the same re-pin fires for them too.
+  it('re-pins the bottom when pinKey changes even if lines are unchanged (I1)', () => {
+    const raf = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation(() => 0)
+    const lines = [line({ id: 1, text: 'West of House', kind: 'room' })]
+    const { container, rerender } = render(
+      <Scrollback lines={lines} pinKey="idle" />,
+    )
+    const scroller = container.querySelector('.scroll') as HTMLElement
+    const scrollTo = vi.fn()
+    scroller.scrollTo = scrollTo
+
+    // The NL layer starts "thinking": no new line, only pinKey flips.
+    rerender(<Scrollback lines={lines} pinKey="thinking" />)
+
+    expect(scrollTo).toHaveBeenCalled()
+    raf.mockRestore()
+  })
+
   describe('debug view', () => {
     const lines = [
       { id: 1, kind: 'nl-source' as const, text: 'arriba' },

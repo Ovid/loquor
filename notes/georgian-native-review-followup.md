@@ -87,6 +87,26 @@ troll` → `(with the sword)` is THE combat command. It was a **recon miss** in 
     Group H worklist of `notes/georgian-composed-line-review.md` (rows 63–76); a focused
     regression test (`zork1.ka.uat.test.ts`) pins each named form against a regression back to
     `(ამით)`. Still `NATIVE-REVIEW-DRAFT`; the `(beta)` marker stays.
+  - **Browser UAT 2026-06-24 confirmed the MECHANISM live (`notes/uat-6.md`)** for 3 of the
+    pins — sword `(მახვილით)` (static `attack trophy case` + 6× live `attack troll` combat),
+    nasty knife `(საზიზღარი დანით)` (`cut rope`), bloody axe `(სისხლიანი ცულით)` (post-kill
+    `attack troll`). Each fired its own `aria-live` display line, named (never `(ამით)`, no
+    Latin), zero `loquorMisses()`. **Routing/rendering only — §4 case/naturalness of these
+    (and the 12 deep-dungeon pins not reached live) still needs the native eye above.**
+
+- **NEW follow-up (raw-English leak, separate from the parenthetical) — `ka` player-attack
+  combat-result lines.** Surfaced in the same UAT-6 troll fight. The **player-attack**
+  randomization variants leak raw English in `ka` (no LLM net): `The troll is staggered, and
+drops to his knees.` / `The troll slowly regains his feet.` / `A good slash, but it misses
+the troll by a mile.` / `A good stroke, but it's too slow; the troll dodges.` / `The force
+of your blow knocks the troll back, stunned.` / `It's curtains for the troll as your sword
+removes his head.` (the troll's-own-attack variants and the death-fog line **are** covered).
+  This is a **golden-path** leak (every player fights the troll) that the walkthrough-coverage
+  gate misses because combat messages are **probabilistic** — only the variants in the recorded
+  walkthrough run got captured. **Out of scope for the `(with the …)` branch and pre-existing**
+  (the branch only added the instrumental pins). Needs native Georgian combat strings (likely a
+  broader sweep: troll + thief + cyclops attack/parry/wound variants) — raised with Ovid for a
+  decision; not auto-fixed (machine-translated combat prose would bypass this review).
 
 ## Provisional `ka` draft lines (NATIVE-REVIEW-DRAFT) — two batches
 

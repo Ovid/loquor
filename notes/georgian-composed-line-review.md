@@ -203,6 +203,16 @@ ONE instrument is eligible, so the caseless fallback is unambiguous.
 > `(with the match)` → `(ასანთით)` is the pre-existing pin this pattern was modelled on
 > (it lives by the match strings in `zork1.ka.strings.ts`); not re-listed here.
 
+> **Browser UAT 2026-06-24 (`notes/uat-6.md`) — MECHANISM confirmed in real play for
+> rows 63, 69, 71.** `attack trophy case` / `attack troll` (incl. 6× live combat) →
+> `(მახვილით)` (63 sword); `cut rope` → `(საზიზღარი დანით)` (69 nasty knife); post-kill
+> `attack troll` → `(სისხლიანი ცულით)` (71 bloody axe). Each fired its **own** display
+> line (`<p lang="ka">`, inside the `aria-live=polite` transcript), rendered the
+> **named** form (never `(ამით)`, no Latin), and logged **zero** `loquorMisses()`. This
+> confirms the **routing/rendering only** — the §4 case / naturalness of all rows
+> (incl. these three; 69 & 71 are ⚠ adj+noun) **still awaits native review.** Rows
+> 64–68, 70, 72–76 were not reached live (deep dungeon) and remain unit-test-pinned.
+
 ---
 
 ## Phase-2 follow-up: `{raw}`-echo templates (revisit when Georgian input lands)

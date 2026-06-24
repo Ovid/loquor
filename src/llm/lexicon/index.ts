@@ -1,9 +1,11 @@
 // src/llm/lexicon/index.ts
 // Lookup by (language, story signature) + the stage-4 collision guard's word set.
-import type { CoreLexicon, NounLexicon, LexLang } from './types'
+import type { CoreLexicon, NounLexicon, InputLexLang } from './types'
+import type { NlLanguage } from '../types'
 import { FR_CORE } from './fr.core'
 import { DE_CORE } from './de.core'
 import { ES_CORE } from './es.core'
+import { KA_CORE } from './ka.core'
 import { FR_ZORK1 } from './fr.zork1'
 import { FR_ZORK2 } from './fr.zork2'
 import { FR_ZORK3 } from './fr.zork3'
@@ -13,25 +15,28 @@ import { DE_ZORK3 } from './de.zork3'
 import { ES_ZORK1 } from './es.zork1'
 import { ES_ZORK2 } from './es.zork2'
 import { ES_ZORK3 } from './es.zork3'
+import { KA_ZORK1 } from './ka.zork1'
 import { ZORK1_SIG, ZORK2_SIG, ZORK3_SIG } from '../grammar/index'
 
-const CORES: Record<LexLang, CoreLexicon> = {
+const CORES: Record<InputLexLang, CoreLexicon> = {
   fr: FR_CORE,
   de: DE_CORE,
   es: ES_CORE,
+  ka: KA_CORE,
 }
 
-const NOUNS: Record<LexLang, Record<string, NounLexicon>> = {
+const NOUNS: Record<InputLexLang, Record<string, NounLexicon>> = {
   fr: { [ZORK1_SIG]: FR_ZORK1, [ZORK2_SIG]: FR_ZORK2, [ZORK3_SIG]: FR_ZORK3 },
   de: { [ZORK1_SIG]: DE_ZORK1, [ZORK2_SIG]: DE_ZORK2, [ZORK3_SIG]: DE_ZORK3 },
   es: { [ZORK1_SIG]: ES_ZORK1, [ZORK2_SIG]: ES_ZORK2, [ZORK3_SIG]: ES_ZORK3 },
+  ka: { [ZORK1_SIG]: KA_ZORK1 }, // Zork I only — II/III stay English (spec §1)
 }
 
-export function coreLexicon(lang: LexLang): CoreLexicon {
+export function coreLexicon(lang: InputLexLang): CoreLexicon {
   return CORES[lang]
 }
 
-export function nounLexicon(lang: LexLang, sig: string): NounLexicon | null {
+export function nounLexicon(lang: InputLexLang, sig: string): NounLexicon | null {
   return NOUNS[lang][sig] ?? null
 }
 
@@ -43,7 +48,7 @@ export function nounLexicon(lang: LexLang, sig: string): NounLexicon | null {
  * instead. The three pronoun arrays are deliberately excluded: pronouns
  * resolve against the scene, never passthrough-shaped.
  */
-export function lexiconWordSet(lang: LexLang, sig: string): Set<string> {
+export function lexiconWordSet(lang: InputLexLang, sig: string): Set<string> {
   const out = new Set<string>()
   const add = (phrase: string) => {
     for (const w of phrase.split(' ')) if (w) out.add(w)
@@ -78,7 +83,7 @@ export function lexiconWordSet(lang: LexLang, sig: string): Set<string> {
  * signature keeps the per-game assertion honest instead of unioning.
  */
 export const KNOWN_COLLISIONS: Record<
-  LexLang,
+  InputLexLang,
   Readonly<Record<string, readonly string[]>>
 > = {
   // Populated from the first validation run; every word reviewed below.
@@ -252,4 +257,13 @@ export const KNOWN_COLLISIONS: Record<
       'zorkmid', // currency proper noun vs the 'zorkmid' emit; same word
     ],
   },
+  ka: { [ZORK1_SIG]: [] }, // Mkhedruli is non-ASCII: no overlap with English vocab
+}
+
+/** Georgian input is active only on a game that HAS a ka noun lexicon — Zork I
+ * today (spec §5.6, issue-1). Auto-tracks NOUNS.ka, so if ka ever gains a Zork
+ * II/III lexicon this needs no edit. The single source of truth consulted by the
+ * lex memo, the Terminal route, the placeholder, and the activation notice. */
+export function kaInputActive(lang: NlLanguage, sig: string): boolean {
+  return lang === 'ka' && nounLexicon('ka', sig) !== null
 }

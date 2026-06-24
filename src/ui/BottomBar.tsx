@@ -18,7 +18,8 @@ import type { NlState } from '../llm/types'
  *    player content shown in addition to the readout. These two are mutually
  *    exclusive (the caller derives them from one corpus check) and asymmetric
  *    (Decision 1):
- *      - Beta: the screen IS Georgian → Georgian-only notice + the type-English tip.
+ *      - Beta: the screen IS Georgian → Georgian-only notice + the activation tip
+ *        (Phase-2 Georgian-INPUT tip on Zork I, the only game with a ka corpus).
  *      - No-corpus: the screen fell back to English → bilingual notice, NO tip.
  */
 export function BottomBar({

@@ -1,6 +1,8 @@
 // src/llm/lexicon/expandGeorgian.ts
-// Georgian input pre-stage (spec §3.2). Runs after tokenize, before verb
-// resolution, ONLY when core.postpositions is present (i.e. only ka). For each
+// Georgian input pre-stage (spec §3.2, review-fix C1). Runs AFTER the verb is
+// resolved, on the object-span remainder (NOT the whole clause — a Georgian
+// imperative often ends in -ი, so stripping before verb lookup would mangle it),
+// ONLY when core.postpositions is present (i.e. only ka). For each
 // token, in FIXED precedence: (1) postposition split — longest-first over the
 // closed suffix set, emitting [suffix, stem] so the existing prep-split fires;
 // (2) nominative -ი strip — only if no postposition matched. No stemmer, no

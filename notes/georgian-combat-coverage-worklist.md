@@ -28,6 +28,24 @@
 > 84→127. Gate + UAT pins green (`composed-lines.test.ts`, `zork1.ka.uat.test.ts` combat
 > block, `ka-native-review-draft.test.ts` COMBAT-DRAFTS guard). Native review still owed:
 > `notes/georgian-native-review-followup.md`.
+>
+> **Browser UAT (2026-06-24, Georgian basic mode, 5 live troll restarts).** Cleared
+> `loquor.xlate.misses`, fought a live troll repeatedly. Confirmed live (each as a
+> `<p lang="ka">` inside `role="log" aria-live="polite"`, no Latin): Shape A — "knocked
+> out!" (`ტროლი გონებას კარგავს!`), "takes a fatal blow…dead" (`…მკვდარი იატაკზე ეცემა.`),
+> "misses…by a mile" (`…ტროლს მთელი მილით ააცდენს.`), "fatal blow strikes…heart: He dies"
+> (`საბედისწერო დარტყმა ტროლს…ის კვდება.`), FRAME "unconscious troll cannot defend…dies"
+> (`უგონო ტროლი თავს ვერ იცავს: ის კვდება.`); Shape B F-WEP — "haft of your sword knocks out…"
+> (`შენი იარაღის ტარი მას გონს დააკარგვინებს.`) and "crashes down, knocking…into dreamland"
+> (`შენი იარაღი დაეშვება და მას ძილში ჩააგდებს.`), both with the weapon dropped to generic
+> `იარაღი`; plus a TROLL-MELEE troll-own-attack ("axe sweeps past"). **`loquorMisses()` held
+> ZERO combat entries** across all 5 fights (only the pre-existing off-path `attack trophy
+> case` leak remained — separate, lower-priority, UAT-6). Sampled MISSED/UNCONSCIOUS/KILLED
+> classes + both F-WEP templates live; remaining classes (LIGHT/SERIOUS-WOUND, STAGGER,
+> the deeper THIEF/CYCLOPS-MELEE F-WEP) are exhaustively gate-covered + unit-pinned. The
+> **thief was NOT fought live** (deep-dungeon); HERO-MELEE is villain-agnostic (same path,
+> exercised vs the troll) and THIEF-MELEE F-WEP is unit-pinned — logged as a follow-up if a
+> live thief pass is wanted.
 
 **Why this exists.** UAT-6 (`notes/uat-6.md`) surfaced raw-English leaks in `ka`
 during the live troll fight. Ovid asked to **scope the full combat family first**

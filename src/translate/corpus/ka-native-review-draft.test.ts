@@ -181,3 +181,34 @@ describe('ka provisional Georgian strings carry a NATIVE-REVIEW-DRAFT marker', (
     ).toBeGreaterThan(0)
   })
 })
+
+// ka INPUT lexicon files: ka.core.ts and ka.zork1.ts are large data files with
+// a single header-level NATIVE-REVIEW-DRAFT marker governing ALL entries below.
+// A per-line windowed check (WINDOW=8) would require hundreds of marker
+// insertions across these dense data files; the correct granularity here is
+// file-level: the header marker covers every entry, and the gate fails iff that
+// marker is dropped. (See task instructions: "if the strict per-line check would
+// require many marker insertions across the data files, that's a signal the
+// file-level assertion is the intended granularity for these large data files".)
+describe('ka INPUT lexicon is NATIVE-REVIEW-DRAFT-marked', () => {
+  for (const rel of [
+    '../../llm/lexicon/ka.core.ts',
+    '../../llm/lexicon/ka.zork1.ts',
+  ]) {
+    it(`${rel} carries the marker over its Georgian data`, () => {
+      const src = readFileSync(
+        fileURLToPath(new URL(rel, import.meta.url)),
+        'utf8',
+      )
+      const hasGeorgian = GEORGIAN.test(src)
+      expect(
+        hasGeorgian,
+        `expected ${rel} to contain Georgian (ka) data`,
+      ).toBe(true)
+      expect(
+        src.includes(MARKER),
+        `${rel} must carry a ${MARKER} marker (model-seeded data not yet native-reviewed)`,
+      ).toBe(true)
+    })
+  }
+})

@@ -14,7 +14,7 @@
 
 ## Open Decisions (flagged — resolve with the owner if you disagree)
 
-**G1 — Dative "give/tie … to …" recipient (spec gap).** The spec's §2 closed-postposition model does not cover the **dative indirect object** (`-ს`: `ქურდს` thief, `მოაჯირს` railing), which `-ს` cannot be split globally for (it collides with genitive `-ის`, e.g. `სპილენძის` "brass"). But `give egg to thief` and `tie rope to railing` are **required** Zork I winning commands. **This plan resolves G1 with a bounded "dative-recipient" path** (Task 9): the closed set of Zork I "to"-recipients is listed in `KA_ZORK1` in dative form, and a scoped `verb obj recipient → verb obj to recipient` rule fires only for give/tie-class verbs. If the owner prefers the quoted-English escape hatch for these two commands (option b) or a general case-analyzer (option c, the rejected segmenter), edit Task 9 only — the rest of the plan is unaffected.
+**G1 — Dative "give/tie … to …" recipient (spec gap). RESOLVED (owner-confirmed, alignment review 2026-06-24): option a, the bounded dative path; spec §2 now documents the case (point 3).** The spec's §2 closed-postposition model originally did not cover the **dative indirect object** (`-ს`: `ქურდს` thief, `მოაჯირს` railing), which `-ს` cannot be split globally for (it collides with genitive `-ის`, e.g. `სპილენძის` "brass"). But `give egg to thief` and `tie rope to railing` are **required** Zork I winning commands. **This plan resolves G1 with a bounded "dative-recipient" path** (Task 9): the closed set of Zork I "to"-recipients is listed in `KA_ZORK1` in dative form, and a scoped `verb obj recipient → verb obj to recipient` rule fires only for give/tie-class verbs. (The alternatives — quoted-English escape hatch (option b) or a general case-analyzer (option c, the rejected segmenter) — were considered and declined; if ever revisited, edit Task 9 only.)
 
 ---
 
@@ -40,7 +40,7 @@
 - `src/translate/corpus/ka-native-review-draft.test.ts` — extend marker coverage to the `ka` input files; fix the disambiguation locator (Task 22).
 - `src/llm/useModelDownload.ts` — force `model: 'grammar'` for `ka` at every model-set site.
 - `src/llm/useNaturalLanguage.ts` — lex memo admits `ka` only when `kaInputActive`; activation-tip split by signature (Task 20).
-- `src/llm/translatePipeline.ts` — queue bail keys on `!liveRef.current.lex` (C2), drop the `OUTPUT_ONLY_LANGS` import.
+- `src/llm/translatePipeline.ts` — queue bail keys on `!liveRef.current.lex` (C2), drop the `OUTPUT_ONLY_LANGS` import; add the **§5.5 abstain-policy `ka`-ASCII raw-send branch** (Task 16A) + a tiny `containsGeorgian`/`isAscii` predicate.
 - `src/ui/Terminal.tsx` — route `ka` input via `kaInputActive`; Zork-I-gated copy; drop the now-unused `outputOnly`/`OUTPUT_ONLY_LANGS` import.
 - `src/ui/Terminal.test.tsx` — invert the four `ka` tests; add the Zork II raw-send pin.
 - `src/llm/notices.ts` — revise `ka` placeholder/label/abstain/activation copy; retain Phase-1 strings under new names; `escapeHatchOnActivation` takes the input flag (S1/S2).
@@ -1352,7 +1352,26 @@ describe('Georgian UAT — idioms & nominative', () => {
     })
   })
 })
+
+// M-C — finding-8: meta verbs stay reachable for ka. Meta is resolved UPSTREAM of
+// parseLexicon (isMetaCommand runs at the pipeline's meta stage; Georgian meta
+// words via core.metaAliases at the alias stage), so pin it at that layer, NOT by
+// calling parseLexicon('save').
+import { isMetaCommand } from '../inputTranslate'
+describe('Georgian UAT — meta verbs (finding-8)', () => {
+  it('English meta verbs are recognized for any language (i/l/save/quit)', () => {
+    for (const m of ['i', 'l', 'save', 'quit', 'score'])
+      expect(isMetaCommand(m)).toBe(true)
+  })
+  it('Georgian meta aliases map to raw English meta', () => {
+    expect(KA_CORE.metaAliases['ინვენტარი']).toBe('inventory')
+    expect(KA_CORE.metaAliases['გასვლა']).toBe('quit')
+  })
+})
 ```
+
+> Confirm `isMetaCommand`'s export path (`src/llm/inputTranslate.ts`) and the
+> Georgian alias keys against the shipping `KA_CORE.metaAliases` (Task 4).
 
 - [ ] **Step 2: Run** — `npx vitest run src/llm/lexicon/parse.ka-uat.test.ts`
 Expected: FAIL on any `← confirm emits` literal that doesn't match the vocab; fix the literals to the reported `r.text`.
@@ -1437,6 +1456,23 @@ it('picking ka with a cached model stays grammar-only', () => {
   // Arrange a cached/installed engine, then setLanguage('ka'); assert
   // internal.phase==='on' && internal.model==='grammar'.
   // (Use the hook's existing test harness/renderHook pattern.)
+})
+```
+
+**M-B — behavioral no-LLM pin (§5.4 / §11 risk-table).** State-level
+`model==='grammar'` is necessary but not the guarantee players care about; pin the
+*behavior* that the LLM is never invoked for `ka` even with a model present. This
+is structurally true (`runClause` returns `abstain` at the grammar-only gate
+**before** `generateRaw`), so it's hardening — but it's the assertion §5.4/§11
+ask for. Put it at the **pipeline** level (where `generateRaw` is mockable), e.g.
+alongside Task 16A:
+
+```ts
+it('ka with a cached/loaded model never calls generateRaw (grammar-only)', () => {
+  // Spy on generateRaw; run a ka clause (Zork I) with model:'full' forced into
+  // a cached engine. Assert generateRaw was NOT called — the line abstains or
+  // resolves deterministically, never the LLM. (Mirror an existing grammar-only
+  // "engine never touched" assertion.)
 })
 ```
 
@@ -1615,6 +1651,99 @@ git commit -m "fix(georgian): queue bail keys on input lexicon, not OUTPUT_ONLY_
 
 ---
 
+### Task 16A: §5.5 English-ASCII raw-send on a `ka` parse miss (abstain policy)
+
+**Files:**
+- Modify: `src/llm/translatePipeline.ts` (the "Stage 8" abstain policy, ~line 903)
+- Modify: `src/llm/translatePipeline.test.ts`
+
+**Why this task exists (alignment fix).** Spec §5.5 / finding-6 require: on a `ka`
+parse **miss**, a plain-ASCII (English) line **raw-sends exactly as `en` does**;
+only a line **containing Georgian** abstains. The abstain policy today
+(`translatePipeline.ts:903`) raw-sends **only** when `activeLang === 'en'` and
+shows a notice for *every* other language — so without this task a missed `ka`
+English line would **abstain**, regressing English-typing `ka` players (who today,
+output-only, raw-send everything). Task 17 routes all `ka` input through
+`nl.translate`; **this** task is what makes the missed-English line reach the
+engine. It is the real §5.5 implementation — Task 17 only asserts the routing.
+
+- [ ] **Step 1: Write the failing test** — add to `src/llm/translatePipeline.test.ts`
+(mirror an existing grammar-only abstain test, but with `ka` on Zork I — `lex`
+present, `grammarOnly` true):
+
+```ts
+describe('§5.5 ka English-ASCII raw-send on miss', () => {
+  it('a missed ASCII (English) line raw-sends to the engine, like en', () => {
+    // ka, Zork I, grammar-only. A line that misses the Georgian lexicon AND is
+    // plain ASCII must reach the engine via sendLine (NOT abstain).
+    // Assert sendLine was called with the raw line; no couldntTranslate notice.
+  })
+  it('a missed line containing Georgian abstains (notice, nothing sent)', () => {
+    // A Georgian line that misses → setNotice(grammarOnlyFirstMiss/couldntTranslate);
+    // sendLine NOT called for that line.
+  })
+})
+```
+
+- [ ] **Step 2: Run to verify it fails** — `npx vitest run src/llm/translatePipeline.test.ts -t "§5.5"`
+Expected: FAIL — the ASCII case currently abstains (non-`en` → notice, nothing sent).
+
+- [ ] **Step 3: Implement the branch** — In `src/llm/translatePipeline.ts`, add the
+predicate near the other module helpers:
+
+```ts
+// §5.5: a line with NO Georgian codepoint is treated as English and raw-sends on
+// a ka miss; only a line containing Georgian abstains (Georgian and English ASCII
+// cannot collide). Range U+10A0–10FF (Asomtavruli + Mkhedruli), matching the
+// /[Ⴀ-ჿ]/ test used elsewhere (notices, ka-native-review-draft).
+const containsGeorgian = (s: string) => /[Ⴀ-ჿ]/.test(s)
+```
+
+In the Stage 8 abstain policy (~line 903), add a `ka`-ASCII arm immediately after
+the `activeLang === 'en'` arm and **before** the grammar-only/abstain arms:
+
+```ts
+        } else if (activeLang === 'en') {
+          sendTracked(line)
+        } else if (activeLang === 'ka' && !containsGeorgian(line)) {
+          // §5.5: a ka player's English (ASCII) line that missed the Georgian
+          // lexicon raw-sends exactly as en does — degrade, never block. Only a
+          // line containing Georgian falls through to the abstain notice below.
+          sendTracked(line)
+        } else if (grammarOnly && !educatedRef.current) {
+```
+
+The retain-typed guard below it (`if (!fromQueue && activeLang !== 'en') retainTyped = line`)
+must NOT retain the just-raw-sent `ka` ASCII line — widen it to treat a raw-sent
+line like `en`:
+
+```ts
+        // Only the NOTICE branches retain the typed line; the raw-send arms (en,
+        // and ka-ASCII via §5.5) consumed it.
+        const rawSent = activeLang === 'en' ||
+          (activeLang === 'ka' && !containsGeorgian(line))
+        if (!fromQueue && !rawSent) retainTyped = line
+```
+
+> Stage 8 is the single abstain decision point for both the typed line and queued
+> lines, so this one branch covers the compound/queue path too — which a
+> Terminal-level ASCII check (rejected option) would have missed.
+
+- [ ] **Step 4: Run to verify it passes** + the full pipeline suite (no fr/de/es
+regression — they never hit the `ka` arm):
+
+Run: `npx vitest run src/llm/translatePipeline.test.ts`
+Expected: PASS — ka ASCII miss raw-sends; ka Georgian miss abstains; en/fr/de/es unchanged.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/llm/translatePipeline.ts src/llm/translatePipeline.test.ts
+git commit -m "feat(georgian): §5.5 ka English-ASCII raw-send on miss (abstain policy)"
+```
+
+---
+
 ### Task 17: Terminal route via `kaInputActive` + test inversions
 
 **Files:**
@@ -1633,9 +1762,11 @@ Terminal stops importing it).
 - [ ] **Step 1: Invert the tests** — In `src/ui/Terminal.test.tsx`:
 
 - The `:296` test "ka raw-sends English, never nl.translate" → split into two:
-  - **Zork I ka routes through `nl.translate`** (the headline change): typed
-    Georgian calls `translate`, NOT a raw `sendLine`; and plain-ASCII English
-    still reaches the engine via the §5.5 fallback. Use the Zork I `bytes`.
+  - **Zork I ka routes through `nl.translate`** (the headline change): **all**
+    input — typed Georgian *and* plain-ASCII English — calls `translate`, NOT a
+    raw `sendLine`. (The engine still *sees* missed English, but via the
+    pipeline's §5.5 abstain-policy raw-send — asserted in **Task 16A**, not here;
+    Terminal must not duplicate the abstain logic.) Use the Zork I `bytes`.
   - **Zork II ka still raw-sends** (new pin, §5.6): with a Zork II story
     signature, a typed line raw-sends via `sendLine` and `translate` is NOT
     called; the placeholder stays the Phase-1 type-English copy.
@@ -2106,8 +2237,8 @@ git commit -m "chore(georgian): make all green — Phase 2 input complete (beta)
 - **§3.1 optional `postpositions` field; §3.2 `expandGeorgian`; merge into preps** → Tasks 1, 2, 3, 4. ✓
 - **§3.3 directions via directions.ts** → Task 7. ✓
 - **§4 KA_CORE / KA_ZORK1 authored, NATIVE-REVIEW-DRAFT** → Tasks 4, 5, 13. ✓
-- **§5.1 InputLexLang (ka out of LLM maps); §5.2 lex memo; §5.3 Terminal route; §5.4 model:grammar; §5.5 English raw-send; §5.6 kaInputActive** → Tasks 1, 6, 15, 17, 14, 17, 6/17. ✓
-- **§6 gates: walkthrough-parse, both round-trips, validate, input-UAT, marker, no-English-leak** → Tasks 11, 9, 10, 8, 12, 13, 21. ✓
+- **§5.1 InputLexLang (ka out of LLM maps); §5.2 lex memo; §5.3 Terminal route; §5.4 model:grammar; §5.5 English raw-send; §5.6 kaInputActive** → Tasks 1, 6, 15, 17, 14, **16A**, 6/17. ✓ *(§5.5 is implemented in the abstain policy, Task 16A — Task 17 only routes ka through `nl.translate`.)*
+- **§6 gates: walkthrough-parse, both round-trips, validate, input-UAT, marker, no-English-leak, §5.5 ASCII-raw-send, finding-8 meta** → Tasks 11, 9, 10, 8, 12, 13, 21, 16A, 12. ✓
 - **§7 Georgian copy revised + new-semantics gate** → Tasks 18, 19, 20, 21. ✓
 - **§7 disambiguation drop-the-noun reframe (CLAUDE.md `{raw}`-echo cross-cut)** → Task 22. ✓
 - **§8 deferrals (it-anaphora, II/III, general morphology)** → pronoun arrays empty (Task 4); ka Zork I only (Task 6); no segmenter. ✓

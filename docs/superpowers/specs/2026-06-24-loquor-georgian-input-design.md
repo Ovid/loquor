@@ -101,6 +101,17 @@ by typing Georgian. Forcing function: a Georgian walkthrough-parse gate (§6).
 2. **Only indirect-object / prepositional slots carry morphology**, and it is a
    **closed, finite postposition set** (`-ში` in, `-ზე` on, `-ით` with, `-დან`
    from, `-თან` at, `-კენ` toward). `ჩადე X ყუთ-ში` = "put X in box".
+3. **The dative recipient is the one slot the postposition set doesn't cover.**
+   "to"-recipient commands the walkthrough bar (§1) *requires* — `give egg to
+   thief` (`მიეცი კვერცხი ქურდს`), `tie rope to railing` (`მიაბი თოკი მოაჯირს`)
+   — mark the recipient with the **dative `-ს`**, which is **not** a splittable
+   postposition (it collides with the genitive `-ის`, e.g. `სპილენძის` "brass",
+   so a global `-ს` split is unsafe). This is handled as a **bounded, closed
+   dative-recipient case**, not by widening the suffix set: the closed Zork I set
+   of "to"-recipients is listed in `KA_ZORK1` in dative form, and a scoped
+   `<give/tie-verb> obj recipientDAT → verb obj to recipient` rule resolves them
+   (the plan's Task 9 / G1). Never a general `-ს` analysis — that is the rejected
+   segmenter (§8).
 
 Everything else Georgian has (split-ergativity, seven cases, polypersonal verb
 agreement, preverbs) is irrelevant to the **imperative command** sublanguage Zork
@@ -206,6 +217,11 @@ test asserts an fr/de/es clause produces byte-identical output before and after.
   collision guard only.
 - **`particleVerbs` = []** (Georgian preverbs are fused, not separable);
   **`verbIdioms`** only for genuine multiword commands.
+- **`quantifiersAll` / `quantifiersExcept`** — Georgian `ყველა` / `ყველაფერი`
+  ("all"/"everything") and `გარდა` ("except"), so `take all`-class commands work
+  as they do for fr/de/es. Mixed-language bare-English forms (`all`, `everything`,
+  `except`) are included too. The Z-parser handles ALL/EXCEPT natively, so these
+  feed the existing quantifier stage (no new logic).
 - **Pronoun arrays empty** (Georgian object pronouns are verb suffixes — "it"
   deferred, §8).
 
@@ -251,8 +267,12 @@ only). Phase 2 routes the `ka` command field through `nl.translate` **only when
 `kaInputActive(outLang, signature)` (Zork I, §5.6)**; on Zork II/III `ka` keeps
 raw-sending (Phase-1 behavior). The pinned tests change:
 - `Terminal.test.tsx:296` ("ka raw-sends English, never nl.translate") → inverts:
-  ka routes through `nl.translate`; **plain-ASCII English still reaches the engine**
-  via the §5.5 fallback (so the *spirit* of "English works" is preserved).
+  ka routes **all** input (Georgian *and* English) through `nl.translate`. The
+  *engine* still sees missed English because the pipeline's abstain policy
+  raw-sends ASCII (§5.5) — that raw-send is asserted at the **pipeline** level, not
+  here; the Terminal test asserts only that `ka` ASCII reaches `nl.translate` (so
+  the spirit of "English works" is preserved without duplicating the abstain logic
+  in Terminal).
 - `Terminal.test.tsx:388` ("type in English" placeholder) → "type in Georgian or
   English" (§7).
 - `:335` (help intercept) → now reached through the normal `nl` path (ka is no
@@ -300,6 +320,19 @@ Only a line **containing Georgian** that misses abstains (Georgian notice + esca
 hatch, §7). Georgian (non-ASCII) and English (ASCII) cannot collide, so this is
 purely additive and nothing currently working for a `ka` player regresses. (This
 is the decided resolution of the §7 behavior-change concern — see §7.)
+
+**Where this lives — the abstain policy, NOT the Terminal route.** Terminal routes
+*all* `ka`-on-Zork-I input through `nl.translate` (§5.3); the raw-send-vs-abstain
+decision is made downstream in the deterministic pipeline's **abstain policy**
+(`translatePipeline.ts` "Stage 8"). **That policy today raw-sends only when
+`activeLang === 'en'`** and shows a notice for *every* other language — so as
+written it would make a missed `ka` ASCII line abstain, the exact regression this
+section forbids. Phase 2 therefore **adds a `ka`-ASCII branch to the abstain
+policy**: on a `ka` miss, a line that is plain ASCII (no Mkhedruli codepoint)
+raw-sends like `en`; a line containing Georgian abstains. A tiny
+`containsGeorgian`/`isAscii` predicate gates it. This branch — not the Terminal
+route — is the §5.5 implementation; it is exercised by a **pipeline-level test**
+(so the compound/queue path is covered, not just the single-line Terminal path).
 
 fr/de/es input routing is unchanged: every new branch is reachable only via
 `InputLexLang` membership / the `ka` predicates.
@@ -357,7 +390,14 @@ raw-sends + shows the type-English copy.
   non-ASCII; the *noun* collision guard has nothing to catch). This claim scopes
   to that guard only (finding-8).
 - **Input UAT pins** (`src/llm/lexicon/parse.ka-uat.test.ts`). Puzzle-critical
-  verbs + every confirmed finding, mirroring `parse.es-uat.test.ts`.
+  verbs + every confirmed finding, mirroring `parse.es-uat.test.ts`. Includes the
+  **finding-8 meta pin**: English meta verbs (`i`, `l`, `save`, `quit`) still
+  resolve for `ka` (they run via `isMetaCommand` before the lexicon).
+- **English-ASCII raw-send gate (§5.5)** — a **pipeline-level** test: a `ka`
+  parse miss on a plain-ASCII line raw-sends to the engine (like `en`); a miss on
+  a line containing Georgian abstains (notice, nothing sent). Pins the abstain
+  policy's new `ka`-ASCII branch so the "no regression for English-typing `ka`
+  players" guarantee can't silently break.
 - **`ka`-notice copy gates** (finding-5 + issue-2, **two complementary
   assertions**). **(a) No English-script leak:** every input-path notice `ka` can
   surface (abstain, help, escape instruction, placeholder) contains no English
@@ -495,7 +535,8 @@ strings.
 - **Real seams named: lex memo, Terminal route + test inversions, line-972 guard** → §5.2–5.4. ✓
 - **Input gated to Zork I via shared `kaInputActive`; Zork II/III stays type-English (no misleading invite)** → §1, §5.6, §6, §11. ✓
 - **Forced grammar-only via the `model` field at the state boundary, not a fragile new predicate** → §5.4, §11. ✓
-- **English-ASCII raw-send kept (finding-6 owner decision); no regression** → §5.5, §7. ✓
+- **English-ASCII raw-send kept (finding-6 owner decision); no regression — implemented in the abstain policy (Stage 8), not the Terminal route; pipeline-tested** → §5.5, §6, §7. ✓
+- **Dative recipient (give/tie … to …) is a bounded closed case, not a suffix-set widening** → §2(3), §8. ✓
 - **Georgian notice/help/escape/placeholder strings _revised_ (arms already exist); two-part copy gate (no-English-script + new-semantics pin)** → §6, §7. ✓
 - **Both round-trips enrolled; display-corpus audit; validate scoped; input-UAT + marker** → §6. ✓
 - **"it" deferral verified against the real walkthrough (zero pronoun steps)** → §1, §8. ✓

@@ -11,15 +11,16 @@
 // was NOT a useful passthrough — it either earned "I don't know the word help" or,
 // with a model on, got mistranslated by the LLM (observed: help → look, silently
 // re-displaying the room). So English `help` now gets the English cheat-sheet like
-// every other language. ka is OUTPUT-ONLY (raw-sends English): it only ever sees
-// the English word `help`, and its block has NO quoted-fallback instruction since
-// quoting is meaningless when there is no input LLM.
+// every other language. On Zork I, ka now takes Georgian input (routed through the
+// translate pipeline), so its block reads like fr/de/es: it tells the player to
+// type Georgian and includes the quoted-English escape hatch.
 import type { ActiveLanguage, NlLanguage } from './types'
 import { fold } from './lexicon/fold'
 
 /** The localized word that triggers help, per language. fr/de/es also accept the
- * English `help` (a player's reflex); en triggers on `help`; ka sees only `help`
- * (it raw-sends English). Only `off` (NL disabled) has no entry. */
+ * English `help` (a player's reflex); en triggers on `help`; ka's trigger word
+ * stays English `help` even under Georgian input (like the meta-verb names).
+ * Only `off` (NL disabled) has no entry. */
 const HELP_ALIASES: Partial<Record<NlLanguage, ReadonlySet<string>>> = {
   en: new Set(['help']),
   fr: new Set(['aide', 'help']),
@@ -72,12 +73,11 @@ export function helpResponse(lang: ActiveLanguage): string {
         'Escribe «ayuda» para volver a ver este mensaje.',
       ].join('\n')
     case 'ka':
-      // NATIVE-REVIEW-DRAFT (ka §4 case forms)
-      // ka is OUTPUT-ONLY: it raw-sends English, so commands are typed in English
-      // and there is NO quoted-escape (quoting is meaningless without an input LLM).
+      // NATIVE-REVIEW-DRAFT (ka §7): Georgian input (Zork I, beta).
       return [
-        'დახმარება — ბრძანებები აკრიფეთ ინგლისურად; ტექსტი ქართულად ჩანს.',
+        'დახმარება — ბრძანებები აკრიფეთ ქართულად; მე გადავთარგმნი თამაშისთვის.',
         'სპეციალური ბრძანებები (აკრიფეთ ინგლისურად): save (შენახვა), restore (აღდგენა), restart (თავიდან დაწყება), quit (გასვლა), score (ქულა), diagnose (მდგომარეობა), look (ყურება), inventory (ინვენტარი), verbose / brief (გრძელი / მოკლე აღწერები). version აჩვენებს თამაშის ვერსიას.',
+        `ზუსტი ბრძანების თარგმანის გარეშე გასაგზავნად ჩასვით ბრჭყალებში, მაგ. ${ESCAPE_EXAMPLES}.`,
         'ამ შეტყობინების ხელახლა სანახავად აკრიფეთ help.',
       ].join('\n')
     case 'en':

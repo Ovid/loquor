@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { helpResponse, isHelpTrigger } from './help'
+import { helpResponse, isHelpTrigger, ESCAPE_EXAMPLE } from './help'
 
 describe('localized help', () => {
   it('triggers on the localized aliases per language', () => {
@@ -71,8 +71,9 @@ describe('localized help', () => {
     expect(block).toMatch(/"wind up canary"/) // the quoted-escape example
     expect(block.toLowerCase()).toContain('help') // self-reference
   })
-  it('ka help says type in English, NOT the quoted-fallback message', () => {
-    const block = helpResponse('ka')
-    expect(block).not.toMatch(/".*"/) // no quoted-fallback instruction
+  it('ka help block describes Georgian input + the quoted escape', () => {
+    const h = helpResponse('ka')
+    expect(h).toMatch(/ქართულ/) // tells the player to type in Georgian
+    expect(h).toContain(ESCAPE_EXAMPLE) // the quoted-English escape is now relevant
   })
 })

@@ -992,3 +992,49 @@ describe('parseLexicon — MODIFIED "all" quantifier in fr/de/es (Bug F parity, 
     })
   })
 })
+
+describe('expandGeorgian wiring (spec §3) — gated on core.postpositions', () => {
+  const empty = { inScope: [], antecedent: null }
+  // A minimal Georgian-shaped core: postpositions present → expandGeorgian runs.
+  // NOTE გახსენი ENDS IN -ი — it exercises the C1 verb-not-mangled regression.
+  const kaCore = {
+    verbs: { აიღე: 'take', გახსენი: 'open' },
+    verbIdioms: [],
+    particleVerbs: [],
+    preps: { ში: 'in' },
+    articles: [],
+    pronounsDirect: [],
+    pronounsContainer: [],
+    pronounsSelf: [],
+    metaAliases: {},
+    postpositions: { ში: 'in' },
+  }
+  // bare stem maps to ZORK1_VOCAB canonical 'small mailbox' (emit: 'mailbox')
+  const nouns = { 'small mailbox': ['ფოსტ'] }
+
+  it('ka: a nominative object resolves after the -ი strip', () => {
+    // ფოსტი (nominative) → ფოსტ (bare stem)
+    const r = parseLexicon('აიღე ფოსტი', kaCore, nouns, ZORK1_VOCAB, empty)
+    expect(r).toEqual({ kind: 'command', text: 'take mailbox' })
+  })
+
+  it('ka: a -ი-FINAL verb is NOT mangled by the strip (review-fix C1)', () => {
+    // გახსენი (open) ends in -ი; the strip MUST run after verb resolution, else
+    // გახსენი → გახსენ misses the verb lookup. Object ფოსტი → ფოსტ resolves.
+    const r = parseLexicon('გახსენი ფოსტი', kaCore, nouns, ZORK1_VOCAB, empty)
+    expect(r).toEqual({ kind: 'command', text: 'open mailbox' })
+  })
+
+  it('fr/de/es are byte-identical before/after (no postpositions → no expand)', () => {
+    // A representative fr clause must produce exactly the same result whether or
+    // not the Georgian pre-stage exists — FR_CORE has no `postpositions`.
+    const r = parseLexicon(
+      'ouvre la boite aux lettres',
+      FR_CORE,
+      FR_ZORK1,
+      ZORK1_VOCAB,
+      empty,
+    )
+    expect(r).toEqual({ kind: 'command', text: 'open mailbox' })
+  })
+})

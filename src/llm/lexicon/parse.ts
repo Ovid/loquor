@@ -7,6 +7,7 @@ import type { Vocab, NounEntry } from '../grammar/types'
 import type { Scene } from '../scene/types'
 import { fold, tokenize } from './fold'
 import { vocabWordSet, vocabKnows } from '../inputTranslate'
+import { expandGeorgian } from './expandGeorgian'
 
 export type LexResult = { kind: 'command'; text: string } | { kind: 'miss' }
 const MISS: LexResult = { kind: 'miss' }
@@ -384,6 +385,14 @@ export function parseLexicon(
     }
   }
   if (!verb) return MISS
+
+  // Georgian pre-stage (spec §3.2, review-fix C1): postposition split +
+  // nominative -ი strip on the OBJECT-SPAN remainder, AFTER the verb is
+  // resolved. A Georgian imperative often ends in -ი (მიეცი/მოკალი/გახსენი), so
+  // stripping the WHOLE clause before verb lookup would mangle the verb into a
+  // non-key and MISS with no LLM net. Only when this core declares postpositions
+  // (i.e. only ka); fr/de/es have none, so this is a no-op (byte-identical).
+  if (core.postpositions) tokens = expandGeorgian(tokens, core.postpositions)
 
   // --- No remainder: verb-only. ---
   if (tokens.length === 0)

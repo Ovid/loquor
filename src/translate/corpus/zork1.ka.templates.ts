@@ -266,6 +266,78 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
     en: 'The {obj} burns and is consumed.',
     out: '{obj.indef} იწვის და ნადგურდება.',
   },
+  // ── COMBAT Shape B — F-WEP weapon-slot lines (UAT-2026-06-24 follow-up;
+  //    1actions.zil MELEE tables). The player's weapon (F-WEP) appears here in
+  //    instrumental/genitive/dative/postpositional roles, none expressible on
+  //    ka's single nominative citation form — so the `out` DROPS the weapon slot
+  //    and renders the generic "იარაღი" (weapon), declined in place by hand
+  //    (the agreement-free analog of fr's «votre arme»), covering EVERY weapon.
+  //    Any villain slot is dropped too (object case, on-screen); "მას"/"მის"
+  //    ("him"/"his") carries the reference caselessly. EXCEPTION: the frame
+  //    "you still have a {obj}" keeps {obj.indef} — Georgian "have" takes the
+  //    nominative, so the weapon is correctly NAMED (NS). The named-instrumental
+  //    "(with the …)" parenthetical pins (Group H) are a different surface and
+  //    are NOT touched here.
+  {
+    en: 'Your {obj} misses the {obj2} by an inch.',
+    out: 'შენი იარაღი ერთი დიუმით ააცდენს.',
+  },
+  {
+    en: 'Your {obj} crashes down, knocking the {obj2} into dreamland.',
+    out: 'შენი იარაღი დაეშვება და მას ძილში ჩააგდებს.',
+  },
+  {
+    en: 'The haft of your {obj} knocks out the {obj2}.',
+    out: 'შენი იარაღის ტარი მას გონს დააკარგვინებს.',
+  },
+  {
+    en: "It's curtains for the {obj} as your {obj2} removes his head.",
+    out: 'შენი იარაღი მის თავს მოჰკვეთს — ბოლო მოეღო.',
+  },
+  {
+    en: "Your {obj} pinks the {obj2} on the wrist, but it's not serious.",
+    out: 'შენი იარაღი მას მაჯაზე დააკაწრავს, მაგრამ სერიოზული არაფერია.',
+  },
+  {
+    en: 'Fortunately, you still have a {obj}.',
+    out: 'საბედნიეროდ, ჯერ კიდევ {obj.indef} გაქვს.',
+  },
+  {
+    en: 'The troll charges, and his axe slashes you on your {obj} arm.',
+    out: 'ტროლი მოიწევს და მისი ცული შენს მკლავს გაგიკაწრავს.',
+  },
+  {
+    en: 'The axe hits your {obj} and knocks it spinning.',
+    out: 'ცული შენს იარაღს მოხვდება და ტრიალით გააგდებს.',
+  },
+  {
+    en: 'The troll swings, you parry, but the force of his blow knocks your {obj} away.',
+    out: 'ტროლი ცულს ჩაიქნევს, შენ იგერიებ, მაგრამ მისი დარტყმის ძალა შენს იარაღს განზე მოისვრის.',
+  },
+  {
+    en: 'The axe knocks your {obj} out of your hand. It falls to the floor.',
+    out: 'ცული შენს იარაღს ხელიდან გააგდებს. ის იატაკზე ვარდება.',
+  },
+  {
+    en: 'A long, theatrical slash. You catch it on your {obj}, but the thief twists his knife, and the {obj2} goes flying.',
+    out: 'გრძელი, თეატრალური მოქნევა. იარაღით აიგერიებ, მაგრამ ქურდი დანას გადაატრიალებს და იარაღი გაფრინდება.',
+  },
+  {
+    en: 'The thief neatly flips your {obj} out of your hands, and it drops to the floor.',
+    out: 'ქურდი მოხდენილად ააგდებს შენს იარაღს ხელიდან და ის იატაკზე ვარდება.',
+  },
+  {
+    en: 'You parry a low thrust, and your {obj} slips out of your hand.',
+    out: 'დაბალ დარტყმას იგერიებ და შენი იარაღი ხელიდან გისხლტება.',
+  },
+  {
+    en: 'The Cyclops grabs your {obj}, tastes it, and throws it to the ground in disgust.',
+    out: 'ციკლოპი შენს იარაღს სტაცებს, აგემოვნებს და ზიზღით მიწაზე დააგდებს.',
+  },
+  {
+    en: 'The monster grabs you on the wrist, squeezes, and you drop your {obj} in pain.',
+    out: 'ურჩხული მაჯაში გტაცებს, მოგიჭერს და ტკივილისგან იარაღს ხელიდან გაგივარდება.',
+  },
   // === COMPOSED-GATE-DRAFTS (P2.1) END ===
   // NB (UAT 2026-06-20 / recon 2026-06-23): orphan preps `in` (bare `put X`) and
   // `with` (`cut`/`strike X`) are templated above; `on`->WEAR and

@@ -885,6 +885,223 @@ export const COMPOSED_FAMILIES: readonly Family[] = [
     note: 'FRAME HERO-BLOW :3503-:3507 (finish a disarmed villain). ka troll pin pre-existed; thief pin added.',
     bindings: { obj: { objects: ['troll', 'thief'] } },
   },
+
+  // ── COMBAT Shape B — F-WEP weapon-slot lines (1actions.zil; the player's
+  //    weapon, PRINTD'd via F-WEP). These had ZERO ka coverage mechanism (no
+  //    string, no template) so they leaked raw English for EVERY weapon. fr/de/es
+  //    already template them with the agreement-free «votre {obj.bare}»/{obj2}.
+  //    ka can't: Georgian carries one nominative citation form and the weapon
+  //    appears across instrumental/genitive/dative/postpositional roles here, so
+  //    the ka templates (COMPOSED-GATE-DRAFTS block in zork1.ka.templates.ts)
+  //    DROP the specific weapon slot and render the generic Georgian "იარაღი"
+  //    (weapon) declined in place by hand — the same move as fr's «votre arme» —
+  //    and drop any villain slot too (object/oblique case, on-screen). Leak-proof
+  //    for all weapons/villains. The drive set is the five FIND-WEAPON weapons
+  //    (1actions.zil:3406-:3407: sword/stiletto/axe/knife/rusty-knife). All
+  //    NATIVE-REVIEW-DRAFT; (beta) stays. The named-instrumental Group H pins
+  //    (the "(with the sword)" parenthetical) are a different surface and untouched.
+
+  // HERO-MELEE F-WEP (weapon + villain). {obj}/{obj2} per the existing fr/de/es
+  // template slot order (H12 names the villain first, weapon second).
+  {
+    en: 'Your {obj} misses the {obj2} by an inch.',
+    reach: 'reachable',
+    note: 'HERO-MELEE MISSED #1 F-WEP. {obj}=weapon (subject), {obj2}=villain. ka: weapon→"იარაღი" (NS), villain dropped.',
+    instances: [
+      { obj: 'sword', obj2: 'troll' },
+      { obj: 'stiletto', obj2: 'thief' },
+    ],
+  },
+  {
+    en: 'Your {obj} crashes down, knocking the {obj2} into dreamland.',
+    reach: 'reachable',
+    note: 'HERO-MELEE UNCONSCIOUS #7 F-WEP. {obj}=weapon, {obj2}=villain. ka drops both (weapon→"იარაღი", villain→"მას").',
+    instances: [
+      { obj: 'sword', obj2: 'troll' },
+      { obj: 'bloody axe', obj2: 'thief' },
+    ],
+  },
+  {
+    en: 'The haft of your {obj} knocks out the {obj2}.',
+    reach: 'reachable',
+    note: 'HERO-MELEE UNCONSCIOUS #10 F-WEP. {obj}=weapon (genitive "haft of"), {obj2}=villain. ka generic "იარაღის ტარი".',
+    instances: [
+      { obj: 'sword', obj2: 'troll' },
+      { obj: 'nasty knife', obj2: 'thief' },
+    ],
+  },
+  {
+    en: "It's curtains for the {obj} as your {obj2} removes his head.",
+    reach: 'reachable',
+    note: 'HERO-MELEE KILLED #12 F-WEP. {obj}=villain, {obj2}=weapon (the UAT-6 headline kill line). ka drops both.',
+    instances: [
+      { obj: 'troll', obj2: 'sword' },
+      { obj: 'thief', obj2: 'stiletto' },
+    ],
+  },
+  {
+    en: "Your {obj} pinks the {obj2} on the wrist, but it's not serious.",
+    reach: 'reachable',
+    note: 'HERO-MELEE LIGHT-WOUND #16 F-WEP. {obj}=weapon, {obj2}=villain. ka drops both.',
+    instances: [
+      { obj: 'sword', obj2: 'troll' },
+      { obj: 'rusty knife', obj2: 'thief' },
+    ],
+  },
+  // FRAME F-WEP — the weapon that survives a disarm (VILLAIN-BLOW :3473).
+  {
+    en: 'Fortunately, you still have a {obj}.',
+    reach: 'reachable',
+    note: 'FRAME VILLAIN-BLOW :3473 F-WEP. ka KEEPS the weapon: Georgian "have" takes the nominative, so {obj.indef} (NS) is correct — no drop needed.',
+    bindings: {
+      obj: {
+        objects: [
+          'sword',
+          'nasty knife',
+          'rusty knife',
+          'bloody axe',
+          'stiletto',
+        ],
+      },
+    },
+  },
+  // TROLL-MELEE F-WEP (the troll knocks away YOUR weapon; :3710, :3721-:3723).
+  {
+    en: 'The troll charges, and his axe slashes you on your {obj} arm.',
+    reach: 'reachable',
+    note: 'TROLL-MELEE LIGHT-WOUND F-WEP ("your sword arm"). ka drops the weapon qualifier → just "arm".',
+    bindings: {
+      obj: {
+        objects: [
+          'sword',
+          'nasty knife',
+          'rusty knife',
+          'bloody axe',
+          'stiletto',
+        ],
+      },
+    },
+  },
+  {
+    en: 'The axe hits your {obj} and knocks it spinning.',
+    reach: 'reachable',
+    note: 'TROLL-MELEE LOSE-WEAPON F-WEP. ka weapon→"იარაღი" (dative object).',
+    bindings: {
+      obj: {
+        objects: [
+          'sword',
+          'nasty knife',
+          'rusty knife',
+          'bloody axe',
+          'stiletto',
+        ],
+      },
+    },
+  },
+  {
+    en: 'The troll swings, you parry, but the force of his blow knocks your {obj} away.',
+    reach: 'reachable',
+    note: 'TROLL-MELEE LOSE-WEAPON F-WEP. ka weapon→"იარაღი".',
+    bindings: {
+      obj: {
+        objects: [
+          'sword',
+          'nasty knife',
+          'rusty knife',
+          'bloody axe',
+          'stiletto',
+        ],
+      },
+    },
+  },
+  {
+    en: 'The axe knocks your {obj} out of your hand. It falls to the floor.',
+    reach: 'reachable',
+    note: 'TROLL-MELEE LOSE-WEAPON F-WEP. ka weapon→"იარაღი".',
+    bindings: {
+      obj: {
+        objects: [
+          'sword',
+          'nasty knife',
+          'rusty knife',
+          'bloody axe',
+          'stiletto',
+        ],
+      },
+    },
+  },
+  // THIEF-MELEE F-WEP (:3775-:3779).
+  {
+    en: 'A long, theatrical slash. You catch it on your {obj}, but the thief twists his knife, and the {obj2} goes flying.',
+    reach: 'reachable',
+    note: 'THIEF-MELEE LOSE-WEAPON F-WEP. F-WEP appears twice ({obj}/{obj2}, same weapon). ka generic "იარაღი" both.',
+    instances: [{ obj: 'sword', obj2: 'sword' }],
+  },
+  {
+    en: 'The thief neatly flips your {obj} out of your hands, and it drops to the floor.',
+    reach: 'reachable',
+    note: 'THIEF-MELEE LOSE-WEAPON F-WEP. ka weapon→"იარაღი".',
+    bindings: {
+      obj: {
+        objects: [
+          'sword',
+          'nasty knife',
+          'rusty knife',
+          'bloody axe',
+          'stiletto',
+        ],
+      },
+    },
+  },
+  {
+    en: 'You parry a low thrust, and your {obj} slips out of your hand.',
+    reach: 'reachable',
+    note: 'THIEF-MELEE LOSE-WEAPON F-WEP. ka weapon→"იარაღი" (NS, slips).',
+    bindings: {
+      obj: {
+        objects: [
+          'sword',
+          'nasty knife',
+          'rusty knife',
+          'bloody axe',
+          'stiletto',
+        ],
+      },
+    },
+  },
+  // CYCLOPS-MELEE F-WEP (:3675-:3678).
+  {
+    en: 'The Cyclops grabs your {obj}, tastes it, and throws it to the ground in disgust.',
+    reach: 'reachable',
+    note: 'CYCLOPS-MELEE LOSE-WEAPON F-WEP. ka weapon→"იარაღი".',
+    bindings: {
+      obj: {
+        objects: [
+          'sword',
+          'nasty knife',
+          'rusty knife',
+          'bloody axe',
+          'stiletto',
+        ],
+      },
+    },
+  },
+  {
+    en: 'The monster grabs you on the wrist, squeezes, and you drop your {obj} in pain.',
+    reach: 'reachable',
+    note: 'CYCLOPS-MELEE LOSE-WEAPON F-WEP. ka weapon→"იარაღი".',
+    bindings: {
+      obj: {
+        objects: [
+          'sword',
+          'nasty knife',
+          'rusty knife',
+          'bloody axe',
+          'stiletto',
+        ],
+      },
+    },
+  },
 ]
 
 /** fr/de/es families deliberately routed to the LLM instead of a shared
@@ -924,8 +1141,10 @@ export const EXPECTED_DEFERRED: readonly string[] = []
  *  (UAT 2026-06-24: bare "({obj})" + "(with the {obj})") → 84; +24 combat Shape A
  *  (UAT-2026-06-24 follow-up: 21 HERO-MELEE F-DEF families + 3 weapon-less plain
  *  HERO lines) → 108; +4 combat FRAME families (regains-feet, attacking-
- *  pointless, unconscious/unarmed cannot-defend) → 112. */
-export const REACHABLE_FLOOR = 112
+ *  pointless, unconscious/unarmed cannot-defend) → 112; +15 combat Shape B F-WEP
+ *  families (5 HERO weapon+villain, 1 frame "you still have a {obj}", 9 enemy
+ *  weapon-disarm: troll ×4, thief ×3, cyclops ×2) → 127. */
+export const REACHABLE_FLOOR = 127
 
 /** Skeleton-fidelity escape hatch for `extractStrings` ANCHORING MISSES only:
  *  a distinctive span that is verified-correct game text (read in the local ZIL /

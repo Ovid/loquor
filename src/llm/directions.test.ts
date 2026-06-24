@@ -69,12 +69,17 @@ describe('Georgian directions (spec §3.3)', () => {
     ['ჩრდილოეთი', 'north'],
     ['ჩრდილოეთით', 'north'], // adverbial -ით form
     ['სამხრეთი', 'south'],
+    ['სამხრეთით', 'south'], // adverbial -ით form
     ['აღმოსავლეთი', 'east'],
+    ['აღმოსავლეთით', 'east'], // adverbial -ით form
     ['დასავლეთი', 'west'],
+    ['დასავლეთით', 'west'], // adverbial -ით form
     ['ზემოთ', 'up'],
     ['ქვემოთ', 'down'],
     ['შიგნით', 'in'],
     ['გარეთ', 'out'],
+    ['ჩრდილოაღმოსავლეთი', 'northeast'],
+    ['ჩრდილოაღმოსავლეთით', 'northeast'], // diagonal adverbial -ით form (spec §3.3)
   ]
   for (const [input, canon] of cases)
     it(`${input} → ${canon}`, () =>

@@ -101,12 +101,14 @@ const DIRECTION_WORDS: Readonly<Record<string, string>> = {
   noreste: 'northeast',
   nordeste: 'northeast',
   'ჩრდილოაღმოსავლეთი': 'northeast',  // ka
+  'ჩრდილოაღმოსავლეთით': 'northeast', // ka adverbial -ით form
   northwest: 'northwest',
   nw: 'northwest',
   nordouest: 'northwest',
   nordwesten: 'northwest',
   noroeste: 'northwest',
   'ჩრდილოდასავლეთი': 'northwest',    // ka
+  'ჩრდილოდასავლეთით': 'northwest',   // ka adverbial -ით form
   southeast: 'southeast',
   se: 'southeast',
   sudest: 'southeast',
@@ -114,6 +116,7 @@ const DIRECTION_WORDS: Readonly<Record<string, string>> = {
   sureste: 'southeast',
   sudeste: 'southeast',
   'სამხრეთაღმოსავლეთი': 'southeast', // ka
+  'სამხრეთაღმოსავლეთით': 'southeast', // ka adverbial -ით form
   southwest: 'southwest',
   sw: 'southwest',
   sudouest: 'southwest',
@@ -121,6 +124,7 @@ const DIRECTION_WORDS: Readonly<Record<string, string>> = {
   suroeste: 'southwest',
   sudoeste: 'southwest',
   'სამხრეთდასავლეთი': 'southwest',   // ka
+  'სამხრეთდასავლეთით': 'southwest',  // ka adverbial -ით form
 }
 
 // Leading movement verbs + connectors stripped before the direction word. Safe to

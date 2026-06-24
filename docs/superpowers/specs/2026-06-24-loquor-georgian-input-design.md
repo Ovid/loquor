@@ -59,7 +59,8 @@ by typing Georgian. Forcing function: a Georgian walkthrough-parse gate (§6).
 - Georgian direction words added to `directions.ts` (its documented extension
   point — §3.3).
 - Runtime graduation: a new `InputLexLang` type; `ka` joins the input lexicon
-  **(Zork I only)**, leaves `OUTPUT_ONLY_LANGS`, routes through `nl.translate`
+  **(Zork I only)**, **stays in `OUTPUT_ONLY_LANGS`** (output is still
+  corpus-only — review-fix C2), routes through `nl.translate`
   **when `kaInputActive` (Zork I)**, is forced grammar-only via the `model` field,
   and keeps English-ASCII raw-send (§5). On Zork II/III `ka` stays Phase-1
   type-English (§5.6).
@@ -67,6 +68,14 @@ by typing Georgian. Forcing function: a Georgian walkthrough-parse gate (§6).
   activation, abstain/couldn't-translate, help block + escape instruction, input
   placeholder (§7). This is a hard CLAUDE.md "no forced English" requirement, not
   a nicety.
+- **Convert the `ka` disambiguation `{raw}`-echo to the drop-the-noun reframe**
+  (`zork1.ka.templates.ts`). Today the which-print prompt echoes the player's
+  typed noun verbatim (`რომელ {raw}-ს გულისხმობ — …`) — acceptable in Phase 1
+  only because `ka` input was English. Once the player types **Georgian**, an
+  echoed English vocab word is forced English (a CLAUDE.md "no forced English"
+  violation). fr/de/es already **drop** the queried noun and let the translated
+  candidates disambiguate; mirror that for `ka` (§7). Invert the `ka` UAT pins
+  that currently assert the English noun is kept verbatim.
 - The gates: walkthrough-parse, both round-trips, validate, input-UAT,
   `NATIVE-REVIEW-DRAFT` marker, and a `ka`-notice no-English-leak assertion (§6).
 
@@ -126,10 +135,17 @@ postpositions?: Readonly<Record<string, string>>   // { 'ში':'in', 'ზე':
 
 ### 3.2 One new parse stage: `expandGeorgian(tokens, core)`
 
-Runs **immediately after `tokenize`, before verb resolution**, and only when
-`core.postpositions` is present (i.e. only for `ka`). `tokenize`/`fold` are
+Runs **after the verb is resolved, on the remaining object-span tokens** (NOT on
+the whole clause — **review-fix C1**), and only when `core.postpositions` is
+present (i.e. only for `ka`). The verb must be resolved against its **unreduced**
+form first: a Georgian imperative routinely ends in `-ი` (`მიეცი` give, `მოკალი`
+kill, `გახსენი` open, `მიაბი` tie), and an unconditional `-ი` strip applied
+*before* the verb lookup would mangle the verb into a non-key and MISS with no LLM
+net. So `parseLexicon` resolves the verb on the raw tokens, then applies
+`expandGeorgian` to the object-span remainder. `tokenize`/`fold` are
 pass-through-safe for Mkhedruli (caseless, no NFD decomposition — Georgian is
-single-codepoint in NFC and NFD; verified, not assumed). For each token, in this
+single-codepoint in NFC and NFD; verified, not assumed). For each remaining token,
+in this
 **fixed precedence** (finding-4 fix — the order is part of the contract, not left
 to the plan):
 
@@ -139,8 +155,9 @@ to the plan):
    precedes the noun and the existing **prep-split** stage (`verb obj PREP ind`)
    fires unchanged. `S` resolves to its English prep via the effective prep table
    (the `postpositions` map merged into prep lookup — plan picks the tidier
-   wiring, but the *merge* is required, not optional). `ჩადე X ყუთში`
-   → `[ჩადე, X, ში, ყუთ]` → "put X in box".
+   wiring, but the *merge* is required, not optional). `ჩადე X ყუთში`: the verb
+   `ჩადე` (put) is resolved first; the remainder `[X, ყუთში]` → `[X, ში, ყუთ]`
+   → "put X in box".
 2. **Nominative `-ი` strip — second, only on a token that matched NO
    postposition.** A trailing nominative `-ი` is stripped to reach the stem. This
    ordering guarantees an instrumental like `ფანრით` is consumed as `-ით`
@@ -260,11 +277,21 @@ the picker `· basic` / `✦ improve` markers, and the model-download-modal supp
 (the same single-source-of-truth discipline §5.1 applies to `LexLang`). So `ka`
 never calls `generateRaw` even when a model is downloaded for fr/de/es. **`CORPUS_ONLY_LANGS`
 (output) is unchanged** — output stays corpus-only; this is the input twin.
-Removing `ka` from `OUTPUT_ONLY_LANGS` (below) **also disables the queue bail at
-`translatePipeline.ts:972`** (`OUTPUT_ONLY_LANGS.has(live.language)`), which today
-covers `ka`; that guard's `ka` behavior is reproduced by the normal `phase==='on'`
-+ grammar-only path, verified by test (the queue must still drain correctly for
-`ka`). **`src/llm/types.ts`** — remove `'ka'` from `OUTPUT_ONLY_LANGS`.
+
+**`OUTPUT_ONLY_LANGS` is NOT emptied (review-fix C2 — the first draft was wrong).**
+The set has **five** other consumers that stay correct for `ka`: the WebLLM-modal
+suppression (`useModelDownload.ts:324`), the screen-reader announce routing
+(`useNaturalLanguage.ts:233`), the title-only display (`nlModeSummary.ts:53`), the
+picker copy (`NlLanguagePicker.tsx`), and a `types.test.ts` invariant
+`OUTPUT_ONLY_LANGS ⊇ CORPUS_ONLY_LANGS`. `ka` output **stays** corpus-only
+(`ka ∈ CORPUS_ONLY_LANGS`), so the invariant requires `ka ∈ OUTPUT_ONLY_LANGS`;
+the set means *"no output LLM / corpus-only display,"* which is still true for
+`ka`. Phase 2 changes only the **input** decision, and gates it on `kaInputActive`
+(§5.6), not on `!OUTPUT_ONLY_LANGS`. The queue bail at `translatePipeline.ts:972`
+switches from `OUTPUT_ONLY_LANGS.has(live.language)` to **`!liveRef.current.lex`**
+(no input lexicon present): it bails for en/off and `ka`-on-non-Zork-I (no `lex`)
+and **drains** for `ka`-on-Zork-I (which has a `lex`), verified by test.
+**`src/llm/types.ts` is unchanged.**
 
 ### 5.5 English-ASCII raw-send fallback (finding-6 decision: "keep English raw-send")
 On a Georgian parse **miss**: if the input line is **plain ASCII** (English),
@@ -374,6 +401,14 @@ Phase-1 type-English copy is retained unchanged:
   `Partial<Record<'ka'>>`; the present Phase-1 `ka` strings say "type English").
 - **Input placeholder** — "type in Georgian or English" (was "type in English"),
   **Zork I only** (`kaInputActive`).
+- **Disambiguation drop-the-noun reframe** (`zork1.ka.templates.ts`, review
+  cross-cut) — replace the three `{raw}`-echo which-print templates (2/3/4
+  candidate) with the noun-dropped Georgian frame (e.g. `რომელი გულისხმობ —
+  {obj.indef} თუ {obj2.indef}?`), so no English vocab word is forced once input is
+  Georgian. Invert `zork1.ka.uat.test.ts`'s `toContain('lamp')`/`'button')`
+  assertions to `not.toContain`, and update the `ka-native-review-draft.test.ts`
+  locator (it finds the entry by `{raw}` + `{obj.indef}`, which the reframe
+  removes from `out`).
 - **`(beta)` marker** stays (textual, non-colour, announced); drops only on native
   sign-off (§9).
 - **Tests** assert the **new Phase-2 semantics** (§6 gate (b)), not merely "is
@@ -443,7 +478,8 @@ strings.
 | `ka` accidentally reaches the LLM (e.g. model downloaded for fr/de/es, then switch to `ka`) | Force `internal.model='grammar'` for `ka` at the state boundary (§5.4); the existing `model==='grammar'`→`grammarOnly` path then abstains. Test pins `ka` abstains rather than calling the LLM even with a model present. |
 | `ka` input invited on Zork II/III, where it has no noun lexicon (objects always abstain) | `kaInputActive(lang, sig)` gates the lex memo, route, placeholder, and notice to `ZORK1_SIG` (§5.6); Zork II/III `ka` stays Phase-1 type-English; test pins it. |
 | `ka` abstain shows **English** notice | Author Georgian `ka` notice/help/escape strings (§7); no-English-leak gate (§6). |
-| Removing `ka` from `OUTPUT_ONLY_LANGS` breaks the line-972 queue bail | §5.4: reproduce `ka` queue behavior via the normal grammar-only path; test the queue drains for `ka`. |
+| Emptying `OUTPUT_ONLY_LANGS` regresses the modal/announce/title/picker consumers + the `⊇ CORPUS_ONLY` invariant | **review-fix C2**: keep `ka ∈ OUTPUT_ONLY_LANGS` (output still corpus-only); gate the INPUT on `kaInputActive`; switch the line-972 bail to `!liveRef.current.lex`; test the queue drains for `ka`-on-Zork-I. |
+| Disambiguation `{raw}`-echo forces English once `ka` input is Georgian | Convert the `ka` which-print templates to the **drop-the-noun reframe** (mirror fr/de/es); invert the `ka` UAT pins (§7). |
 | Mkhedruli in CI / fixtures | BMP (U+10A0–10FF); hyphen-free fold-normalized data + `fold(entry)===entry` gate; verify the suite green in CI before merge. |
 
 ---

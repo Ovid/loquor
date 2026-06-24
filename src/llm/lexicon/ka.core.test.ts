@@ -1,6 +1,7 @@
 // src/llm/lexicon/ka.core.test.ts
 import { describe, it, expect } from 'vitest'
 import { KA_CORE } from './ka.core'
+import { KA_ZORK1 } from './ka.zork1'
 
 describe('KA_CORE', () => {
   it('maps core walkthrough imperatives to canonical verbs', () => {
@@ -14,5 +15,13 @@ describe('KA_CORE', () => {
   it('has no articles and empty pronoun arrays', () => {
     expect(KA_CORE.articles).toEqual([])
     expect(KA_CORE.pronounsDirect).toEqual([])
+  })
+})
+
+describe('KA_ZORK1 seed', () => {
+  it('covers the headline walkthrough nouns', () => {
+    expect(KA_ZORK1['brass lantern']).toContain('ფარან') // lamp/lantern
+    // canonical is 'small mailbox' (NOT 'mailbox') — verified against vocab
+    expect(KA_ZORK1['small mailbox']).toBeDefined()
   })
 })

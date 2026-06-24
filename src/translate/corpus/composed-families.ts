@@ -854,6 +854,37 @@ export const COMPOSED_FAMILIES: readonly Family[] = [
     reach: 'reachable',
     note: 'HERO-MELEE SERIOUS-WOUND #22 (plain). No slot; ka single pin.',
   },
+
+  // FRAME lines (engine recovery / finishing blows, not in a -MELEE table):
+  // VILLAIN-BLOW :3419 (staggered-recovery) and HERO-BLOW :3499-:3507
+  // (pointless / cannot-defend). F-DEF = troll/thief on the golden path (the
+  // unconscious-vs-unarmed wording is chosen by the villain's strength, so each
+  // villain reaches both forms). HERO×Cyclops is off-path (you scare him, not
+  // kill him), so Cyclops is excluded — same scope as HERO-MELEE above.
+  {
+    en: 'The {obj} slowly regains his feet.',
+    reach: 'reachable',
+    note: 'FRAME VILLAIN-BLOW :3419 (staggered recovers). ka thief pin pre-existed; troll pin added.',
+    bindings: { obj: { objects: ['troll', 'thief'] } },
+  },
+  {
+    en: 'Attacking the {obj} is pointless.',
+    reach: 'reachable',
+    note: 'FRAME HERO-BLOW :3499 (villain already at 0 strength). ka per-villain pins.',
+    bindings: { obj: { objects: ['troll', 'thief'] } },
+  },
+  {
+    en: 'The unconscious {obj} cannot defend himself: He dies.',
+    reach: 'reachable',
+    note: 'FRAME HERO-BLOW :3503-:3507 (finish an unconscious villain). ka thief pin pre-existed; troll pin added.',
+    bindings: { obj: { objects: ['troll', 'thief'] } },
+  },
+  {
+    en: 'The unarmed {obj} cannot defend himself: He dies.',
+    reach: 'reachable',
+    note: 'FRAME HERO-BLOW :3503-:3507 (finish a disarmed villain). ka troll pin pre-existed; thief pin added.',
+    bindings: { obj: { objects: ['troll', 'thief'] } },
+  },
 ]
 
 /** fr/de/es families deliberately routed to the LLM instead of a shared
@@ -892,8 +923,9 @@ export const EXPECTED_DEFERRED: readonly string[] = []
  *  (Task 8: can't-see-any {raw}) → 82; +2 parser implicit-object parentheticals
  *  (UAT 2026-06-24: bare "({obj})" + "(with the {obj})") → 84; +24 combat Shape A
  *  (UAT-2026-06-24 follow-up: 21 HERO-MELEE F-DEF families + 3 weapon-less plain
- *  HERO lines) → 108. */
-export const REACHABLE_FLOOR = 108
+ *  HERO lines) → 108; +4 combat FRAME families (regains-feet, attacking-
+ *  pointless, unconscious/unarmed cannot-defend) → 112. */
+export const REACHABLE_FLOOR = 112
 
 /** Skeleton-fidelity escape hatch for `extractStrings` ANCHORING MISSES only:
  *  a distinctive span that is verified-correct game text (read in the local ZIL /
@@ -916,4 +948,11 @@ export const FIDELITY_ALLOW: readonly string[] = [
   // separate TELLs, so this span isn't contiguous in the decode; "Trying to
   // destroy the" and each half are independently real game text.
   'with your bare hands is futile',
+  // why: HERO-BLOW (1actions.zil:3503-:3507) composes "The " + ["unconscious" /
+  // "unarmed"] + " " + villain + " cannot defend himself: He dies." across
+  // SEPARATE TELLs, so "The unconscious"/"The unarmed" aren't contiguous in the
+  // decode; "unconscious"/"unarmed" and "cannot defend himself: He dies" are each
+  // independently real game text.
+  'The unconscious',
+  'The unarmed',
 ]

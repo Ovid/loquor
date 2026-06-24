@@ -182,6 +182,15 @@ export const ZORK1_KA_STRINGS: Record<string, string> = {
     'ქურდის იარაღი იატაკზე ვარდება და ის უიარაღოდ რჩება.',
   'The troll is disarmed by a subtle feint past his guard.':
     'ტროლი უიარაღოა მისი თავდაცვის ნატიფი მოტყუებით.',
+  // FRAME — engine recovery / finishing blows (VILLAIN-BLOW :3419, HERO-BLOW
+  // :3499-:3507). Each mirrors the already-covered other-villain sibling.
+  'The troll slowly regains his feet.': 'ტროლი ნელ-ნელა ფეხზე დგება.',
+  'Attacking the troll is pointless.': 'ტროლზე თავდასხმას აზრი არ აქვს.',
+  'Attacking the thief is pointless.': 'ქურდზე თავდასხმას აზრი არ აქვს.',
+  'The unconscious troll cannot defend himself: He dies.':
+    'უგონო ტროლი თავს ვერ იცავს: ის კვდება.',
+  'The unarmed thief cannot defend himself: He dies.':
+    'უიარაღო ქურდი თავს ვერ იცავს: ის კვდება.',
   // === COMBAT-DRAFTS (UAT-2026-06-24) END ===
 
   // ── PIN LIST (full-line pins that beat agreement-blind templates) ───────

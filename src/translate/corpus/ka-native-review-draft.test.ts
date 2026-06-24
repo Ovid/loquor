@@ -80,12 +80,15 @@ describe('ka provisional Georgian strings carry a NATIVE-REVIEW-DRAFT marker', (
   it('zork1.ka.templates.ts: the disambiguation draft entry is marked', () => {
     const rel = './zork1.ka.templates.ts'
     const lines = read(rel)
-    // The new entry's `out` is the only Georgian string of the generalized
-    // disambiguation template. Locate it by its language-neutral {raw} echo.
+    // The new entry's `out` is a Georgian string of the generalized
+    // disambiguation template. After the drop-the-noun reframe its `out` no
+    // longer echoes {raw}; locate it by „გულისხმობ" ("do you mean"), which is
+    // unique to the disambiguation templates, plus an {obj.indef} slot. (Don't
+    // key on {obj2.indef}: the vehicle-tail line also carries both slots.)
     const idx = lines.findIndex(
       line =>
         GEORGIAN.test(line) &&
-        line.includes('{raw}') &&
+        line.includes('გულისხმობ') &&
         line.includes('{obj.indef}'),
     )
     expect(

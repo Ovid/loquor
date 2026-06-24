@@ -1693,6 +1693,34 @@ export const ZORK1_KA_STRINGS: Record<string, string> = {
   "Alas, there's not much left of the candles. Certainly not enough to burn.":
     'ვაჰ, სანთლები ბევრი აღარ დარჩა. ნამდვილად არა იმდენი, რომ ენთოს.',
   '(with the match)': '(ასანთით)',
+  // NATIVE-REVIEW-DRAFT — parser implicit-instrument parenthetical (gparser.zil
+  // GWIM; the auto-suppliable WEAPON/TOOL/FLAMEBIT set from zork1/gsyntax.zil +
+  // 1dungeon.zil). Per-object INSTRUMENTAL ("(X-ით)") NAMING the weapon/tool —
+  // Ovid's naturalness call, upgrading the caseless drop-noun "(ამით)" which STAYS
+  // as the leak-proof fallback template in zork1.ka.templates.ts for any object
+  // not pinned here. String pins beat the {obj} template by specificity (match.ts),
+  // so each listed instrument gets its named form and everything else drops to
+  // "(ამით)". §4 case: a nominative in -ი drops it + adds -ით (მახვილი→მახვილით);
+  // -ა truncates + -ით (დანა→დანით, მასალა→მასალით, სკიპტრა→სკიპტრით); -ო is stable
+  // + -თი (ტუმბო→ტუმბოთი). torch/candles use the syncopated oblique stem the
+  // corpus already attests (ჩირაღდნ-, სანთლ-). ⚠ = multi-word adj+noun / numeral /
+  // genitive-chain: the head noun is declined, the attributive adjective keeps its
+  // -ი citation form (which IS the instrumental attributive agreement) — flagged
+  // for native review of the agreement. See notes/georgian-composed-line-review.md.
+  '(with the sword)': '(მახვილით)',
+  '(with the stiletto)': '(სტილეტით)',
+  '(with the sceptre)': '(სკიპტრით)',
+  '(with the torch)': '(ჩირაღდნით)', // syncope ჩირაღდანი→ჩირაღდნ- (corpus-attested)
+  '(with the shovel)': '(ნიჩაბით)',
+  '(with the screwdriver)': '(სახრახნისით)',
+  '(with the nasty knife)': '(საზიზღარი დანით)', // ⚠ adj+noun
+  '(with the rusty knife)': '(დაჟანგული დანით)', // ⚠ adj+noun
+  '(with the bloody axe)': '(სისხლიანი ცულით)', // ⚠ adj+noun
+  '(with the skeleton key)': '(ღია გასაღებით)', // ⚠ adj+noun
+  '(with the viscous material)': '(ბლანტი მასალით)', // ⚠ adj+noun
+  '(with the wrench)': '(სასხლეტი გასაღებით)', // ⚠ adj+noun (corpus renders wrench as two words)
+  '(with the pair of candles)': '(ორი სანთლით)', // ⚠ numeral + syncope (სანთლ-)
+  '(with the hand-held air pump)': '(ხელის ჰაერის ტუმბოთი)', // ⚠ genitive chain
   'You should say what to light them with.': 'უნდა თქვა, რითი აანთო ისინი.',
   'You realize, just in time, that the candles are already lighted.':
     'სწორედ დროზე მიხვდები, რომ სანთლები უკვე ანთია.',

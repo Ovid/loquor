@@ -108,13 +108,15 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
   //  - Bare "({obj})" (no prep) → nominative citation form (rung 1, caseless —
   //    same role as the listing-engine "{obj.indef} არის" subject).
   { en: '({obj})', out: '({obj.indef})' },
-  //  - "(with the {obj})" → INSTRUMENTAL ("X-ით") is the §4 case problem
-  //    (per-object stem + multi-word adjective agreement), so the general form
-  //    DROPS the noun to the caseless demonstrative "(ამით)" ("with this") — the
-  //    same reframe the orphan with-prep prompt uses ("რით გსურთ…"). GWIM only
-  //    fires when ONE instrument is eligible, so the demonstrative is unambiguous.
-  //    The "(with the match)" string pin is more specific → keeps its named
-  //    "(ასანთით)". NATIVE-REVIEW may upgrade this to per-object instrumental pins.
+  //  - "(with the {obj})" → this is now the leak-proof FALLBACK only. The §4 case
+  //    problem (per-object stem + multi-word adjective agreement) is solved per
+  //    object by named INSTRUMENTAL string pins in zork1.ka.strings.ts ("(with the
+  //    sword)" → "(მახვილით)", …), which beat this template by specificity. This
+  //    template now catches any auto-suppliable object NOT pinned there, dropping
+  //    the noun to the caseless demonstrative "(ამით)" ("with this") — the same
+  //    reframe the orphan with-prep prompt uses ("რით გსურთ…"). GWIM only fires
+  //    when ONE instrument is eligible, so the demonstrative is unambiguous, and
+  //    keeping it guarantees no raw-English leak for an instrument we missed.
   { en: '(with the {obj})', out: '(ამით)' },
   // ── Listing engine (P2.1 Task 6; gverbs.zil DESCRIBE-OBJECT/PRINT-CONT). ka
   //    shipped only per-object pins, so the lit BRASS LANTERN, the vehicle tail,

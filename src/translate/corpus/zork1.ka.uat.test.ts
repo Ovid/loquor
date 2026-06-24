@@ -188,3 +188,55 @@ describe('Zork I × Georgian — incomplete-put prompt (UAT-2026-06-20)', () => 
   // under` / `put X behind` are unparsed ("That sentence isn't one I
   // recognize."). Only the bare `put X` orphan (defaulting to "in", above) fires.
 })
+
+describe('Zork I × Georgian — parser implicit-instrument parenthetical (UAT-2026-06-24)', () => {
+  const c = compileCorpus(ZORK1_KA)
+  // The drop-noun fallback; a *named* instrumental pin must NOT equal this.
+  const DROP_NOUN = '(ამით)'
+
+  // Every auto-suppliable weapon/tool the parser can default into
+  // "(with the X)" (gparser.zil GWIM; zork1/gsyntax.zil FIND WEAPON/TOOL/FLAMEBIT
+  // + zork1/1dungeon.zil flags). `root` is a stem of the object's ka NOUN that
+  // the named instrumental must contain — proving the form NAMES the weapon, not
+  // just "with this". Forms are NATIVE-REVIEW-DRAFT (the (beta) marker stays), so
+  // the test pins the NOUN ROOT, not the full case form: a native-review tweak to
+  // the case ending must not fight this regression gate, but a regression back to
+  // the caseless drop-noun (or to raw English) must fail it.
+  const INSTRUMENTS: [desc: string, root: string][] = [
+    ['sword', 'მახვილ'],
+    ['nasty knife', 'დან'],
+    ['rusty knife', 'დან'],
+    ['bloody axe', 'ცულ'],
+    ['stiletto', 'სტილეტ'],
+    ['sceptre', 'სკიპტრ'],
+    ['torch', 'ჩირაღდ'],
+    ['pair of candles', 'სანთ'],
+    ['hand-held air pump', 'ტუმბო'],
+    ['shovel', 'ნიჩაბ'],
+    ['screwdriver', 'სახრახნის'],
+    ['wrench', 'გასაღებ'],
+    ['skeleton key', 'გასაღებ'],
+    ['viscous material', 'მასალ'],
+  ]
+
+  for (const [desc, root] of INSTRUMENTS) {
+    it(`names "${desc}" in the instrumental, not the drop-noun`, () => {
+      const out = matchLine(c, `(with the ${desc})`)
+      expect(out).not.toBeNull()
+      expect(out).not.toBe(DROP_NOUN) // the named form, not the caseless fallback
+      expect(out).toMatch(/[Ⴀ-ჿ]/) // Georgian (Mkhedruli), no raw-English leak
+      expect(out).toContain(root) // names the weapon/tool, not just "with this"
+    })
+  }
+
+  // The match pin pre-dates this upgrade and already names the instrument.
+  it('keeps the pre-existing "(with the match)" named pin', () => {
+    expect(matchLine(c, '(with the match)')).toBe('(ასანთით)')
+  })
+
+  // Any object OUTSIDE the auto-suppliable set still hits the leak-proof drop-noun
+  // template — so an instrument we failed to pin can never leak raw English.
+  it('falls back to the drop-noun for an un-pinned object', () => {
+    expect(matchLine(c, '(with the brass lantern)')).toBe(DROP_NOUN)
+  })
+})

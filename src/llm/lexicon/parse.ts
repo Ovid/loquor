@@ -540,10 +540,17 @@ export function parseLexicon(
   // მოაჯირს) — never a general -ს case analysis. core.postpositions gates this
   // to ka (fr/de/es have no postpositions, so they never reach it). A
   // nominative second noun (no -ს) falls through to MISS. (Spec §2 point 3, G1.)
-  if (core.postpositions && tokens.length === 2 && verbArityOk(verb, vocab, 2)) {
+  // The -ს dative guard is this path's unique predicate, so check it first to
+  // short-circuit the two noun lookups for any non-dative two-noun remainder.
+  if (
+    core.postpositions &&
+    tokens.length === 2 &&
+    tokens[1].endsWith('ს') &&
+    verbArityOk(verb, vocab, 2)
+  ) {
     const obj = resolveNoun([tokens[0]], core, nouns, vocab, scene)
     const rec = resolveNoun([tokens[1]], core, nouns, vocab, scene)
-    if (obj && rec && tokens[1].endsWith('ს'))
+    if (obj && rec)
       return { kind: 'command', text: `${verb} ${obj.emit} to ${rec.emit}` }
   }
 

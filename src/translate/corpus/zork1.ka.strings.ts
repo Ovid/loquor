@@ -98,6 +98,92 @@ export const ZORK1_KA_STRINGS: Record<string, string> = {
   "The cyclops, hearing the name of his father's deadly nemesis, flees the room by knocking down the wall on the east of the room.":
     'ციკლოპი, რომელიც თავისი მამის მომაკვდინებელი მტრის სახელს გაიგონებს, ოთახიდან გარბის ოთახის აღმოსავლეთ კედლის ჩამოქცევით.',
 
+  // === COMBAT-DRAFTS (UAT-2026-06-24) BEGIN — NATIVE-REVIEW-DRAFT (ka §4 case
+  //     forms; inventory in notes/georgian-combat-coverage-worklist.md). The
+  //     HERO-MELEE table (the PLAYER's attacks) is villain-agnostic, so every
+  //     variant renders for whichever villain you hit; combat rolls are
+  //     probabilistic, so the walkthrough-coverage gate only ever captured the
+  //     few variants its one recorded run rolled — the rest leaked raw English
+  //     for a Georgian player (NO LLM net), confirmed in UAT-6 live troll play.
+  //     These are per-villain FULL-LINE pins (ka carries one nominative citation
+  //     form, so a villain in object/oblique case can't ride a {obj.indef}
+  //     template — the file-header §4 rule), each mirroring its already-covered
+  //     sibling with the other villain's name in the case the sentence needs.
+  //     Provisional machine quality; the (beta) marker stays. ──────────────────
+  // MISSED (1actions.zil:3614-:3619)
+  'A good slash, but it misses the troll by a mile.':
+    'კარგი მოქნევა, მაგრამ ტროლს მთელი მილით ააცდენს.',
+  'A good slash, but it misses the thief by a mile.':
+    'კარგი მოქნევა, მაგრამ ქურდს მთელი მილით ააცდენს.',
+  'You charge, but the thief jumps nimbly aside.':
+    'შენ მიიწევ, მაგრამ ქურდი მარდად გადახტება გვერდზე.',
+  'Clang! Crash! The thief parries.': 'წკრიალ! ჩახ! ქურდი დარტყმას იგერიებს.',
+  'A quick stroke, but the troll is on guard.':
+    'სწრაფი დარტყმა, მაგრამ ტროლი ფხიზლადაა.',
+  "A good stroke, but it's too slow; the troll dodges.":
+    'კარგი დარტყმა, მაგრამ მეტისმეტად ნელია; ტროლი თავს არიდებს.',
+  "A good stroke, but it's too slow; the thief dodges.":
+    'კარგი დარტყმა, მაგრამ მეტისმეტად ნელია; ქურდი თავს არიდებს.',
+  // UNCONSCIOUS (:3622-:3625)
+  'The troll is battered into unconsciousness.':
+    'ტროლი სასტიკი ცემით უგონოდ ვარდება.',
+  'The thief is battered into unconsciousness.':
+    'ქურდი სასტიკი ცემით უგონოდ ვარდება.',
+  'A furious exchange, and the troll is knocked out!':
+    'მძვინვარე გაცვლა-გამოცვლა, და ტროლი გონებას კარგავს!',
+  'The troll is knocked out!': 'ტროლი გონებას კარგავს!',
+  'The thief is knocked out!': 'ქურდი გონებას კარგავს!',
+  // KILLED (:3628-:3629)
+  'The fatal blow strikes the troll square in the heart: He dies.':
+    'საბედისწერო დარტყმა ტროლს პირდაპირ გულში მოხვდება: ის კვდება.',
+  'The fatal blow strikes the thief square in the heart: He dies.':
+    'საბედისწერო დარტყმა ქურდს პირდაპირ გულში მოხვდება: ის კვდება.',
+  'The troll takes a fatal blow and slumps to the floor dead.':
+    'ტროლი საბედისწერო დარტყმას იღებს და მკვდარი იატაკზე ეცემა.',
+  'The thief takes a fatal blow and slumps to the floor dead.':
+    'ქურდი საბედისწერო დარტყმას იღებს და მკვდარი იატაკზე ეცემა.',
+  // LIGHT-WOUND (:3631-:3634)
+  'The troll is struck on the arm; blood begins to trickle down.':
+    'ტროლი მკლავში დაიჭრება; სისხლი ნელა ჩამოედინება.',
+  'The thief is struck on the arm; blood begins to trickle down.':
+    'ქურდი მკლავში დაიჭრება; სისხლი ნელა ჩამოედინება.',
+  "The blow lands, making a shallow gash in the troll's arm!":
+    'დარტყმა ხვდება და ტროლის მკლავზე ზედაპირულ ჭრილობას ტოვებს!',
+  "The blow lands, making a shallow gash in the thief's arm!":
+    'დარტყმა ხვდება და ქურდის მკლავზე ზედაპირულ ჭრილობას ტოვებს!',
+  // SERIOUS-WOUND (:3636-:3637)
+  'The troll receives a deep gash in his side.':
+    'ტროლი გვერდში ღრმა ჭრილობას იღებს.',
+  'The thief receives a deep gash in his side.':
+    'ქურდი გვერდში ღრმა ჭრილობას იღებს.',
+  'A savage blow on the thigh! The troll is stunned but can still fight!':
+    'სასტიკი დარტყმა ბარძაყზე! ტროლი გაოგნებულია, მაგრამ ჯერ კიდევ შეუძლია ბრძოლა!',
+  'A savage blow on the thigh! The thief is stunned but can still fight!':
+    'სასტიკი დარტყმა ბარძაყზე! ქურდი გაოგნებულია, მაგრამ ჯერ კიდევ შეუძლია ბრძოლა!',
+  // STAGGER (:3641-:3645)
+  'The troll is staggered, and drops to his knees.':
+    'ტროლი ბარბაცებს და მუხლებზე ეცემა.',
+  "The troll is momentarily disoriented and can't fight back.":
+    'ტროლი წამით იბნევა და პასუხის დაბრუნება არ შეუძლია.',
+  "The thief is momentarily disoriented and can't fight back.":
+    'ქურდი წამით იბნევა და პასუხის დაბრუნება არ შეუძლია.',
+  'The force of your blow knocks the troll back, stunned.':
+    'შენი დარტყმის ძალა ტროლს უკან, გონდაკარგულს ისვრის.',
+  'The force of your blow knocks the thief back, stunned.':
+    'შენი დარტყმის ძალა ქურდს უკან, გონდაკარგულს ისვრის.',
+  "The troll is confused and can't fight back.":
+    'ტროლი დაბნეულია და პასუხის დაბრუნება არ შეუძლია.',
+  "The thief is confused and can't fight back.":
+    'ქურდი დაბნეულია და პასუხის დაბრუნება არ შეუძლია.',
+  'The quickness of your thrust knocks the troll back, stunned.':
+    'შენი დარტყმის სისწრაფე ტროლს უკან, გონდაკარგულს ისვრის.',
+  // LOSE-WEAPON (:3647-:3648)
+  "The thief's weapon is knocked to the floor, leaving him unarmed.":
+    'ქურდის იარაღი იატაკზე ვარდება და ის უიარაღოდ რჩება.',
+  'The troll is disarmed by a subtle feint past his guard.':
+    'ტროლი უიარაღოა მისი თავდაცვის ნატიფი მოტყუებით.',
+  // === COMBAT-DRAFTS (UAT-2026-06-24) END ===
+
   // ── PIN LIST (full-line pins that beat agreement-blind templates) ───────
   'There is a pair of candles here (providing light).':
     'აქ ორი სანთელია (ანათებს).',

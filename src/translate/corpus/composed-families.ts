@@ -679,6 +679,181 @@ export const COMPOSED_FAMILIES: readonly Family[] = [
     note: "gparser.zil referenced-object-absent. Golden path: `You can't see any thief/troll here!`. ka {raw}-echo template ships (:40). Phase-2 ka revisit.",
     bindings: { raw: { sample: 'thief' } },
   },
+
+  // ── COMBAT / MELEE (1actions.zil "SUBTITLE MELEE", UAT-2026-06-24 follow-up;
+  //    inventory in notes/georgian-combat-coverage-worklist.md). Zork I's combat
+  //    messages are runtime-spliced from `<REMARK>` over four <GLOBAL …-MELEE>
+  //    tables: F-DEF=defender name (the villain object) and F-WEP=the player's
+  //    weapon are spliced in via PRINTD. They are GOLDEN PATH (everyone fights the
+  //    troll; killing the thief is required to win) yet INVISIBLE to both gates:
+  //    the walkthrough gate only rolled a few of the probabilistic variants, and
+  //    the spliced names mean no full line is a contiguous decoded fragment. fr/
+  //    de/es already TEMPLATE these (F-DEF→{obj.def}; F-WEP→agreement-free «votre
+  //    {obj.bare}»/{obj2}); ka had only the handful of incidental full-string pins
+  //    the one recorded run happened to roll, so the rest leaked raw English for a
+  //    Georgian player (NO LLM net). This block registers every reachable combat
+  //    line so the gate drives it in all four languages.
+  //
+  //    HERO-MELEE (the PLAYER's attacks) is VILLAIN-AGNOSTIC — the same template
+  //    renders for whichever villain you hit — so each F-DEF family drives BOTH
+  //    troll and thief (the two killable-by-melee villains; HERO×Cyclops is off
+  //    the golden path — you scare him with "Ulysses" — so the worklist excludes
+  //    it). ka renders these as per-villain full-string pins (zork1.ka.strings.ts
+  //    COMBAT-DRAFTS block: Georgian carries one nominative citation form, so a
+  //    villain in object/oblique case must be a hand-authored full line, not a
+  //    {obj.indef} template — the file-header §4 rule). All NATIVE-REVIEW-DRAFT.
+
+  // HERO-MELEE — MISSED (1actions.zil:3614-:3619). F-DEF only (the by-an-inch
+  // F-WEP variant is Shape B, below).
+  {
+    en: 'A good slash, but it misses the {obj} by a mile.',
+    reach: 'reachable',
+    note: 'HERO-MELEE MISSED #2. Player-attack, villain-agnostic. fr/de/es template; ka per-villain pins.',
+    bindings: { obj: { objects: ['troll', 'thief'] } },
+  },
+  {
+    en: 'You charge, but the {obj} jumps nimbly aside.',
+    reach: 'reachable',
+    note: 'HERO-MELEE MISSED #3. ka troll pin pre-existed; thief pin added.',
+    bindings: { obj: { objects: ['troll', 'thief'] } },
+  },
+  {
+    en: 'Clang! Crash! The {obj} parries.',
+    reach: 'reachable',
+    note: 'HERO-MELEE MISSED #4. ka troll pin pre-existed; thief pin added.',
+    bindings: { obj: { objects: ['troll', 'thief'] } },
+  },
+  {
+    en: 'A quick stroke, but the {obj} is on guard.',
+    reach: 'reachable',
+    note: 'HERO-MELEE MISSED #5. ka thief pin pre-existed; troll pin added.',
+    bindings: { obj: { objects: ['troll', 'thief'] } },
+  },
+  {
+    en: "A good stroke, but it's too slow; the {obj} dodges.",
+    reach: 'reachable',
+    note: 'HERO-MELEE MISSED #6. ka per-villain pins.',
+    bindings: { obj: { objects: ['troll', 'thief'] } },
+  },
+  // HERO-MELEE — UNCONSCIOUS (:3622-:3625). F-DEF only.
+  {
+    en: 'The {obj} is battered into unconsciousness.',
+    reach: 'reachable',
+    note: 'HERO-MELEE UNCONSCIOUS #8. ka per-villain pins.',
+    bindings: { obj: { objects: ['troll', 'thief'] } },
+  },
+  {
+    en: 'A furious exchange, and the {obj} is knocked out!',
+    reach: 'reachable',
+    note: 'HERO-MELEE UNCONSCIOUS #9. ka thief pin pre-existed; troll pin added.',
+    bindings: { obj: { objects: ['troll', 'thief'] } },
+  },
+  {
+    en: 'The {obj} is knocked out!',
+    reach: 'reachable',
+    note: 'HERO-MELEE UNCONSCIOUS #11. ka per-villain pins.',
+    bindings: { obj: { objects: ['troll', 'thief'] } },
+  },
+  // HERO-MELEE — KILLED (:3628-:3629). F-DEF only.
+  {
+    en: 'The fatal blow strikes the {obj} square in the heart: He dies.',
+    reach: 'reachable',
+    note: 'HERO-MELEE KILLED #13. ka per-villain pins.',
+    bindings: { obj: { objects: ['troll', 'thief'] } },
+  },
+  {
+    en: 'The {obj} takes a fatal blow and slumps to the floor dead.',
+    reach: 'reachable',
+    note: 'HERO-MELEE KILLED #14. ka per-villain pins.',
+    bindings: { obj: { objects: ['troll', 'thief'] } },
+  },
+  // HERO-MELEE — LIGHT-WOUND (:3631-:3634). F-DEF lines + one weapon-less plain.
+  {
+    en: 'The {obj} is struck on the arm; blood begins to trickle down.',
+    reach: 'reachable',
+    note: 'HERO-MELEE LIGHT-WOUND #15. ka per-villain pins.',
+    bindings: { obj: { objects: ['troll', 'thief'] } },
+  },
+  {
+    en: "The blow lands, making a shallow gash in the {obj}'s arm!",
+    reach: 'reachable',
+    note: 'HERO-MELEE LIGHT-WOUND #18. F-DEF possessive ("the troll\'s arm"). ka per-villain pins.',
+    bindings: { obj: { objects: ['troll', 'thief'] } },
+  },
+  // HERO-MELEE — SERIOUS-WOUND (:3636-:3639). Two F-DEF + two weapon-less plain.
+  {
+    en: 'The {obj} receives a deep gash in his side.',
+    reach: 'reachable',
+    note: 'HERO-MELEE SERIOUS-WOUND #19. ka per-villain pins.',
+    bindings: { obj: { objects: ['troll', 'thief'] } },
+  },
+  {
+    en: 'A savage blow on the thigh! The {obj} is stunned but can still fight!',
+    reach: 'reachable',
+    note: 'HERO-MELEE SERIOUS-WOUND #20. ka per-villain pins.',
+    bindings: { obj: { objects: ['troll', 'thief'] } },
+  },
+  // HERO-MELEE — STAGGER (:3641-:3645). F-DEF only.
+  {
+    en: 'The {obj} is staggered, and drops to his knees.',
+    reach: 'reachable',
+    note: 'HERO-MELEE STAGGER #23. ka thief pin pre-existed; troll pin added. The UAT-6 headline leak.',
+    bindings: { obj: { objects: ['troll', 'thief'] } },
+  },
+  {
+    en: "The {obj} is momentarily disoriented and can't fight back.",
+    reach: 'reachable',
+    note: 'HERO-MELEE STAGGER #24. ka per-villain pins.',
+    bindings: { obj: { objects: ['troll', 'thief'] } },
+  },
+  {
+    en: 'The force of your blow knocks the {obj} back, stunned.',
+    reach: 'reachable',
+    note: 'HERO-MELEE STAGGER #25. ka per-villain pins.',
+    bindings: { obj: { objects: ['troll', 'thief'] } },
+  },
+  {
+    en: "The {obj} is confused and can't fight back.",
+    reach: 'reachable',
+    note: 'HERO-MELEE STAGGER #26. ka per-villain pins.',
+    bindings: { obj: { objects: ['troll', 'thief'] } },
+  },
+  {
+    en: 'The quickness of your thrust knocks the {obj} back, stunned.',
+    reach: 'reachable',
+    note: 'HERO-MELEE STAGGER #27. ka thief pin pre-existed; troll pin added.',
+    bindings: { obj: { objects: ['troll', 'thief'] } },
+  },
+  // HERO-MELEE — LOSE-WEAPON (:3647-:3648). F-DEF only.
+  {
+    en: "The {obj}'s weapon is knocked to the floor, leaving him unarmed.",
+    reach: 'reachable',
+    note: 'HERO-MELEE LOSE-WEAPON #28. ka troll pin pre-existed; thief pin added.',
+    bindings: { obj: { objects: ['troll', 'thief'] } },
+  },
+  {
+    en: 'The {obj} is disarmed by a subtle feint past his guard.',
+    reach: 'reachable',
+    note: 'HERO-MELEE LOSE-WEAPON #29. ka thief pin pre-existed; troll pin added.',
+    bindings: { obj: { objects: ['troll', 'thief'] } },
+  },
+  // HERO-MELEE — weapon-less PLAIN lines (no F-DEF, no F-WEP): villain-agnostic
+  // single strings the probabilistic walkthrough gate happened never to roll.
+  {
+    en: 'Your stroke lands, but it was only the flat of the blade.',
+    reach: 'reachable',
+    note: 'HERO-MELEE LIGHT-WOUND #17 (plain). No slot; ka single pin.',
+  },
+  {
+    en: 'Slash! Your blow lands! That one hit an artery, it could be serious!',
+    reach: 'reachable',
+    note: 'HERO-MELEE SERIOUS-WOUND #21 (plain). No slot; ka single pin.',
+  },
+  {
+    en: 'Slash! Your stroke connects! This could be serious!',
+    reach: 'reachable',
+    note: 'HERO-MELEE SERIOUS-WOUND #22 (plain). No slot; ka single pin.',
+  },
 ]
 
 /** fr/de/es families deliberately routed to the LLM instead of a shared
@@ -715,8 +890,10 @@ export const EXPECTED_DEFERRED: readonly string[] = []
  *  + all-language gaps (Task 7d-iii: give, destroy ×2, cut-success, cut-edge,
  *  water-leak, extinguished, burns-consumed) → 81; +1 walkthrough-sweep family
  *  (Task 8: can't-see-any {raw}) → 82; +2 parser implicit-object parentheticals
- *  (UAT 2026-06-24: bare "({obj})" + "(with the {obj})") → 84. */
-export const REACHABLE_FLOOR = 84
+ *  (UAT 2026-06-24: bare "({obj})" + "(with the {obj})") → 84; +24 combat Shape A
+ *  (UAT-2026-06-24 follow-up: 21 HERO-MELEE F-DEF families + 3 weapon-less plain
+ *  HERO lines) → 108. */
+export const REACHABLE_FLOOR = 108
 
 /** Skeleton-fidelity escape hatch for `extractStrings` ANCHORING MISSES only:
  *  a distinctive span that is verified-correct game text (read in the local ZIL /

@@ -289,11 +289,18 @@ describe('Terminal', () => {
     }
   })
 
-  // Option A (Georgian output-translation, spec §5): an OUTPUT_ONLY_LANGS
-  // language translates the DISPLAY but raw-sends English from the command
-  // field — exactly as 'off' does — and offers no model download/upgrade.
-  describe('output-only language (Option A)', () => {
-    it('ka: a typed command raw-sends English, never nl.translate', async () => {
+  // Georgian (ka), spec §5 + §5.6: output-translated DISPLAY on every game, and
+  // since Task 17 INPUT-active on a game that has a ka lexicon (Zork I → routes
+  // through nl.translate) while still raw-sending English on Zork II/III. Offers
+  // no model download/upgrade on any game (no LLM).
+  describe('Georgian (ka) — output-only on Zork II/III, input-active on Zork I (Option A + §5.6)', () => {
+    // Task 17 (§5.6): ka graduates to INPUT on a game that HAS a ka lexicon —
+    // Zork I today. On Zork I a typed line (Georgian OR plain-ASCII English)
+    // routes through nl.translate; the engine still sees a missed English line,
+    // but via the pipeline's §5.5 abstain raw-send (asserted in the lexicon
+    // suite), NOT a boundary raw-send here — so this asserts translate, not
+    // sendLine.
+    it('ka on Zork I: a typed command routes through nl.translate (headline)', async () => {
       const sendLine = vi.spyOn(ZMachine.prototype, 'sendLine')
       const translate = vi.fn(async () => null)
       nlOverride = {
@@ -314,9 +321,61 @@ describe('Terminal', () => {
             themeToggle={null}
           />,
         )
-        // Wait for the line-input request (input enabled). NL INPUT is off for
-        // output-only ka, but the field localizes its hint to "type in English"
-        // (Georgian) so the player knows it raw-sends English (P3).
+        // The placeholder is signature-independent, but kaInputActive keys on the
+        // RESOLVED Zork I signature — so sync on the Georgian beta notice (gated on
+        // corpusFor(signature,'ka'), true only once the Zork I signature resolves)
+        // before submitting, else kaInputActive('ka','') is false at submit time.
+        await screen.findByText(
+          /ქართული თარგმანი ჯერ სატესტოა/,
+          {},
+          { timeout: 8000 },
+        )
+        const input = screen.getByPlaceholderText(/ინგლისურ/)
+        // a11y (WCAG 3.1.2): the field VALUE is Georgian on Zork I, so the input
+        // is tagged lang="ka" — a screen reader voices it with Georgian phonemes
+        // (the Zork II test below pins the opposite: English value, no lang="ka").
+        expect(input).toHaveAttribute('lang', 'ka')
+        // A Georgian command…
+        fireEvent.change(input, { target: { value: 'გახსენი ყუთი' } })
+        fireEvent.submit(input)
+        expect(translate).toHaveBeenCalledWith('გახსენი ყუთი')
+        // …and a plain-ASCII English command both go through the pipeline (§5.5
+        // handles the ASCII raw-send inside translate); neither boundary-raw-sends.
+        fireEvent.change(input, { target: { value: 'open mailbox' } })
+        fireEvent.submit(input)
+        expect(translate).toHaveBeenCalledWith('open mailbox')
+        // Terminal must NOT duplicate the §5.5 abstain raw-send at the boundary.
+        expect(sendLine).not.toHaveBeenCalled()
+      } finally {
+        sendLine.mockRestore()
+        nlOverride = null
+      }
+    })
+
+    it('ka on Zork II: a typed command still raw-sends English, never nl.translate (§5.6)', async () => {
+      // Zork II has NO ka lexicon → kaInputActive is false → ka stays Phase-1
+      // output-only: the field raw-sends English while the display is (un)translated.
+      const zork2 = new Uint8Array(readFileSync('public/games/zork2.z3'))
+      const sendLine = vi.spyOn(ZMachine.prototype, 'sendLine')
+      const translate = vi.fn(async () => null)
+      nlOverride = {
+        state: {
+          phase: 'on',
+          language: 'ka',
+          model: 'grammar',
+          canUpgrade: true,
+        },
+        translate,
+      }
+      try {
+        render(
+          <Terminal
+            storyBytes={zork2}
+            storyTitle="Zork II"
+            onChangeStory={() => {}}
+            themeToggle={null}
+          />,
+        )
         const input = await screen.findByPlaceholderText(
           /ინგლისურ/,
           {},
@@ -332,13 +391,15 @@ describe('Terminal', () => {
       }
     })
 
-    it('ka: the help word is intercepted to the Georgian help block, not raw-sent (P3.1)', async () => {
-      // ka raw-sends English for play, but the activation notice instructs the
-      // player to type `help` (`დახმარებისთვის აკრიფეთ help`). The localized
-      // help intercept lives inside nl.translate, which ka never calls — so
+    it('ka on Zork II: the help word is intercepted to the Georgian help block, not raw-sent (P3.1)', async () => {
+      // On a no-lexicon game (Zork II) ka raw-sends English for play, but the
+      // activation notice instructs the player to type `help`. The localized help
+      // intercept lives inside nl.translate, which ka-on-Zork-II never calls — so
       // `help` must be intercepted at the Loquor (Terminal) boundary BEFORE the
-      // raw-send, or it reaches the parser and earns "I don't know the word
-      // help". Every OTHER ka command still raw-sends (asserted above).
+      // raw-send, or it reaches the parser and earns "I don't know the word help".
+      // (On Zork I ka, help goes through nl.translate's in-pipeline intercept —
+      // asserted in the next test.) Every OTHER ka command still raw-sends.
+      const zork2 = new Uint8Array(readFileSync('public/games/zork2.z3'))
       const sendLine = vi.spyOn(ZMachine.prototype, 'sendLine')
       const translate = vi.fn(async () => null)
       nlOverride = {
@@ -353,8 +414,8 @@ describe('Terminal', () => {
       try {
         render(
           <Terminal
-            storyBytes={bytes}
-            storyTitle="Zork I"
+            storyBytes={zork2}
+            storyTitle="Zork II"
             onChangeStory={() => {}}
             themeToggle={null}
           />,
@@ -367,7 +428,7 @@ describe('Terminal', () => {
         fireEvent.change(input, { target: { value: 'help' } })
         fireEvent.submit(input)
         // Not sent to the game (no turn burned) and never routed through the NL
-        // input pipeline (ka has none).
+        // input pipeline (ka has none on Zork II).
         expect(sendLine).not.toHaveBeenCalledWith('help')
         expect(translate).not.toHaveBeenCalled()
         // The localized Georgian help block surfaces via the role=status notice.
@@ -385,7 +446,60 @@ describe('Terminal', () => {
       }
     })
 
-    it('ka: the command field exposes a localized "type in English" name (P3, a11y)', async () => {
+    it('ka on Zork I: the help word goes through nl.translate (in-pipeline intercept), not the boundary', async () => {
+      // On Zork I ka is INPUT-active, so `help` is NOT intercepted at the
+      // Terminal boundary — it routes through nl.translate, whose in-pipeline help
+      // intercept handles it. So the boundary showHelp must NOT fire.
+      const sendLine = vi.spyOn(ZMachine.prototype, 'sendLine')
+      const translate = vi.fn(async () => null)
+      const showHelp = vi.fn()
+      nlOverride = {
+        state: {
+          phase: 'on',
+          language: 'ka',
+          model: 'grammar',
+          canUpgrade: true,
+        },
+        translate,
+        showHelp,
+      }
+      try {
+        render(
+          <Terminal
+            storyBytes={bytes}
+            storyTitle="Zork I"
+            onChangeStory={() => {}}
+            themeToggle={null}
+          />,
+        )
+        // Sync on the resolved Zork I signature (see headline test) so
+        // kaInputActive is true before we submit.
+        await screen.findByText(
+          /ქართული თარგმანი ჯერ სატესტოა/,
+          {},
+          { timeout: 8000 },
+        )
+        const input = screen.getByPlaceholderText(/ინგლისურ/)
+        fireEvent.change(input, { target: { value: 'help' } })
+        fireEvent.submit(input)
+        expect(translate).toHaveBeenCalledWith('help')
+        // The boundary intercept must NOT fire on Zork I ka.
+        expect(showHelp).not.toHaveBeenCalled()
+        expect(sendLine).not.toHaveBeenCalled()
+      } finally {
+        sendLine.mockRestore()
+        nlOverride = null
+      }
+    })
+
+    it('ka on Zork II: the command field exposes a localized "type in English" name (P3, a11y)', async () => {
+      // Pinned on Zork II, where ka is still output-only (no lexicon) and the
+      // field raw-sends English: the value is English, so `lang` must NOT be 'ka'
+      // (tagging an English value Georgian voices it with Georgian phonemes —
+      // a11y regression I3). The localized "type in English" name is driven
+      // separately by activeLang and stays correct. (On Zork I ka now types
+      // Georgian, so its field correctly carries lang="ka" — Task 17.)
+      const zork2 = new Uint8Array(readFileSync('public/games/zork2.z3'))
       nlOverride = {
         state: {
           phase: 'on',
@@ -397,8 +511,8 @@ describe('Terminal', () => {
       try {
         render(
           <Terminal
-            storyBytes={bytes}
-            storyTitle="Zork I"
+            storyBytes={zork2}
+            storyTitle="Zork II"
             onChangeStory={() => {}}
             themeToggle={null}
           />,
@@ -410,10 +524,8 @@ describe('Terminal', () => {
           { name: /ინგლისურ/ },
           { timeout: 8000 },
         )
-        // ...but the input VALUE is English (ka raw-sends), so the field's `lang`
-        // must NOT be 'ka' — tagging the value Georgian voices typed/echoed
-        // English with Georgian phonemes (a11y regression I3). The localized name
-        // above is driven separately by activeLang and stays correct.
+        // ...but the input VALUE is English (ka raw-sends on Zork II), so the
+        // field's `lang` must NOT be 'ka'.
         expect(input).not.toHaveAttribute('lang', 'ka')
       } finally {
         nlOverride = null

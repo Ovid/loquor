@@ -143,4 +143,20 @@ describe('Georgian parse — multi-word objects in case roles (split-point rejoi
       text: 'put emerald in case',
     })
   })
+  it('egg full ablative (broken): take canary from the full-form broken egg', () => {
+    // -დან leaves the stem -ი ('კვერცხი'); the rejoin re-joins the two adjective
+    // modifiers across the prep: object=canary, instrument='გატეხილ თვლებიან კვერცხი'
+    // → broken egg ('broken egg'). Needs the residue synonym on the lexicon entry.
+    expect(ka('აიღე კანარა გატეხილ თვლებიან კვერცხიდან')).toEqual({
+      kind: 'command',
+      text: 'take canary from broken egg',
+    })
+  })
+  it('egg full ablative (intact): take canary from the full-form jeweled egg', () => {
+    // Same residue, the intact egg entry: instrument='თვლებიან კვერცხი' → jeweled egg.
+    expect(ka('აიღე კანარა თვლებიან კვერცხიდან')).toEqual({
+      kind: 'command',
+      text: 'take canary from jeweled egg',
+    })
+  })
 })

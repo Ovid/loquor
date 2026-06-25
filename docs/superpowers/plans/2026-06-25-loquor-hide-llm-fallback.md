@@ -44,8 +44,20 @@ today's behavior** so the existing suite stays green without edits — `true` fo
 the model-state consumers (`useNaturalLanguage`, `useOutputTranslation`,
 `NlLanguagePicker`, `BottomBar`, `nlModeSummary`), `false`/noop for the prefs
 modal's controlled checkbox. `Terminal` passes the real flag (default **off**).
-The only existing tests we deliberately edit are the **Landing caveat** test
-(Task 6) — its default render now shows the short caveat.
+
+**Existing tests we deliberately edit (the complete list — do not expect these to
+stay green untouched):**
+- **Landing caveat** test (Task 6) — its default render now shows the short caveat.
+- **`translatePipeline.test.ts`** (Task 8) — three inline `liveRef` literals
+  (`:397` shared helper, `:625` and `:867` ka tests) gain `llmEnabled: true`; the
+  fr first-miss assertion at `:709` stays green **because** of the `:397` edit.
+
+Everything else stays green via the default-arg discipline above — in particular
+the new Terminal live region is a **bare `aria-live="polite"`** region (NOT
+`role="status"`), so it does **not** collide with the five existing
+`getByRole('status')`/`findByRole('status')` queries in `Terminal.test.tsx`
+(`:129,160,446,795,824`), which still resolve the single `role="status"` region
+at `Terminal.tsx:306`.
 
 ---
 
@@ -1196,12 +1208,26 @@ within the same function.)
 
 - [ ] **Step 5: Run it, expect pass**
 
+**Before running, make these three required edits** — `LiveState.llmEnabled` is
+now non-optional, and the test file builds `liveRef` literals inline that would
+otherwise (a) fail `tsc -b` (missing property) and (b) suppress the fr pitch the
+existing `:709` assertion expects. Add `llmEnabled: true` to each:
+
+- `src/llm/translatePipeline.test.ts:397` — the **shared helper**:
+  `current: { internal: opts.internalOn, lex: opts.lex ?? null, llmEnabled: true }`.
+  This is what keeps the fr first-miss assertion at `:709`
+  (`grammarOnlyFirstMiss('fr')`) green — with `llmEnabled: true`, the gate
+  `(live.llmEnabled || activeLang === 'ka')` still pitches.
+- `src/llm/translatePipeline.test.ts:625` — ka literal:
+  `{ current: { internal: internalOn, lex: kaLex, llmEnabled: true } }`.
+- `src/llm/translatePipeline.test.ts:867` — ka literal: same addition.
+
+The ka assertions at `:916`/`:934` are unaffected by the gate (the `|| activeLang
+=== 'ka'` branch keeps ka behavior identical), and the en assertion at `:766`
+(en raw-sends, never pitches) is also unaffected.
+
 Run: `npx vitest run src/llm/translatePipeline.test.ts`
-Expected: PASS (new test; existing grammar-only tests default `llmEnabled` true
-in their `liveRef`, so they still pitch — **verify** any existing `liveRef`
-literal in this test file now includes `llmEnabled: true`; if the existing tests
-construct `liveRef.current` inline, add `llmEnabled: true` to those literals so
-they compile).
+Expected: PASS (new test + all existing, with the three literal edits above).
 
 - [ ] **Step 6: Run the NL hook suite too (LiveState now has the field)**
 
@@ -1231,8 +1257,11 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 `lexLang` (the subset of the active language that has an LLM fallback) becomes
 `null` when `llmEnabled` is false — so the output stays corpus-only: a live miss
-degrades to English + logs, no shimmer/`pending` UI. This is defense-in-depth
-(with the input path suppressed the engine never loads anyway), but it covers the
+degrades to English, no shimmer/`pending` UI. (Note: an fr/de/es **live** miss
+with `lexLang=null` hits `if (!resolver) continue` at `useOutputTranslation.ts:313`
+and is **not** logged — only `ka`/corpus-only misses and resolver-driven branches
+log; this is fine, no test asserts logging here.) This is defense-in-depth (with
+the input path suppressed the engine never loads anyway), but it covers the
 toggle-off-mid-session-with-engine-already-loaded case (t1).
 
 - [ ] **Step 1: Write the failing test** — `src/translate/useOutputTranslation.test.tsx`
@@ -1529,9 +1558,16 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 Three live behaviors: (a) abort an in-flight download when toggled off mid-flight
 (t2); (b) announce the mode change via an aria-live region (t4); (c) a one-time
 migration notice for a returning opted-in user (M2). All three share one
-Terminal-owned, visible `role="status"` aria-live region (`llmMsg`) — visible so
+Terminal-owned, visible **`aria-live="polite"`** region (`llmMsg`) — visible so
 the M2 "re-enable in Preferences" guidance is actionable, and `aria-live` so both
-messages reach assistive tech.
+messages reach assistive tech. It is **not** `role="status"`: Terminal already
+has exactly one `role="status"` region (`Terminal.tsx:306`), and five existing
+tests query it singularly (`getByRole('status')`/`findByRole('status')`) — a
+second status landmark would break them and re-create the very collision the
+ka-region comment at `Terminal.tsx:399-401` was written to avoid. A bare
+`aria-live` region announces without claiming the `status` role (same pattern as
+the ka announce region at `:412`). The Task 11 tests query by **text**, so they
+don't depend on the region's role either way.
 
 > **Deviation note (record in the commit):** the spec's a11y §2 references
 > `Terminal.tsx:~413` for M2 delivery — that line is the **ka-only** announce
@@ -1669,6 +1705,16 @@ describe('Terminal — LLM live behaviors', () => {
 (Ensure `afterEach`/`vi`/`waitFor` are imported — they already are in this file;
 add `afterEach` to the vitest import if missing.)
 
+> **Pristine-output watch (CLAUDE.md):** the positive M2 test settles its
+> `setLlmMsg` inside `await screen.findByText(...)` (RTL wraps it in `act`). The
+> two **negative** M2 tests assert *absence* after `await waitFor('West of
+> House')` — which flushes the `useModelDownload` cache probe — and their M2 paths
+> never call `setLlmMsg` (marker-set returns before `isCached`; not-cached resolves
+> to `false` and returns), so there is no post-resolve `setState` to leak an
+> `act(...)` warning. If one nonetheless appears, add
+> `await waitFor(() => expect(WebLlmEngine.prototype.isCached).toHaveBeenCalled())`
+> before the absence assertion to flush the M2 promise chain.
+
 - [ ] **Step 2: Run them, expect failure**
 
 Run: `npx vitest run src/ui/Terminal.test.tsx -t "LLM live behaviors"`
@@ -1768,11 +1814,17 @@ Render the region (add right after `<BottomBar … />`):
 ```tsx
       {/* LLM-feature live region (M2 migration notice + mode-change). Always
           mounted so the live region is registered before content appears;
-          visible so M2's "re-enable in Preferences" guidance is actionable. */}
+          visible so M2's "re-enable in Preferences" guidance is actionable.
+          A BARE aria-live region — deliberately NOT role="status": Terminal
+          already has one role="status" region (the nl-status at the transcript),
+          and the existing tests + the ka-region comment (Terminal.tsx ~399-401)
+          rely on there being exactly ONE status landmark. A second role="status"
+          would break the five getByRole('status')/findByRole('status') queries in
+          Terminal.test.tsx. aria-live="polite" alone still announces (same pattern
+          as the ka announce region). */}
       <div
-        role="status"
         aria-live="polite"
-        className="nl-notice llm-notice"
+        className="nl-notice"
         lang={llmMsg?.lang}
       >
         {llmMsg?.text}
@@ -1816,11 +1868,13 @@ confirm no stray `console.error`/`console.warn` (pristine-output rule) and no
 
 - [ ] **Step 2: Manual responsive check (no automated guard — CLAUDE.md)**
 
-There's no Playwright; the new prefs row + the visible `llm-notice` region are
-the only layout additions. Manually verify at 320 / 375 / 520px and a short
-landscape window, **both themes**, that:
+There's no Playwright; the new prefs row + the visible LLM-notice region (a
+`.nl-notice` `aria-live` div placed after `<BottomBar>`) are the only layout
+additions. Manually verify at 320 / 375 / 520px and a short landscape window,
+**both themes**, that:
 - the new Preferences row wraps/stacks like the debug row (no overflow);
-- the `llm-notice` region (when populated by M2) doesn't push the input off-screen.
+- the LLM-notice region (when populated by M2) doesn't push the input off-screen
+  — it reuses the existing `.nl-notice` style, so no new CSS is added.
 If `src/ui/landing.css` / `src/ui/components.css` were not touched, the existing
 scroll-safe overlay rules are unaffected — but eyeball the prefs modal at 320px.
 

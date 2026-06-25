@@ -145,8 +145,8 @@ if (obj && ind && verbArityOk(verb, vocab, 2))
 
 "გაბერე პლასტმასი ხელის ჰაერის ტუმბოით"  (inflate plastic with pump — instrumental, 2 genitive mods)
   → [პლასტმას, ხელის, ჰაერის, ით, ტუმბო]   prep "ით" at i=3
-  search k=1: o="პლასტმას"→plastic ✓   r="ხელის ჰაერის ტუმბო"→pump ✓   → "inflate plastic with pump"
-  (no data change — pump full form already a stored synonym)
+  search k=1: o="პლასტმას"→plastic ✓   r="ხელის ჰაერის ტუმბო"→pump ✓   → "inflate valve with pump"
+  (pile of plastic emits 'valve'; no data change — pump full form already a stored synonym)
 
 "ჩადე ნახატი ჯილდოების ვიტრინაში"   (put painting in trophy case — inessive, 1 genitive mod)
   → [ნახატ, ჯილდოების, ში, ვიტრინა]   search k=1: painting ✓  "ჯილდოების ვიტრინა"→trophy case ✓

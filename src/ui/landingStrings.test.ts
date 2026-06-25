@@ -9,6 +9,7 @@ import {
 } from './landingStrings'
 import { NL_LANGUAGES } from '../llm/types'
 import { GAMES } from '../games/catalog'
+import { GEORGIAN_STATUS_MARKER } from '../llm/config'
 
 const ACTIVE = NL_LANGUAGES.filter(l => l !== 'off') as Array<
   Exclude<(typeof NL_LANGUAGES)[number], 'off'>
@@ -80,10 +81,11 @@ describe('LANDING_STRINGS', () => {
 
   // Phase-2 Georgian-input copy is the headline of the gift: it must not leak
   // English (§6 gate a / the no-forced-English north star). The only allowed
-  // Latin is the textual "(beta)" marker, which drops on native sign-off (§9).
-  it('KA_INPUT_COPY is Georgian-only except the (beta) marker', () => {
+  // Latin is the textual status marker (GEORGIAN_STATUS_MARKER), which drops on
+  // native sign-off (§9).
+  it('KA_INPUT_COPY is Georgian-only except the status marker', () => {
     for (const [key, value] of Object.entries(KA_INPUT_COPY)) {
-      const withoutMarker = value.replace(/\(beta\)/g, '')
+      const withoutMarker = value.split(GEORGIAN_STATUS_MARKER).join('')
       expect(withoutMarker, `KA_INPUT_COPY.${key}`).not.toMatch(/[A-Za-z]/)
     }
   })

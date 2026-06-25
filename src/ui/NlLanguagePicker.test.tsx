@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { NlLanguagePicker } from './NlLanguagePicker'
+import { GEORGIAN_STATUS_MARKER } from '../llm/config'
 
 describe('NlLanguagePicker', () => {
   // The picker is a CUSTOM select-only combobox (button trigger + styled
@@ -27,7 +28,7 @@ describe('NlLanguagePicker', () => {
       'Français',
       'Deutsch',
       'Español',
-      'ქართული (beta)',
+      `ქართული ${GEORGIAN_STATUS_MARKER}`,
     ])
   })
 

@@ -8,7 +8,7 @@
 // value here is the corpus indef run through expandGeorgian verbatim, plus a
 // bare head-noun synonym a player would actually type (also expandGeorgian-form).
 //
-// NATIVE-REVIEW-DRAFT (beta): model-seeded forms pending the Tbilisi loop
+// NATIVE-REVIEW-DRAFT (alpha): model-seeded forms pending the Tbilisi loop
 // (spec §9). Full coverage of every Zork I display object is now enforced by the
 // corpus round-trip (Task 10, src/translate/corpus/roundtrip.test.ts) and is
 // completed below; the walkthrough-parse gate (Task 11) layers on top. Every

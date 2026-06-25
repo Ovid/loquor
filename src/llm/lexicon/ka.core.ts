@@ -6,7 +6,7 @@
 // preps SPREADS postpositions (the §3.1 merge): after expandGeorgian splits
 // `ყუთში` → [ში, ყუთ], the existing prep-split reads preps['ში'] = 'in'.
 //
-// EVERY entry below is NATIVE-REVIEW-DRAFT (beta): model-seeded forms pending
+// EVERY entry below is NATIVE-REVIEW-DRAFT (alpha): model-seeded forms pending
 // the Tbilisi loop (spec §9). Pronoun arrays are empty — Georgian object
 // pronouns are verb suffixes, not tokens ("it" deferred, spec §8).
 import type { CoreLexicon } from './types'

@@ -4,9 +4,9 @@
 # Prettier (format). Targets call tools via `npx`. Run `make install` first.
 
 .DEFAULT_GOAL := help
-.PHONY: all install ensure-deps dev build preview typecheck test cover lint format loc extract-vocab extract-strings capture-walkthrough help
+.PHONY: all install ensure-deps dev build preview typecheck test cover lint lint-check format format-check loc extract-vocab extract-strings capture-walkthrough help
 
-all: lint format typecheck test ## Full CI pass: lint, format, typecheck, test
+all: lint-check format-check typecheck test ## Full CI pass: STOPS on any lint error or unformatted file (run `make lint` / `make format` to fix, then retry)
 
 install: ## Install dependencies (clean, lockfile-exact)
 	npm ci
@@ -50,8 +50,18 @@ cover: ## Generate a code coverage report (one-shot)
 lint: ## Lint with autofix (ESLint)
 	npx eslint . --fix
 
+# Check-only variant used by `all`: no --fix, so any lint error exits non-zero
+# and stops the pipeline instead of being silently autofixed away.
+lint-check: ## Lint without autofix — fails on any error (used by `all`)
+	npx eslint .
+
 format: ## Format code (Prettier)
 	npx prettier --write .
+
+# Check-only variant used by `all`: --check exits non-zero if any file would be
+# reformatted, so `all` stops and hands you the chance to run `make format`.
+format-check: ## Verify formatting without writing — fails if any file is unformatted (used by `all`)
+	npx prettier --check .
 
 # Lines of code for what we've built. Tests are co-located `*.test.ts(x)` files
 # under src/, so "src" means implementation only and "tests" the rest. Uses

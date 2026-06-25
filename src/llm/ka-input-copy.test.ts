@@ -18,11 +18,13 @@ import {
   GEORGIAN_ACTIVATION_TIP,
 } from './notices'
 import { helpResponse } from './help'
+import { GEORGIAN_STATUS_MARKER } from './config'
 
 const GEORGIAN = /[Ⴀ-ჿ]/
 // English PROSE words that must never appear in ka copy. (The deliberate English
-// tokens — the quoted escape example, meta-verb names save/restore/…, "beta",
-// "version", "help" — are allowed; this only catches English sentence prose.)
+// tokens — the quoted escape example, meta-verb names save/restore/…, the status
+// marker "alpha", "version", "help" — are allowed; this only catches English
+// sentence prose.)
 const STRAY_ENGLISH =
   /\b(type|please|command|sorry|understood|queue|dropped|thinking|queued|cleared|answer|actions|ran|translation|failed|timed)\b/i
 
@@ -59,9 +61,9 @@ describe('ka input copy — no English-script leak (gate a)', () => {
 })
 
 describe('ka input copy — new Phase-2 semantics (gate b)', () => {
-  it('activation tip mentions Georgian input + beta + the quoted escape', () => {
+  it('activation tip mentions Georgian input + the status marker + the quoted escape', () => {
     expect(GEORGIAN_ACTIVATION_TIP).toMatch(/ქართულ/)
-    expect(GEORGIAN_ACTIVATION_TIP).toMatch(/beta/)
+    expect(GEORGIAN_ACTIVATION_TIP).toContain(GEORGIAN_STATUS_MARKER)
     expect(GEORGIAN_ACTIVATION_TIP).toContain('"wind up canary"')
   })
   it('placeholder invites Georgian, not the old type-English-only copy', () => {

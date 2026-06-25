@@ -59,3 +59,14 @@ export const QUEUE_CAP = 4
 
 /** Cap the recent-output context fed to the LLM prompt to this many tail chars. */
 export const PROMPT_CONTEXT_CAP = 1500
+
+/**
+ * Visible status marker appended to Georgian (`ka`) UI labels and copy. Georgian
+ * support still has bugs, so it is flagged to players. This is cross-cutting (the
+ * picker label, the two landing caveats, and the in-game activation tip all show
+ * it) — exactly the "one place to tune" case this file exists for — so it lives
+ * here instead of being duplicated across four display sites where it could
+ * drift. Voiced as part of the accessible name; the surrounding `lang="ka"` keeps
+ * a screen reader from switching language on the parenthesised word.
+ */
+export const GEORGIAN_STATUS_MARKER = '(alpha)'

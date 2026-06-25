@@ -10,6 +10,7 @@
 // — when you touch one entry, check the other three for the same issue.
 import type { ActiveLanguage } from '../llm/types'
 import type { Game } from '../games/catalog'
+import { GEORGIAN_STATUS_MARKER } from '../llm/config'
 
 export interface LandingCopy {
   howToTitle: string // bold lead-in of the how-to line
@@ -182,7 +183,7 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
     // same beta note. Both are drafts pending native review (§8) — apply any
     // wording fix to BOTH so they don't drift (review S4).
     caveat:
-      'ქართული თარგმანი ჯერ სატესტოა (beta) — ზოგი ტექსტი შეიძლება ჯერ კიდევ ' +
+      `ქართული თარგმანი ჯერ სატესტოა ${GEORGIAN_STATUS_MARKER} — ზოგი ტექსტი შეიძლება ჯერ კიდევ ` +
       'ინგლისურად გამოჩნდეს. ამ ეტაპზე ბრძანებები ინგლისურად აკრიფეთ.',
     descent: '— აირჩიეთ თქვენი ჩასვლა —',
     enter: 'აანთეთ ლამპა →',
@@ -216,12 +217,13 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
 // Phase-2 examples are GEORGIAN (LANDING_EXAMPLES_KA_INPUT), so unlike the
 // Phase-1 English examples they ARE voiced as ka — Landing.tsx keeps the
 // command-examples region at lang="ka" (no lang="en" override) in this mode.
-// (beta) marker retained; drops only on native sign-off (§9). NATIVE-REVIEW-DRAFT.
+// status marker (GEORGIAN_STATUS_MARKER) retained; drops only on native sign-off
+// (§9). NATIVE-REVIEW-DRAFT.
 export const KA_INPUT_COPY: Pick<LandingCopy, 'howToBody' | 'caveat'> = {
   howToBody:
     'თამაშის ტექსტი ქართულად ჩანს; ბრძანებები აკრიფეთ ქართულად (ან ინგლისურად) — იხ. მაგალითები ქვემოთ.',
   caveat:
-    'ქართული თარგმანი და ქართულად აკრეფა ჯერ სატესტოა (beta) — ზოგი ტექსტი ' +
+    `ქართული თარგმანი და ქართულად აკრეფა ჯერ სატესტოა ${GEORGIAN_STATUS_MARKER} — ზოგი ტექსტი ` +
     'შეიძლება ინგლისურად გამოჩნდეს, ზოგი ბრძანება კი ვერ ამოიცნოს. ასეთ ' +
     'შემთხვევაში სცადეთ ინგლისურად.',
 }

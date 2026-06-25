@@ -230,7 +230,7 @@ describe('Zork I × Georgian — parser implicit-instrument parenthetical (UAT-2
   // "(with the X)" (gparser.zil GWIM; zork1/gsyntax.zil FIND WEAPON/TOOL/FLAMEBIT
   // + zork1/1dungeon.zil flags). `root` is a stem of the object's ka NOUN that
   // the named instrumental must contain — proving the form NAMES the weapon, not
-  // just "with this". Forms are NATIVE-REVIEW-DRAFT (the (beta) marker stays), so
+  // just "with this". Forms are NATIVE-REVIEW-DRAFT (the (alpha) marker stays), so
   // the test pins the NOUN ROOT, not the full case form: a native-review tweak to
   // the case ending must not fight this regression gate, but a regression back to
   // the caseless drop-noun (or to raw English) must fail it.

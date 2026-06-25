@@ -156,6 +156,13 @@ export function Terminal({
   )
 
   const [llmEnabled, toggleLlm] = useLlmFeature()
+  // Live mirror of llmEnabled for async callbacks that capture a stale value at
+  // their start (the M2 mount effect's isCached().then — [I2]). Written in an
+  // effect (not render) so the callback always reads the latest committed value.
+  const llmEnabledRef = useRef(llmEnabled)
+  useEffect(() => {
+    llmEnabledRef.current = llmEnabled
+  }, [llmEnabled])
 
   const nl = useNaturalLanguage({
     engine: llmEngine,
@@ -285,7 +292,13 @@ export function Terminal({
     void llmEngine
       .isCached()
       .then(cached => {
-        if (cancelled || !cached) return
+        // Re-check live intent ([I2]): isCached() is genuinely async (dynamic
+        // import + cache probe). If the player toggled the model ON during that
+        // window, this stale notice would clobber the fresh "model enabled"
+        // announcement with a persistent, now-false "model hidden" one — and
+        // spend the one-time marker. Bail without writing the marker so M2 can
+        // still appear on a future genuinely-off boot.
+        if (cancelled || !cached || llmEnabledRef.current) return
         const pref = readNlPref().language
         const lang: ActiveLanguage = pref === 'off' ? 'en' : pref
         setLlmMsg({

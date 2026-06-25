@@ -6,6 +6,7 @@ import {
   fireEvent,
   waitFor,
   within,
+  act,
 } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { Terminal } from './Terminal'
@@ -1156,6 +1157,48 @@ describe('Terminal', () => {
         { timeout: 8000 },
       )
       expect(screen.queryByText(llmHiddenMigrationNotice('en'))).toBeNull()
+    })
+
+    it('M2: a toggle-on during the async isCached does not clobber the fresh "enabled" announcement ([I2])', async () => {
+      // isCached() is genuinely async (dynamic import + cache probe). Hold it
+      // open until AFTER the player toggles the model on, then resolve true: the
+      // stale migration notice must NOT overwrite the fresh "enabled" line, and
+      // the one-time marker must NOT be spent (so M2 can still fire on a future
+      // genuinely-off boot).
+      let resolveCached!: (cached: boolean) => void
+      vi.spyOn(WebLlmEngine.prototype, 'isCached').mockReturnValue(
+        new Promise<boolean>(r => {
+          resolveCached = r
+        }),
+      )
+      render(
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
+      )
+      await waitFor(
+        () =>
+          expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        { timeout: 8000 },
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Preferences' }))
+      fireEvent.click(
+        screen.getByRole('checkbox', { name: PREFS_COPY.en.llmLabel }),
+      )
+      expect(
+        await screen.findByText(llmModeChange('en', true)),
+      ).toBeInTheDocument()
+      // The cache probe resolves only now, after the toggle.
+      await act(async () => {
+        resolveCached(true)
+        await Promise.resolve()
+      })
+      expect(screen.queryByText(llmHiddenMigrationNotice('en'))).toBeNull()
+      expect(screen.getByText(llmModeChange('en', true))).toBeInTheDocument()
+      expect(localStorage.getItem(LS_KEYS.llmHiddenNoticeSeen)).toBeNull()
     })
 
     it('t5: rapid toggle on→off→on never strands a download/upgrade modal', async () => {

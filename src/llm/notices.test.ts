@@ -12,6 +12,8 @@ import {
   nothingSent,
   GEORGIAN_ACTIVATION_TIP,
   GEORGIAN_ACTIVATION_TIP_TYPE_ENGLISH,
+  llmModeChange,
+  llmHiddenMigrationNotice,
 } from './notices'
 
 describe('basic-mode download notices', () => {
@@ -164,5 +166,35 @@ describe('thinking indicator (review I5)', () => {
     expect(thinking('fr')).toBe('…réflexion')
     expect(thinking('de')).toBe('…denke nach')
     expect(thinking('es')).toBe('…pensando')
+  })
+})
+
+describe('LLM-feature notices (hide-LLM-fallback)', () => {
+  it('llmModeChange announces enabled/hidden per language', () => {
+    expect(llmModeChange('en', true)).toBe('Natural-language model enabled.')
+    expect(llmModeChange('en', false)).toBe('Natural-language model hidden.')
+    expect(llmModeChange('fr', true)).toBe('Modèle de langage naturel activé.')
+    expect(llmModeChange('fr', false)).toBe('Modèle de langage naturel masqué.')
+    expect(llmModeChange('de', false)).toBe(
+      'Sprachmodell für natürliche Sprache ausgeblendet.',
+    )
+    expect(llmModeChange('es', false)).toBe(
+      'Modelo de lenguaje natural oculto.',
+    )
+  })
+
+  it('llmHiddenMigrationNotice names the localized Preferences panel', () => {
+    expect(llmHiddenMigrationNotice('en')).toMatch(/Preferences/)
+    expect(llmHiddenMigrationNotice('fr')).toMatch(/Préférences/)
+    expect(llmHiddenMigrationNotice('de')).toMatch(/Einstellungen/)
+    expect(llmHiddenMigrationNotice('es')).toMatch(/Preferencias/)
+  })
+
+  it('both notices have a non-empty entry for every NL language incl. ka', () => {
+    for (const lang of ['en', 'fr', 'de', 'es', 'ka'] as const) {
+      expect(llmModeChange(lang, true)).toBeTruthy()
+      expect(llmModeChange(lang, false)).toBeTruthy()
+      expect(llmHiddenMigrationNotice(lang)).toBeTruthy()
+    }
   })
 })

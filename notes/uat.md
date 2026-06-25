@@ -915,3 +915,41 @@ resolves correctly; only the nl-source echo looks odd.
   randomized combat tail is exactly where the coverage gate is blind, and `ka` has no
   LLM net to paper over it. (Logged 2026-06-24 as a native-review follow-up, not a
   parenthetical-branch bug.)
+
+## Georgian genitive-case objects + the disambiguation-window trap (2026-06-25, branch `ovid/georgian-genitive-case-objects`)
+
+- **Feature verdict: genitive-compound objects work end-to-end.** `wrench` is now
+  `ქანჩის გასაღები` ('nut-key', a genitive compound) with NO bare `გასაღებ` synonym
+  (that's the skeleton key). Confirmed live in the Maintenance Room: `აიღე ქანჩის
+გასაღები` → "Taken.", renders as `ქანჩის გასაღები` in both room desc AND inventory,
+  bare `გასაღები` still → skeleton `key` (no collision). The stranded-modifier rejoin
+  (k=1 case, k=2 air-pump, egg ablatives, mis-bind guard) is fully pinned at the parse
+  layer — black-box probe via a throwaway `*.tmp.test.ts` importing `parseLexicon`
+  (imports: `parse`, `ka.core`, `ka.zork1`, `../grammar/zork1.vocab`,
+  `Scene` from `../scene/types`; `empty = {inScope:[],antecedent:null}`).
+- **⭐ BUG FOUND + FIXED: the disambiguation/confirmation/orphan detector stayed "stuck
+  on" for several turns after the prompt was answered, swallowing the player's NEXT
+  command with the "answer with the full name" hint.** Root cause: `viewToContext`
+  (`src/llm/prompt.ts`) bounded `recentOutput` by scanning for `kind === 'input'`, but
+  TRANSLATED-language command echoes are `kind === 'nl-canonical'`, never `input`
+  (`reduce.ts`, because ka/fr/de/es send via the canonical seam). So the boundary never
+  reset and `recentOutput` spanned the last 1500 chars of the WHOLE transcript — a prior
+  turn's `which … do you mean` lingered and kept `isDisambiguationPrompt` true. Fix: the
+  boundary scan now also resets on `nl-canonical`. One-liner, but it's a CENTRAL fn (all
+  languages + the LLM prompt context) → full-suite re-run + a live repro were required.
+- **⭐ How to inspect line KINDS live (you can't tell `input`/`nl-canonical`/`nl-source`
+  apart from the DOM — Scrollback renders them all as class `echo`).** Walk the React
+  fiber from a `.echo` node to the Scrollback `lines` prop:
+  `function getFiber(el){for(const k in el)if(k.startsWith('__reactFiber$'))return el[k];}`
+  then climb `f.return` until `f.memoizedProps.lines` is an array of `{kind,text}`. This
+  is THE way to diagnose `recentOutput`-boundary / prompt-detection bugs.
+- **GOTCHA: the autosave can resume mid-disambiguation.** This session resumed straight
+  into a pending "Which button do you mean?" in the Maintenance Room — a confound for any
+  input test. **Escape hatch:** an English/ASCII raw-send (`look`) breaks out even while
+  the (believed) disambiguation is active — and because a raw send echoes as `kind:
+'input'`, it ALSO resets the `recentOutput` boundary, which is what tipped off the root
+  cause above. A Georgian-only player had NO such escape before the fix.
+- **The 4-candidate button disambiguation renders fully in Georgian** (`რომელი
+გულისხმობ — ლურჯი ღილაკი, …?`), and the I3 reply resolver works: `ყვითელი ღილაკი`
+  → "yellow button" → `წკაპ.` ("Click."). The fix only RELEASES the trap once the
+  prompt is answered; it doesn't touch the reply resolver.

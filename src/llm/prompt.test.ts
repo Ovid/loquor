@@ -45,6 +45,44 @@ describe('viewToContext', () => {
     )
   })
 
+  it('boundary resets on an nl-canonical command echo, not only input', () => {
+    // Translated-language commands (ka/fr/de/es) are echoed as 'nl-canonical',
+    // never 'input'. The recent-output window must reset after one just like it
+    // resets after an 'input' line — otherwise a prior turn's disambiguation
+    // question lingers in recentOutput and traps the player's next command.
+    const v = view({
+      lines: [
+        {
+          id: 1,
+          kind: 'output',
+          text: 'Which do you mean, the red button or the yellow button?',
+        },
+        { id: 2, kind: 'output', text: '>' },
+        { id: 3, kind: 'nl-source', text: 'ყვითელი ღილაკი' },
+        { id: 4, kind: 'nl-canonical', text: 'yellow button' },
+        { id: 5, kind: 'output', text: 'Click.' },
+      ],
+    })
+    expect(viewToContext(v).recentOutput).toBe('Click.')
+  })
+
+  it('the nl-canonical boundary reset is language-agnostic (fr/de/es, not just ka)', () => {
+    // viewToContext takes no language: 'nl-canonical' is the echo kind for EVERY
+    // translated language (fr/de/es as well as ka), so the same window reset must
+    // fire on a Latin-script translated command. Pinned so a refactor can't quietly
+    // narrow the fix to the Georgian test data above.
+    const v = view({
+      lines: [
+        { id: 1, kind: 'output', text: 'Quel bouton, le rouge ou le jaune ?' },
+        { id: 2, kind: 'output', text: '>' },
+        { id: 3, kind: 'nl-source', text: 'appuie sur le bouton jaune' },
+        { id: 4, kind: 'nl-canonical', text: 'press yellow button' },
+        { id: 5, kind: 'output', text: 'Clic.' },
+      ],
+    })
+    expect(viewToContext(v).recentOutput).toBe('Clic.')
+  })
+
   it('caps recentOutput to the tail at 1500 chars', () => {
     const big = 'x'.repeat(2000)
     const out = viewToContext(

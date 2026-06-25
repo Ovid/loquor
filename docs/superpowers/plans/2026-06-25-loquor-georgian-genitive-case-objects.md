@@ -141,14 +141,14 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-### Task 2: Safety pins — mis-bind guard + residual-ceiling clean-miss
+### Task 2: Safety pin — mis-bind guard
 
-These are guard tests: they assert behavior that must *stay* correct once the mechanism is in — the search must not mis-fire on an object that already resolves whole, and the egg full-ablative must cleanly miss rather than mis-resolve (the pushback's C1/C2). They pass with the Task-1 mechanism in place. No production code changes.
+A guard test: it asserts behavior that must *stay* correct once the mechanism is in — the search must not mis-fire on an object that already resolves whole (the pushback's C2). It passes with the Task-1 mechanism in place. No production code changes.
 
 **Files:**
 - Test: `src/llm/lexicon/parse.ka.test.ts` (extend the same `describe` from Task 1)
 
-- [ ] **Step 1: Write the guard tests**
+- [ ] **Step 1: Write the guard test**
 
 Add inside the `describe('Georgian parse — multi-word objects in case roles …')` block:
 
@@ -162,34 +162,122 @@ Add inside the `describe('Georgian parse — multi-word objects in case roles �
       text: 'put emerald in case',
     })
   })
-  it('residual ceiling: the egg full ablative cleanly misses (bare form works)', () => {
-    // -დან splits but leaves the stem's -ი ('კვერცხი'), so the rejoined instrument
-    // 'გატეხილ თვლებიან კვერცხი' is NOT a stored form → no split resolves → clean
-    // miss (abstain), never a mis-resolve. The bare 'აიღე კანარა კვერცხიდან'
-    // ('take canary from egg') is the taught path, pinned in the walkthrough.
-    expect(ka('აიღე კანარა გატეხილ თვლებიან კვერცხიდან')).toEqual({
-      kind: 'miss',
-    })
-  })
 ```
 
-- [ ] **Step 2: Run the tests to verify they pass**
+- [ ] **Step 2: Run the test to verify it passes**
 
 Run: `npx vitest run src/llm/lexicon/parse.ka.test.ts -t "split-point rejoin"`
-Expected: PASS (all four cases in the block).
+Expected: PASS (all three cases in the block — the two from Task 1 plus this guard).
 
 - [ ] **Step 3: Commit**
 
 ```bash
 git add src/llm/lexicon/parse.ka.test.ts
-git commit -m "test(georgian): pin rejoin mis-bind guard + egg ablative clean-miss
+git commit -m "test(georgian): pin rejoin mis-bind guard
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
 
-### Task 3: Wrench word swap (`სასხლეტი` → `ქანჩის გასაღები`)
+### Task 3: Egg full-ablative support (residue synonyms on both egg entries)
+
+The ablative `-დან` splits off the head but leaves the stem's `-ი` (`კვერცხიდან` → `[დან, კვერცხი]`), so the rejoined instrument keeps the `-ი` (`გატეხილ თვლებიან კვერცხი`) — which the stripped stored form (`… კვერცხ`) doesn't match. Add the `-ი`-keeping residue synonym to **both** egg entries (broken + intact) so the full ablative resolves. The bare `… კვერცხიდან` is unaffected (still the shared dict word `egg`).
+
+**Files:**
+- Modify: `src/llm/lexicon/ka.zork1.ts:70-74` (broken jewel-encrusted egg) and `:113` (jewel-encrusted egg)
+- Test: `src/llm/lexicon/parse.ka.test.ts` (extend the same `describe`)
+
+- [ ] **Step 1: Write the failing tests**
+
+Add inside the `describe('Georgian parse — multi-word objects in case roles …')` block:
+
+```ts
+  it('egg full ablative (broken): take canary from the full-form broken egg', () => {
+    // -დან leaves the stem -ი ('კვერცხი'); the rejoin re-joins the two adjective
+    // modifiers across the prep: object=canary, instrument='გატეხილ თვლებიან კვერცხი'
+    // → broken egg ('broken egg'). Needs the residue synonym on the lexicon entry.
+    expect(ka('აიღე კანარა გატეხილ თვლებიან კვერცხიდან')).toEqual({
+      kind: 'command',
+      text: 'take canary from broken egg',
+    })
+  })
+  it('egg full ablative (intact): take canary from the full-form jeweled egg', () => {
+    // Same residue, the intact egg entry: instrument='თვლებიან კვერცხი' → jeweled egg.
+    expect(ka('აიღე კანარა თვლებიან კვერცხიდან')).toEqual({
+      kind: 'command',
+      text: 'take canary from jeweled egg',
+    })
+  })
+```
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+Run: `npx vitest run src/llm/lexicon/parse.ka.test.ts -t "egg full ablative"`
+Expected: FAIL — both get `{ kind: 'miss' }`. The mechanism runs, but the rejoined instrument (`… კვერცხი`, with the `-ი`) is not yet a stored synonym, so no split resolves.
+
+- [ ] **Step 3: Add the residue synonyms**
+
+In `src/llm/lexicon/ka.zork1.ts`, the broken egg entry (lines 70–74) currently reads:
+
+```ts
+  'broken jewel-encrusted egg': [
+    'გატეხილ თვლებიან კვერცხ',
+    'კვერცხ',
+    'კვერცხი',
+  ], // კვერცხი → კვერცხ (egg)
+```
+
+Add the residue synonym as a new first element (most-explicit-wins ordering, like the existing full forms):
+
+```ts
+  'broken jewel-encrusted egg': [
+    'გატეხილ თვლებიან კვერცხ',
+    'გატეხილ თვლებიან კვერცხი', // ablative -ი-residue: 'გატეხილ თვლებიან კვერცხიდან' → [..., კვერცხი]
+    'კვერცხ',
+    'კვერცხი',
+  ], // კვერცხი → კვერცხ (egg)
+```
+
+The intact egg entry (line 113) currently reads:
+
+```ts
+  'jewel-encrusted egg': ['თვლებიან კვერცხ', 'კვერცხ', 'კვერცხი'], // კვერცხი → კვერცხ; +ablative residue (see broken-egg note)
+```
+
+Add its residue synonym:
+
+```ts
+  'jewel-encrusted egg': ['თვლებიან კვერცხ', 'თვლებიან კვერცხი', 'კვერცხ', 'კვერცხი'], // +ablative -ი-residue 'თვლებიან კვერცხი'
+```
+
+- [ ] **Step 4: Run the tests to verify they pass**
+
+Run: `npx vitest run src/llm/lexicon/parse.ka.test.ts -t "egg full ablative"`
+Expected: PASS (both).
+
+- [ ] **Step 5: Run the lexicon round-trip + walkthrough to confirm no regression**
+
+Run: `npx vitest run src/llm/lexicon/roundtrip.test.ts src/llm/lexicon/parse.ka-walkthrough.test.ts`
+Expected: PASS — each new synonym is vowel-final, so `toInputForm` leaves it unchanged and `expandGeorgian` strips the `-ი` back to the entry's own `… კვერცხ` (resolves to its own canonical); the bare `take canary from egg` walkthrough fixture is unchanged.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/llm/lexicon/ka.zork1.ts src/llm/lexicon/parse.ka.test.ts
+git commit -m "feat(georgian): resolve the egg full ablative on both egg entries
+
+-დან splits off the head but leaves the stem's -ი, so the rejoined instrument
+keeps it (გატეხილ თვლებიან კვერცხი). Add that -ი-residue synonym to both the
+broken and intact egg entries so the full-form ablative resolves; the bare
+form (shared dict word 'egg') is unchanged.
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+### Task 4: Wrench word swap (`სასხლეტი` → `ქანჩის გასაღები`)
 
 One atomic change: the input lexicon, the display corpus, the output string, and every fixture move together. They MUST be one commit — dropping the bare `სასხლეტ` lexicon form while the display corpus still says `სასხლეტი გასაღები` would break the corpus round-trip (its reduced form would no longer be a stored input form).
 
@@ -288,7 +376,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-### Task 4: Full-suite verification
+### Task 5: Full-suite verification
 
 **Files:** none (verification only)
 

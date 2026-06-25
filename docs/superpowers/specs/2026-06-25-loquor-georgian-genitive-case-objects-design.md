@@ -56,18 +56,23 @@ correctly when its head takes a **case suffix** in a prepositional/instrumental
 slot — not just in a caseless slot (direct object, listing).
 
 **The bar:** the wrench reads as `ქანჩის გასაღები` everywhere (input + display),
-and the winning-path multi-word case-role commands parse — proven by tests at
-**both modifier counts** (the rule is modifier-agnostic — it calls `resolveNoun`,
-which doesn't care whether the stranded token is genitive or adjective):
+and the winning-path multi-word case-role commands parse — proven by tests across
+**both modifier kinds and both modifier counts** (the rule is modifier-agnostic —
+it calls `resolveNoun`, which doesn't care whether the stranded token is genitive
+or adjective):
 - genitive, 1 modifier: wrench instrumental `… ქანჩის გასაღებით`
 - genitive, 1 modifier: trophy case inessive `… ჯილდოების ვიტრინაში`
 - genitive, **2 modifiers**: air pump instrumental `… ხელის ჰაერის ტუმბოით`
+- adjective, **2 modifiers**: egg ablative `… გატეხილ თვლებიან კვერცხიდან`
+  (broken egg) / `… თვლებიან კვერცხიდან` (intact egg)
 
 **In scope:**
 - One new parser rule in the prep-split loop (`parse.ts`): a **stranded-modifier
   rejoin by split-point search** (§2).
 - Wrench data swap `სასხლეტი → ქანჩის გასაღები` (input lexicon, display corpus,
   output string, walkthrough + UAT fixtures) (§3/§4).
+- One data add: the egg's **ablative `-ი`-residue full-form synonyms on BOTH egg
+  entries** (broken + intact), so the `-დან` split resolves (§3).
 - Tests pinning the multi-word case-role class + regressions (§5).
 
 **Out of scope / non-goals:**
@@ -75,16 +80,14 @@ which doesn't care whether the stranded token is genitive or adjective):
   rejoin is a closed search over **already-stored full-phrase synonyms**; it
   invents no morphology. It can only ever resolve a phrase a player could already
   type as a caseless object.
-- Objects whose case-split residue is **not** a stored synonym. The search relies
-  on the full phrase being stored (the corpus round-trip already guarantees this
-  for every Zork I display object). The one such case in Zork I — the **ablative
-  `-ი`-residue on the egg** (`-დან` splits but leaves the stem's `-ი`, so
-  `გატეხილ თვლებიან კვერცხი` ≠ the stored `… კვერცხ`) — is a **documented residual
-  ceiling**: the full ablative form cleanly **misses** (abstains), and the **bare
-  form `… კვერცხიდან` works and is the taught/walkthrough path** (`take canary
-  from egg`). The full ablative is implausible input (6+ tokens) and would need
-  residue synonyms on two egg entries; we don't author them. The mechanism handles
-  the egg automatically the instant such data exists — only the data is withheld.
+- The search relies on the full phrase being a **stored synonym** (the corpus
+  round-trip already guarantees this for every Zork I display object). The one
+  wrinkle is the **ablative `-ი`-residue**: `-დან` splits but leaves the stem's
+  `-ი` (`გატეხილ თვლებიან კვერცხი` ≠ the strip-form `… კვერცხ`). This is closed by
+  the §3 residue-synonym adds on **both** egg entries (the only `-ი`-final-stem
+  ablative objects in Zork I), so **no Zork I winning-path case-role object is left
+  unsupported**. A *future* such object would likewise need its residue synonym —
+  a data add, not a mechanism change.
 - Any change to `expandGeorgian` (it stays a dumb token-by-token pre-stage), to
   fr/de/es, or to the LLM machinery (`ka` has none).
 
@@ -152,10 +155,12 @@ if (obj && ind && verbArityOk(verb, vocab, 2))
   → [ნახატ, ჯილდოების, ში, ვიტრინა]   search k=1: painting ✓  "ჯილდოების ვიტრინა"→trophy case ✓
   → "put painting in case"   (no data change — full phrase already stored)
 
-"აიღე კანარა გატეხილ თვლებიან კვერცხიდან"  (residual ceiling — ablative -ი-residue, see §1)
+"აიღე კანარა გატეხილ თვლებიან კვერცხიდან"  (take canary from broken egg — ablative, 2 adj mods)
   → [კანარა, გატეხილ, თვლებიან, დან, კვერცხი]   prep "დან"=from at i=3
-  search: k=1 r="გატეხილ თვლებიან კვერცხი" NOT stored (stem keeps -ი); k=2 o fails
-  → no split resolves → MISS (clean abstain). Bare "… კვერცხიდან" works (taught path).
+  search k=1: o="კანარა"→canary ✓   r="გატეხილ თვლებიან კვერცხი"→broken egg ✓ (§3 residue synonym)
+  → "take canary from broken egg"
+  (NB: -დან leaves the stem's -ი, so the residue synonym keeps it — see §3.
+   Bare "… კვერცხიდან" still resolves to the shared dict word → "take canary from egg".)
 ```
 
 **Why it is safe / cannot regress:**
@@ -180,16 +185,20 @@ touches every place the word appears so the player never sees "trigger":
 | File | Change |
 |---|---|
 | `src/llm/lexicon/ka.zork1.ts` (wrench) | `['სასხლეტ გასაღებ', 'სასხლეტ']` → `['ქანჩის გასაღებ']`. Drop the `სასხლეტ` forms. **Do not** add bare `გასაღებ` (skeleton-key collision). |
+| `src/llm/lexicon/ka.zork1.ts` (broken jewel-encrusted egg) | add the ablative `-ი`-residue synonym `'გატეხილ თვლებიან კვერცხი'` (alongside the existing `'გატეხილ თვლებიან კვერცხ'`, `'კვერცხ'`, `'კვერცხი'`). Unique phrase → resolves to `broken egg`. |
+| `src/llm/lexicon/ka.zork1.ts` (jewel-encrusted egg) | add the ablative `-ი`-residue synonym `'თვლებიან კვერცხი'` (alongside `'თვლებიან კვერცხ'`, `'კვერცხ'`, `'კვერცხი'`). Unique phrase → resolves to `jeweled egg`. |
 | `src/translate/corpus/zork1.ka.objects.ts` (wrench) | `indef: 'სასხლეტი გასაღები'` → `'ქანჩის გასაღები'` |
 | `src/translate/corpus/zork1.ka.strings.ts` | `'(with the wrench)'`: `'(სასხლეტი გასაღებით)'` → `'(ქანჩის გასაღებით)'` (auto-disambiguation parenthetical) |
 
-(No egg data change — the egg full-ablative is the §1 residual ceiling.)
-
-**Round-trip preserved** (verified by hand): stored `ქანჩის გასაღებ` → roundtrip
-`toInputForm` re-attaches `-ი` to the consonant-final last token → `ქანჩის გასაღები`
-→ parser `expandGeorgian` reduces it back to `ქანჩის გასაღებ` → wrench. Display
-`ქანჩის გასაღები` → corpus strip-only `reduce` → `ქანჩის გასაღებ` = the stored input
-form. No `-ით` in any stored form.
+**Round-trip preserved** (verified by hand):
+- Wrench: stored `ქანჩის გასაღებ` → roundtrip `toInputForm` re-attaches `-ი` to the
+  consonant-final last token → `ქანჩის გასაღები` → parser `expandGeorgian` reduces
+  it back to `ქანჩის გასაღებ` → wrench. Display `ქანჩის გასაღები` → corpus strip-only
+  `reduce` → `ქანჩის გასაღებ` = the stored input form. No `-ით` in any stored form.
+- Egg residue synonyms: each is vowel-final (`… კვერცხი`), so `toInputForm` leaves
+  it unchanged → `expandGeorgian` strips the `-ი` → the sibling strip-form
+  (`… კვერცხ`), which is the entry's own stored form → resolves to its own
+  canonical. Both new phrases are unique (collision-checked), so no ambiguity.
 
 ---
 
@@ -231,21 +240,23 @@ postpositions. The order:
    - **k=2:** air pump full instrumental `გაბერე პლასტმასი ხელის ჰაერის ტუმბოით`
      → `inflate valve with pump` (ditto). This exercises the *search loop*, not
      just move-one.
-2. **Regression / safety pins (the pushback's C1/C2):**
+2. **Egg full-ablative (adjective, 2 mods — needs the §3 residue synonyms):**
+   - broken: `აიღე კანარა გატეხილ თვლებიან კვერცხიდან` → `take canary from broken egg`.
+   - intact: `აიღე კანარა თვლებიან კვერცხიდან` → `take canary from jeweled egg`.
+   Red before the synonyms, green after. Proves the `-ი`-residue handling on both
+   egg entries and the adjective-modifier rejoin.
+3. **Regression / safety pins (the pushback's C1/C2):**
    - **Mis-bind guard:** a command whose multi-word object resolves whole before a
      prep (`ჩადე დიდ ზურმუხტი ვიტრინაში` → `put emerald in case`) MUST emit the
      normal parse and never enter the search (proves the `!obj` gate).
-   - **Residual-ceiling clean-miss:** the egg full ablative
-     `აიღე კანარა გატეხილ თვლებიან კვერცხიდან` → `{ kind: 'miss' }` (proves it
-     abstains, never mis-resolves — §1 ceiling).
    - **Bare-fallback:** already pinned by `parse.ka-walkthrough.test.ts` — the
      pump's bare `… ტუმბოით` (`inflate valve with pump`) and the egg's bare
-     `… კვერცხიდან` (`take canary from egg`). No new test needed; the walkthrough
-     gate guards them.
-3. **Wrench swap** (with the §3/§4 data change): the three walkthrough commands +
+     `… კვერცხიდან` (`take canary from egg`, the shared dict word, unchanged by the
+     new synonyms). No new test needed; the walkthrough gate guards them.
+4. **Wrench swap** (with the §3/§4 data change): the three walkthrough commands +
    the `parse.ka-uat.test.ts` instrumental pin updated to `ქანჩის გასაღები`.
-4. **Existing gates stay green:** `roundtrip.test.ts`, `parse.ka-walkthrough`,
-   `parse.ka-uat`, the corpus round-trip. The §3 hand-trace must hold under CI.
+5. **Existing gates stay green:** `roundtrip.test.ts`, `parse.ka-walkthrough`,
+   `parse.ka-uat`, the corpus round-trip. The §3 hand-traces must hold under CI.
 
 A passing run must stay **output-pristine** (no stray `console.*`, no `act()`
 warnings) per CLAUDE.md.
@@ -269,9 +280,9 @@ LLM net, most needs it.
 Record for the Tbilisi loop: **is `ქანჩის გასაღებით` what a Georgian player would
 actually type for "with the wrench," or is there a shorter colloquial term?** If
 yes, swap the data (§3) for the colloquial form; the §2 mechanism is unaffected.
-This is the one player-experience question the code cannot answer. (The pump full
-form is verbose but optional — its bare form remains the taught path; the egg full
-ablative is the §1 residual ceiling, bare-only.)
+This is the one player-experience question the code cannot answer. (The pump and
+egg full forms are verbose but optional — their bare forms remain the taught path;
+the full forms now also resolve.)
 
 ---
 
@@ -279,13 +290,13 @@ ablative is the §1 residual ceiling, bare-only.)
 
 - **Mechanism:** `src/llm/lexicon/parse.ts` (one split-point rejoin block in the
   prep-split loop; change `const obj/ind` → `let`)
-- **Data:** `src/llm/lexicon/ka.zork1.ts` (wrench swap only),
+- **Data:** `src/llm/lexicon/ka.zork1.ts` (wrench swap + two egg residue synonyms),
   `src/translate/corpus/zork1.ka.objects.ts` (wrench display),
   `src/translate/corpus/zork1.ka.strings.ts` (`(with the wrench)`)
 - **Tests/fixtures:** `src/llm/lexicon/parse.ka.test.ts` (mechanism k=1 + k=2,
-  mis-bind guard, egg clean-miss), `src/llm/lexicon/parse.ka-uat.test.ts` (wrench
-  instrumental pin), `src/llm/lexicon/parse.ka-walkthrough.test.ts` (three wrench
-  commands), `src/translate/corpus/zork1.ka.uat.test.ts` (confirm green, no edit
-  expected)
+  egg full-ablative ×2, mis-bind guard), `src/llm/lexicon/parse.ka-uat.test.ts`
+  (wrench instrumental pin), `src/llm/lexicon/parse.ka-walkthrough.test.ts` (three
+  wrench commands), `src/translate/corpus/zork1.ka.uat.test.ts` (confirm green, no
+  edit expected)
 - **Untouched:** `expandGeorgian.ts`, `parse.test.ts`, fr/de/es lexicons, all LLM
   machinery

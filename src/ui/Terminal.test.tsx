@@ -1179,5 +1179,61 @@ describe('Terminal', () => {
       fireEvent.click(box) // on
       expect(screen.getAllByRole('dialog')).toHaveLength(1)
     })
+
+    it('the mode-change announcement auto-clears (does not linger)', async () => {
+      render(
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+          announceClearMs={40}
+        />,
+      )
+      await waitFor(
+        () =>
+          expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        { timeout: 8000 },
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Preferences' }))
+      fireEvent.click(
+        screen.getByRole('checkbox', { name: PREFS_COPY.en.llmLabel }),
+      )
+      // It announces the change first…
+      expect(
+        await screen.findByText(llmModeChange('en', true)),
+      ).toBeInTheDocument()
+      // …then clears itself so it doesn't sit on screen forever.
+      await waitFor(() =>
+        expect(screen.queryByText(llmModeChange('en', true))).toBeNull(),
+      )
+    })
+
+    it('M2: the migration notice does NOT auto-clear (stays actionable)', async () => {
+      vi.spyOn(WebLlmEngine.prototype, 'isCached').mockResolvedValue(true)
+      render(
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+          announceClearMs={30}
+        />,
+      )
+      // Shows on mount.
+      expect(
+        await screen.findByText(llmHiddenMigrationNotice('en')),
+      ).toBeInTheDocument()
+      // The boot reliably takes far longer than the 30ms transient window; if M2
+      // were transient it would have cleared by the time the game is up. It isn't.
+      await waitFor(
+        () =>
+          expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        { timeout: 8000 },
+      )
+      expect(
+        screen.getByText(llmHiddenMigrationNotice('en')),
+      ).toBeInTheDocument()
+    })
   })
 })

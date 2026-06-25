@@ -46,12 +46,19 @@ import { createLogger } from '../logger'
 
 const log = createLogger('ui')
 
+// How long a TRANSIENT LLM mode-change announcement ("model enabled/hidden")
+// stays before it auto-clears. It has done its job once announced/read, so it
+// shouldn't sit on screen forever. The M2 migration notice is NOT transient (its
+// "re-enable in Preferences" guidance must stay readable) and ignores this.
+const LLM_ANNOUNCE_CLEAR_MS = 7000
+
 export function Terminal({
   storyBytes,
   storyTitle,
   onChangeStory,
   themeToggle,
   backgroundInert = false,
+  announceClearMs = LLM_ANNOUNCE_CLEAR_MS,
 }: {
   storyBytes: Uint8Array
   /** The current game's title — the game screen's heading for screen readers. */
@@ -61,6 +68,10 @@ export function Terminal({
   /** True while the change-story overlay covers the game — makes the whole
    *  terminal inert so a screen-reader virtual cursor can't read it (M9). */
   backgroundInert?: boolean
+  /** Delay (ms) before a transient LLM mode-change announcement auto-clears.
+   *  Injectable (mirrors useOutputTranslation's watchdogMs) so tests don't wait
+   *  the full production delay. The M2 migration notice is not transient. */
+  announceClearMs?: number
 }) {
   // Game-loop coordination lives in extracted hooks (F-17): the ZMachine
   // boot/dispose lifecycle and device-capability detection.
@@ -99,6 +110,9 @@ export function Terminal({
   const [llmMsg, setLlmMsg] = useState<{
     text: string
     lang: ActiveLanguage
+    /** Transient (mode-change) announcements auto-clear after announceClearMs so
+     *  they don't linger; the M2 migration notice is persistent (actionable). */
+    transient: boolean
   } | null>(null)
   const recordEcho = useCallback((canonical: string, source: string) => {
     const k = loudEchoToken(canonical)
@@ -274,7 +288,11 @@ export function Terminal({
         if (cancelled || !cached) return
         const pref = readNlPref().language
         const lang: ActiveLanguage = pref === 'off' ? 'en' : pref
-        setLlmMsg({ text: llmHiddenMigrationNotice(lang), lang })
+        setLlmMsg({
+          text: llmHiddenMigrationNotice(lang),
+          lang,
+          transient: false,
+        })
         try {
           localStorage.setItem(LS_KEYS.llmHiddenNoticeSeen, '1')
         } catch {
@@ -289,6 +307,17 @@ export function Terminal({
     // Mount-only one-time migration check (llmEngine is stable).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // A transient mode-change announcement should not linger — once it has been
+  // announced/read it auto-clears after announceClearMs. The M2 migration notice
+  // is persistent (transient:false), so this leaves it alone. Cleanup clears the
+  // pending timer on unmount or when the message changes (e.g. a rapid re-toggle
+  // re-arms it), so no stale timer fires on an unmounted Terminal.
+  useEffect(() => {
+    if (!llmMsg?.transient) return
+    const id = setTimeout(() => setLlmMsg(null), announceClearMs)
+    return () => clearTimeout(id)
+  }, [llmMsg, announceClearMs])
 
   // The upgrade/download modal is suppressed for output-only languages (it does
   // nothing for them) AND whenever the LLM feature is hidden (no model to offer).
@@ -536,7 +565,11 @@ export function Terminal({
         onToggleLlm={() => {
           const next = !llmEnabled
           toggleLlm()
-          setLlmMsg({ text: llmModeChange(activeLang, next), lang: activeLang })
+          setLlmMsg({
+            text: llmModeChange(activeLang, next),
+            lang: activeLang,
+            transient: true,
+          })
         }}
         onClose={() => setPrefsOpen(false)}
       />

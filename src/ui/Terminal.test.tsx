@@ -13,6 +13,7 @@ import { helpResponse } from '../llm/help'
 import { WebLlmEngine } from '../llm/engine.webllm'
 import { ZMachine } from '../zmachine/engine'
 import type { UseNaturalLanguage } from '../llm/useNaturalLanguage'
+import { PREFS_COPY } from './PreferencesModal'
 
 // Passthrough mock: the real hook runs for every test, but a test can overlay
 // specific fields (e.g. a non-empty queue) that are otherwise unreachable
@@ -194,6 +195,8 @@ describe('Terminal', () => {
   })
 
   it('makes the game inert behind the download/upgrade modal (M9)', async () => {
+    // The modal only opens when llmEnabled is true — set it for this test.
+    localStorage.setItem('loquor.llm', '1')
     nlOverride = {
       state: { phase: 'off', installed: false, canUpgrade: true },
       modalOpen: true,
@@ -219,6 +222,7 @@ describe('Terminal', () => {
       expect(screen.getByRole('dialog').closest('[inert]')).toBeNull()
     } finally {
       nlOverride = null
+      localStorage.removeItem('loquor.llm')
     }
   })
 
@@ -653,6 +657,8 @@ describe('Terminal', () => {
     it('always shows the bottom bar with the NL-mode readout for French', async () => {
       // The bug this fixes: the bottom bar used to appear ONLY in Georgian. It is
       // now always present, in every language, carrying the diagnostic readout.
+      // With llmEnabled=false (the default), the tier token is suppressed and the
+      // summary is just the localized input indicator ('saisie' for French).
       nlOverride = {
         state: { phase: 'on', language: 'fr', model: 'full', canUpgrade: true },
       }
@@ -670,7 +676,7 @@ describe('Terminal', () => {
           { name: /Status information/i },
           { timeout: 8000 },
         )
-        expect(bar).toHaveTextContent('complet · saisie')
+        expect(bar).toHaveTextContent('saisie')
         expect(bar).toHaveTextContent('Zork I')
       } finally {
         nlOverride = null
@@ -952,7 +958,8 @@ describe('Terminal', () => {
         const bar = screen.getByRole('contentinfo', {
           name: /Status information/i,
         })
-        expect(bar).toHaveTextContent('full · input')
+        // With llmEnabled=false (default), the tier token is hidden — just the input indicator.
+        expect(bar).toHaveTextContent('input')
       } finally {
         nlOverride = null
       }
@@ -1005,6 +1012,30 @@ describe('Terminal', () => {
         key: 'Escape',
       })
       await waitFor(() => expect(open).toHaveFocus())
+    })
+  })
+
+  describe('Terminal — LLM feature default off', () => {
+    it('renders the LLM toggle in Preferences (default unchecked) and no model modal', async () => {
+      render(
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
+      )
+      await waitFor(
+        () => expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        { timeout: 8000 },
+      )
+      // Default-off: the model download/upgrade modal is not present.
+      expect(screen.queryByRole('dialog')).toBeNull()
+      fireEvent.click(screen.getByRole('button', { name: 'Preferences' }))
+      const llmBox = screen.getByRole('checkbox', {
+        name: PREFS_COPY.en.llmLabel,
+      })
+      expect(llmBox).not.toBeChecked()
     })
   })
 })

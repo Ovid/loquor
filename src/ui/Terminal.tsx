@@ -10,6 +10,7 @@ import { BottomBar } from './BottomBar'
 import { PreferencesModal, prefsOpenLabel } from './PreferencesModal'
 import { LANDING_STRINGS } from './landingStrings'
 import { useDebug } from './useDebug'
+import { useLlmFeature } from './useLlmFeature'
 import {
   useGameEngine,
   useCapability,
@@ -129,6 +130,8 @@ export function Terminal({
     [engineRef],
   )
 
+  const [llmEnabled, toggleLlm] = useLlmFeature()
+
   const nl = useNaturalLanguage({
     engine: llmEngine,
     capability,
@@ -144,6 +147,7 @@ export function Terminal({
     watchdogMs: GENERATE_WATCHDOG_MS,
     signature, // Task 21 consumes it (per-game noun lexicons); '' until boot resolves
     gate,
+    llmEnabled,
   })
 
   const [debug, toggleDebug] = useDebug()
@@ -182,6 +186,7 @@ export function Terminal({
     engine: llmEngine,
     gate,
     echoMap,
+    llmEnabled,
   })
 
   // The active NL language: `activeLang` (incl. 'en') localizes copy; `nlLang`
@@ -225,15 +230,18 @@ export function Terminal({
   }, [view.inputRequest, engineRef])
 
   // The upgrade/download modal is suppressed for output-only languages (it does
-  // nothing for them). Single source so the modal's visibility and the
-  // background-inert/focus-trap state can never drift apart.
-  const upgradeModalOpen = nl.modalOpen && !outputOnly
+  // nothing for them) AND whenever the LLM feature is hidden (no model to offer).
+  // Single source so the modal's visibility and the background-inert/focus-trap
+  // state can never drift apart.
+  const upgradeModalOpen = nl.modalOpen && !outputOnly && llmEnabled
+  const downloadingModalOpen = llmEnabled && nl.state.phase === 'downloading'
+  // the model download/upgrade modal opens only with the LLM feature on
+  const modelModalOpen = upgradeModalOpen || downloadingModalOpen
 
   // The download/upgrade modal is open — everything behind it must be inert so
   // a screen-reader virtual cursor stays inside the dialog (aria-modal alone is
   // unevenly honored). The modal is a sibling below, so it stays operable (M9).
-  const modalOpen =
-    upgradeModalOpen || nl.state.phase === 'downloading' || prefsOpen
+  const modalOpen = modelModalOpen || prefsOpen
   const bgInert = backgroundInert || modalOpen
 
   return (
@@ -252,6 +260,7 @@ export function Terminal({
             onSelect={nl.setLanguage}
             onUpgrade={nl.requestUpgrade}
             hideUpgrade={outputOnly}
+            llmEnabled={llmEnabled}
           />
         }
         prefsToggle={
@@ -426,9 +435,10 @@ export function Terminal({
         showBeta={showBetaNotice}
         showNoCorpus={showNoCorpusNotice}
         kaInput={kaActive}
+        llmEnabled={llmEnabled}
       />
       <ModelDownloadModal
-        open={upgradeModalOpen || nl.state.phase === 'downloading'}
+        open={modelModalOpen}
         warn={
           (nl.state.phase === 'on' || nl.state.phase === 'off') &&
           !nl.state.canUpgrade
@@ -449,8 +459,10 @@ export function Terminal({
       <PreferencesModal
         open={prefsOpen}
         debug={debug}
+        llmEnabled={llmEnabled}
         lang={activeLang}
         onToggleDebug={toggleDebug}
+        onToggleLlm={toggleLlm}
         onClose={() => setPrefsOpen(false)}
       />
     </div>

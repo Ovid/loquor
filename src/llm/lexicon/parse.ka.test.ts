@@ -114,3 +114,65 @@ describe('resolveNounReply — verbless disambiguation/orphan reply (I3)', () =>
     expect(kaReply('')).toBeNull()
   })
 })
+
+describe('Georgian parse — multi-word objects in case roles (split-point rejoin)', () => {
+  it('k=1: put painting in the full-form trophy case (1 genitive modifier)', () => {
+    // ჯილდოების ვიტრინაში → [ში, ვიტრინა]; the genitive ჯილდოების is stranded
+    // before the prep. The rejoin shifts it across: object = painting,
+    // instrument = 'ჯილდოების ვიტრინა' (a stored synonym) → trophy case ('case').
+    expect(ka('ჩადე ნახატი ჯილდოების ვიტრინაში')).toEqual({
+      kind: 'command',
+      text: 'put painting in case',
+    })
+  })
+  it('2 stranded instrument modifiers, single-token object (loop commits at k=1)', () => {
+    // ხელის ჰაერის ტუმბოით → [ხელის, ჰაერის, ით, ტუმბო]; TWO modifiers stranded.
+    // The OBJECT is single-token (პლასტმას → valve), so the very first split (loop
+    // k=1) already resolves both halves: object = [პლასტმას], instrument = the whole
+    // modifier run + head 'ხელის ჰაერის ტუმბო' (stored) → pump. "2 modifiers" ≠ "loop
+    // k=2"; the next test is the one that actually advances the loop past k=1.
+    expect(ka('გაბერე პლასტმასი ხელის ჰაერის ტუმბოით')).toEqual({
+      kind: 'command',
+      text: 'inflate valve with pump',
+    })
+  })
+  it('loop advances past k=1: multi-word object whose first token is not a noun', () => {
+    // ჩადე უზარმაზარი ბრილიანტი ჯილდოების ვიტრინაში → put huge diamond in trophy case.
+    // expandGeorgian → [უზარმაზარ, ბრილიანტ, ჯილდოების, ში, ვიტრინა]; prep ში splits off
+    // objSpan = [უზარმაზარ, ბრილიანტ, ჯილდოების]. The object is adjective+noun AND the
+    // genitive ჯილდოების is a stranded instrument modifier, so the whole span fails.
+    // k=1 fails — უზარმაზარ ('huge') alone is NOT a noun synonym (only 'უზარმაზარ
+    // ბრილიანტ'/'ბრილიანტ' are) — so the loop MUST advance to k=2, where object =
+    // 'უზარმაზარ ბრილიანტ' (diamond) and instrument = 'ჯილდოების ვიტრინა' (case) both
+    // resolve. This is the only fixture that exercises the k≥2 branch of the loop.
+    expect(ka('ჩადე უზარმაზარი ბრილიანტი ჯილდოების ვიტრინაში')).toEqual({
+      kind: 'command',
+      text: 'put diamond in case',
+    })
+  })
+  it('mis-bind guard: a multi-word object that resolves whole is never split', () => {
+    // 'დიდ ზურმუხტ' (large emerald, adjective + noun) resolves as ONE noun before
+    // the prep, so obj is non-null and the rejoin search never runs — the command
+    // parses normally to 'put emerald in case'.
+    expect(ka('ჩადე დიდ ზურმუხტი ვიტრინაში')).toEqual({
+      kind: 'command',
+      text: 'put emerald in case',
+    })
+  })
+  it('egg full ablative (broken): take canary from the full-form broken egg', () => {
+    // -დან leaves the stem -ი ('კვერცხი'); the rejoin re-joins the two adjective
+    // modifiers across the prep: object=canary, instrument='გატეხილ თვლებიან კვერცხი'
+    // → broken egg ('broken egg'). Needs the residue synonym on the lexicon entry.
+    expect(ka('აიღე კანარა გატეხილ თვლებიან კვერცხიდან')).toEqual({
+      kind: 'command',
+      text: 'take canary from broken egg',
+    })
+  })
+  it('egg full ablative (intact): take canary from the full-form jeweled egg', () => {
+    // Same residue, the intact egg entry: instrument='თვლებიან კვერცხი' → jeweled egg.
+    expect(ka('აიღე კანარა თვლებიან კვერცხიდან')).toEqual({
+      kind: 'command',
+      text: 'take canary from jeweled egg',
+    })
+  })
+})

@@ -16,7 +16,14 @@ export function viewToContext(view: ViewState): ViewContext {
 
   let start = 0
   for (let i = view.lines.length - 1; i >= 0; i--) {
-    if (view.lines[i].kind === 'input') {
+    // Reset the window after the most recent PLAYER COMMAND echo. A raw English
+    // command echoes as 'input'; a translated command (ka/fr/de/es) echoes as
+    // 'nl-canonical' (reduce.ts) and never as 'input'. Both bound the recent
+    // output — otherwise a prior turn's disambiguation/confirmation/orphan prompt
+    // lingers in recentOutput and traps the next command (the prompt detectors
+    // keep matching it).
+    const kind = view.lines[i].kind
+    if (kind === 'input' || kind === 'nl-canonical') {
       start = i + 1
       break
     }

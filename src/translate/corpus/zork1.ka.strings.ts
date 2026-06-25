@@ -1817,7 +1817,7 @@ export const ZORK1_KA_STRINGS: Record<string, string> = {
   '(with the bloody axe)': '(სისხლიანი ცულით)', // ⚠ adj+noun
   '(with the skeleton key)': '(ღია გასაღებით)', // ⚠ adj+noun
   '(with the viscous material)': '(ბლანტი მასალით)', // ⚠ adj+noun
-  '(with the wrench)': '(სასხლეტი გასაღებით)', // ⚠ adj+noun (corpus renders wrench as two words)
+  '(with the wrench)': '(ქანჩის გასაღებით)', // genitive compound 'nut-key'
   '(with the pair of candles)': '(ორი სანთლით)', // ⚠ numeral + syncope (სანთლ-)
   '(with the hand-held air pump)': '(ხელის ჰაერის ტუმბოთი)', // ⚠ genitive chain
   'You should say what to light them with.': 'უნდა თქვა, რითი აანთო ისინი.',

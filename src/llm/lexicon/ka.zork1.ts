@@ -69,6 +69,7 @@ export const KA_ZORK1: NounLexicon = {
   // 'კვერცხ') — list both so the ablative source resolves (review reconciliation).
   'broken jewel-encrusted egg': [
     'გატეხილ თვლებიან კვერცხ',
+    'გატეხილ თვლებიან კვერცხი', // ablative -ი-residue: 'გატეხილ თვლებიან კვერცხიდან' → [..., კვერცხი]
     'კვერცხ',
     'კვერცხი',
   ], // კვერცხი → კვერცხ (egg)
@@ -110,7 +111,12 @@ export const KA_ZORK1: NounLexicon = {
   'huge diamond': ['უზარმაზარ ბრილიანტ', 'ბრილიანტ'], // ბრილიანტი → ბრილიანტ (diamond)
   'jade figurine': ['ნეფრიტის ფიგურა', 'ფიგურა', 'ნეფრიტ'], // ფიგურა vowel-final; jade ნეფრიტი → ნეფრიტ
   // jeweled = -იანი adjective (M2 opt b: corpus simplified off the -ით participle).
-  'jewel-encrusted egg': ['თვლებიან კვერცხ', 'კვერცხ', 'კვერცხი'], // კვერცხი → კვერცხ; +ablative residue (see broken-egg note)
+  'jewel-encrusted egg': [
+    'თვლებიან კვერცხ',
+    'თვლებიან კვერცხი',
+    'კვერცხ',
+    'კვერცხი',
+  ], // +ablative -ი-residue 'თვლებიან კვერცხი'
   'kitchen table': ['სამზარეულოს მაგიდა', 'მაგიდა'], // table მაგიდა vowel-final
   'kitchen window': ['სამზარეულოს ფანჯარა', 'ფანჯარა'], // window ფანჯარა vowel-final
   'large bag': ['დიდ ტომარა', 'ტომარა'], // ტომარა vowel-final (the thief's bag)
@@ -199,7 +205,10 @@ export const KA_ZORK1: NounLexicon = {
   'wooden door': ['ხის კარ', 'კარ'], // door კარი → კარ (the west lettering door)
   'wooden ladder': ['ხის კიბე', 'კიბე'], // ladder კიბე vowel-final
   'wooden railing': ['ხის მოაჯირ', 'მოაჯირ', 'მოაჯირს'], // G1 dative recipient მოაჯირს
-  wrench: ['სასხლეტ გასაღებ', 'სასხლეტ'], // head-noun სასხლეტი → სასხლეტ
+  // wrench = 'nut-key' (ქანჩის გასაღები), a genitive compound. ONLY the full
+  // two-word form — bare გასაღებ is the skeleton key, so no bare synonym. The -ით
+  // instrumental resolves via the stranded-modifier rejoin in parse.ts.
+  wrench: ['ქანჩის გასაღებ'],
   'yellow button': ['ყვითელ ღილაკ', 'ღილაკ'], // ღილაკი → ღილაკ
   // ZORK owner's manual: canonical 'zork owner's manual' (see ZORK1_KA_CANONICAL).
   "zork owner's manual": ['მფლობელის სახელმძღვანელო', 'სახელმძღვანელო'], // manual; vowel-final

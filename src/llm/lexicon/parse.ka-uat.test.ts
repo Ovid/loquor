@@ -19,11 +19,12 @@ const ka = (clause: string, scene: Scene = empty) =>
   parseLexicon(clause, KA_CORE, KA_ZORK1, ZORK1_VOCAB, scene)
 
 describe('Georgian UAT — instrumental & dative', () => {
-  it('-ით instrumental: turn bolt with wrench', () => {
-    // walkthrough fixture: 'მოატრიალე ხრახნი სასხლეტით' → 'turn bolt with wrench'
-    // სასხლეტი is the lexicon word for wrench (not მოქლონი).
-    // expandGeorgian splits სასხლეტით → [ით, სასხლეტ].
-    expect(ka('მოატრიალე ხრახნი სასხლეტით')).toEqual({
+  it('-ით instrumental: turn bolt with wrench (genitive-compound instrument)', () => {
+    // walkthrough fixture: 'მოატრიალე ხრახნი ქანჩის გასაღებით' → 'turn bolt with wrench'.
+    // wrench = ქანჩის გასაღები ('nut-key'), a genitive compound. -ით splits off the
+    // head (გასაღებით → [ით, გასაღებ]); the stranded-modifier rejoin re-joins ქანჩის
+    // across the prep so the instrument resolves as 'ქანჩის გასაღებ' → wrench.
+    expect(ka('მოატრიალე ხრახნი ქანჩის გასაღებით')).toEqual({
       kind: 'command',
       text: 'turn bolt with wrench',
     })

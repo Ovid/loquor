@@ -116,8 +116,18 @@ export function Terminal({
   )
 
   // Memoized so it doesn't defeat translate()'s useCallback identity each render
-  // (review S9). viewRef is stable, so an empty dep list is correct.
-  const getContext = useCallback(() => viewToContext(viewRef.current), [])
+  // (review S9). Both refs are stable RefObjects, so the identity holds; engineRef
+  // (from useGameEngine) is listed to satisfy react-hooks/exhaustive-deps, viewRef
+  // is a local useRef the rule already treats as stable. Read the engine's
+  // SYNCHRONOUS view (the bridge's live ViewState) rather than viewRef, which only
+  // updates inside a React effect that lags the bridge: a command issued before
+  // React flushes the prior echo must still see the settled view, or a stale
+  // disambiguation/orphan prompt lingers in recentOutput (review S1). Falls back to
+  // viewRef before the engine boots (engineRef.current is null).
+  const getContext = useCallback(
+    () => viewToContext(engineRef.current?.currentView ?? viewRef.current),
+    [engineRef],
+  )
 
   const nl = useNaturalLanguage({
     engine: llmEngine,

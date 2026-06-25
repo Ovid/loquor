@@ -30,6 +30,25 @@ describe('GlkOteBridge', () => {
     )
   })
 
+  it('exposes the live view synchronously via currentView (fresher than React state)', () => {
+    let lastState: any
+    const bridge = new GlkOteBridge(v => (lastState = v))
+    bridge.update({
+      type: 'update',
+      gen: 1,
+      windows: [{ id: 7, type: 'buffer' }],
+      content: [{ id: 7, text: [{ content: ['normal', 'West of House'] }] }],
+      input: [{ type: 'line', id: 7, gen: 1 }],
+    } as any)
+    // currentView is the same synchronous source onState was handed — getContext
+    // can read the settled view at translate-time without waiting for the React
+    // re-render that lags viewRef (review S1).
+    expect(bridge.currentView).toBe(lastState)
+    expect(
+      bridge.currentView.lines.some(l => l.text.includes('West of House')),
+    ).toBe(true)
+  })
+
   it('fires onEnd exactly once even though `ended` latches across later updates', () => {
     const onEnd = vi.fn()
     const bridge = new GlkOteBridge(vi.fn())

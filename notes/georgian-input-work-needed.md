@@ -39,6 +39,13 @@ selectedSig)`. Georgian-input copy + Georgian example commands show for **Zork I
 
 ## DECISION (deferred) — #2 `wrench` word (`სასხლეტი`, literally "trigger")
 
+**RESOLVED 2026-06-25** (branch `ovid/georgian-genitive-case-objects`) — took option 3:
+the stranded-modifier rejoin (`parse.ts`) now handles a genitive compound split across a
+case suffix, so wrench is the correct `ქანჩის გასაღები` (no bare `გასაღებ` synonym — that's
+the skeleton key) across input lexicon, output objects, and the composed-instrument string.
+The instrumental `ქანჩის გასაღებით` parses end-to-end. The historical analysis below is kept
+for context.
+
 `სასხლეტი` parses fine but reads oddly. The correct term is **`ქანჩის გასაღები`**
 (nut-key; web-confirmed via the Nova hardware retailer's category). **But it is NOT a
 safe string swap**, and that's why I stopped:

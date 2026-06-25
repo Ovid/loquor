@@ -324,6 +324,16 @@ export class GlkOteBridge implements GlkOteDisplay {
   }
 
   /**
+   * The live, synchronous ViewState — the same object handed to onState on each
+   * update, before any React re-render. getContext() reads this (via ZMachine)
+   * instead of the effect-lagged React `viewRef`, so a command issued before
+   * React flushes the prior echo still sees the settled view (review S1).
+   */
+  get currentView(): ViewState {
+    return this.view
+  }
+
+  /**
    * Resolve at the next turn boundary with the settled view and how it ended
    * (locked decision 8). Registers a resolver that update() drains. Used by the
    * NL compound-command loop to wait one clause's turn before issuing the next.

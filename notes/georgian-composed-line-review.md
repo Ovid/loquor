@@ -196,7 +196,7 @@ ONE instrument is eligible, so the caseless fallback is unambiguous.
 | 71  | `(with the bloody axe)`         | `(სისხლიანი ცულით)`      | pin  | ⚠ adj+noun: ცული → ცულით                                                                            |
 | 72  | `(with the skeleton key)`       | `(ღია გასაღებით)`        | pin  | ⚠ adj+noun: გასაღები → გასაღებით, adj ღია (vowel-stem) unchanged                                    |
 | 73  | `(with the viscous material)`   | `(ბლანტი მასალით)`       | pin  | ⚠ adj+noun: მასალა → მასალით                                                                        |
-| 74  | `(with the wrench)`             | `(სასხლეტი გასაღებით)`   | pin  | ⚠ corpus renders wrench as two words (adj+noun): გასაღები → გასაღებით                               |
+| 74  | `(with the wrench)`             | `(ქანჩის გასაღებით)`     | pin  | ⚠ genitive compound (RESOLVED 2026-06-25): head გასაღები → გასაღებით; modifier ქანჩის kept genitive |
 | 75  | `(with the pair of candles)`    | `(ორი სანთლით)`          | pin  | ⚠ numeral + syncope: ორი + სანთელი → სანთლ- → -ით                                                   |
 | 76  | `(with the hand-held air pump)` | `(ხელის ჰაერის ტუმბოთი)` | pin  | ⚠ genitive chain: head ტუმბო (stable -ო) → -თი; modifiers ხელის ჰაერის kept genitive                |
 

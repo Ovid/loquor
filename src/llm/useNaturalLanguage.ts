@@ -232,6 +232,16 @@ export function useNaturalLanguage(
     // resolves — decline keeps grammar 'on', accept settles to full 'on' — and
     // the nudge fires then. (No modal at all → fires immediately, as before.)
     if (modalOpen) return
+    // [I2] ka's tip is selected by kaInputActive(active, signature) — Phase-2
+    // (Georgian-input) on Zork I vs Phase-1 (type-English) on a no-lexicon game —
+    // but `signature` starts '' and resolves ASYNC, independently of the cache
+    // probe that boot-restores a stored ka preference. Latching while signature===''
+    // would pin the WRONG Phase-1 "type in English" tip for a returning ka player
+    // on Zork I, and the once-per-language latch is then spent when the signature
+    // resolves. Defer (leave prevActiveLangRef UNSET so a signature change re-runs
+    // this effect — signature is already a dep) until it's known. ka-only: fr/de/es
+    // tips don't depend on the signature, so they still fire immediately.
+    if (active === 'ka' && signature === '') return
     prevActiveLangRef.current = active
     if (active === 'off') return
     // `kaInput` is read per-fire (not baked into the latch): the ka activation

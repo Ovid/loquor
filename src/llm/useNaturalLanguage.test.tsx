@@ -576,6 +576,45 @@ describe('useNaturalLanguage', () => {
     )
   })
 
+  it('defers the ka activation tip until the signature resolves (I2 race)', async () => {
+    // A returning ka player boots with a stored ka preference: the cache probe
+    // flips the layer to on/ka while `signature` is still '' (it resolves async,
+    // independently). kaInputActive('ka','') is false, so latching THEN would pin
+    // the wrong Phase-1 "type in English" tip on Zork I, and the once-per-language
+    // latch is spent when the signature arrives. The fix defers the ka tip until
+    // signature !== '', so once Zork I resolves the player gets the Phase-2 tip.
+    const props = (signature: string) => ({
+      engine: new FakeLlmEngine({ cached: true }),
+      capability: capable,
+      vocab: ZORK1_VOCAB, // present → NL enabled; the SIGNATURE gates ka input
+      getContext: ctx,
+      echoLocal: vi.fn(),
+      sendLine: vi.fn(),
+      sendCanonical: vi.fn(),
+      awaitTurn: async () => ({ view: emptyView, reason: 'line' as const }),
+      watchdogMs: 5000,
+      signature,
+    })
+    const hook = renderHook(p => useNaturalLanguage(p), {
+      initialProps: props(''), // signature not yet resolved
+    })
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({
+        phase: 'off',
+        installed: true,
+      }),
+    )
+    act(() => hook.result.current.setLanguage('ka')) // activates while signature===''
+    // Deferred: the tip must NOT latch to the Phase-1 type-English form yet.
+    await waitFor(() => expect(hook.result.current.state.phase).toBe('on'))
+    expect(hook.result.current.announce).toBeNull()
+
+    hook.rerender(props(ZORK1_SIG)) // signature resolves to Zork I
+    await waitFor(() =>
+      expect(hook.result.current.announce).toBe(GEORGIAN_ACTIVATION_TIP),
+    )
+  })
+
   it('keeps the fr activation nudge on the inline notice channel (not announce)', async () => {
     // Input languages (fr/de/es) keep their one-time nudge inline — only the
     // output-only ka tip moves to the dedicated announce region.

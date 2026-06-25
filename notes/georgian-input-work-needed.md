@@ -4,8 +4,9 @@ Derived from the UAT on 2026-06-24 (branch `ovid/georgian-input`). The game itse
 is in great shape: a full **350/350 Zork I win was achieved typing only Georgian**.
 
 **Update 2026-06-25 (this session):** most of the backlog below is now **done**.
-What remains for you is **two decisions** — the `wrench` word (#2) and dropping
-`(beta)` (#6) — both flagged below. Suite is green: `103 files / 1728 tests`.
+The two open decisions were ruled by the owner: **#2 wrench deferred** (spec-seed
+doc written, see `notes/georgian-genitive-case-morphology.md`) and **#6 `(beta)`
+kept** until native sign-off. Suite is green: `103 files / 1728 tests`.
 
 ---
 
@@ -36,7 +37,7 @@ selectedSig)`. Georgian-input copy + Georgian example commands show for **Zork I
 
 ---
 
-## DECISION NEEDED — #2 `wrench` word (`სასხლეტი`, literally "trigger")
+## DECISION (deferred) — #2 `wrench` word (`სასხლეტი`, literally "trigger")
 
 `სასხლეტი` parses fine but reads oddly. The correct term is **`ქანჩის გასაღები`**
 (nut-key; web-confirmed via the Nova hardware retailer's category). **But it is NOT a
@@ -73,13 +74,11 @@ walkthrough fixtures in `parse.ka-walkthrough.test.ts`.
 
 ---
 
-## DECISION NEEDED — #6 Drop the `(beta)` marker
+## DECISION (kept) — #6 `(beta)` marker
 
-Per spec §9, `(beta)` drops only on **native sign-off** of the lexicon + corpus. My
-web-dictionary research improved several words (#2-4) but is **not** a native review —
-I'm not a Georgian speaker. **Recommend keeping `(beta)`** until a native reviewer
-confirms naturalness; dropping it now would assert a finality the strings don't yet have.
-One-line change in `src/llm/languageOptions.ts` when you're ready.
+Ruling: **keep `(beta)`** until native sign-off (spec §9). Web-dictionary research
+improved several words (#2-4) but is not a native review. One-line change in
+`src/llm/languageOptions.ts` once the Tbilisi loop confirms naturalness.
 
 ---
 

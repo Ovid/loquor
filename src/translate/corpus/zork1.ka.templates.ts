@@ -36,6 +36,18 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
     en: 'You used the word "{raw}" in a way that I don\'t understand.',
     out: 'სიტყვა „{raw}“ ისე გამოიყენე, რომ ვერ გავიგე.',
   },
+  // The NOT-HERE message names the object the player referenced. fr/de/es carry
+  // BOTH a {obj} variant (printed object name → translated) and a {raw} fallback;
+  // ka had ONLY {raw}, so it echoed the parser's ENGLISH noun (lamp, troll,
+  // button) even for objects we DO model — a forced-English leak for a Georgian
+  // player (CLAUDE.md no-forced-English; ka has no LLM net). Add the {obj}
+  // variant: it wins the tie-break over {raw} for a known printed object, and
+  // sidesteps §4 by reframing the transitive "I can't see any X" (dative object,
+  // un-composable on the citation form) to the intransitive "X is not visible
+  // here" — {obj} is the NOMINATIVE subject of ჩანს, the same caseless slot as
+  // "{obj.indef} აქ არ არის!" below. The {raw} fallback stays for a noun with no
+  // corpus object. NATIVE-REVIEW-DRAFT (ka §4 case forms): provisional wording.
+  { en: "You can't see any {obj} here!", out: '{obj.indef} აქ არ ჩანს!' },
   {
     en: "You can't see any {raw} here!",
     out: 'აქ ვერანაირ „{raw}“-ს ვერ ვხედავ!',

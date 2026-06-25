@@ -89,6 +89,36 @@ describe('Zork I × Georgian — UAT-2026-06-19 composed-line fixes', () => {
   })
 })
 
+describe('Zork I × Georgian — "can\'t see any {obj}" names the object (Phase 2)', () => {
+  const c = compileCorpus(ZORK1_KA)
+
+  // The {obj} variant must WIN over the {raw} fallback for a known object, so a
+  // Georgian player sees the Georgian name (ტროლი / სპილენძის ფარანი), not the
+  // parser's English noun. The §4-safe reframe names {obj} as the nominative
+  // subject of ჩანს ("X is not visible here").
+  it('names a known object in Georgian, not English {raw}', () => {
+    expect(matchLine(c, "You can't see any troll here!")).toBe(
+      'ტროლი აქ არ ჩანს!',
+    )
+    expect(matchLine(c, "You can't see any brass lantern here!")).toBe(
+      'სპილენძის ფარანი აქ არ ჩანს!',
+    )
+    // Multi-word printed name resolves too (each colored button is a corpus
+    // object) — no English noun leaks.
+    const redButton = matchLine(c, "You can't see any red button here!")
+    expect(redButton).toBe('წითელი ღილაკი აქ არ ჩანს!')
+    expect(redButton).not.toContain('button')
+  })
+
+  // An UNKNOWN noun (no corpus object) still falls back to the {raw} echo — that
+  // word is not one we can translate, so verbatim is the honest behavior.
+  it('falls back to {raw} for a noun with no corpus object', () => {
+    expect(matchLine(c, "You can't see any frobozz here!")).toBe(
+      'აქ ვერანაირ „frobozz“-ს ვერ ვხედავ!',
+    )
+  })
+})
+
 describe('Zork I × Georgian — object disambiguation (UAT-2026-06-20)', () => {
   const c = compileCorpus(ZORK1_KA)
 

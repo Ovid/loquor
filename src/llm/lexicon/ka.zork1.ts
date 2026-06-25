@@ -111,7 +111,12 @@ export const KA_ZORK1: NounLexicon = {
   'huge diamond': ['უზარმაზარ ბრილიანტ', 'ბრილიანტ'], // ბრილიანტი → ბრილიანტ (diamond)
   'jade figurine': ['ნეფრიტის ფიგურა', 'ფიგურა', 'ნეფრიტ'], // ფიგურა vowel-final; jade ნეფრიტი → ნეფრიტ
   // jeweled = -იანი adjective (M2 opt b: corpus simplified off the -ით participle).
-  'jewel-encrusted egg': ['თვლებიან კვერცხ', 'თვლებიან კვერცხი', 'კვერცხ', 'კვერცხი'], // +ablative -ი-residue 'თვლებიან კვერცხი'
+  'jewel-encrusted egg': [
+    'თვლებიან კვერცხ',
+    'თვლებიან კვერცხი',
+    'კვერცხ',
+    'კვერცხი',
+  ], // +ablative -ი-residue 'თვლებიან კვერცხი'
   'kitchen table': ['სამზარეულოს მაგიდა', 'მაგიდა'], // table მაგიდა vowel-final
   'kitchen window': ['სამზარეულოს ფანჯარა', 'ფანჯარა'], // window ფანჯარა vowel-final
   'large bag': ['დიდ ტომარა', 'ტომარა'], // ტომარა vowel-final (the thief's bag)

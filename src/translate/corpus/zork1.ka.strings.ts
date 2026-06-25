@@ -109,7 +109,7 @@ export const ZORK1_KA_STRINGS: Record<string, string> = {
   //     form, so a villain in object/oblique case can't ride a {obj.indef}
   //     template — the file-header §4 rule), each mirroring its already-covered
   //     sibling with the other villain's name in the case the sentence needs.
-  //     Provisional machine quality; the (beta) marker stays. ──────────────────
+  //     Provisional machine quality; the (alpha) marker stays. ─────────────────
   // MISSED (1actions.zil:3614-:3619)
   'A good slash, but it misses the troll by a mile.':
     'კარგი მოქნევა, მაგრამ ტროლს მთელი მილით ააცდენს.',

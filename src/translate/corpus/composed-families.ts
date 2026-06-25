@@ -898,7 +898,7 @@ export const COMPOSED_FAMILIES: readonly Family[] = [
   //    and drop any villain slot too (object/oblique case, on-screen). Leak-proof
   //    for all weapons/villains. The drive set is the five FIND-WEAPON weapons
   //    (1actions.zil:3406-:3407: sword/stiletto/axe/knife/rusty-knife). All
-  //    NATIVE-REVIEW-DRAFT; (beta) stays. The named-instrumental Group H pins
+  //    NATIVE-REVIEW-DRAFT; (alpha) stays. The named-instrumental Group H pins
   //    (the "(with the sword)" parenthetical) are a different surface and untouched.
 
   // HERO-MELEE F-WEP (weapon + villain). {obj}/{obj2} per the existing fr/de/es

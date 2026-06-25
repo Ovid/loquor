@@ -16,6 +16,7 @@
 import type { ActiveLanguage } from './types'
 import type { LexLang } from './lexicon/types'
 import { ESCAPE_EXAMPLE } from './help'
+import { GEORGIAN_STATUS_MARKER } from './config'
 
 // en + the input-lexicon languages (fr/de/es) are MANDATORY — a new notice that
 // forgets one fails the build instead of silently shipping English (review S1).
@@ -244,7 +245,7 @@ export function commandPlaceholder(lang: ActiveLanguage): string {
       fr: 'écrivez en français — ex. : ouvrez la boîte aux lettres',
       de: 'schreiben Sie auf Deutsch — z. B. öffnen Sie den Briefkasten',
       es: 'escribe en español — p. ej.: abre el buzón',
-      // NATIVE-REVIEW-DRAFT (ka §7): Georgian input now works (Zork I, beta);
+      // NATIVE-REVIEW-DRAFT (ka §7): Georgian input now works (Zork I, alpha);
       // English also raw-sends. The example is a simple Georgian command, honest
       // in basic mode too.
       ka: 'აკრიფეთ ქართულად ან ინგლისურად — მაგ. აიღე ფარანი',
@@ -298,14 +299,13 @@ export function commandLabel(lang: ActiveLanguage): string {
 export const GEORGIAN_ACTIVATION_TIP_TYPE_ENGLISH =
   'რჩევა: ბრძანებები აკრიფეთ ინგლისურად; ტექსტი ქართულად ჩანს. დახმარებისთვის აკრიფეთ help.'
 
-/** Phase-2 ka tip: Georgian input now works (Zork I, beta) and the
+/** Phase-2 ka tip: Georgian input now works (Zork I, alpha) and the
  * quoted-English escape is now MEANINGFUL (ka has an input path that quoting can
  * bypass). Shared by the bottom-bar’s persistent visible copy and the one-shot
  * activation announcement so the two can’t drift (spec Decision 6). The quoted
  * example stays literal English (the Z-parser receives the unquoted text
  * verbatim). NATIVE-REVIEW-DRAFT (ka §7). */
-export const GEORGIAN_ACTIVATION_TIP =
-  'რჩევა: ბრძანებები აკრიფეთ ქართულად (beta); ამოუცნობი ბრძანება გააგზავნეთ ზუსტად ინგლისურად ბრჭყალებში, მაგ. "wind up canary". დახმარებისთვის აკრიფეთ help.'
+export const GEORGIAN_ACTIVATION_TIP = `რჩევა: ბრძანებები აკრიფეთ ქართულად ${GEORGIAN_STATUS_MARKER}; ამოუცნობი ბრძანება გააგზავნეთ ზუსტად ინგლისურად ბრჭყალებში, მაგ. "wind up canary". დახმარებისთვის აკრიფეთ help.`
 
 /** One-time escape-hatch nudge surfaced when a language is picked (P3). fr/de/es
  * point the player at the quoted-English fallback. For `ka`, the tip depends on

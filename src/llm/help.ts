@@ -73,7 +73,7 @@ export function helpResponse(lang: ActiveLanguage): string {
         'Escribe «ayuda» para volver a ver este mensaje.',
       ].join('\n')
     case 'ka':
-      // NATIVE-REVIEW-DRAFT (ka §7): Georgian input (Zork I, beta).
+      // NATIVE-REVIEW-DRAFT (ka §7): Georgian input (Zork I, alpha).
       return [
         'დახმარება — ბრძანებები აკრიფეთ ქართულად; მე გადავთარგმნი თამაშისთვის.',
         'სპეციალური ბრძანებები (აკრიფეთ ინგლისურად): save (შენახვა), restore (აღდგენა), restart (თავიდან დაწყება), quit (გასვლა), score (ქულა), diagnose (მდგომარეობა), look (ყურება), inventory (ინვენტარი), verbose / brief (გრძელი / მოკლე აღწერები). version აჩვენებს თამაშის ვერსიას.',

@@ -5,6 +5,7 @@ import { LANDING_EXAMPLES, LANDING_EXAMPLES_KA_INPUT } from './landingExamples'
 import { LANDING_STRINGS, KA_INPUT_COPY } from './landingStrings'
 import { LS_KEYS } from '../storageKeys'
 import { FOCUSABLE } from './useFocusTrap'
+import { GEORGIAN_STATUS_MARKER } from '../llm/config'
 
 describe('Landing', () => {
   afterEach(() => localStorage.clear())
@@ -480,7 +481,9 @@ describe('Landing', () => {
       <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
     )
     fireEvent.click(screen.getByRole('combobox', { name: /language/i }))
-    fireEvent.click(screen.getByRole('option', { name: 'ქართული (beta)' }))
+    fireEvent.click(
+      screen.getByRole('option', { name: `ქართული ${GEORGIAN_STATUS_MARKER}` }),
+    )
     // Zork I HAS a ka corpus → no "English only" (ინგლისურად) badge.
     expect(
       screen.getByRole('radio', { name: /იმპერია/ }).textContent,

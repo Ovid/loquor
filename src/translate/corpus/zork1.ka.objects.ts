@@ -8,7 +8,7 @@
 // "with X") are pinned as full strings in zork1.ka.strings.ts, not templated.
 // NO capitalization — Mkhedruli is unicameral.
 //
-// TERMINOLOGY (drafts pending native review, (beta)): one Georgian word per
+// TERMINOLOGY (drafts pending native review, (alpha)): one Georgian word per
 // concept, reused across the glossary so the string-authoring steps that follow
 // share a single vocabulary. Notable picks, flagged for the reviewer:
 //   - button → ღილაკი; lantern/lamp → ფარანი; torch → ჩირაღდანი

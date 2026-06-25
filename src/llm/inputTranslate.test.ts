@@ -280,6 +280,21 @@ describe('confirmationReply (map localized yes/no to the interpreter key — rev
     expect(confirmationReply('n', 'de')).toBe('n')
   })
 
+  it('maps the Georgian reflex yes/no to "y"/"n" (C1 — ka has no LLM net)', () => {
+    // The ka corpus prompt literally renders "(Y ნიშნავს კი)" — it tells the
+    // player to type კი, which must confirm restart/restore/quit, not raw-send.
+    expect(confirmationReply('კი', 'ka')).toBe('y') // ki — common "yes"
+    expect(confirmationReply('დიახ', 'ka')).toBe('y') // diakh — formal "yes"
+    expect(confirmationReply('ხო', 'ka')).toBe('y') // kho — colloquial "yeah"
+    expect(confirmationReply('არა', 'ka')).toBe('n') // ara — "no"
+    // fold() lowercases Mtavruli (U+1C90+) into Mkhedruli (U+10D0+) and strips
+    // terminal punctuation, so a caps-styled or punctuated reply still confirms.
+    const mtavruliKi = String.fromCodePoint(0x1c99, 0x1c98) // Ⴉ Ⴈ → კი
+    expect(confirmationReply(mtavruliKi, 'ka')).toBe('y')
+    expect(confirmationReply('კი!', 'ka')).toBe('y')
+    expect(confirmationReply('გახსენი', 'ka')).toBe('გახსენი') // a real verb is untouched
+  })
+
   it('is case/punctuation insensitive', () => {
     expect(confirmationReply('Ja!', 'de')).toBe('y')
     expect(confirmationReply(' OUI. ', 'fr')).toBe('y')

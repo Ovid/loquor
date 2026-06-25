@@ -459,16 +459,24 @@ export function isConfirmationPrompt(recentOutput: string): boolean {
 // and we must not remap an English word.
 // Include common colloquial replies (review S9) so a natural "jawohl"/"ouais"/
 // "claro" isn't passed raw and silently rejected at a restart/quit prompt.
+// Georgian (ka, Zork I input) belongs here too (review C1): ka routes through
+// nl.translate but has NO LLM net, so a reflex კი/არა that isn't mapped is
+// raw-sent and silently read as "no" — restart/restore/quit could never confirm.
+// The corpus prompt literally tells the player "(Y ნიშნავს კი)". NATIVE-REVIEW-
+// DRAFT, like the rest of the ka input data. fold() lowercases Mtavruli into
+// Mkhedruli, so a caps-styled reply maps too.
 const CONFIRM_AFFIRMATIVE: Partial<Record<ActiveLanguage, readonly string[]>> =
   {
     de: ['j', 'ja', 'jawohl', 'jo'],
     fr: ['o', 'oui', 'ouais'],
     es: ['s', 'si', 'claro', 'vale'], // 'sí' folds to 'si'
+    ka: ['კი', 'დიახ', 'ხო', 'ჰო'], // ki / diakh / kho / ho
   }
 const CONFIRM_NEGATIVE: Partial<Record<ActiveLanguage, readonly string[]>> = {
   de: ['n', 'nein', 'nee'], // (folded forms; 'nö' would fold to 'no', so omitted)
   fr: ['n', 'non', 'nan'],
   es: ['n', 'no'],
+  ka: ['არა', 'ვერა'], // ara / vera ("no" / "can't")
 }
 
 /** Map a localized yes/no reply to the interpreter's "y"/"n" key for the active

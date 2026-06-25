@@ -114,3 +114,24 @@ describe('resolveNounReply — verbless disambiguation/orphan reply (I3)', () =>
     expect(kaReply('')).toBeNull()
   })
 })
+
+describe('Georgian parse — multi-word objects in case roles (split-point rejoin)', () => {
+  it('k=1: put painting in the full-form trophy case (1 genitive modifier)', () => {
+    // ჯილდოების ვიტრინაში → [ში, ვიტრინა]; the genitive ჯილდოების is stranded
+    // before the prep. The rejoin shifts it across: object = painting,
+    // instrument = 'ჯილდოების ვიტრინა' (a stored synonym) → trophy case ('case').
+    expect(ka('ჩადე ნახატი ჯილდოების ვიტრინაში')).toEqual({
+      kind: 'command',
+      text: 'put painting in case',
+    })
+  })
+  it('k=2: inflate plastic with the full-form air pump (2 genitive modifiers)', () => {
+    // ხელის ჰაერის ტუმბოით → [ხელის, ჰაერის, ით, ტუმბო]; TWO modifiers stranded.
+    // The search shifts both across: object = plastic (emit 'valve'),
+    // instrument = 'ხელის ჰაერის ტუმბო' (stored) → pump. Proves the loop, not just k=1.
+    expect(ka('გაბერე პლასტმასი ხელის ჰაერის ტუმბოით')).toEqual({
+      kind: 'command',
+      text: 'inflate valve with pump',
+    })
+  })
+})

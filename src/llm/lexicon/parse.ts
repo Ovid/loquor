@@ -518,8 +518,34 @@ export function parseLexicon(
       objSpan.length > 1 && (objSpan[0] === 'a' || objSpan[0] === 'al')
         ? objSpan.slice(1)
         : objSpan
-    const obj = resolveNoun(objTokens, core, nouns, vocab, scene)
-    const ind = resolveNoun(tokens.slice(i + 1), core, nouns, vocab, scene)
+    let obj = resolveNoun(objTokens, core, nouns, vocab, scene)
+    let ind = resolveNoun(tokens.slice(i + 1), core, nouns, vocab, scene)
+    // Georgian stranded-modifier rejoin (ka only — gated on core.postpositions). A
+    // Georgian modifier precedes its head; a case suffix splits off the HEAD only,
+    // so a multi-word instrument arrives as [modifier…, PREP, head] — the prep is
+    // wedged mid-phrase, stranding the modifier(s) at the end of the object span.
+    // If the object span fails as-is, scan split points k = 1 … len-1 (smallest
+    // object first — modifiers belong to the instrument) for the first k where the
+    // trimmed object AND the modifier(s) + instrument BOTH resolve as nouns. Fires
+    // only on !obj (never touches a command that already parses) and commits only a
+    // fully-resolving reparse, so it can't mis-bind. Move-one is just k=1.
+    if (core.postpositions && !obj && objTokens.length > 1) {
+      for (let k = 1; k < objTokens.length; k++) {
+        const o = resolveNoun(objTokens.slice(0, k), core, nouns, vocab, scene)
+        const r = resolveNoun(
+          [...objTokens.slice(k), ...tokens.slice(i + 1)],
+          core,
+          nouns,
+          vocab,
+          scene,
+        )
+        if (o && r) {
+          obj = o
+          ind = r
+          break
+        }
+      }
+    }
     if (obj && ind && verbArityOk(verb, vocab, 2))
       return {
         kind: 'command',

@@ -7,6 +7,7 @@ import type { Vocab, NounEntry } from '../grammar/types'
 import type { Scene } from '../scene/types'
 import { fold, tokenize } from './fold'
 import { vocabWordSet, vocabKnows } from '../inputTranslate'
+import { expandGeorgian } from './expandGeorgian'
 
 export type LexResult = { kind: 'command'; text: string } | { kind: 'miss' }
 const MISS: LexResult = { kind: 'miss' }
@@ -385,6 +386,14 @@ export function parseLexicon(
   }
   if (!verb) return MISS
 
+  // Georgian pre-stage (spec §3.2, review-fix C1): postposition split +
+  // nominative -ი strip on the OBJECT-SPAN remainder, AFTER the verb is
+  // resolved. A Georgian imperative often ends in -ი (მიეცი/მოკალი/გახსენი), so
+  // stripping the WHOLE clause before verb lookup would mangle the verb into a
+  // non-key and MISS with no LLM net. Only when this core declares postpositions
+  // (i.e. only ka); fr/de/es have none, so this is a no-op (byte-identical).
+  if (core.postpositions) tokens = expandGeorgian(tokens, core.postpositions)
+
   // --- No remainder: verb-only. ---
   if (tokens.length === 0)
     return verbArityOk(verb, vocab, 0) || FIND_DEFAULT_VERBS.has(verb)
@@ -518,5 +527,61 @@ export function parseLexicon(
       }
   }
 
+  // --- G1 (Georgian dative recipient): `<give/tie-verb> <obj> <recipientDAT>`.
+  // Georgian marks the recipient with the dative case (-ს), which is NOT a
+  // splittable postposition (it collides with genitive -ის, e.g. სპილენძის
+  // "brass"), so expandGeorgian leaves it attached: `მიეცი კვერცხი ქურდს` →
+  // [give, კვერცხ, ქურდს]. The prep-split above can't fire (no prep token
+  // between the nouns), so it falls through to here. When the verb takes a
+  // 'to' indirect object (verbs2), the LAST token is in the closed
+  // dative-recipient set, and the OBJECT SPAN before it resolves as ONE noun,
+  // emit `<verb> <obj> to <recipient>`. The object span may be multi-token
+  // (adjective+noun, `უზარმაზარი ბრილიანტი ქურდს`), so the gate is "recipient is
+  // the final token", NOT a two-token remainder (I3). Bounded to
+  // core.dativeRecipients — the closed Zork I recipient set in dative form (thief
+  // ქურდს, wooden railing მოაჯირს) — NOT a bare `.endsWith('ს')` test: several
+  // non-recipient noun stems natively end in ს (chalice თას, scarab სკარაბეუს,
+  // screwdriver სახრახნის), which the suffix test mistranslated to a wrong
+  // `<obj> to <Y>` (C1, plan M3). core.dativeRecipients is present only for ka,
+  // so fr/de/es never reach this. A final token that is not a known recipient,
+  // or an object span that doesn't resolve as one noun, falls through to MISS.
+  // (Spec §2 G1.) The recipient-set membership is this path's unique predicate,
+  // so check it first to short-circuit the noun lookups for any other remainder.
+  const recipientTok = tokens[tokens.length - 1]
+  if (
+    core.dativeRecipients?.has(recipientTok) &&
+    tokens.length >= 2 &&
+    verbArityOk(verb, vocab, 2)
+  ) {
+    const obj = resolveNoun(tokens.slice(0, -1), core, nouns, vocab, scene)
+    const rec = resolveNoun([recipientTok], core, nouns, vocab, scene)
+    if (obj && rec)
+      return { kind: 'command', text: `${verb} ${obj.emit} to ${rec.emit}` }
+  }
+
   return MISS // strictness: something didn't consume
+}
+
+/** Resolve a disambiguation/orphan-prompt REPLY — a bare noun phrase with NO verb
+ * ("yellow button" answering "Which button?") — to the English noun the Z-parser
+ * expects, or null. parseLexicon requires a verb, so a prompt reply needs this
+ * verbless path: tokenize → the Georgian pre-stage (postposition split + -ი strip,
+ * ka only via core.postpositions) → resolveNoun over the whole span. Multilingual:
+ * the output corpus renders the prompt localized in every language, so fr/de/es
+ * answers (with their articles dropped by resolveNoun) resolve here too. A miss
+ * returns null — the caller raw-sends (en/ka-ASCII) or abstains with a hint (I3).
+ * A bare-adjective reply ("yellow") misses (no standalone adjective entry); the
+ * hint nudges the player to include the noun. */
+export function resolveNounReply(
+  reply: string,
+  core: CoreLexicon,
+  nouns: NounLexicon,
+  vocab: Vocab,
+  scene: Scene,
+): string | null {
+  let tokens = tokenize(reply)
+  if (tokens.length === 0) return null
+  if (core.postpositions) tokens = expandGeorgian(tokens, core.postpositions)
+  const hit = resolveNoun(tokens, core, nouns, vocab, scene)
+  return hit ? hit.emit : null
 }

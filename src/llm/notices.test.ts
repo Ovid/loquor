@@ -6,8 +6,12 @@ import {
   thinking,
   makeActivationNotice,
   commandPlaceholder,
+  commandPlaceholderTypeEnglish,
   commandLabel,
+  couldntTranslate,
+  nothingSent,
   GEORGIAN_ACTIVATION_TIP,
+  GEORGIAN_ACTIVATION_TIP_TYPE_ENGLISH,
 } from './notices'
 
 describe('basic-mode download notices', () => {
@@ -60,21 +64,36 @@ describe('escape-hatch activation notice (P3)', () => {
     for (const s of [fr, de, es]) expect(s).toContain('"')
   })
 
-  it('tells ka to type in English and does NOT mention wrapping in quotes', () => {
+  it('ka with input INACTIVE (Zork II/III): Phase-1 type-English tip, no quotes', () => {
+    // kaInput=false is the Phase-1 path (a no-input game): tell the player to
+    // type in English, Georgian display text, NO quoted-escape instruction.
+    // The flag is now passed PER CALL (Task 20), not baked at construction.
     const notice = makeActivationNotice()
-    const ka = notice('ka')
+    const ka = notice('ka', false)
     expect(ka).not.toBeNull()
-    // ka is output-only: it raw-sends English, so the message is "type in
-    // English" (Georgian display text) with NO quoted-escape instruction.
     expect(ka).toMatch(/ინგლისურ/) // "English" stem in Georgian
-    expect(ka).not.toContain('"') // no quote-escape example for ka
+    expect(ka).not.toContain('"') // no quote-escape example in Phase-1 tip
+    expect(ka).toBe(GEORGIAN_ACTIVATION_TIP_TYPE_ENGLISH)
   })
 
-  it('exposes the ka activation tip as the shared GEORGIAN_ACTIVATION_TIP const', () => {
-    // The bottom bar renders this string visibly while the latch announces it
-    // once — they must be the SAME string so they cannot drift (spec Decision 6).
+  it('ka with input ACTIVE (Zork I, Phase 2): Georgian-input tip with quoted escape', () => {
+    // kaInput=true is the Phase-2 path: invite Georgian + the now-meaningful
+    // quoted-English escape hatch. The flag is now passed PER CALL (Task 20).
     const notice = makeActivationNotice()
-    expect(notice('ka')).toBe(GEORGIAN_ACTIVATION_TIP)
+    const ka = notice('ka', true)
+    expect(ka).not.toBeNull()
+    expect(ka).toMatch(/ქართულ/) // mentions Georgian
+    expect(ka).toContain('"') // quoted-English escape is now meaningful
+    expect(ka).toBe(GEORGIAN_ACTIVATION_TIP)
+  })
+
+  it('exposes the ka activation tips as shared consts so the bottom bar cannot drift', () => {
+    // The bottom bar renders one of these strings visibly while the latch
+    // announces it once — they must be the SAME string (spec Decision 6).
+    expect(makeActivationNotice()('ka', true)).toBe(GEORGIAN_ACTIVATION_TIP)
+    expect(makeActivationNotice()('ka', false)).toBe(
+      GEORGIAN_ACTIVATION_TIP_TYPE_ENGLISH,
+    )
   })
 
   it('fires only once per language — the second activation returns null', () => {
@@ -102,13 +121,40 @@ describe('command-field placeholder / accessible name (S3 + P3)', () => {
     expect(commandLabel('es')).toMatch(/español/)
   })
 
-  it('tells an output-only (ka) player to type in English, in Georgian', () => {
-    // ka raw-sends English: the placeholder/name must say "type in English" in
-    // Georgian, NOT fall back to the generic English copy.
-    expect(commandPlaceholder('ka')).toMatch(/ინგლისურ/)
+  it('tells a ka player (Georgian input, Zork I) to type in Georgian, in Georgian', () => {
+    // ka now accepts Georgian input (Zork I): the placeholder/name must invite
+    // Georgian (and may mention English too), NOT fall back to the generic
+    // English copy.
+    expect(commandPlaceholder('ka')).toMatch(/ქართულ/)
     expect(commandPlaceholder('ka')).not.toBe(commandPlaceholder('en'))
-    expect(commandLabel('ka')).toMatch(/ინგლისურ/)
+    expect(commandLabel('ka')).toMatch(/ქართულ/)
     expect(commandLabel('ka')).not.toBe(commandLabel('en'))
+  })
+
+  it('retains the Phase-1 type-English placeholder for a no-input game (Zork II/III)', () => {
+    // Task 20 uses this on a no-input game: it must still say "type in English"
+    // in Georgian, with the literal English example.
+    const p = commandPlaceholderTypeEnglish()
+    expect(p).toMatch(/ინგლისურ/)
+    expect(p).not.toBe(commandPlaceholder('en'))
+  })
+})
+
+describe('ka Georgian-input copy (spec §7)', () => {
+  it('placeholder invites Georgian, no longer the old type-English-only copy', () => {
+    const p = commandPlaceholder('ka')
+    expect(p).toMatch(/ქართულ/) // mentions Georgian
+    expect(p).not.toContain('open the mailbox') // not the old English-example copy
+  })
+  it('couldntTranslate has a Georgian ka entry (abstain stays in-language)', () => {
+    expect(couldntTranslate('ka')).toMatch(/[Ⴀ-ჿ]/)
+  })
+  it('grammarOnlyFirstMiss and nothingSent abstains stay Georgian for ka', () => {
+    // No-LLM ka player can hit these input-side notices now — they must be
+    // Georgian, never an English fallback.
+    expect(grammarOnlyFirstMiss('ka')).toMatch(/[Ⴀ-ჿ]/)
+    expect(nothingSent('ka', true)).toMatch(/[Ⴀ-ჿ]/)
+    expect(nothingSent('ka', false)).toMatch(/[Ⴀ-ჿ]/)
   })
 })
 

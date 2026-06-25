@@ -111,14 +111,24 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
               return {
                 phase: 'on',
                 language: lang,
-                model: cached ? 'full' : 'grammar',
+                // Output-only langs (ka) have no input LLM; they must always stay
+                // grammar regardless of cache state. Other languages get full when
+                // cached so the model is available without a re-download prompt.
+                model:
+                  cached && !OUTPUT_ONLY_LANGS.has(lang) ? 'full' : 'grammar',
               }
             // Race ([I1]): the player picked a language before this probe
             // resolved, landing in on/grammar (installed was still false) with a
             // spurious upgrade modal. If the model is in fact cached on disk,
             // promote that pick to full — and dismiss the modal — rather than
             // leaving a cached player stuck in basic mode behind a download offer.
-            if (cached && prev.phase === 'on' && prev.model === 'grammar')
+            // Output-only langs (ka) are excluded: no input LLM, never reach full.
+            if (
+              cached &&
+              !OUTPUT_ONLY_LANGS.has(lang) &&
+              prev.phase === 'on' &&
+              prev.model === 'grammar'
+            )
               return { ...prev, model: 'full' }
             return prev
           })
@@ -223,10 +233,15 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
           // probe effect needn't re-run on the phase change to discover it (S6).
           setInstalled(true)
           // Activate the language the player picked when they triggered the modal.
+          // ka is structurally unreachable here (the download modal is never
+          // offered for ka), but guard belt-and-braces so this path can never
+          // accidentally promote ka to full if that invariant ever shifts.
           setInternal({
             phase: 'on',
             language: pendingLangRef.current,
-            model: 'full',
+            model: !OUTPUT_ONLY_LANGS.has(pendingLangRef.current)
+              ? 'full'
+              : 'grammar',
           })
           writeNlPref({ language: pendingLangRef.current })
         })
@@ -309,7 +324,10 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
         return
       }
       writeNlPref({ language: lang })
-      if (installed || engine.isLoaded()) {
+      // Output-only langs (ka) have no input LLM; even with a cached/loaded
+      // model they must stay grammar-only. All other languages get full when the
+      // engine is already available so the first clause-stage hit doesn't stall.
+      if ((installed || engine.isLoaded()) && !OUTPUT_ONLY_LANGS.has(lang)) {
         setInternal({ phase: 'on', language: lang, model: 'full' }) // cached → lazy full
         return
       }

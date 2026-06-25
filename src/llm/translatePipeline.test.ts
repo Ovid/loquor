@@ -4,6 +4,7 @@ import {
   createGenerateRaw,
   createTranslate,
   ModelLoadError,
+  containsGeorgian,
 } from './translatePipeline'
 import type {
   ClauseDeps,
@@ -596,6 +597,101 @@ describe('createTranslate grammar-only + demotion', () => {
     )
   })
 
+  // Task 16 (C2): queue bail narrowed from `OUTPUT_ONLY_LANGS.has(lang)` alone
+  // to `OUTPUT_ONLY_LANGS.has(lang) && lex === null`. ka-on-Zork-I has a real
+  // input lexicon → queue MUST NOT be abandoned. ka-on-Zork-II/III has no ka
+  // noun lexicon → bail still fires (lex === null).
+  it('ka Zork I (lex present): queue drains — NOT abandoned ([C2] review-fix)', async () => {
+    // Two Georgian commands from parse.ka-walkthrough.test.ts verified against ZORK1_VOCAB:
+    //   'გააღე ყუთი' → 'open mailbox' (ZORK1_VOCAB canonical: 'small mailbox' → emit: 'mailbox')
+    //   'აიღე ყუთი' → 'take mailbox' (ZORK1_VOCAB canonical: 'small mailbox' → emit: 'mailbox')
+    // Uses ZORK1_VOCAB + the real ka lexicon so parseLexicon resolves the Georgian nouns.
+    // makeTranslate always uses TEST_VOCAB, so this test calls createTranslate directly.
+    // With a real lex the bail predicate (OUTPUT_ONLY_LANGS.has(lang) &&
+    // lex === null) is false → the queue drains (review-fix C2).
+    const engine = new FakeLlmEngine({ default: '{"verb":"look"}' })
+    const setNotice = vi.fn()
+    const sendCanonical = vi.fn()
+    const kaLex: Lex = {
+      core: coreLexicon('ka'),
+      nouns: nounLexicon('ka', ZORK1_SIG),
+      words: lexiconWordSet('ka', ZORK1_SIG),
+    }
+    const internalOn: Internal & { phase: 'on' } = {
+      phase: 'on',
+      language: 'ka',
+      model: 'grammar',
+    }
+    const liveRef = { current: { internal: internalOn, lex: kaLex } }
+    const watchdogMs = 1000
+    const generateRaw = createGenerateRaw({
+      engine,
+      watchdogMs,
+      engineGate: new EngineGate(),
+    })
+    const deps: TranslateDeps = {
+      internal: internalOn,
+      vocab: ZORK1_VOCAB,
+      grammar: buildGrammar(ZORK1_VOCAB),
+      generateRaw,
+      watchdogMs,
+      getContext: () => ({ location: '', recentOutput: '' }),
+      echoLocal: () => {},
+      sendLine: () => {},
+      sendCanonical,
+      awaitTurn: async () => ({ view: emptyView, reason: 'line' as const }),
+      refs: {
+        trackerRef: { current: new TextSceneTracker(ZORK1_VOCAB) },
+        translatingRef: { current: false },
+        queueRef: { current: [] },
+        queueIdRef: { current: 0 },
+        lastCommandRef: { current: null },
+        inSequenceRef: { current: false },
+        epochRef: { current: 0 },
+        liveRef,
+        educatedRef: { current: false },
+      },
+      demote: vi.fn(),
+      setPending: () => {},
+      setNotice,
+      syncQueue: () => {},
+    }
+    const t = createTranslate(deps)
+    // First call acquires translatingRef=true synchronously; second finds it set
+    // and queues. Drain processes both lines before p1 resolves.
+    const p1 = t('გააღე ყუთი') // open mailbox — verified Georgian form
+    const p2 = t('აიღე ყუთი') // take mailbox — queued, drained after p1
+    await Promise.all([p1, p2])
+    // The bail must NOT have fired: "Queue cleared" notice absent.
+    const notices = setNotice.mock.calls.map(c => c[0] as string | null)
+    expect(notices).not.toContain('Queue cleared — natural language is off.')
+    // Grammar-only: LLM never invoked. Lexicon stage → sendCanonical called.
+    expect(engine.generateCalls).toBe(0)
+    expect(sendCanonical).toHaveBeenCalled()
+  })
+
+  it('ka Zork II (lex null): queue bail still fires — no ka noun lexicon ([C2])', async () => {
+    // ka on Zork II: no ka noun lexicon → lex=null, and ka ∈ OUTPUT_ONLY_LANGS,
+    // so the bail predicate is true → fires exactly as the pre-fix path did.
+    const engine = new FakeLlmEngine({ default: '{"verb":"look"}' })
+    const setNotice = vi.fn()
+    const sendCanonical = vi.fn()
+    const t = makeTranslate({
+      engine,
+      internalOn: on('ka', 'grammar'),
+      setNotice,
+      demote: vi.fn(),
+      educatedRef: { current: false },
+      sendCanonical,
+      // lex omitted → null (Task 15 guard: kaInputActive is false for Zork II)
+    })
+    await t('გააღე ყუთი') // Georgian input, but lex is null → bail
+    expect(engine.generateCalls).toBe(0)
+    expect(sendCanonical).not.toHaveBeenCalled()
+    expect(setNotice).toHaveBeenLastCalledWith(
+      'Queue cleared — natural language is off.',
+    )
+  })
   it('grammar-only: a stage-7-bound non-EN line abstains with the educational notice (once)', async () => {
     const engine = new FakeLlmEngine({ default: 'X' })
     const setNotice = vi.fn()
@@ -745,5 +841,117 @@ describe('createTranslate grammar-only + demotion', () => {
     expect(block.toLowerCase()).toContain('help')
     expect(sendLine).not.toHaveBeenCalled() // does NOT reach the Z-parser
     expect(sendCanonical).not.toHaveBeenCalled()
+  })
+
+  describe('§5.5 ka English-ASCII raw-send on miss', () => {
+    // Both tests use createTranslate directly (not makeTranslate) with the real
+    // ka lexicon + ZORK1_VOCAB, same pattern as the C2 queue-drain test above.
+    // makeTranslate uses TEST_VOCAB, which lacks the ka noun resolvers that
+    // guarantee the test input actually reaches Stage 8 as a genuine miss.
+
+    function makeKaZork1Translate(opts: {
+      setNotice: TranslateDeps['setNotice']
+      sendLine: (text: string) => void
+    }): (line: string) => Promise<string | null> {
+      const engine = new FakeLlmEngine({ default: 'X' }) // never reached
+      const internalOn: Internal & { phase: 'on' } = {
+        phase: 'on',
+        language: 'ka',
+        model: 'grammar',
+      }
+      const kaLex: Lex = {
+        core: coreLexicon('ka'),
+        nouns: nounLexicon('ka', ZORK1_SIG),
+        words: lexiconWordSet('ka', ZORK1_SIG),
+      }
+      const liveRef = { current: { internal: internalOn, lex: kaLex } }
+      const generateRaw = createGenerateRaw({
+        engine,
+        watchdogMs: 1000,
+        engineGate: new EngineGate(),
+      })
+      const deps: TranslateDeps = {
+        internal: internalOn,
+        vocab: ZORK1_VOCAB,
+        grammar: buildGrammar(ZORK1_VOCAB),
+        generateRaw,
+        watchdogMs: 1000,
+        getContext: () => ({ location: '', recentOutput: '' }),
+        echoLocal: () => {},
+        sendLine: opts.sendLine,
+        sendCanonical: () => {},
+        awaitTurn: async () => ({ view: emptyView, reason: 'line' as const }),
+        refs: {
+          trackerRef: { current: new TextSceneTracker(ZORK1_VOCAB) },
+          translatingRef: { current: false },
+          queueRef: { current: [] },
+          queueIdRef: { current: 0 },
+          lastCommandRef: { current: null },
+          inSequenceRef: { current: false },
+          epochRef: { current: 0 },
+          liveRef,
+          educatedRef: { current: false },
+        },
+        demote: vi.fn(),
+        setPending: () => {},
+        setNotice: opts.setNotice,
+        syncQueue: () => {},
+      }
+      return createTranslate(deps)
+    }
+
+    it('a missed ASCII (English) line raw-sends to the engine, like en', async () => {
+      // ka, Zork I, grammar-only. 'frobnate' is NOT in ZORK1_VOCAB (not a vocab
+      // passthrough), not a meta command, not a direction, not in the ka core/noun
+      // lexicon — so it flows through stages 3–6 as a miss, hits stage 7 which
+      // abstains (grammar-only), and reaches Stage 8 with done===0. Before §5.5
+      // this ka non-English-arm abstained; after §5.5 it raw-sends like 'en'.
+      const setNotice = vi.fn()
+      const sendLine = vi.fn()
+      const t = makeKaZork1Translate({ setNotice, sendLine })
+      await t('frobnate')
+      // The ASCII miss must raw-send the line to the engine.
+      expect(sendLine).toHaveBeenCalledWith('frobnate')
+      // No couldntTranslate / grammarOnlyFirstMiss notice must be shown.
+      expect(setNotice).not.toHaveBeenCalledWith(grammarOnlyFirstMiss('ka'))
+      expect(setNotice).not.toHaveBeenCalledWith(couldntTranslate('ka'))
+    })
+
+    it('a missed line containing Georgian abstains (notice, nothing sent)', async () => {
+      // 'ბედნიერი' (happy) contains Georgian codepoints and is NOT in the ka
+      // verbs or ZORK1_VOCAB noun lexicon — it falls through stages 3–6 as a
+      // miss, hits stage 7 (grammar-only → abstain), and reaches Stage 8.
+      // Because it contains Georgian it must NOT raw-send; it must show a notice.
+      const setNotice = vi.fn()
+      const sendLine = vi.fn()
+      const t = makeKaZork1Translate({ setNotice, sendLine })
+      await t('ბედნიერი')
+      // Nothing must have been sent to the engine.
+      expect(sendLine).not.toHaveBeenCalled()
+      // A grammar-only or couldntTranslate notice must appear.
+      const noticeArgs = setNotice.mock.calls.map(c => c[0] as string | null)
+      const hasNotice = noticeArgs.some(
+        n => n === grammarOnlyFirstMiss('ka') || n === couldntTranslate('ka'),
+      )
+      expect(hasNotice).toBe(true)
+    })
+  })
+})
+
+describe('containsGeorgian (S1)', () => {
+  it('detects Mkhedruli (the common mainstream block)', () => {
+    expect(containsGeorgian('აიღე ფარანი')).toBe(true)
+  })
+  it('detects Asomtavruli (raw, whose lowercase falls OUTSIDE the range)', () => {
+    // U+10A0 lowercases to Nuskhuri U+2D00 (out of range) — the raw arm keeps it.
+    expect(containsGeorgian(String.fromCodePoint(0x10a0))).toBe(true)
+  })
+  it('detects all-Mtavruli input (caps styling; lowercases INTO Mkhedruli)', () => {
+    // U+1C90 (Mtavruli AN) is out of the raw range but lowercases to U+10D0; a
+    // miss on such a line must abstain, not raw-send Georgian bytes to Zork.
+    expect(containsGeorgian(String.fromCodePoint(0x1c90))).toBe(true)
+  })
+  it('treats plain ASCII English as non-Georgian (raw-sends on a ka miss)', () => {
+    expect(containsGeorgian('take lamp')).toBe(false)
   })
 })

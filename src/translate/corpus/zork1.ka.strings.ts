@@ -519,8 +519,12 @@ export const ZORK1_KA_STRINGS: Record<string, string> = {
     'მისაღებ ოთახში ხარ. აღმოსავლეთით კარია. დასავლეთით ძველ ხის კარში ციკლოპის ფორმის ხვრელია, რომლის ზემოთაც უცნაური გოთური წარწერებია, ჯილდოების ვიტრინა და ფეხებთან დახურული საიდუმლო ხაფანგ-კარი.',
   'This is the attic. The only exit is a stairway leading down.':
     'ეს სხვენია. ერთადერთი გასასვლელი ქვემოთ მიმავალი კიბეა.',
+  // crawlway: was the off-reading „სავლები"; render with the ცოცვა ("crawl")
+  // root as „ცოცვით გასავლელი" (a passage you get through by crawling), and make
+  // it a nominative clause so it reads distinctly from the „ვიწრო გასასვლელი"
+  // (narrow passage) to the north. NATIVE-REVIEW-DRAFT.
   'You are in a dark and damp cellar with a narrow passageway leading north, and a crawlway to the south. On the west is the bottom of a steep metal ramp which is unclimbable.':
-    'ბნელ და ნესტიან სარდაფში ხარ, ვიწრო გასასვლელით ჩრდილოეთით და სავლებით სამხრეთით. დასავლეთით ციცაბო ლითონის ფერდობის ძირია, რომელზე ასვლა შეუძლებელია.',
+    'ბნელ და ნესტიან სარდაფში ხარ; ვიწრო გასასვლელი ჩრდილოეთით მიდის, ცოცვით გასავლელი კი — სამხრეთით. დასავლეთით ციცაბო ლითონის ფერდობის ძირია, რომელზე ასვლა შეუძლებელია.',
   'This is a small room with passages to the east and south and a forbidding hole leading west. Bloodstains and deep scratches (perhaps made by an axe) mar the walls.':
     'ეს პატარა ოთახია, გასასვლელებით აღმოსავლეთითა და სამხრეთით და დასავლეთით მიმავალი მუქარისმომგვრელი ხვრელით. სისხლის ლაქები და ღრმა ნაკაწრები (შესაძლოა ცულით გაკეთებული) კედლებს ამახინჯებს.',
   'This is part of a maze of twisty little passages, all alike.':

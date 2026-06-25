@@ -21,6 +21,7 @@ function normalize(input: string): string {
 }
 
 // Surface word (diacritic-stripped, hyphen-free) -> canonical English direction.
+// Covers en/fr/de/es/ka; extend DIRECTION_WORDS/LEAD for more languages.
 const DIRECTION_WORDS: Readonly<Record<string, string>> = {
   // north
   north: 'north',
@@ -28,24 +29,32 @@ const DIRECTION_WORDS: Readonly<Record<string, string>> = {
   nord: 'north',
   norden: 'north',
   norte: 'north',
+  ჩრდილოეთი: 'north', // ka nominative
+  ჩრდილოეთით: 'north', // ka adverbial -ით form
   // south
   south: 'south',
   s: 'south',
   sud: 'south',
   suden: 'south',
   sur: 'south',
+  სამხრეთი: 'south', // ka nominative
+  სამხრეთით: 'south', // ka adverbial -ით form
   // east  (note: French "est" also means "is" — a bare command "est" -> east is fine)
   east: 'east',
   e: 'east',
   est: 'east',
   osten: 'east',
   este: 'east',
+  აღმოსავლეთი: 'east', // ka nominative
+  აღმოსავლეთით: 'east', // ka adverbial -ით form
   // west
   west: 'west',
   w: 'west',
   ouest: 'west',
   westen: 'west',
   oeste: 'west',
+  დასავლეთი: 'west', // ka nominative
+  დასავლეთით: 'west', // ka adverbial -ით form
   // up
   up: 'up',
   u: 'up',
@@ -57,6 +66,8 @@ const DIRECTION_WORDS: Readonly<Record<string, string>> = {
   hoch: 'up',
   arriba: 'up',
   sube: 'up',
+  ზემოთ: 'up', // ka (also serves as adverbial form)
+  მაღლა: 'up', // ka alternative
   // down
   down: 'down',
   d: 'down',
@@ -69,15 +80,19 @@ const DIRECTION_WORDS: Readonly<Record<string, string>> = {
   runter: 'down',
   abajo: 'down',
   baja: 'down',
+  ქვემოთ: 'down', // ka (also serves as adverbial form)
+  დაბლა: 'down', // ka alternative
   // in / out
   in: 'in',
   dedans: 'in',
   rein: 'in',
   dentro: 'in',
+  შიგნით: 'in', // ka adverbial-ით form (primary)
   out: 'out',
   dehors: 'out',
   raus: 'out',
   fuera: 'out',
+  გარეთ: 'out', // ka
   // diagonals
   northeast: 'northeast',
   ne: 'northeast',
@@ -85,23 +100,31 @@ const DIRECTION_WORDS: Readonly<Record<string, string>> = {
   nordosten: 'northeast',
   noreste: 'northeast',
   nordeste: 'northeast',
+  ჩრდილოაღმოსავლეთი: 'northeast', // ka
+  ჩრდილოაღმოსავლეთით: 'northeast', // ka adverbial -ით form
   northwest: 'northwest',
   nw: 'northwest',
   nordouest: 'northwest',
   nordwesten: 'northwest',
   noroeste: 'northwest',
+  ჩრდილოდასავლეთი: 'northwest', // ka
+  ჩრდილოდასავლეთით: 'northwest', // ka adverbial -ით form
   southeast: 'southeast',
   se: 'southeast',
   sudest: 'southeast',
   sudosten: 'southeast',
   sureste: 'southeast',
   sudeste: 'southeast',
+  სამხრეთაღმოსავლეთი: 'southeast', // ka
+  სამხრეთაღმოსავლეთით: 'southeast', // ka adverbial -ით form
   southwest: 'southwest',
   sw: 'southwest',
   sudouest: 'southwest',
   sudwesten: 'southwest',
   suroeste: 'southwest',
   sudoeste: 'southwest',
+  სამხრეთდასავლეთი: 'southwest', // ka
+  სამხრეთდასავლეთით: 'southwest', // ka adverbial -ით form
 }
 
 // Leading movement verbs + connectors stripped before the direction word. Safe to
@@ -154,13 +177,19 @@ const LEAD = new Set([
   'hacia',
   'al',
   'el',
+  // Georgian (ka) — "go" so `წადი ჩრდილოეთით` ("go north") resolves like the
+  // other languages' go-verbs, not just the bare direction `ჩრდილოეთით`. Only
+  // stripped when the remainder is still a known direction, so `წადი <noun>`
+  // never becomes a spurious direction. (`წადი` "go" ≠ the lexicon verb `წადე`.)
+  'წადი',
+  'წადით',
 ])
 
 /**
  * Resolve a whole input to a canonical English movement verb, or null if it is
  * not a pure direction command. Gated on `movement` so we never emit a direction
- * this game doesn't support. Covers en/fr/de/es; extend DIRECTION_WORDS/LEAD for
- * more languages.
+ * this game doesn't support. Covers en/fr/de/es/ka; extend DIRECTION_WORDS/LEAD
+ * for more languages.
  */
 export function parseDirection(
   input: string,

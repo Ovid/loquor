@@ -5,14 +5,19 @@ import type { Vocab } from './grammar/types'
 import { META_COMMANDS } from './meta'
 import type { CoreLexicon, NounLexicon } from './lexicon/types'
 import { fold } from './lexicon/fold'
+import { expandGeorgian } from './lexicon/expandGeorgian'
 import { parseDirection } from './directions'
 import { SOFT_NOOP_PAT } from './grammar/patterns'
 
 /** Sequential conjunctions, one per supported language: `and`/`then` (en),
- * `et`/`puis`/`ensuite` (fr), `und` (de), `y` (es). Matched whitespace-wrapped
- * so substrings like "sand"/"under"/"xyzzy"/"strengthen" never trip them; the
- * de/es words match what directions.ts/meta.ts cover (review C3). */
-const CLAUSE_CONJ = 'and|then|et|puis|ensuite|und|dann|danach|y'
+ * `et`/`puis`/`ensuite` (fr), `und` (de), `y` (es), `და` (ka). Matched
+ * whitespace-wrapped so substrings like "sand"/"under"/"xyzzy"/"strengthen"
+ * never trip them; the de/es words match what directions.ts/meta.ts cover
+ * (review C3). `და` is Mkhedruli (non-ASCII), so it can only match a Georgian
+ * conjunct — a Phase-2 ka player typing `აიღე ფარანი და წადი ჩრდილოეთით` — and
+ * never appears whitespace-wrapped in en/fr/de/es input; no Zork I object name
+ * contains a standalone `და` token, so it can't split a noun phrase. */
+const CLAUSE_CONJ = 'and|then|et|puis|ensuite|und|dann|danach|y|და'
 
 /** Clause separators: a whitespace-wrapped conjunction, OR sentence punctuation
  * `.`/`;`/`,`. A comma now separates too (UAT: an object list "A, B et C" is the
@@ -133,6 +138,22 @@ function isForeignNoun(
 ): boolean {
   if (!nounSet) return false
   const tokens = fold(clause.replace(/[!.?,;:]+$/, '').trim()).split(/\s+/)
+  // Georgian: the noun lexicon stores the post-expandGeorgian bare stem (წიგნ),
+  // but the player types the nominative citation form (წიგნი). ka has NO
+  // articles, so without reducing the typed -ი the verbless object conjunct is
+  // invisible to the article path and drops the verb — with no LLM net (I1).
+  // Match the OBJECT SPAN: everything before the first fused postposition token,
+  // so a bare object ("წიგნი") AND an object + fused destination ("ბრილიანტი
+  // ვიტრინაში" → [ბრილიანტ, ში, ვიტრინა]) both gap, the latter feeding the
+  // destination-distribution below (I2). ka only (core.postpositions); fr/de/es
+  // have none, so they keep the article path below (byte-identical).
+  const post = core?.postpositions
+  if (post) {
+    const expanded = expandGeorgian(tokens, post)
+    const cut = expanded.findIndex(t => t in post)
+    const span = (cut === -1 ? expanded : expanded.slice(0, cut)).join(' ')
+    return span.length > 0 && nounSet.has(span)
+  }
   const articles = core?.articles ?? []
   const phrase =
     tokens.length > 1 && articles.includes(tokens[0])
@@ -199,6 +220,19 @@ function prepTail(
     .trim()
     .split(/\s+/)
   const start = verb ? verb.split(/\s+/).length : 0
+  // Georgian: the destination postposition is FUSED onto the last noun
+  // (ვიტრინაში = "in the case") — there is no separate prep token, so the
+  // fr/de/es loop below never fires. When ≥1 object token sits between the verb
+  // and a final word carrying a known postposition (expandGeorgian splits it),
+  // that fused word IS the tail; return it verbatim so the earlier conjunct can
+  // re-expand it at parse time (I2). ka only (core.postpositions).
+  if (core.postpositions) {
+    const lastTok = tokens[tokens.length - 1]
+    const fused =
+      lastTok !== undefined &&
+      expandGeorgian([fold(lastTok)], core.postpositions).length === 2
+    return fused && tokens.length > start + 1 ? lastTok : null
+  }
   for (let i = start + 1; i < tokens.length - 1; i++) {
     const f = fold(tokens[i])
     if (core.preps[f] !== undefined || vocab.preps.includes(f))
@@ -233,9 +267,15 @@ export function distributePrepTail(
   const lastVerb = leadingVerbPhrase(last, core, vocab)
   if (tail === null || lastVerb === null) return [...clauses]
   // Only a DESTINATION tail is shared across conjuncts. A source prep
-  // (aus/von → "from") belongs to its own clause: "nimm A und nimm B aus der
-  // Vitrine" must NOT rewrite "nimm A" into "take A from case" (review I1).
-  if (core.preps[fold(tail.split(/\s+/)[0])] === 'from') return [...clauses]
+  // (aus/von → "from"; Georgian ablative -დან) belongs to its own clause: "nimm
+  // A und nimm B aus der Vitrine" must NOT rewrite "nimm A" into "take A from
+  // case" (review I1). For ka the prep is the FUSED postposition on the single
+  // tail word, so resolve it through expandGeorgian first.
+  const tailHead = fold(tail.split(/\s+/)[0])
+  const tailPrep = core.postpositions
+    ? core.preps[expandGeorgian([tailHead], core.postpositions)[0]]
+    : core.preps[tailHead]
+  if (tailPrep === 'from') return [...clauses]
   const containerPronouns = new Set(core.pronounsContainer.map(p => p.word))
   const lastVerbFolded = fold(lastVerb)
   const out = [...clauses]
@@ -455,16 +495,24 @@ export function isConfirmationPrompt(recentOutput: string): boolean {
 // and we must not remap an English word.
 // Include common colloquial replies (review S9) so a natural "jawohl"/"ouais"/
 // "claro" isn't passed raw and silently rejected at a restart/quit prompt.
+// Georgian (ka, Zork I input) belongs here too (review C1): ka routes through
+// nl.translate but has NO LLM net, so a reflex კი/არა that isn't mapped is
+// raw-sent and silently read as "no" — restart/restore/quit could never confirm.
+// The corpus prompt literally tells the player "(Y ნიშნავს კი)". NATIVE-REVIEW-
+// DRAFT, like the rest of the ka input data. fold() lowercases Mtavruli into
+// Mkhedruli, so a caps-styled reply maps too.
 const CONFIRM_AFFIRMATIVE: Partial<Record<ActiveLanguage, readonly string[]>> =
   {
     de: ['j', 'ja', 'jawohl', 'jo'],
     fr: ['o', 'oui', 'ouais'],
     es: ['s', 'si', 'claro', 'vale'], // 'sí' folds to 'si'
+    ka: ['კი', 'დიახ', 'ხო', 'ჰო'], // ki / diakh / kho / ho
   }
 const CONFIRM_NEGATIVE: Partial<Record<ActiveLanguage, readonly string[]>> = {
   de: ['n', 'nein', 'nee'], // (folded forms; 'nö' would fold to 'no', so omitted)
   fr: ['n', 'non', 'nan'],
   es: ['n', 'no'],
+  ka: ['არა', 'ვერა'], // ara / vera ("no" / "can't")
 }
 
 /** Map a localized yes/no reply to the interpreter's "y"/"n" key for the active

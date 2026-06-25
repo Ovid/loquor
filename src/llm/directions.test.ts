@@ -39,7 +39,7 @@ describe('parseDirection', () => {
   })
 
   it('handles the French elided article l’est/l’ouest (review C2)', () => {
-    // prompt.ts advertises "vers l’est" as deterministically handled; the
+    // prompt.ts advertises "vers l'est" as deterministically handled; the
     // apostrophe (ASCII or typographic) must not glue the article to the noun.
     expect(parseDirection("vers l'est", MOVE)).toBe('east')
     expect(parseDirection('vers l’est', MOVE)).toBe('east')
@@ -62,4 +62,33 @@ describe('parseDirection', () => {
   it('returns null for a direction not in this game’s movement set', () => {
     expect(parseDirection('southeast', ['north', 'south'])).toBeNull()
   })
+})
+
+describe('Georgian directions (spec §3.3)', () => {
+  const cases: [string, string][] = [
+    ['ჩრდილოეთი', 'north'],
+    ['ჩრდილოეთით', 'north'], // adverbial -ით form
+    ['სამხრეთი', 'south'],
+    ['სამხრეთით', 'south'], // adverbial -ით form
+    ['აღმოსავლეთი', 'east'],
+    ['აღმოსავლეთით', 'east'], // adverbial -ით form
+    ['დასავლეთი', 'west'],
+    ['დასავლეთით', 'west'], // adverbial -ით form
+    ['ზემოთ', 'up'],
+    ['ქვემოთ', 'down'],
+    ['შიგნით', 'in'],
+    ['გარეთ', 'out'],
+    ['ჩრდილოაღმოსავლეთი', 'northeast'],
+    ['ჩრდილოაღმოსავლეთით', 'northeast'], // diagonal adverbial -ით form (spec §3.3)
+    ['წადი ჩრდილოეთით', 'north'], // "go north" — წადი is a LEAD go-verb
+    ['წადით სამხრეთით', 'south'], // polite/plural "go south"
+  ]
+  for (const [input, canon] of cases)
+    it(`${input} → ${canon}`, () =>
+      expect(parseDirection(input, MOVE)).toBe(canon))
+
+  // `წადი <non-direction>` must NOT become a spurious direction (the LEAD strip
+  // only resolves when the remainder is itself a known direction).
+  it('წადი ფარანი → null (not a direction)', () =>
+    expect(parseDirection('წადი ფარანი', MOVE)).toBe(null))
 })

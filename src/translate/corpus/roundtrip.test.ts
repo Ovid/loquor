@@ -16,6 +16,10 @@ import { ZORK1_ES_OBJECTS, ZORK1_ES_CANONICAL } from './zork1.es.objects'
 import { DE_ZORK1 } from '../../llm/lexicon/de.zork1'
 import { DE_CORE } from '../../llm/lexicon/de.core'
 import { ZORK1_DE_OBJECTS, ZORK1_DE_CANONICAL } from './zork1.de.objects'
+import { KA_ZORK1 } from '../../llm/lexicon/ka.zork1'
+import { KA_CORE } from '../../llm/lexicon/ka.core'
+import { expandGeorgian } from '../../llm/lexicon/expandGeorgian'
+import { ZORK1_KA_OBJECTS, ZORK1_KA_CANONICAL } from './zork1.ka.objects'
 
 interface Row {
   code: string
@@ -29,6 +33,16 @@ interface Row {
    * ("al trol", "a la cesta", "del saco", "de la botella") fold to the same
    * canonical noun as def (Task 6). */
   headExtra: readonly string[]
+  /** Optional per-language reduction applied to the folded display form before
+   * the membership check — mirrors the language's input pre-stage. ka applies the
+   * NOMINATIVE -ი STRIP ONLY (not the postposition split) so display nominatives
+   * reconcile with stored bare stems (finding-9). The split is deliberately
+   * OMITTED here (review M2): some object NAMES carry genuine instrumental
+   * morphology — e.g. `ტყავის ტომარა მონეტებით` ("leather bag of coins") ends in
+   * -ით — and splitting that would mangle the display name, not a player's
+   * postpositional input. expandGeorgian(tokens, {}) runs only the -ი strip
+   * (no suffix matches the empty map). */
+  reduce?: (folded: string) => string
 }
 
 const LANGS: Row[] = [
@@ -60,6 +74,16 @@ const LANGS: Row[] = [
     // Case articles der/die/das/den/dem/des already strip via core.articles.
     headExtra: ['zum', 'zur', 'im', 'am', 'ins', 'vom', 'beim', 'ans', 'aufs'],
   },
+  {
+    code: 'ka',
+    nouns: KA_ZORK1,
+    core: KA_CORE,
+    objects: ZORK1_KA_OBJECTS,
+    canonical: ZORK1_KA_CANONICAL,
+    headExtra: [], // Georgian has no articles
+    // Nominative -ი strip only (empty postpositions → no split, M2):
+    reduce: f => expandGeorgian(f.split(' '), {}).join(' '),
+  },
 ]
 
 describe.each(LANGS)(
@@ -71,6 +95,8 @@ describe.each(LANGS)(
       while (toks.length > 1 && HEAD.has(toks[0])) toks.shift()
       return toks.join(' ')
     }
+
+    const reduce = row.reduce ?? ((s: string) => s)
 
     it('every form of every object resolves to its canonical', () => {
       const failures: string[] = []
@@ -84,7 +110,7 @@ describe.each(LANGS)(
           continue
         }
         for (const [key, form] of Object.entries(forms)) {
-          const phrase = stripHead(fold(form))
+          const phrase = reduce(stripHead(fold(form)))
           if (!lex.includes(phrase))
             failures.push(
               `"${en}".${key} = "${form}" → "${phrase}" missing from ${row.code}["${canonical}"]`,

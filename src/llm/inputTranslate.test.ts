@@ -19,6 +19,7 @@ import { META_COMMANDS } from './meta'
 import { FR_CORE } from './lexicon/fr.core'
 import { ES_CORE } from './lexicon/es.core'
 import { DE_CORE } from './lexicon/de.core'
+import { KA_CORE } from './lexicon/ka.core'
 import { ES_ZORK1 } from './lexicon/es.zork1'
 import type { Vocab } from './grammar/types'
 import type { NounLexicon } from './lexicon/types'
@@ -280,6 +281,21 @@ describe('confirmationReply (map localized yes/no to the interpreter key — rev
     expect(confirmationReply('n', 'de')).toBe('n')
   })
 
+  it('maps the Georgian reflex yes/no to "y"/"n" (C1 — ka has no LLM net)', () => {
+    // The ka corpus prompt literally renders "(Y ნიშნავს კი)" — it tells the
+    // player to type კი, which must confirm restart/restore/quit, not raw-send.
+    expect(confirmationReply('კი', 'ka')).toBe('y') // ki — common "yes"
+    expect(confirmationReply('დიახ', 'ka')).toBe('y') // diakh — formal "yes"
+    expect(confirmationReply('ხო', 'ka')).toBe('y') // kho — colloquial "yeah"
+    expect(confirmationReply('არა', 'ka')).toBe('n') // ara — "no"
+    // fold() lowercases Mtavruli (U+1C90+) into Mkhedruli (U+10D0+) and strips
+    // terminal punctuation, so a caps-styled or punctuated reply still confirms.
+    const mtavruliKi = String.fromCodePoint(0x1c99, 0x1c98) // Ⴉ Ⴈ → კი
+    expect(confirmationReply(mtavruliKi, 'ka')).toBe('y')
+    expect(confirmationReply('კი!', 'ka')).toBe('y')
+    expect(confirmationReply('გახსენი', 'ka')).toBe('გახსენი') // a real verb is untouched
+  })
+
   it('is case/punctuation insensitive', () => {
     expect(confirmationReply('Ja!', 'de')).toBe('y')
     expect(confirmationReply(' OUI. ', 'fr')).toBe('y')
@@ -377,6 +393,19 @@ describe('splitClauses', () => {
     expect(splitClauses('ve al norte y toma la lámpara')).toEqual([
       've al norte',
       'toma la lámpara',
+    ])
+  })
+
+  it('splits on Georgian "და" (Phase-2 ka compounds)', () => {
+    // `აიღე ფარანი და წადი ჩრდილოეთით` = "take the lamp and go north".
+    expect(splitClauses('აიღე ფარანი და წადი ჩრდილოეთით')).toEqual([
+      'აიღე ფარანი',
+      'წადი ჩრდილოეთით',
+    ])
+    // `და` is whitespace-wrapped: an object name with no standalone `და` token
+    // (e.g. the genitive `მონეტების ...`) is never split.
+    expect(splitClauses('აიღე მონეტების ტყავის ტომარა')).toEqual([
+      'აიღე მონეტების ტყავის ტომარა',
     ])
   })
 
@@ -520,6 +549,42 @@ describe('distributePrepTail (shared container across same-verb conjuncts, UAT F
   })
 })
 
+describe('distributePrepTail — Georgian fused destination postposition (I2)', () => {
+  const nouns: NounLexicon = {
+    'gold coffin': ['ოქროს კუბო', 'კუბო'],
+    'huge diamond': ['უზარმაზარ ბრილიანტ', 'ბრილიანტ'],
+    'trophy case': ['ჯილდოების ვიტრინა', 'ვიტრინა'],
+  }
+  const run = (line: string) =>
+    distributePrepTail(
+      fillElidedVerbs(splitClauses(line), KA_CORE, vocab, nouns),
+      KA_CORE,
+      vocab,
+    )
+
+  it('shares the fused -ში destination across same-verb conjuncts', () => {
+    // "ჩადე კუბო და ბრილიანტი ვიტრინაში" (put coffin and diamond in the case).
+    // The destination -ში is FUSED onto ვიტრინა (ვიტრინაში), so there is no
+    // separate prep token; the earlier conjunct must inherit the whole fused
+    // word (parseLexicon re-expands it). Without this "put coffin" orphans —
+    // "What do you want to put the coffin in?" — and the casing loop breaks.
+    expect(run('ჩადე კუბო და ბრილიანტი ვიტრინაში')).toEqual([
+      'ჩადე კუბო ვიტრინაში',
+      'ჩადე ბრილიანტი ვიტრინაში',
+    ])
+  })
+
+  it('does NOT distribute a Georgian SOURCE postposition (-დან → "from")', () => {
+    // Ablative -დან ("from") belongs to its own clause (mirrors the de aus/von
+    // exclusion, review I1): "take coffin" must not become "take coffin from
+    // case".
+    expect(run('აიღე კუბო და ბრილიანტი ვიტრინიდან')).toEqual([
+      'აიღე კუბო',
+      'აიღე ბრილიანტი ვიტრინიდან',
+    ])
+  })
+})
+
 describe('fillElidedVerbs (verb-gapping across compound conjuncts)', () => {
   // UAT (French playthrough): "prends le couteau et la corde" split to
   // ["prends le couteau", "la corde"]; the verbless 2nd conjunct fell to the
@@ -659,6 +724,26 @@ describe('fillElidedVerbs (verb-gapping across compound conjuncts)', () => {
     expect(
       fillElidedVerbs(splitClauses('coger ajo y xyzzy'), ES_CORE, vocab, nouns),
     ).toEqual(['coger ajo', 'xyzzy'])
+  })
+
+  it('gaps a Georgian object conjunct — nominative -ი reduced to the stored stem (I1)', () => {
+    // "აიღე ფარანი და წიგნი" (take the lamp and the book). ka stores the
+    // post-expandGeorgian bare stem (წიგნ), but the player types the nominative
+    // citation form (წიგნი); ka has NO articles, so without reducing the typed
+    // -ი the verbless 2nd conjunct is invisible and drops the verb — and ka has
+    // no LLM net to recover it. The stored stem must match after the strip.
+    const nouns: NounLexicon = {
+      'brass lantern': ['სპილენძის ფარან', 'ფარან'],
+      'black book': ['შავ წიგნ', 'წიგნ'],
+    }
+    expect(
+      fillElidedVerbs(
+        splitClauses('აიღე ფარანი და წიგნი'),
+        KA_CORE,
+        vocab,
+        nouns,
+      ),
+    ).toEqual(['აიღე ფარანი', 'აიღე წიგნი'])
   })
 })
 

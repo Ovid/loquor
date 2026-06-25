@@ -47,6 +47,7 @@ import {
   isEnglishPronounClause,
   resolveEnglishQuantifier,
   resolveEnglishQuantifierPhrase,
+  resolveNounReply,
 } from './lexicon/parse'
 import type { CoreLexicon, NounLexicon } from './lexicon/types'
 import { parseDirection } from './directions'
@@ -59,11 +60,31 @@ import {
   queueClearedNeedsAnswer,
   modelDownloadFailed,
   grammarOnlyFirstMiss,
+  promptAnswerHint,
 } from './notices'
 import { createLogger } from '../logger'
 import type { Internal } from './useModelDownload'
 
 const log = createLogger('nl')
+
+// §5.5: a line with NO Georgian codepoint is treated as English and raw-sends on
+// a ka miss; only a line containing Georgian abstains (Georgian and English ASCII
+// cannot collide). Range U+10A0–10FF covers Asomtavruli + Mkhedruli (the two
+// mainstream blocks players actually type), matching the /[Ⴀ-ჿ]/ test used in the
+// ka corpus tests (zork1.ka.uat.test.ts, ka-native-review-draft.test.ts). Georgian
+// Extended (Mtavruli, U+1C90–1CBF) and Supplement (U+2D00–2D2F) are intentionally
+// NOT covered — typing them raw-sends instead of abstaining (safe degradation),
+// and the shared range stays consistent across the ka layers.
+// Test the raw string AND its lowercased form (S1). Asomtavruli + Mkhedruli sit
+// in U+10A0–10FF directly, but Mtavruli (U+1C90–1CBF, the all-caps styling form)
+// does NOT — it lowercases INTO Mkhedruli, so the `.toLowerCase()` arm catches an
+// all-Mtavruli line that would otherwise raw-send Georgian bytes to the Z-parser
+// on a miss (English error + burned turn) instead of abstaining. Lowercasing
+// ALONE is wrong: Asomtavruli lowercases to Nuskhuri (U+2D00, OUTSIDE the range),
+// so the raw arm must stay to keep detecting it. exported for the unit test.
+const GEORGIAN_RE = /[Ⴀ-ჿ]/
+export const containsGeorgian = (s: string) =>
+  GEORGIAN_RE.test(s) || GEORGIAN_RE.test(s.toLowerCase())
 
 /** EN-only "translator broke, so the raw line went to the Z-parser" notice.
  * Intentionally NOT in notices.ts (which is multilingual): it fires only in
@@ -662,10 +683,46 @@ export function createTranslate(
         // On a yes/no confirmation, map the player's localized reflex reply
         // ("j"/"ja"/"oui"/"sí") to the interpreter's literal "y"/"n" key — the
         // localized prompt invited it but the interpreter only accepts Y (review I3).
-        const reply = isConfirmationPrompt(recentOutput)
-          ? confirmationReply(line, activeLang)
-          : line
-        sendTracked(reply)
+        if (isConfirmationPrompt(recentOutput)) {
+          sendTracked(confirmationReply(line, activeLang))
+          return 'ok'
+        }
+        // Disambiguation / orphan: the reply answers the PARSER with a NOUN
+        // ("yellow button" → "Which button?"). The output corpus renders the
+        // prompt in the player's language, so a non-English player answers in
+        // their language — which the English Z-parser can't read (I3). Resolve the
+        // reply through the noun lexicon (verbless path) and send the English noun.
+        // A QUOTED reply is the literal escape and skips resolution (decision 8);
+        // it raw-sends below (the decision-8 contract keeps the quotes).
+        const resolved =
+          !unquote(line) && lex?.nouns
+            ? resolveNounReply(
+                line,
+                lex.core,
+                lex.nouns,
+                vocab,
+                tracker.scene(),
+              )
+            : null
+        if (resolved) {
+          echoLocal(line) // a translated reply — echo the player's own words once
+          sendTracked(resolved, line, true)
+          return 'ok'
+        }
+        // Unresolved → mirror the stage-8 abstain policy: en (and ka's
+        // English-ASCII reply, §5.5) raw-send (Zork's parser reads English); a
+        // non-English reply with no resolution would only earn a useless English
+        // error and burn the turn, so abstain (leave the prompt open) and show a
+        // localized hint to answer with the full noun (I3, the "resolve + hint" call).
+        if (
+          activeLang === 'en' ||
+          (activeLang === 'ka' && !containsGeorgian(line))
+        ) {
+          sendTracked(line)
+          return 'ok'
+        }
+        setNotice(promptAnswerHint(activeLang))
+        retainTyped = line
         return 'ok'
       }
       // STAGE 2 (locked decision 8): a fully-quoted line ("…", «…», „…“, “…”)
@@ -902,6 +959,11 @@ export function createTranslate(
           }
         } else if (activeLang === 'en') {
           sendTracked(line)
+        } else if (activeLang === 'ka' && !containsGeorgian(line)) {
+          // §5.5: a ka player's English (ASCII) line that missed the Georgian
+          // lexicon raw-sends exactly as en does — degrade, never block. Only a
+          // line containing Georgian falls through to the abstain notice below.
+          sendTracked(line)
         } else if (grammarOnly && !educatedRef.current) {
           // First grammar-only abstain this stint: connect the miss to the
           // declined/absent upgrade at the moment of confusion (once per stint).
@@ -910,10 +972,12 @@ export function createTranslate(
         } else {
           setNotice(couldntTranslate(activeLang))
         }
-        // Every non-English branch above sends NOTHING (only the EN arms
-        // raw-send); when that nothing-sent line is the player's typed input,
-        // hand it back so the field can restore it instead of discarding it (M8).
-        if (!fromQueue && activeLang !== 'en') retainTyped = line
+        // Only the NOTICE branches retain the typed line; the raw-send arms (en,
+        // and ka-ASCII via §5.5) consumed it — don't re-populate the input field.
+        const rawSent =
+          activeLang === 'en' ||
+          (activeLang === 'ka' && !containsGeorgian(line))
+        if (!fromQueue && !rawSent) retainTyped = line
       } else if (done < total) {
         // Truncated sequence → make it visible (decision 7); an engine
         // error labels the notice so it can't pass for a quiet stop ([B]).
@@ -963,13 +1027,22 @@ export function createTranslate(
         // is abandoned with a notice instead of being translated by a
         // layer the player just turned off. Unreachable for the first
         // (typed) line — translate gated on phase with no await since.
-        // Also bail when the player switched to an output-only language
-        // ([I3]): ka has no input lexicon and raw-sends English, so a
-        // queue drained under activeLang='ka' would wrongly fall through to
-        // the input LLM (no language switch bumps the epoch). Treat it like
-        // 'off' for the input path and abandon the queue.
-        const live = liveRef.current.internal
-        if (live.phase !== 'on' || OUTPUT_ONLY_LANGS.has(live.language)) {
+        // Also bail when a NO-LLM (output-only) language has no input lexicon
+        // for this game ([I3], review-fix C2): ka-on-Zork-I has a real lex and
+        // its queue MUST drain; ka-on-Zork-II/III has lex===null with no LLM
+        // fallback, so there is nothing to drain it with — bail. The bare
+        // `!lex` predicate the plan first sketched is WRONG: en (and the
+        // fr/de/es test harnesses) run phase==='on' with lex===null but must
+        // NOT bail — en raw-sends, fr/de/es fall back to the LLM. The property
+        // that actually warrants a bail is "no-LLM language AND no lexicon",
+        // which is exactly OUTPUT_ONLY_LANGS.has(language) && lex===null — the
+        // coupling is the meaning here, not a leftover (the Task 17 INPUT
+        // ROUTING decision is what C2 keeps off OUTPUT_ONLY_LANGS).
+        const live = liveRef.current
+        if (
+          live.internal.phase !== 'on' ||
+          (OUTPUT_ONLY_LANGS.has(live.internal.language) && live.lex === null)
+        ) {
           lastCommandRef.current = null
           queueRef.current = []
           syncQueue()

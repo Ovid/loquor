@@ -34,12 +34,17 @@ export const ZORK1_KA_OBJECTS: ObjectsTable = {
   'bloody axe': { indef: 'სისხლიანი ცული' },
   'blue button': { indef: 'ლურჯი ღილაკი' },
   board: { indef: 'ფიცარი' },
-  'boarded window': { indef: 'ფიცრებით ამოჭედილი ფანჯარა' },
+  // Task 10 / M2 option (b): board-bearing -იანი adjective, NOT the instrumental
+  // 'ფიცრებით ამოჭედილი' — the -ით participle would be sheared by the parser's
+  // postposition split, leaving a form no Georgian player could type.
+  'boarded window': { indef: 'ფიცრებიანი ფანჯარა' },
   bolt: { indef: 'ხრახნი' },
   'brass bell': { indef: 'სპილენძის ზარი' },
   'brass lantern': { indef: 'სპილენძის ფარანი' },
   'broken clockwork canary': { indef: 'გატეხილი მექანიკური კანარა' },
-  'broken jewel-encrusted egg': { indef: 'გატეხილი თვლებით მოოჭვილი კვერცხი' },
+  // Task 10 / M2 option (b): jeweled = -იანი adjective (as 'jeweled scarab'),
+  // NOT the instrumental 'თვლებით მოოჭვილი' (-ით sheared by the parser split).
+  'broken jewel-encrusted egg': { indef: 'გატეხილი თვლებიანი კვერცხი' },
   'broken lantern': { indef: 'გატეხილი ფარანი' },
   'broken timber': { indef: 'გადატეხილი ძელი' },
   'brown button': { indef: 'ყავისფერი ღილაკი' },
@@ -70,14 +75,17 @@ export const ZORK1_KA_OBJECTS: ObjectsTable = {
   'hand-held air pump': { indef: 'ხელის ჰაერის ტუმბო' },
   'huge diamond': { indef: 'უზარმაზარი ბრილიანტი' },
   'jade figurine': { indef: 'ნეფრიტის ფიგურა' },
-  'jewel-encrusted egg': { indef: 'თვლებით მოოჭვილი კვერცხი' },
+  // Task 10 / M2 option (b): -იანი adjective, not the instrumental participle.
+  'jewel-encrusted egg': { indef: 'თვლებიანი კვერცხი' },
   'kitchen table': { indef: 'სამზარეულოს მაგიდა' },
   'kitchen window': { indef: 'სამზარეულოს ფანჯარა' },
   'large bag': { indef: 'დიდი ტომარა' },
   'large emerald': { indef: 'დიდი ზურმუხტი' },
   leaflet: { indef: 'ფურცელი' },
   leak: { indef: 'ჟონვა' },
-  'leather bag of coins': { indef: 'ტყავის ტომარა მონეტებით' },
+  // Task 10 / M2 option (b): genitive 'coins' leather bag', NOT the instrumental
+  // 'ტომარა მონეტებით' (the trailing -ით participle would be sheared by the split).
+  'leather bag of coins': { indef: 'მონეტების ტყავის ტომარა' },
   lunch: { indef: 'სადილი' },
   // 'grue' kept as the untranslatable Zork monster; transliterated to Mkhedruli.
   'lurking grue': { indef: 'ჩასაფრებული გრუ' },
@@ -110,7 +118,9 @@ export const ZORK1_KA_OBJECTS: ObjectsTable = {
   'rusty knife': { indef: 'დაჟანგული დანა' },
   sailor: { indef: 'მეზღვაური' },
   sand: { indef: 'ქვიშა' },
-  'sapphire-encrusted bracelet': { indef: 'საფირონებით მოოჭვილი სამაჯური' },
+  // Task 10 / M2 option (b): sapphire-bearing -იანი adjective, NOT the
+  // instrumental 'საფირონებით მოოჭვილი' (-ით sheared by the parser split).
+  'sapphire-encrusted bracelet': { indef: 'საფირონიანი სამაჯური' },
   sceptre: { indef: 'სკიპტრა' },
   screwdriver: { indef: 'სახრახნისი' },
   'set of teeth': { indef: 'კბილები' },

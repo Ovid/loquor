@@ -33,7 +33,10 @@ const WINDOW = 8
 // reviewed corpus + earlier-this-branch drafts). Pinned so a new unmarked draft
 // added outside the section bumps the count and fails. RAISE only when a line is
 // genuinely native-reviewed. Read off the green run; do NOT derive at runtime.
-const PRE_SECTION_KA_GEORGIAN = 42
+// 45 = 42 prior + 3 for the Phase-2 "You can't see any {obj} here!" draft (its
+// `out` line plus two Georgian-bearing comment lines); it is a marked draft,
+// asserted by its own markerGoverns test below.
+const PRE_SECTION_KA_GEORGIAN = 45
 
 const read = (rel: string): string[] =>
   readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8').split('\n')
@@ -80,12 +83,15 @@ describe('ka provisional Georgian strings carry a NATIVE-REVIEW-DRAFT marker', (
   it('zork1.ka.templates.ts: the disambiguation draft entry is marked', () => {
     const rel = './zork1.ka.templates.ts'
     const lines = read(rel)
-    // The new entry's `out` is the only Georgian string of the generalized
-    // disambiguation template. Locate it by its language-neutral {raw} echo.
+    // The new entry's `out` is a Georgian string of the generalized
+    // disambiguation template. After the drop-the-noun reframe its `out` no
+    // longer echoes {raw}; locate it by „გულისხმობ" ("do you mean"), which is
+    // unique to the disambiguation templates, plus an {obj.indef} slot. (Don't
+    // key on {obj2.indef}: the vehicle-tail line also carries both slots.)
     const idx = lines.findIndex(
       line =>
         GEORGIAN.test(line) &&
-        line.includes('{raw}') &&
+        line.includes('გულისხმობ') &&
         line.includes('{obj.indef}'),
     )
     expect(
@@ -116,6 +122,26 @@ describe('ka provisional Georgian strings carry a NATIVE-REVIEW-DRAFT marker', (
     expect(
       markerGoverns(lines, idx),
       `the incomplete-put prompt Georgian line (${rel}:${idx + 1}) needs a ${MARKER} marker`,
+    ).toBe(true)
+  })
+
+  // The Phase-2 "You can't see any {obj} here!" draft (the {obj} variant that
+  // names the object in Georgian) sits in the parser-feedback group, outside the
+  // composed section. Locate it by its distinctive „არ ჩანს" wording and assert
+  // a marker governs it too.
+  it('zork1.ka.templates.ts: the "can\'t see any {obj}" draft entry is marked', () => {
+    const rel = './zork1.ka.templates.ts'
+    const lines = read(rel)
+    const idx = lines.findIndex(
+      line => GEORGIAN.test(line) && line.includes('{obj.indef} აქ არ ჩანს'),
+    )
+    expect(
+      idx,
+      'expected the "can\'t see any {obj}" Georgian `out` line in ' + rel,
+    ).toBeGreaterThanOrEqual(0)
+    expect(
+      markerGoverns(lines, idx),
+      `the "can't see any {obj}" Georgian line (${rel}:${idx + 1}) needs a ${MARKER} marker`,
     ).toBe(true)
   })
 
@@ -180,4 +206,34 @@ describe('ka provisional Georgian strings carry a NATIVE-REVIEW-DRAFT marker', (
       'the COMBAT-DRAFTS block should hold Georgian pins',
     ).toBeGreaterThan(0)
   })
+})
+
+// ka INPUT lexicon files: ka.core.ts and ka.zork1.ts are large data files with
+// a single header-level NATIVE-REVIEW-DRAFT marker governing ALL entries below.
+// A per-line windowed check (WINDOW=8) would require hundreds of marker
+// insertions across these dense data files; the correct granularity here is
+// file-level: the header marker covers every entry, and the gate fails iff that
+// marker is dropped. (See task instructions: "if the strict per-line check would
+// require many marker insertions across the data files, that's a signal the
+// file-level assertion is the intended granularity for these large data files".)
+describe('ka INPUT lexicon is NATIVE-REVIEW-DRAFT-marked', () => {
+  for (const rel of [
+    '../../llm/lexicon/ka.core.ts',
+    '../../llm/lexicon/ka.zork1.ts',
+  ]) {
+    it(`${rel} carries the marker over its Georgian data`, () => {
+      const src = readFileSync(
+        fileURLToPath(new URL(rel, import.meta.url)),
+        'utf8',
+      )
+      const hasGeorgian = GEORGIAN.test(src)
+      expect(hasGeorgian, `expected ${rel} to contain Georgian (ka) data`).toBe(
+        true,
+      )
+      expect(
+        src.includes(MARKER),
+        `${rel} must carry a ${MARKER} marker (model-seeded data not yet native-reviewed)`,
+      ).toBe(true)
+    })
+  }
 })

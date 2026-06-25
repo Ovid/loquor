@@ -89,16 +89,47 @@ describe('Zork I × Georgian — UAT-2026-06-19 composed-line fixes', () => {
   })
 })
 
+describe('Zork I × Georgian — "can\'t see any {obj}" names the object (Phase 2)', () => {
+  const c = compileCorpus(ZORK1_KA)
+
+  // The {obj} variant must WIN over the {raw} fallback for a known object, so a
+  // Georgian player sees the Georgian name (ტროლი / სპილენძის ფარანი), not the
+  // parser's English noun. The §4-safe reframe names {obj} as the nominative
+  // subject of ჩანს ("X is not visible here").
+  it('names a known object in Georgian, not English {raw}', () => {
+    expect(matchLine(c, "You can't see any troll here!")).toBe(
+      'ტროლი აქ არ ჩანს!',
+    )
+    expect(matchLine(c, "You can't see any brass lantern here!")).toBe(
+      'სპილენძის ფარანი აქ არ ჩანს!',
+    )
+    // Multi-word printed name resolves too (each colored button is a corpus
+    // object) — no English noun leaks.
+    const redButton = matchLine(c, "You can't see any red button here!")
+    expect(redButton).toBe('წითელი ღილაკი აქ არ ჩანს!')
+    expect(redButton).not.toContain('button')
+  })
+
+  // An UNKNOWN noun (no corpus object) still falls back to the {raw} echo — that
+  // word is not one we can translate, so verbatim is the honest behavior.
+  it('falls back to {raw} for a noun with no corpus object', () => {
+    expect(matchLine(c, "You can't see any frobozz here!")).toBe(
+      'აქ ვერანაირ „frobozz“-ს ვერ ვხედავ!',
+    )
+  })
+})
+
 describe('Zork I × Georgian — object disambiguation (UAT-2026-06-20)', () => {
   const c = compileCorpus(ZORK1_KA)
 
   // The real parser string (gparser.zil WHICH-PRINT) is "Which <noun> do you
-  // mean, the X or the Y?" where <noun> is the player's TYPED noun word (English
-  // — ka players type English). fr/de/es route this to the LLM fallback (no raw
-  // leak); ka has NO LLM fallback, so before this fix ANY disambiguation leaked
-  // raw English. The <noun> is captured as {raw} (verbatim, NOT corpus-
-  // translated); the candidate objects translate via the corpus; the frame is
-  // Georgian.
+  // mean, the X or the Y?" where <noun> is the player's TYPED noun word. fr/de/es
+  // route this to the LLM fallback (no raw leak); ka has NO LLM fallback. In
+  // Phase 2 the ka player types GEORGIAN, so the parser's English <noun> (lamp,
+  // button) would be a forced-English leak if echoed — so ka now DROPS the noun
+  // (drop-the-noun reframe), mirroring fr/de/es: the `out` frame omits {raw} and
+  // names only the candidates. The candidate objects translate via the corpus;
+  // the frame is Georgian; the English noun is NOT echoed.
   it('disambiguation: non-"book" "Which <noun> do you mean…" renders Georgian', () => {
     const out = matchLine(
       c,
@@ -112,8 +143,8 @@ describe('Zork I × Georgian — object disambiguation (UAT-2026-06-20)', () => 
     // candidate objects rendered via the corpus (Georgian)
     expect(out).toContain('სპილენძის ფარანი') // brass lantern
     expect(out).toContain('გატეხილი ფარანი') // broken lantern
-    // typed noun word kept verbatim (English) — it's the player's own input
-    expect(out).toContain('lamp')
+    // the English noun is dropped, NOT echoed (would be forced English)
+    expect(out).not.toContain('lamp')
   })
 
   it('disambiguation: a different typed noun + object pair also composes', () => {
@@ -125,7 +156,7 @@ describe('Zork I × Georgian — object disambiguation (UAT-2026-06-20)', () => 
     expect(out).not.toContain('Which')
     expect(out).toContain('საზიზღარი დანა') // nasty knife
     expect(out).toContain('დაჟანგული დანა') // rusty knife
-    expect(out).toContain('knife')
+    expect(out).not.toContain('knife') // English noun dropped, not echoed
   })
 
   // The golden-path case (I2): the 4 dam-control buttons share SYNONYM BUTTON,
@@ -146,7 +177,7 @@ describe('Zork I × Georgian — object disambiguation (UAT-2026-06-20)', () => 
     expect(out).toContain('ყავისფერი ღილაკი') // brown button
     expect(out).toContain('წითელი ღილაკი') // red button
     expect(out).toContain('ლურჯი ღილაკი') // blue button
-    expect(out).toContain('button') // typed noun kept verbatim (English)
+    expect(out).not.toContain('button') // English noun dropped, not echoed
   })
 
   // The 3-candidate form ("the A, the B, or the C?") for completeness.
@@ -160,6 +191,7 @@ describe('Zork I × Georgian — object disambiguation (UAT-2026-06-20)', () => 
     expect(out).toContain('ყვითელი ღილაკი')
     expect(out).toContain('ყავისფერი ღილაკი')
     expect(out).toContain('წითელი ღილაკი')
+    expect(out).not.toContain('button') // English noun dropped, not echoed
   })
 })
 

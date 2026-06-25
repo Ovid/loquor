@@ -21,9 +21,12 @@ import {
   thinking,
   queuedChip,
   commandLabel,
+  commandLabelTypeEnglish,
   commandPlaceholder,
+  commandPlaceholderTypeEnglish,
 } from '../llm/notices'
 import { useNaturalLanguage } from '../llm/useNaturalLanguage'
+import { kaInputActive } from '../llm/lexicon/index'
 import { isHelpTrigger } from '../llm/help'
 import { useOutputTranslation } from '../translate/useOutputTranslation'
 import { corpusFor } from '../translate/corpus/index'
@@ -142,15 +145,22 @@ export function Terminal({
 
   // The active OUTPUT language drives the display overlay (incl. output-only
   // languages like Georgian). `outputOnly` languages (OUTPUT_ONLY_LANGS) have a
-  // display corpus but no INPUT support yet (Phase 1): they translate output but
-  // raw-send English from the command field — exactly as 'off' does — so NL
-  // *input* is engaged only for a fully-supported on-language (`nlInputOn`).
+  // display corpus but no LLM upgrade — used below to suppress the upgrade
+  // modal/button for ka on EVERY game (it never has a model). It is NOT the input
+  // decision: ka's INPUT support is per-game (see `kaInputActive` below).
   const outLang = nl.state.phase === 'on' ? nl.state.language : 'off'
   const outputOnly = outLang !== 'off' && OUTPUT_ONLY_LANGS.has(outLang)
-  const nlInputOn = nl.state.phase === 'on' && !outputOnly
-  // The NL layer is engaged at all (incl. output-only ka) — drives the localized
-  // command-field copy. Distinct from nlInputOn, which gates the translate path.
+  // The NL layer is engaged at all (incl. ka on a no-lexicon game) — drives the
+  // localized command-field copy. Distinct from nlInputOn, which gates translate.
   const nlOn = nl.state.phase === 'on'
+  // ka graduates to INPUT only on a game that HAS a ka noun lexicon — Zork I
+  // today (spec §5.6, issue-1). On Zork II/III (no ka lexicon) it stays Phase-1
+  // output-only: the field raw-sends English and `help` is intercepted at this
+  // boundary (the in-pipeline help intercept lives inside nl.translate, which the
+  // raw-send path never calls). fr/de/es always route; en raw-sends.
+  const kaActive = kaInputActive(outLang, signature)
+  const kaRawSend = outLang === 'ka' && !kaActive // ka on a no-lexicon game
+  const nlInputOn = nlOn && (outLang !== 'ka' || kaActive)
 
   // Output translation (display overlay — spec §3): the language the player
   // picked drives the overlay (including output-only languages); passthrough
@@ -299,27 +309,42 @@ export function Terminal({
             inputRef={inputRef}
             // When the NL layer is on, localize the field's name + placeholder so
             // the headline feature isn't hidden behind classic copy (S3): English
-            // invites plain English; fr/de/es invite plain language; an
-            // OUTPUT-ONLY language (ka) raw-sends English, so its localized copy
-            // says "type in English". Only 'off' keeps the classic copy.
-            label={nlOn ? commandLabel(activeLang) : 'Game command'}
+            // invites plain English; fr/de/es invite plain language. ka splits by
+            // SIGNATURE (Task 20): on a no-lexicon game (Zork II/III, kaRawSend) it
+            // raw-sends English, so its Phase-1 copy says "type in English"; on
+            // Zork I (input-active) it invites Georgian via commandLabel/Placeholder.
+            // kaRawSend ⟹ nlOn (outLang==='ka' implies phase 'on'), so testing it
+            // first is safe. Only 'off' keeps the classic copy.
+            label={
+              kaRawSend
+                ? commandLabelTypeEnglish() // Zork II/III ka raw-sends English → Phase-1 name
+                : nlOn
+                  ? commandLabel(activeLang) // Zork I ka (+ en/fr/de/es): input-language name
+                  : 'Game command'
+            }
             placeholder={
-              nlOn ? commandPlaceholder(activeLang) : 'type a command…'
+              kaRawSend
+                ? commandPlaceholderTypeEnglish() // Zork II/III ka: Phase-1 "type in English"
+                : nlOn
+                  ? commandPlaceholder(activeLang)
+                  : 'type a command…'
             }
             // The field's VALUE is what `lang` governs for a screen reader, and
-            // the value is in the INPUT language — not the display language. For
-            // an OUTPUT-ONLY language (ka) the player types English, so tag the
-            // input English (undefined), not 'ka' — otherwise typed/echoed
-            // English is voiced with Georgian phonemes. fr/de/es type their own
-            // language, so nlInputOn carries nlLang there. (The localized
+            // the value is in the INPUT language — not the display language. ka
+            // on Zork I now types GEORGIAN (nlInputOn is true there), so the
+            // field correctly carries lang="ka" — a screen reader voices the
+            // typed Georgian with Georgian phonemes (an a11y improvement). ka on
+            // Zork II/III still raw-sends English (nlInputOn false → undefined),
+            // so an English value isn't mis-voiced as Georgian. fr/de/es type
+            // their own language, carrying nlLang. (The localized
             // placeholder/label copy is driven by activeLang above, unaffected.)
             lang={nlInputOn ? nlLang : undefined}
             restore={restore ?? undefined}
             onSubmit={text => {
               // The Loud Room echo is re-voiced per clause via recordEcho as the
-              // pipeline sends each canonical command (loudEcho / F6).
-              // Output-only languages (Georgian, Phase 1) are NOT nlInputOn: the
-              // field raw-sends English even while the display is translated.
+              // pipeline sends each canonical command (loudEcho / F6). ka on
+              // Zork I is nlInputOn (it types Georgian, routed through translate);
+              // ka on a no-lexicon game (kaRawSend) raw-sends English instead.
               if (nlInputOn)
                 void nl.translate(text).then(retained => {
                   // Non-EN abstain/timeout/failure sent nothing — restore the
@@ -330,13 +355,15 @@ export function Terminal({
                       key: (r?.key ?? 0) + 1,
                     }))
                 })
-              // OUTPUT-ONLY (ka) raw-sends English and never reaches the
-              // in-pipeline help intercept (it lives inside nl.translate). But
-              // the activation notice tells a ka player to type `help`, so it
-              // MUST be intercepted HERE to the localized Georgian help block —
-              // otherwise it raw-sends to the parser and earns "I don't know the
-              // word help". Every other ka command still raw-sends below.
-              else if (outputOnly && isHelpTrigger(text, activeLang))
+              // ka on a no-lexicon game (Zork II/III) raw-sends English and never
+              // reaches the in-pipeline help intercept (it lives inside
+              // nl.translate). But the activation notice tells a ka player to type
+              // `help`, so it MUST be intercepted HERE to the localized Georgian
+              // help block — otherwise it raw-sends to the parser and earns "I
+              // don't know the word help". Every other raw-send ka command still
+              // raw-sends below. (ka on Zork I is nlInputOn above, so `help` goes
+              // through nl.translate's own help intercept, not this boundary.)
+              else if (kaRawSend && isHelpTrigger(text, activeLang))
                 nl.showHelp(activeLang)
               else if (engineRef.current) engineRef.current.sendLine(text)
               // Practically unreachable (engine is set synchronously and input is
@@ -388,6 +415,7 @@ export function Terminal({
         signature={signature}
         showBeta={showBetaNotice}
         showNoCorpus={showNoCorpusNotice}
+        kaInput={kaActive}
       />
       <ModelDownloadModal
         open={upgradeModalOpen || nl.state.phase === 'downloading'}

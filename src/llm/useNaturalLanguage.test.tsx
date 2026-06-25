@@ -15,8 +15,15 @@ import {
 import { DOWNLOAD_RETRY_MS } from './config'
 import { emptyView } from '../glkote-react/types'
 import type { ViewState, BufferLine, TurnResult } from '../glkote-react/types'
-import { ZORK1_SIG } from './grammar/index'
+import { ZORK1_SIG, ZORK2_SIG } from './grammar/index'
 import { ZORK1_VOCAB } from './grammar/zork1.vocab'
+import * as LexiconIndex from './lexicon/index'
+import {
+  GEORGIAN_ACTIVATION_TIP,
+  GEORGIAN_ACTIVATION_TIP_TYPE_ENGLISH,
+  promptAnswerHint,
+} from './notices'
+import { helpResponse, helpResponseTypeEnglish } from './help'
 
 // A test that fails (or times out) between useFakeTimers/useRealTimers must
 // not poison every later test in the file with fake timers.
@@ -528,6 +535,87 @@ describe('useNaturalLanguage', () => {
     expect(hook.result.current.notice).toBeNull()
   })
 
+  it('ka activation announce is the Phase-2 Georgian-input tip on Zork I, the Phase-1 type-English tip on Zork II', async () => {
+    // The announce content now splits by signature: the per-call kaInput flag is
+    // kaInputActive(active, signature). Zork I has a ka lexicon → Phase-2
+    // "type in Georgian" tip; Zork II/III has none (raw-sends English) → Phase-1
+    // "type in English" tip (so we never tell a player Georgian input works where
+    // it doesn't). vocab present in BOTH (enables NL); the SIGNATURE gates ka input.
+    const { hook: hz1 } = setup({
+      engine: new FakeLlmEngine({ cached: true }),
+      vocab: ZORK1_VOCAB,
+      signature: ZORK1_SIG,
+    })
+    await waitFor(() =>
+      expect(hz1.result.current.state).toMatchObject({
+        phase: 'off',
+        installed: true,
+      }),
+    )
+    act(() => hz1.result.current.setLanguage('ka'))
+    await waitFor(() =>
+      expect(hz1.result.current.announce).toBe(GEORGIAN_ACTIVATION_TIP),
+    )
+
+    localStorage.clear()
+    const { hook: hz2 } = setup({
+      engine: new FakeLlmEngine({ cached: true }),
+      vocab: ZORK1_VOCAB, // vocab present (enables NL); the SIGNATURE gates ka input
+      signature: ZORK2_SIG,
+    })
+    await waitFor(() =>
+      expect(hz2.result.current.state).toMatchObject({
+        phase: 'off',
+        installed: true,
+      }),
+    )
+    act(() => hz2.result.current.setLanguage('ka'))
+    await waitFor(() =>
+      expect(hz2.result.current.announce).toBe(
+        GEORGIAN_ACTIVATION_TIP_TYPE_ENGLISH,
+      ),
+    )
+  })
+
+  it('defers the ka activation tip until the signature resolves (I2 race)', async () => {
+    // A returning ka player boots with a stored ka preference: the cache probe
+    // flips the layer to on/ka while `signature` is still '' (it resolves async,
+    // independently). kaInputActive('ka','') is false, so latching THEN would pin
+    // the wrong Phase-1 "type in English" tip on Zork I, and the once-per-language
+    // latch is spent when the signature arrives. The fix defers the ka tip until
+    // signature !== '', so once Zork I resolves the player gets the Phase-2 tip.
+    const props = (signature: string) => ({
+      engine: new FakeLlmEngine({ cached: true }),
+      capability: capable,
+      vocab: ZORK1_VOCAB, // present → NL enabled; the SIGNATURE gates ka input
+      getContext: ctx,
+      echoLocal: vi.fn(),
+      sendLine: vi.fn(),
+      sendCanonical: vi.fn(),
+      awaitTurn: async () => ({ view: emptyView, reason: 'line' as const }),
+      watchdogMs: 5000,
+      signature,
+    })
+    const hook = renderHook(p => useNaturalLanguage(p), {
+      initialProps: props(''), // signature not yet resolved
+    })
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({
+        phase: 'off',
+        installed: true,
+      }),
+    )
+    act(() => hook.result.current.setLanguage('ka')) // activates while signature===''
+    // Deferred: the tip must NOT latch to the Phase-1 type-English form yet.
+    await waitFor(() => expect(hook.result.current.state.phase).toBe('on'))
+    expect(hook.result.current.announce).toBeNull()
+
+    hook.rerender(props(ZORK1_SIG)) // signature resolves to Zork I
+    await waitFor(() =>
+      expect(hook.result.current.announce).toBe(GEORGIAN_ACTIVATION_TIP),
+    )
+  })
+
   it('keeps the fr activation nudge on the inline notice channel (not announce)', async () => {
     // Input languages (fr/de/es) keep their one-time nudge inline — only the
     // output-only ka tip moves to the dedicated announce region.
@@ -541,6 +629,24 @@ describe('useNaturalLanguage', () => {
     act(() => hook.result.current.setLanguage('fr'))
     await waitFor(() => expect(hook.result.current.notice).toMatch(/^Astuce/))
     expect(hook.result.current.announce).toBeNull()
+  })
+
+  it('showHelp routes ka to the type-English help block (Zork II/III raw-send), fr to its own', async () => {
+    // showHelp is reached ONLY via Terminal's kaRawSend (no-lexicon Zork II/III)
+    // path: ka there raw-sends English, so its help must be the type-English block
+    // (helpResponse('ka') is the Phase-2 "type Georgian" help, wrong on a raw-send
+    // game). en/fr/de/es get help from inside translate and never reach showHelp;
+    // the fr branch is defensive but pinned here.
+    const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
+    // Let the mount-time capability/activation effect settle before driving
+    // showHelp, so its async state update doesn't flush outside act() below.
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
+    )
+    act(() => hook.result.current.showHelp('ka'))
+    expect(hook.result.current.notice).toBe(helpResponseTypeEnglish())
+    act(() => hook.result.current.showHelp('fr'))
+    expect(hook.result.current.notice).toBe(helpResponse('fr'))
   })
 
   it('boot restore: a stored language reactivates against a cached model', async () => {
@@ -928,6 +1034,102 @@ describe('useNaturalLanguage', () => {
     expect(sendLine).toHaveBeenCalledWith('the trophy case') // raw answer
     expect(echoLocal).not.toHaveBeenCalled()
     expect(generateSpy).not.toHaveBeenCalled()
+  })
+
+  it('a ka disambiguation reply resolves the Georgian noun to the English noun (I3)', async () => {
+    // The corpus renders "Which button…?" in Georgian, so a ka player answers in
+    // Georgian. That reply must be resolved through the noun lexicon and sent as
+    // the English noun — NOT raw-sent verbatim (which the English Z-parser can't
+    // read, with no LLM net to recover). echo shows the player's own words once.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"look"}',
+    })
+    const generateSpy = vi.spyOn(engine, 'generate')
+    const getContext = () => ({
+      location: 'Dam Lobby',
+      recentOutput:
+        'Which button do you mean, the yellow button or the brown button?',
+    })
+    const { hook, echoLocal, sendLine } = setup({
+      engine,
+      getContext,
+      vocab: ZORK1_VOCAB,
+      signature: ZORK1_SIG,
+    })
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
+    )
+    act(() => hook.result.current.setLanguage('ka'))
+    await act(async () => {
+      await hook.result.current.translate('ყვითელი ღილაკი') // "yellow button"
+    })
+    expect(sendLine).toHaveBeenCalledWith('yellow button')
+    expect(echoLocal).toHaveBeenCalledWith('ყვითელი ღილაკი')
+    expect(generateSpy).not.toHaveBeenCalled() // ka has no LLM net anyway
+  })
+
+  it('a ka prompt reply that misses resolution abstains with a localized hint (I3)', async () => {
+    // A bare adjective ("ყვითელი" = yellow) has no standalone noun entry, so it
+    // can't resolve. Rather than raw-send Georgian (an English error + burned
+    // turn, with an English leak), abstain and show the "answer with the full
+    // item name" hint in Georgian; leave the prompt open.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"look"}',
+    })
+    const getContext = () => ({
+      location: 'Dam Lobby',
+      recentOutput:
+        'Which button do you mean, the yellow button or the brown button?',
+    })
+    const { hook, sendLine } = setup({
+      engine,
+      getContext,
+      vocab: ZORK1_VOCAB,
+      signature: ZORK1_SIG,
+    })
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
+    )
+    act(() => hook.result.current.setLanguage('ka'))
+    let retained: string | null = 'unset'
+    await act(async () => {
+      retained = await hook.result.current.translate('ყვითელი') // bare "yellow"
+    })
+    expect(sendLine).not.toHaveBeenCalled() // nothing sent — Georgian not raw-sent
+    expect(hook.result.current.notice).toBe(promptAnswerHint('ka'))
+    expect(retained).toBe('ყვითელი') // restored to the field so it can be fixed
+  })
+
+  it('a ka English-ASCII prompt reply still raw-sends (§5.5)', async () => {
+    // A ka player who answers the disambiguation prompt in English keeps the
+    // English-ASCII raw-send: Zork's parser reads it directly.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"look"}',
+    })
+    const getContext = () => ({
+      location: 'Dam Lobby',
+      recentOutput:
+        'Which button do you mean, the yellow button or the brown button?',
+    })
+    const { hook, sendLine } = setup({
+      engine,
+      getContext,
+      vocab: ZORK1_VOCAB,
+      signature: ZORK1_SIG,
+    })
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
+    )
+    act(() => hook.result.current.setLanguage('ka'))
+    await act(async () => {
+      await hook.result.current.translate('yellow button')
+    })
+    // Resolves via the vocab's own English surfaces OR raw-sends — either way the
+    // English noun reaches Zork (not abstained).
+    expect(sendLine).toHaveBeenCalledWith('yellow button')
   })
 
   // (A hook-level "observe is idempotent" test used to live here asserting
@@ -2278,6 +2480,71 @@ describe('NL v2 pipeline stages (spec §4)', () => {
     expect(generateSpy).not.toHaveBeenCalled()
     expect(echoLocal).toHaveBeenCalledTimes(1)
     expect(hook.result.current.notice).toBeNull()
+  })
+
+  it('ka lex memo gates on kaInputActive — true on Zork I, false on Zork II (spec §5.6)', async () => {
+    // The lex useMemo in useNaturalLanguage must call kaInputActive(language,
+    // signature) to gate ka's lexicon on Zork I only. Before Task 15 the guard
+    // was `language !== 'fr' && … !== 'es'`, which returned null for ka and
+    // never called kaInputActive. After Task 15 the memo calls kaInputActive and
+    // admits ka+ZORK1_SIG (returns non-null lex). Stage-6 behavioral tests
+    // (Georgian verb → canonical send) land in Task 16 once the drain bail is
+    // also re-pointed; THIS test pins the memo gate itself.
+    const spy = vi.spyOn(LexiconIndex, 'kaInputActive')
+    try {
+      // Zork I: kaInputActive('ka', ZORK1_SIG) → true → lex non-null.
+      const { hook: hookZ1 } = setup({
+        engine: new FakeLlmEngine({ cached: true }),
+        vocab: ZORK1_VOCAB,
+        signature: ZORK1_SIG,
+      })
+      await waitFor(() =>
+        expect(hookZ1.result.current.state).toMatchObject({
+          phase: 'off',
+          installed: true,
+        }),
+      )
+      spy.mockClear()
+      act(() => hookZ1.result.current.setLanguage('ka'))
+      // After setLanguage the lex memo re-runs; kaInputActive must be called
+      // with the active language ('ka') and the Zork I signature, and return
+      // true (the value the guard negates to ADMIT the lex). We assert EVERY
+      // call returned true (not just "some call"), so a kaInputActive that
+      // silently returned false on Zork I would fail here.
+      // NOTE: this pins the call-site wiring + kaInputActive's return value, NOT
+      // the guard's branch direction (that the `!` is present so true→non-null
+      // lex). A guard inverted to `if (kaInputActive(...) ...) return null` would
+      // still call kaInputActive and see `true` here. The guard-direction /
+      // lex-non-null contract is pinned behaviorally by Task 16 (Georgian verb →
+      // canonical send, which only works when the lex was actually built).
+      expect(spy).toHaveBeenCalledWith('ka', ZORK1_SIG)
+      expect(spy.mock.results.length).toBeGreaterThan(0)
+      expect(spy.mock.results.every(r => r.value === true)).toBe(true)
+
+      // Zork II: kaInputActive('ka', ZORK2_SIG) → false → lex null.
+      // Clear persisted language from the Zork I hook above.
+      localStorage.clear()
+      const { hook: hookZ2 } = setup({
+        engine: new FakeLlmEngine({ cached: true }),
+        vocab: ZORK1_VOCAB,
+        signature: ZORK2_SIG,
+      })
+      await waitFor(() =>
+        expect(hookZ2.result.current.state).toMatchObject({
+          phase: 'off',
+          installed: true,
+        }),
+      )
+      spy.mockClear()
+      act(() => hookZ2.result.current.setLanguage('ka'))
+      // Zork II has no ka lexicon → kaInputActive returns false for every call,
+      // so the guard returns null (no lex). Same caveat as above re: direction.
+      expect(spy).toHaveBeenCalledWith('ka', ZORK2_SIG)
+      expect(spy.mock.results.length).toBeGreaterThan(0)
+      expect(spy.mock.results.every(r => r.value === false)).toBe(true)
+    } finally {
+      spy.mockRestore()
+    }
   })
 })
 

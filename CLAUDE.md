@@ -11,7 +11,7 @@ canonical game command). The **first pass is built** (the playable engine + UI);
 the **natural-language layer is built and under active refinement** (UAT-driven
 parser/scene/vocab work on feature branches such as `ovid/more-parser-work`).
 
-## Repository state: first pass built; NL layer v2 + grammar-only fallback built; output translation v1 built
+## Repository state: first pass built; NL layer v2 + grammar-only fallback built; output translation v1 built; Georgian input (Phase 2) built
 
 **The application IS scaffolded.** `package.json`, the Vite app, and `src/` all
 exist, with the first pass implemented and tested (engine, GlkOte bridge, storage,
@@ -28,9 +28,10 @@ picker's "✦ improve"). A device that can't or won't run the model stays in
 grammar-only; English raw-sends, non-English abstains with a notice. (The old
 `unavailable` NL state is gone; the state now carries `canUpgrade` / `model`
 (`full | grammar`).) **Output translation v1 is implemented and tested** (Zork I,
-corpora for French/Spanish/German, plus **Georgian (`ka`)** as a Phase-1
-output-only language — read-Georgian / type-English, corpus-only with no LLM
-fallback since small models can't produce Georgian): a display-layer overlay
+corpora for French/Spanish/German, plus **Georgian (`ka`)** — corpus-only output
+with no LLM fallback since small models can't produce Georgian; **Phase-2 Georgian
+INPUT is now also built** (Zork I: a Georgian input lexicon + `expandGeorgian`
+parser pre-stage, still no input LLM — see source-of-truth #2)): a display-layer overlay
 (`src/translate/`) with a pre-translated corpus (strings/templates/objects) gated
 by a walkthrough-coverage test and a string-inventory test, plus an LLM fallback
 behind the shared engine gate (for fr/de/es only). Sources of truth, in priority
@@ -41,7 +42,14 @@ order:
    grammar-only activation). Its implementation plan,
    `docs/superpowers/plans/2026-06-16-loquor-grammar-only-fallback.md`, is
    executed. Supersedes the v2 download-gate where they conflict.
-2. `docs/superpowers/specs/2026-06-17-loquor-output-translation-georgian-design.md`
+2. `docs/superpowers/specs/2026-06-24-loquor-georgian-input-design.md` — the
+   **Georgian (`ka`) Phase-2 INPUT design** (Georgian input lexicon +
+   `expandGeorgian` parser pre-stage, G1 dative recipients, Georgian
+   directions/conjunctions, signature-gated UI copy; **Zork I only, no input
+   LLM**). Its implementation plan,
+   `docs/superpowers/plans/2026-06-24-loquor-georgian-input.md`, is executed.
+   Supersedes the "output-only / type-English" framing for `ka` on Zork I.
+2a. `docs/superpowers/specs/2026-06-17-loquor-output-translation-georgian-design.md`
    — the **Georgian (`ka`) Phase-1 output-translation design** (output-only,
    type-English, corpus-only). Builds on the v1 output-translation design below.
 2b. `docs/superpowers/specs/2026-06-10-loquor-output-translation-design.md` — the
@@ -170,13 +178,23 @@ npx vitest run -t "substring of test name"    # by name
   why it doesn't apply). Fixing German while Spanish is broken for the identical
   reason doesn't help the player. Watch especially for code that was written
   German-first (or English-first) and hardcodes one language's words/forms.
-  **Georgian (`ka`) is the exception: it is OUTPUT-ONLY (Phase 1).** It has a
-  display corpus but NO input lexicon and NO input LLM — it raw-sends English
-  from the command field (it is in `OUTPUT_ONLY_LANGS` / `CORPUS_ONLY_LANGS`).
-  So an *input*-side change (lexicon, prompt detection, few-shots, clause
-  transform) applies to EN/FR/DE/ES but **must not** be wired into `ka`; an
-  *output*-side change (corpus, display notices, a11y of translated text) does
-  include `ka`. Don't add `ka` to the input path until Phase 2 (Georgian input).
+  **Georgian (`ka`) is special: Phase-2 Georgian INPUT is built (Zork I), but
+  `ka` still has NO input LLM.** It now has a Georgian input lexicon
+  (`ka.core`/`ka.zork1`) and a parser pre-stage (`expandGeorgian`), so on
+  **Zork I** it accepts Georgian commands deterministically; on Zork II/III (no
+  lexicon) it stays Phase-1, raw-sending English. `ka` is still in
+  `OUTPUT_ONLY_LANGS` / `CORPUS_ONLY_LANGS` — those mean *"no output LLM /
+  corpus-only display,"* which remains true, and they also keep `ka` out of the
+  LLM-keyed **input** machinery. So split input-side changes by KIND: a
+  **deterministic** input change (lexicon entry, prompt intercept, clause
+  transform, the disambiguation-reply noun resolver) **does** apply to
+  `ka`-on-Zork-I — and because `ka` has no LLM net, it is the language that most
+  NEEDS it; an **LLM-only** input change (few-shots, the LLM prompt tables,
+  `fallbackResolve`) **must not** be wired into `ka` (those maps stay
+  `Record<LexLang,…>` so a `ka` entry is a type error). An *output*-side change
+  (corpus, display notices, a11y of translated text) includes `ka` as before. A
+  `ka` parse miss on a plain-ASCII line still raw-sends English (§5.5); a Georgian
+  miss abstains.
 - **The north star of output translation: a player who switched to a language
   must never be forced to read English.** When you pick a language, you see that
   language — if you can't read English, you never have to. This holds **even in
@@ -189,10 +207,11 @@ npx vitest run -t "substring of test name"    # by name
   echo an English token that can't be translated (e.g. the WHICH-PRINT
   disambiguation prompt echoes the parser's English noun), **drop the token** —
   the drop-the-noun reframe ("Do you mean X or Y?" with translated candidates) —
-  rather than echo English or defer to the LLM. (`ka` still echoes the player's
-  *own* typed English noun in disambiguation today, acceptable only because ka
-  input is English; **Phase-2 Georgian input must revisit every `ka` {raw}-echo**,
-  since an echoed English vocab word then becomes forced English.)
+  rather than echo English or defer to the LLM. (Phase-2 Georgian input is now
+  built: the disambiguation/orphan **reply** path resolves a Georgian noun phrase
+  to the English noun rather than raw-sending it (I3), and the display reframe
+  drops the English `{raw}` token. Still audit any **new** `ka` `{raw}`-echo — an
+  echoed English vocab word becomes forced English for a Georgian-input player.)
 - **Deterministic (non-LLM) behavior must work for EVERY applicable language —
   not just the ones that happen to be easy.** A deterministic path — a corpus
   template/string, a lexicon entry, a prompt intercept, a clause transform, a

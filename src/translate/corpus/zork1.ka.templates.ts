@@ -36,6 +36,18 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
     en: 'You used the word "{raw}" in a way that I don\'t understand.',
     out: 'სიტყვა „{raw}“ ისე გამოიყენე, რომ ვერ გავიგე.',
   },
+  // The NOT-HERE message names the object the player referenced. fr/de/es carry
+  // BOTH a {obj} variant (printed object name → translated) and a {raw} fallback;
+  // ka had ONLY {raw}, so it echoed the parser's ENGLISH noun (lamp, troll,
+  // button) even for objects we DO model — a forced-English leak for a Georgian
+  // player (CLAUDE.md no-forced-English; ka has no LLM net). Add the {obj}
+  // variant: it wins the tie-break over {raw} for a known printed object, and
+  // sidesteps §4 by reframing the transitive "I can't see any X" (dative object,
+  // un-composable on the citation form) to the intransitive "X is not visible
+  // here" — {obj} is the NOMINATIVE subject of ჩანს, the same caseless slot as
+  // "{obj.indef} აქ არ არის!" below. The {raw} fallback stays for a noun with no
+  // corpus object. NATIVE-REVIEW-DRAFT (ka §4 case forms): provisional wording.
+  { en: "You can't see any {obj} here!", out: '{obj.indef} აქ არ ჩანს!' },
   {
     en: "You can't see any {raw} here!",
     out: 'აქ ვერანაირ „{raw}“-ს ვერ ვხედავ!',
@@ -51,18 +63,23 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
 
   // ── Parser object-disambiguation prompt (gparser.zil WHICH-PRINT, ~1146-1166):
   //    the REAL string is "Which <noun> do you mean, the X or the Y?" where
-  //    <noun> is the player's TYPED noun word (English — ka players type
-  //    English), captured here as {raw} (verbatim, NOT corpus-translated). The
-  //    two candidates are corpus objects in a "this OR that" choice; the natural
-  //    Georgian keeps each in the bare NOMINATIVE citation form (§4: caseless
-  //    listing position, no case marker), so {obj.indef}/{obj2.indef} compose
-  //    safely either way the parser orders the pair. fr/de/es route this to the
-  //    LLM fallback; ka has none, so this template is what prevents the raw-
-  //    English leak for Georgian players. NATIVE-REVIEW-DRAFT (ka §4 case forms):
-  //    provisional wording pending native review.
+  //    <noun> is the player's TYPED noun word, captured as {raw} on the en side
+  //    (en keeps {raw} ONLY so the template still MATCHES the prompt). In Phase 2
+  //    the ka player types GEORGIAN, so the parser's English <noun> (lamp,
+  //    button) would be a FORCED-ENGLISH leak if echoed (CLAUDE.md no-forced-
+  //    English; ka has no LLM net). So the `out` now DROPS the noun (drop-the-noun
+  //    reframe), naming only the candidates — mirroring fr/de/es, which already
+  //    drop it (de: "Welches meinst du, …?"). This also sidesteps §4: the case
+  //    discipline can't decline an echoed English noun onto a Georgian citation
+  //    form anyway. The two candidates are corpus objects in a "this OR that"
+  //    choice; the natural Georgian keeps each in the bare NOMINATIVE citation
+  //    form (§4: caseless listing position, no case marker), so {obj.indef}/
+  //    {obj2.indef} compose safely either way the parser orders the pair.
+  //    NATIVE-REVIEW-DRAFT (ka §4 case forms): provisional wording pending native
+  //    review.
   {
     en: 'Which {raw} do you mean, the {obj} or the {obj2}?',
-    out: 'რომელ {raw}-ს გულისხმობ — {obj.indef} თუ {obj2.indef}?',
+    out: 'რომელი გულისხმობ — {obj.indef} თუ {obj2.indef}?',
   },
   // ── …and the 3+/4-candidate forms WHICH-PRINT prints for more than two
   //    matches: "the A, the B, or the C?" / "the A, the B, the C, or the D?"
@@ -71,7 +88,9 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
   //    the Maintenance Room, SYNONYM BUTTON SWITCH), so `push button` there is a
   //    GUARANTEED 4-candidate prompt on the dam puzzle — a golden-path raw-English
   //    leak for ka (no LLM net) until these match (I2). Each button is in the ka
-  //    object corpus, so the slots resolve. The candidates stay in the bare
+  //    object corpus, so the slots resolve. As above (Phase 2), the `out` DROPS
+  //    the typed English noun {raw} — echoing it would force English — while the
+  //    en side keeps {raw} only for matching. The candidates stay in the bare
   //    NOMINATIVE citation form (caseless listing position, §4); Georgian has no
   //    articles, so no "the" repeats, and "თუ" ("or") precedes the last. fr/de/es
   //    route 3+/4-candidate prompts to the LLM (which renders them cleanly without
@@ -79,11 +98,11 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
   //    NATIVE-REVIEW-DRAFT (ka §4 case forms): provisional wording pending review.
   {
     en: 'Which {raw} do you mean, the {obj}, the {obj2}, or the {obj3}?',
-    out: 'რომელ {raw}-ს გულისხმობ — {obj.indef}, {obj2.indef} თუ {obj3.indef}?',
+    out: 'რომელი გულისხმობ — {obj.indef}, {obj2.indef} თუ {obj3.indef}?',
   },
   {
     en: 'Which {raw} do you mean, the {obj}, the {obj2}, the {obj3}, or the {obj4}?',
-    out: 'რომელ {raw}-ს გულისხმობ — {obj.indef}, {obj2.indef}, {obj3.indef} თუ {obj4.indef}?',
+    out: 'რომელი გულისხმობ — {obj.indef}, {obj2.indef}, {obj3.indef} თუ {obj4.indef}?',
   },
 
   // === COMPOSED-GATE-DRAFTS (P2.1) BEGIN — NATIVE-REVIEW-DRAFT (all entries to

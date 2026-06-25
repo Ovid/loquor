@@ -1,4 +1,7 @@
-import { GEORGIAN_ACTIVATION_TIP } from '../llm/notices'
+import {
+  GEORGIAN_ACTIVATION_TIP,
+  GEORGIAN_ACTIVATION_TIP_TYPE_ENGLISH,
+} from '../llm/notices'
 import { nlModeSummary, readoutLang } from './nlModeSummary'
 import type { NlState } from '../llm/types'
 
@@ -18,7 +21,13 @@ import type { NlState } from '../llm/types'
  *    player content shown in addition to the readout. These two are mutually
  *    exclusive (the caller derives them from one corpus check) and asymmetric
  *    (Decision 1):
- *      - Beta: the screen IS Georgian → Georgian-only notice + the type-English tip.
+ *      - Beta: the screen IS Georgian → Georgian-only notice + the activation tip.
+ *        The TIP is gated on `kaInput`, NOT on corpus presence (showBeta): with
+ *        Georgian input active (Zork I) it is the Phase-2 "type Georgian" tip;
+ *        without (a corpus-but-no-input game) it is the Phase-1 "type English" tip,
+ *        so we never tell a player Georgian input works where it raw-sends English
+ *        (drift spec Decision 6 — S3). The two coincide today only because Zork I
+ *        is the sole game with both a ka corpus and a ka input lexicon.
  *      - No-corpus: the screen fell back to English → bilingual notice, NO tip.
  */
 export function BottomBar({
@@ -28,6 +37,7 @@ export function BottomBar({
   signature,
   showBeta,
   showNoCorpus,
+  kaInput,
 }: {
   debug: boolean
   nlState: NlState
@@ -37,6 +47,9 @@ export function BottomBar({
   signature: string
   showBeta: boolean
   showNoCorpus: boolean
+  /** Whether Georgian INPUT is active on this game (kaInputActive). Selects the
+   *  Phase-2 vs Phase-1 activation tip independently of corpus presence (S3). */
+  kaInput: boolean
 }) {
   const summary = nlModeSummary(nlState)
   return (
@@ -71,8 +84,13 @@ export function BottomBar({
           </span>
           {/* Relocated activation tip — now PERMANENT visible content (Decision
               3). Its one-shot announcement still rides the latch into Terminal's
-              dedicated announce region; this is the always-visible copy. */}
-          <span lang="ka">{GEORGIAN_ACTIVATION_TIP}</span>
+              dedicated announce region; this is the always-visible copy. Gated on
+              kaInput (input active vs raw-send English), not corpus presence (S3). */}
+          <span lang="ka">
+            {kaInput
+              ? GEORGIAN_ACTIVATION_TIP
+              : GEORGIAN_ACTIVATION_TIP_TYPE_ENGLISH}
+          </span>
         </>
       )}
       {showNoCorpus && (

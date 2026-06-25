@@ -246,7 +246,10 @@ describe('Zork I × Georgian — parser implicit-instrument parenthetical (UAT-2
     ['hand-held air pump', 'ტუმბო'],
     ['shovel', 'ნიჩაბ'],
     ['screwdriver', 'სახრახნის'],
-    ['wrench', 'გასაღებ'],
+    // wrench = ქანჩის გასაღებით — assert the DISTINGUISHING modifier ქანჩის, not
+    // the shared head გასაღებ (the skeleton key also renders as …გასაღებით), so a
+    // wrench→skeleton-key regression can't slip through this pin.
+    ['wrench', 'ქანჩის'],
     ['skeleton key', 'გასაღებ'],
     ['viscous material', 'მასალ'],
   ]

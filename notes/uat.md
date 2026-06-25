@@ -953,3 +953,46 @@ resolves correctly; only the nl-source echo looks odd.
 გულისხმობ — ლურჯი ღილაკი, …?`), and the I3 reply resolver works: `ყვითელი ღილაკი`
   → "yellow button" → `წკაპ.` ("Click."). The fix only RELEASES the trap once the
   prompt is answered; it doesn't touch the reply resolver.
+
+## Hide-LLM-fallback UAT (2026-06-25, branch `ovid/hide-llm-fallback`)
+
+Black-box run against `2026-06-25-loquor-hide-llm-fallback-design.md`. The whole
+feature verified live and PASSED (no fixes). Reusable technique notes:
+
+- **The M2 migration notice is normally hard to reach, but this env had it for
+  free.** Trigger is `!llmEnabled && engine.isCached() && !hiddenNoticeSeen`, and
+  the notice fires only when **Terminal mounts** (i.e. after you enter a game, not
+  on the landing). This machine had `webllm/{model,config,wasm}` cached + flag
+  unset, so entering Zork I fired it live. **It is one-time: the marker
+  `loquor.llm.hiddenNoticeSeen` is set the instant it shows.** To re-test M2 you
+  MUST `localStorage.removeItem('loquor.llm.hiddenNoticeSeen')` first (and have a
+  cached model + flag off). The notice is localized to `readNlPref().language`
+  resolved at `isCached().then()` time — it showed in French because the
+  landing-picked `fr` had persisted by then.
+- **The M2 + mode-change live region is findable by `.nl-notice` whose
+  `previousElementSibling.className === 'bottombar'`** — that's the dedicated
+  `aria-live="polite"` div (role=null, NOT status). The OTHER `.nl-notice` is the
+  escape-hatch "Astuce" notice inside the `role=status` `.nl-status` region. There
+  is exactly ONE `role="status"` region (the plan's collision guard) — assert
+  `document.querySelectorAll('[role=status]').length === 1`.
+- **`read_page` reports a label-wrapped checkbox's accessible name as its VALUE
+  ("on"), not the label text.** Don't trust it for a11y. Compute the real name
+  from `input.closest('label').textContent` (or dom-accessibility-api). Here both
+  prefs checkboxes correctly resolved to "Mode débogage" / "Modèle de langage
+  naturel (expérimental)" with `aria-describedby` → their help paragraphs, debug
+  first in DOM order.
+- **Grammar-only abstain logs `stage:"llm"` BUT `raw:"(grammar-only)"` +
+  `result:{kind:"abstain"}`** — the `raw` field is the tell that the engine was
+  NOT invoked (no lazy-load). Confirmed zero WebLLM engine-load console messages
+  across a full toggle-on/off cycle despite a cached model: the "engine never
+  loads when off" guarantee holds.
+- **Distinguish the two fr abstain notices by one phrase:** the suppressed
+  upgrade-pitch (`grammarOnlyFirstMiss`) contains "mise à niveau facultative";
+  the plain `couldntTranslate` does not. Flag-off first-miss showed the plain one
+  → pitch correctly suppressed (this was a FRESH-mount first abstain, so it would
+  have pitched if the feature were on).
+- **Toggling the flag with a cached model jumps straight to the FULL tier**
+  (bottom-bar `complet · saisie`), NOT the grammar-only basic-chip/improve state —
+  effectiveModel = internal.model = 'full'. To see the grammar-only affordances
+  live you'd need NO cached model; don't wipe the cache (per the a11y-UAT note),
+  trust the `NlLanguagePicker` unit pins.

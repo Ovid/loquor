@@ -283,11 +283,18 @@ export function Terminal({
   // cache-restore resolves the active language). Mount-only.
   useEffect(() => {
     if (llmEnabled) return
+    let seen = false
     try {
-      if (localStorage.getItem(LS_KEYS.llmHiddenNoticeSeen) === '1') return
+      seen = localStorage.getItem(LS_KEYS.llmHiddenNoticeSeen) === '1'
     } catch {
-      return
+      // Storage blocked (e.g. Chrome "block all cookies", whose localStorage
+      // getter itself throws): we can't confirm the notice was already shown, so
+      // fall through and let it show. The marker is best-effort and a recurring
+      // notice is benign (the write side below accepts the same). BAILING here
+      // would instead silence the actionable "re-enable in Preferences" guidance
+      // for exactly the blocked-storage user who can't persist the marker.
     }
+    if (seen) return
     let cancelled = false
     void llmEngine
       .isCached()

@@ -7,7 +7,12 @@
 live mechanism (B1/B2/M1), added a one-time migration notice for opted-in users
 (M2), a live mode-change a11y announcement (M3), pinned all deferred strings
 across four languages (M4/m3), and expanded the test list to the live-transition,
-mid-download-abort and cached-boot cases (t1–t5).
+mid-download-abort and cached-boot cases (t1–t5). **Re-revised 2026-06-25 after a
+plan-alignment pass:** added the grammar-only first-miss upgrade-pitch suppression
+to *Behavior when off* (+ a `translatePipeline.ts` gate point), corrected the M2
+delivery channel (a dedicated Terminal-owned `aria-live` region — the prior
+`~413` reference was the `ka`-only region), and confirmed t3/t5 get explicit
+tests.
 
 ## Problem
 
@@ -58,6 +63,15 @@ effective value. This is what makes "off" inert even when `internal` says `full`
 - **`installed / not installed` chip** is not rendered (it reports model state).
 - **`basic` tier markers** are gone: the status-bar `basic` chip
   (`NlLanguagePicker`) and the tier token in `nlModeSummary`.
+- **The grammar-only first-miss upgrade pitch is suppressed.** The
+  `grammarOnlyFirstMiss` notice ("…add the optional upgrade for full sentences")
+  is a user-facing trace shown to a fr/de/es player in basic mode on their first
+  abstain — a common path. When hidden, stage 8 of the input pipeline falls back
+  to the plain `couldntTranslate` notice instead (the upgrade it pitches no longer
+  exists). This is carried via `llmEnabled` on the pipeline's live state and gated
+  so **`ka` is unchanged** (its first-miss notice already carries no pitch and is
+  the no-LLM language's chosen wording — `(live.llmEnabled || activeLang ===
+  'ka')`).
 - **Landing caveat** shows a short form with no mention of a model or tier (see
   *Pinned strings*).
 - **Functionally**, input stays grammar-only and output stays corpus-only — and
@@ -123,8 +137,15 @@ user is focused in, so a silent DOM mutation is not acceptable:
 1. **Live mode change.** Flipping the toggle announces a localized message via an
    `aria-live` region — "Natural-language model enabled." / "…hidden." A test
    asserts the announcement (test t4).
-2. **Migration notice (M2).** Delivered through the existing NL-notice
-   `aria-live` channel (`Terminal.tsx:~413`).
+2. **Migration notice (M2).** Delivered through a **dedicated Terminal-owned
+   visible `aria-live="polite"` region** (shared with the mode-change
+   announcement above). It is deliberately **not** `role="status"`: `Terminal`
+   already has one `role="status"` region (`Terminal.tsx:~306`) that existing
+   tests query singularly, and a second status landmark would collide with it
+   (and recreate exactly what the `ka`-region comment at `~399-401` avoids). A
+   bare `aria-live` region announces without claiming the role. (An earlier draft
+   pointed at `Terminal.tsx:~413` — that is the **`ka`-only** announce region,
+   gated on `outLang==='ka'`, so it cannot carry an en/fr/de/es migration notice.)
 
 The toggle control itself: a checkbox row directly **below the debug row** in
 `PreferencesModal`, same markup as debug (a `<label>` wrapping
@@ -146,8 +167,11 @@ needs no re-download.
 - **Once:** a write-once marker key `loquor.llm.hiddenNoticeSeen` (set when the
   notice is shown) prevents it nagging on every load. It is independent of the
   `loquor.llm` boolean (which is present/absent and cannot encode "seen").
-- **Delivery:** the existing NL-notice `aria-live` region, in the active display
-  language.
+- **Delivery:** the dedicated Terminal-owned `aria-live="polite"` region (see
+  *Accessibility* §2 — shared with the mode-change announcement; not
+  `role="status"`), in the active display language. The language is read
+  synchronously from `readNlPref().language` (mapped `off→en`) so the notice isn't
+  English before the async cache-restore resolves the active language.
 - **Copy** (see *Pinned strings*), authored for en/fr/de/es + a `ka`
   native-review draft (it will not normally render for `ka`).
 
@@ -253,6 +277,10 @@ Preferences panel, matching `PreferencesModal`'s existing copy.)
   the effective value).
 - `src/llm/useModelDownload.ts` — `cancelDownload()`/`abortInFlight()` (~286) is
   reused for the turn-off abort. No per-write gating needed (derivation dominates).
+- `src/llm/translatePipeline.ts` — add `llmEnabled` to `LiveState` (~169) and
+  carry it from the `liveRef`; gate the first-miss upgrade-pitch in stage 8
+  (~967) so the `grammarOnlyFirstMiss` notice is suppressed when hidden
+  (`couldntTranslate` instead), preserving `ka`. See *Behavior when off*.
 - `src/translate/useOutputTranslation.ts` — **signature change**: accept
   `llmEnabled`; `lexLang = (llmEnabled && lang && !CORPUS_ONLY_LANGS.has(lang)) ?
   lang : null` (~140). Updates the Terminal wiring and existing test call sites.

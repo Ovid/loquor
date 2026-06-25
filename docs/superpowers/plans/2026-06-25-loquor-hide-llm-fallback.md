@@ -1018,13 +1018,36 @@ describe('effectiveModel (LLM feature hidden)', () => {
       model: 'full',
     })
   })
+
+  it('t3: boot with stored fr + cached model + flag off ⇒ fr/grammar, engine never loads', async () => {
+    // Returning player: language persisted (LS_KEYS.nlPref === 'loquor.nl'),
+    // model cached on disk, feature default off. The on-mount cache-restore would
+    // normally promote to on/full; effectiveModel forces grammar, and the engine
+    // is never lazy-loaded (the input pipeline never reaches the LLM stage). This
+    // is the spec's t3 boot case.
+    localStorage.setItem('loquor.nl', JSON.stringify({ language: 'fr' }))
+    const engine = new FakeLlmEngine({ cached: true })
+    const loadSpy = vi.spyOn(engine, 'load')
+    const { hook } = setup({ engine, llmEnabled: false })
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({
+        phase: 'on',
+        language: 'fr',
+        model: 'grammar',
+      }),
+    )
+    expect(loadSpy).not.toHaveBeenCalled()
+  })
 })
 ```
+
+(`vi`/`waitFor`/`act`/`FakeLlmEngine` are already imported in this test file.)
 
 - [ ] **Step 2: Run it, expect failure**
 
 Run: `npx vitest run src/llm/useNaturalLanguage.test.tsx -t "effectiveModel"`
-Expected: FAIL — `llmEnabled` is ignored; off reports `model: 'full'`.
+Expected: FAIL — `llmEnabled` is ignored; off reports `model: 'full'`, and t3's
+`model: 'grammar'` assertion fails.
 
 - [ ] **Step 3: Accept the arg + derive** — `src/llm/useNaturalLanguage.ts`
 
@@ -1699,11 +1722,47 @@ describe('Terminal — LLM live behaviors', () => {
     )
     expect(screen.queryByText(llmHiddenMigrationNotice('en'))).toBeNull()
   })
+
+  it('t5: rapid toggle on→off→on never strands a download/upgrade modal', async () => {
+    // The spec's t5: toggling the feature must not leave a stuck modal or
+    // re-trigger an auto-modal. The download/upgrade modal is reached ONLY via a
+    // non-cached language pick or the ✦ improve button — toggling does neither —
+    // and `upgradeModalOpen` is render-gated on `llmEnabled`. So after a rapid
+    // on→off→on the only open dialog is Preferences (no second download dialog).
+    render(
+      <Terminal
+        storyBytes={bytes}
+        storyTitle="Zork I"
+        onChangeStory={() => {}}
+        themeToggle={null}
+      />,
+    )
+    await waitFor(
+      () => expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+      { timeout: 8000 },
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Preferences' }))
+    const box = screen.getByRole('checkbox', { name: PREFS_COPY.en.llmLabel })
+    fireEvent.click(box) // on
+    fireEvent.click(box) // off
+    fireEvent.click(box) // on
+    // Only the Preferences dialog is open — the ModelDownloadModal renders
+    // nothing when closed, so no download dialog is stacked behind it.
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+  })
 })
 ```
 
 (Ensure `afterEach`/`vi`/`waitFor` are imported — they already are in this file;
-add `afterEach` to the vitest import if missing.)
+add `afterEach` to the vitest import if missing. The t5 test reuses the
+already-imported `PREFS_COPY`.)
+
+> **t5 scope note:** this covers the drivable, highest-value part of the spec's
+> t5 — toggling never strands or re-triggers the modal. The full
+> declined-flag-suppresses-the-auto-modal interaction (which needs a real
+> non-cached language pick + download round-trip) is unit-covered by
+> `useModelDownload`'s existing `declined` test plus the render-gating verified
+> here; jsdom can't drive a real WebLLM download.
 
 > **Pristine-output watch (CLAUDE.md):** the positive M2 test settles its
 > `setLlmMsg` inside `await screen.findByText(...)` (RTL wraps it in `act`). The
@@ -1926,14 +1985,14 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
   needs **no** per-write gating (derivation dominates) — correctly untouched.
 - *Tests t1-t5, M2, multilingual* → t1 (Task 9), t2/t4/M2 (Task 11), the
   static/render cases (Tasks 3-7). **t3** (boot with `loquor.nl={language:'fr'}` +
-  cached model + flag default off ⇒ fr/grammar, never full, engine never loads) is
-  covered behaviorally by Task 7's "off: a cached model still reports grammar"
-  (the public-state assertion) — the boot path runs the same cache-restore +
-  effectiveModel derivation. **t5** (rapid off→on→off idempotence) is partially
-  covered: the modal `open` is render-gated on `llmEnabled` (Task 10) so it can't
-  stick, and `declined` is unchanged; a full rapid-toggle integration test is
-  lower-value given jsdom can't drive a real download — note this gap to Ovid if a
-  stronger guard is wanted.
+  cached model + flag off ⇒ fr/grammar, never full, **engine never loads**) is an
+  **explicit test** in Task 7 (asserts `model: 'grammar'` after the cache-restore
+  AND `engine.load` is never called via a spy). **t5** (rapid off→on→off) is an
+  **explicit test** in Task 11 (asserts toggling never strands/re-triggers the
+  download modal — only Preferences stays open); the deeper declined-flag
+  interaction is unit-covered by `useModelDownload`'s existing `declined` test plus
+  the render-gating (jsdom can't drive a real WebLLM download). *[Both made
+  explicit per the 2026-06-25 alignment pass.]*
 
 **Type consistency:** `llmEnabled` is the prop/arg name everywhere
 (`useLlmFeature`, `useNaturalLanguage`, `useOutputTranslation`, `NlLanguagePicker`,
@@ -1943,10 +2002,15 @@ add the `LiveState` field (Task 8 Step 3) before compiling Task 7 Step 3. Notice
 functions: `llmModeChange(lang, enabled)`, `llmHiddenMigrationNotice(lang)`.
 Storage keys: `LS_KEYS.llm`, `LS_KEYS.llmHiddenNoticeSeen`.
 
-**Beyond-spec addition (flagged):** Task 8 (suppress the upgrade-pitch notice when
-off) is not in the spec's literal gate-point list, but the design's stated north
-star is "hide every user-facing LLM trace," and `grammarOnlyFirstMiss` is a
-common-path trace ("add the optional upgrade"). Kept minimal (one `LiveState`
-field + one condition), `ka` preserved exactly. If Ovid prefers to scope this out,
-drop Task 8 and the `LiveState` field, and Task 7's liveRef simply omits
-`llmEnabled`.
+**Task 8 (upgrade-pitch suppression) — ratified into the spec (2026-06-25
+alignment pass):** originally beyond the spec's literal gate points, now an
+explicit requirement under the spec's *Behavior when off* (with a
+`translatePipeline.ts` gate point), because `grammarOnlyFirstMiss` ("add the
+optional upgrade") is a common-path user-facing LLM trace. Kept minimal (one
+`LiveState` field + one condition), `ka` preserved exactly via `(live.llmEnabled
+|| activeLang === 'ka')`.
+
+**M2 delivery channel — ratified (2026-06-25 alignment pass):** the spec's a11y §2
++ M2 *Delivery* now describe a dedicated Terminal-owned `aria-live` region (Task
+11), correcting the prior `Terminal.tsx:~413` reference (that line is the
+`ka`-only announce region and cannot carry a multilingual notice).

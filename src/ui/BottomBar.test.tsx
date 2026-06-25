@@ -72,6 +72,33 @@ describe('nlModeSummary', () => {
     ).toBe('')
   })
 
+  it('flag OFF: drops the tier token and separator, keeps the input indicator', () => {
+    const on = {
+      phase: 'on',
+      language: 'fr',
+      model: 'grammar',
+      canUpgrade: false,
+    } as const
+    // On (default) keeps the tier; off returns just the localized input word.
+    expect(nlModeSummary(on)).toBe('simplifié · saisie')
+    expect(nlModeSummary(on, false)).toBe('saisie')
+    expect(
+      nlModeSummary(
+        { phase: 'on', language: 'de', model: 'full', canUpgrade: true },
+        false,
+      ),
+    ).toBe('Eingabe')
+  })
+
+  it('flag OFF: ka still shows no chip (output-only guard runs first)', () => {
+    expect(
+      nlModeSummary(
+        { phase: 'on', language: 'ka', model: 'grammar', canUpgrade: true },
+        false,
+      ),
+    ).toBe('')
+  })
+
   it('readoutLang is the active language on, English otherwise', () => {
     expect(
       readoutLang({

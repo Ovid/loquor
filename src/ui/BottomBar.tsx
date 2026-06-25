@@ -38,6 +38,7 @@ export function BottomBar({
   showBeta,
   showNoCorpus,
   kaInput,
+  llmEnabled = true,
 }: {
   debug: boolean
   nlState: NlState
@@ -50,8 +51,10 @@ export function BottomBar({
   /** Whether Georgian INPUT is active on this game (kaInputActive). Selects the
    *  Phase-2 vs Phase-1 activation tip independently of corpus presence (S3). */
   kaInput: boolean
+  /** LLM-feature preference — drops the tier token from the readout when off. */
+  llmEnabled?: boolean
 }) {
-  const summary = nlModeSummary(nlState)
+  const summary = nlModeSummary(nlState, llmEnabled)
   return (
     <footer className="bottombar" aria-label="Status information">
       <span className="bottombar-icon" aria-hidden="true">

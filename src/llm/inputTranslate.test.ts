@@ -549,6 +549,42 @@ describe('distributePrepTail (shared container across same-verb conjuncts, UAT F
   })
 })
 
+describe('distributePrepTail — Georgian fused destination postposition (I2)', () => {
+  const nouns: NounLexicon = {
+    'gold coffin': ['ოქროს კუბო', 'კუბო'],
+    'huge diamond': ['უზარმაზარ ბრილიანტ', 'ბრილიანტ'],
+    'trophy case': ['ჯილდოების ვიტრინა', 'ვიტრინა'],
+  }
+  const run = (line: string) =>
+    distributePrepTail(
+      fillElidedVerbs(splitClauses(line), KA_CORE, vocab, nouns),
+      KA_CORE,
+      vocab,
+    )
+
+  it('shares the fused -ში destination across same-verb conjuncts', () => {
+    // "ჩადე კუბო და ბრილიანტი ვიტრინაში" (put coffin and diamond in the case).
+    // The destination -ში is FUSED onto ვიტრინა (ვიტრინაში), so there is no
+    // separate prep token; the earlier conjunct must inherit the whole fused
+    // word (parseLexicon re-expands it). Without this "put coffin" orphans —
+    // "What do you want to put the coffin in?" — and the casing loop breaks.
+    expect(run('ჩადე კუბო და ბრილიანტი ვიტრინაში')).toEqual([
+      'ჩადე კუბო ვიტრინაში',
+      'ჩადე ბრილიანტი ვიტრინაში',
+    ])
+  })
+
+  it('does NOT distribute a Georgian SOURCE postposition (-დან → "from")', () => {
+    // Ablative -დან ("from") belongs to its own clause (mirrors the de aus/von
+    // exclusion, review I1): "take coffin" must not become "take coffin from
+    // case".
+    expect(run('აიღე კუბო და ბრილიანტი ვიტრინიდან')).toEqual([
+      'აიღე კუბო',
+      'აიღე ბრილიანტი ვიტრინიდან',
+    ])
+  })
+})
+
 describe('fillElidedVerbs (verb-gapping across compound conjuncts)', () => {
   // UAT (French playthrough): "prends le couteau et la corde" split to
   // ["prends le couteau", "la corde"]; the verbless 2nd conjunct fell to the

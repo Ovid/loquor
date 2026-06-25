@@ -30,6 +30,18 @@ describe('Georgian parse — postposition + case (spec §3.2, G1)', () => {
       text: 'put coal in machine',
     })
   })
+  it('inessive into the dual-listed trophy case (I2 distribution payoff)', () => {
+    // After distributePrepTail shares the fused ვიტრინაში across the casing
+    // conjuncts, each one must parse end-to-end against the REAL lexicon. The
+    // destination resolves via the bare head ვიტრინა (the trophy case is
+    // dual-listed ჯილდოების ვიტრინა / ვიტრინა — the genitive modifier isn't
+    // needed in the case role, so the deferred genitive-compound problem doesn't
+    // block it).
+    expect(ka('ჩადე კუბო ვიტრინაში')).toEqual({
+      kind: 'command',
+      text: 'put coffin in case',
+    })
+  })
   it('G1 dative recipient: give egg to thief', () => {
     // მიეცი კვერცხი ქურდს → give egg to thief. -ს (dative) is NOT split by
     // expandGeorgian (it collides with genitive -ის), so tokens = [კვერცხ,

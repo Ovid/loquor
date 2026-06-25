@@ -142,12 +142,17 @@ function isForeignNoun(
   // but the player types the nominative citation form (წიგნი). ka has NO
   // articles, so without reducing the typed -ი the verbless object conjunct is
   // invisible to the article path and drops the verb — with no LLM net (I1).
-  // ka only (core.postpositions); fr/de/es have none, so they keep the article
-  // path below (byte-identical).
+  // Match the OBJECT SPAN: everything before the first fused postposition token,
+  // so a bare object ("წიგნი") AND an object + fused destination ("ბრილიანტი
+  // ვიტრინაში" → [ბრილიანტ, ში, ვიტრინა]) both gap, the latter feeding the
+  // destination-distribution below (I2). ka only (core.postpositions); fr/de/es
+  // have none, so they keep the article path below (byte-identical).
   const post = core?.postpositions
   if (post) {
-    const phrase = expandGeorgian(tokens, post).join(' ')
-    return phrase.length > 0 && nounSet.has(phrase)
+    const expanded = expandGeorgian(tokens, post)
+    const cut = expanded.findIndex(t => t in post)
+    const span = (cut === -1 ? expanded : expanded.slice(0, cut)).join(' ')
+    return span.length > 0 && nounSet.has(span)
   }
   const articles = core?.articles ?? []
   const phrase =
@@ -215,6 +220,19 @@ function prepTail(
     .trim()
     .split(/\s+/)
   const start = verb ? verb.split(/\s+/).length : 0
+  // Georgian: the destination postposition is FUSED onto the last noun
+  // (ვიტრინაში = "in the case") — there is no separate prep token, so the
+  // fr/de/es loop below never fires. When ≥1 object token sits between the verb
+  // and a final word carrying a known postposition (expandGeorgian splits it),
+  // that fused word IS the tail; return it verbatim so the earlier conjunct can
+  // re-expand it at parse time (I2). ka only (core.postpositions).
+  if (core.postpositions) {
+    const lastTok = tokens[tokens.length - 1]
+    const fused =
+      lastTok !== undefined &&
+      expandGeorgian([fold(lastTok)], core.postpositions).length === 2
+    return fused && tokens.length > start + 1 ? lastTok : null
+  }
   for (let i = start + 1; i < tokens.length - 1; i++) {
     const f = fold(tokens[i])
     if (core.preps[f] !== undefined || vocab.preps.includes(f))
@@ -249,9 +267,15 @@ export function distributePrepTail(
   const lastVerb = leadingVerbPhrase(last, core, vocab)
   if (tail === null || lastVerb === null) return [...clauses]
   // Only a DESTINATION tail is shared across conjuncts. A source prep
-  // (aus/von → "from") belongs to its own clause: "nimm A und nimm B aus der
-  // Vitrine" must NOT rewrite "nimm A" into "take A from case" (review I1).
-  if (core.preps[fold(tail.split(/\s+/)[0])] === 'from') return [...clauses]
+  // (aus/von → "from"; Georgian ablative -დან) belongs to its own clause: "nimm
+  // A und nimm B aus der Vitrine" must NOT rewrite "nimm A" into "take A from
+  // case" (review I1). For ka the prep is the FUSED postposition on the single
+  // tail word, so resolve it through expandGeorgian first.
+  const tailHead = fold(tail.split(/\s+/)[0])
+  const tailPrep = core.postpositions
+    ? core.preps[expandGeorgian([tailHead], core.postpositions)[0]]
+    : core.preps[tailHead]
+  if (tailPrep === 'from') return [...clauses]
   const containerPronouns = new Set(core.pronounsContainer.map(p => p.word))
   const lastVerbFolded = fold(lastVerb)
   const out = [...clauses]

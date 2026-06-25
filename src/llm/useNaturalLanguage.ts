@@ -193,7 +193,7 @@ export function useNaturalLanguage(
     cancelDownload,
     requestUpgrade,
     demoteToGrammar,
-  } = useModelDownload({ engine, hasVocab, setNotice })
+  } = useModelDownload({ engine, hasVocab, setNotice, llmEnabled })
 
   // Own a scene tracker; rebuild + reset when the game (vocab) changes.
   const trackerRef = useRef<TextSceneTracker | null>(null)

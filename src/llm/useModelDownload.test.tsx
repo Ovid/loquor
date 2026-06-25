@@ -23,6 +23,7 @@ function setup(
       engine,
       hasVocab: opts.hasVocab ?? true,
       setNotice,
+      llmEnabled: opts.llmEnabled,
     }),
   )
   return { hook, setNotice, engine }
@@ -531,6 +532,21 @@ describe('setLanguage', () => {
     expect(hook.result.current.internal).toEqual({
       phase: 'on',
       language: 'ka',
+      model: 'grammar',
+    })
+  })
+
+  it('llmEnabled:false activates grammar-only WITHOUT opening the modal ([I1])', async () => {
+    // The LLM feature is hidden: Terminal masks the modal at render, but a
+    // latched modalOpen would surface the instant the feature is toggled on,
+    // stacking on the open Preferences modal (two focus traps). Don't latch it.
+    const { hook } = setup({ llmEnabled: false }) // not cached, not loaded
+    await waitFor(() => expect(hook.result.current.installed).toBe(false))
+    act(() => hook.result.current.setLanguage('fr'))
+    expect(hook.result.current.modalOpen).toBe(false)
+    expect(hook.result.current.internal).toEqual({
+      phase: 'on',
+      language: 'fr',
       model: 'grammar',
     })
   })

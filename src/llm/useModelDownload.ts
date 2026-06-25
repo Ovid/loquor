@@ -37,6 +37,12 @@ export interface ModelDownloadParams {
   /** Parent-owned notice channel (shared with the translation pipeline's
    * queue messages) — the download flow writes failure/clear notices through it. */
   setNotice: (notice: string | null) => void
+  /** LLM-feature preference. When false the model is hidden, so a language pick
+   * must NOT latch the auto-upgrade modal: Terminal masks it at render, but a
+   * latched `modalOpen` would surface the instant the feature is toggled on (and
+   * could stack on the open Preferences modal — two focus traps, [I1]). Default
+   * true (the only caller defaults it too). */
+  llmEnabled?: boolean
 }
 
 export interface ModelDownload {
@@ -55,7 +61,7 @@ export interface ModelDownload {
 }
 
 export function useModelDownload(params: ModelDownloadParams): ModelDownload {
-  const { engine, hasVocab, setNotice } = params
+  const { engine, hasVocab, setNotice, llmEnabled = true } = params
 
   const [internal, setInternal] = useState<Internal>({ phase: 'off' })
   const [installed, setInstalled] = useState(false)
@@ -337,12 +343,16 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
       // and opening it here latched `modalOpen` true, masked only at render; a
       // later switch away unmasked it as an unsolicited focus-trapping download
       // ([I1]). The model-download egress must stay unreachable for ka.
+      // Same masked-latch hazard when the LLM feature is hidden (`!llmEnabled`):
+      // Terminal masks the modal at render, but a latched `modalOpen` would
+      // surface the moment the feature is toggled on — stacking on the open
+      // Preferences modal (two focus traps, [I1]). Don't latch it while off.
       setInternal({ phase: 'on', language: lang, model: 'grammar' })
       pendingLangRef.current = lang
-      if (!readNlPref().declined && !OUTPUT_ONLY_LANGS.has(lang))
+      if (llmEnabled && !readNlPref().declined && !OUTPUT_ONLY_LANGS.has(lang))
         setModalOpen(true)
     },
-    [hasVocab, installed, engine, abortInFlight, setNotice],
+    [hasVocab, installed, engine, abortInFlight, setNotice, llmEnabled],
   )
 
   const requestUpgrade = useCallback(() => {

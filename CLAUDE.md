@@ -350,7 +350,10 @@ via its built-in `prebuiltAppConfig` (no `appConfig` is passed). After that
 one-time fetch the model is cached and inference runs entirely on-device/offline.
 
 This is gated behind explicit user opt-in (the download modal, which now
-discloses the third-party fetch) and uses HTTPS, but it is **not** integrity-pinned
+discloses the third-party fetch) **and**, as of the hide-LLM-fallback branch, a
+**default-off** `loquor.llm` preference (Preferences ▸ the model is hidden until
+the player enables it) — so a fresh install never reaches this egress at all. It
+uses HTTPS, but it is **not** integrity-pinned
 (no SRI), and the model-lib WASM executes in the page origin. To make the offline
 promise fully true, the follow-up is to **self-host** (or integrity-check) the
 `model` + `model_lib` URLs under `public/` and pin them via an explicit

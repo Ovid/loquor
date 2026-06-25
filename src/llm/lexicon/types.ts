@@ -64,6 +64,13 @@ export interface CoreLexicon {
    *  adpositions are noun-suffixes (Georgian); absent for fr/de/es, so every
    *  expandGeorgian code path is unreachable for them (spec §3.1). */
   postpositions?: Readonly<Record<string, string>>
+  /** The CLOSED set of dative-recipient surface forms (folded, the -ს dative form)
+   *  the G1 give/tie path may emit a `to <recipient>` for. Georgian dative is -ს,
+   *  but several non-recipient noun STEMS natively end in ს (chalice თას, scarab
+   *  სკარაბეუს); a bare `.endsWith('ს')` test mistranslated those (C1, plan M3),
+   *  so the path gates on membership here instead. Present only for ka (which has
+   *  postpositions); absent elsewhere, so the G1 path never fires for fr/de/es. */
+  dativeRecipients?: ReadonlySet<string>
 }
 
 /** Per-game noun lexicon: vocab CANONICAL → foreign surface words/phrases

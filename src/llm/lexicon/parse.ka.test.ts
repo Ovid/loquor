@@ -38,4 +38,33 @@ describe('Georgian parse — postposition + case (spec §3.2, G1)', () => {
       text: 'give egg to thief',
     })
   })
+  it('G1 dative recipient: tie rope to railing', () => {
+    // მიაბი თოკი მოაჯირს → tie rope to railing (the other closed-set recipient).
+    expect(ka('მიაბი თოკი მოაჯირს')).toEqual({
+      kind: 'command',
+      text: 'tie rope to railing',
+    })
+  })
+  it('G1 does NOT fire for a non-recipient noun whose stem ends in ს (C1)', () => {
+    // მიეცი თასი სკარაბეუსი: chalice (თას) + scarab (სკარაბეუს). The scarab stem
+    // natively ends in ს — it is NOT a dative recipient. The OLD bare-.endsWith('ს')
+    // guard mistranslated this to `give chalice to scarab`; the closed recipient
+    // set rejects it, so the two-noun remainder falls through to MISS.
+    expect(ka('მიეცი თასი სკარაბეუსი')).toEqual({ kind: 'miss' })
+    // ბურთულა + screwdriver (სახრახნის, stem ends in ს): not `give bauble to screwdriver`.
+    expect(ka('მიეცი ბურთულა სახრახნისი')).toEqual({ kind: 'miss' })
+  })
+})
+
+describe('Georgian parse — "all"/"everything" quantifier (I1)', () => {
+  it('ყველაფერი (everything) → take/drop all after the -ი strip', () => {
+    // expandGeorgian strips the nominative -ი from EVERY object token, so
+    // ყველაფერი → ყველაფერ; the quantifier set must hold that bare stem or the
+    // most natural "take everything" silently misses (no LLM net for ka).
+    expect(ka('აიღე ყველაფერი')).toEqual({ kind: 'command', text: 'take all' })
+    expect(ka('დადე ყველაფერი')).toEqual({ kind: 'command', text: 'drop all' })
+  })
+  it('ყველა (all, vowel-final, strip is a no-op) → take all', () => {
+    expect(ka('აიღე ყველა')).toEqual({ kind: 'command', text: 'take all' })
+  })
 })

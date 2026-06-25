@@ -23,6 +23,18 @@ const KA_POSTPOSITIONS: Readonly<Record<string, string>> = {
   თან: 'at', // adessive (only if 'at' ∈ vocab.preps — see validate gate)
 }
 
+// The CLOSED set of Zork I dative recipients, in the -ს dative surface form the
+// player types (matched AFTER the verb is resolved; expandGeorgian leaves -ს
+// attached because it collides with genitive -ის). The G1 give/tie path gates on
+// membership here so a non-recipient noun whose STEM natively ends in ს (chalice
+// თას, scarab სკარაბეუს, screwdriver სახრახნის) can never be read as a recipient
+// (C1, plan M3). These two forms are also dual-listed in KA_ZORK1 so the recipient
+// resolves to its emit. NATIVE-REVIEW-DRAFT. Zork-I-only, like the rest of ka.
+const KA_DATIVE_RECIPIENTS: ReadonlySet<string> = new Set([
+  'ქურდს', // thief
+  'მოაჯირს', // wooden railing
+])
+
 export const KA_CORE: CoreLexicon = {
   verbs: {
     // take / get
@@ -115,13 +127,18 @@ export const KA_CORE: CoreLexicon = {
     // token into the ka lexicon word set (KNOWN_COLLISIONS.ka must stay []).
   ],
   particleVerbs: [], // Georgian preverbs are fused, not separable (spec §4.1)
-  // "all" quantifier — Georgian ყველა / ყველაფერი, plus bare English for mixers.
-  quantifiersAll: ['ყველა', 'ყველაფერი', 'all', 'everything'],
+  // "all" quantifier — Georgian ყველა / ყველაფერ(ი), plus bare English for mixers.
+  // The set is matched AFTER expandGeorgian, which strips the nominative -ი from
+  // every object token: ყველაფერი → ყველაფერ. So the bare stem ყველაფერ is what
+  // actually arrives — listing only the full ყველაფერი silently missed "take
+  // everything" (I1). ყველა is vowel-final, so its strip is a no-op (unchanged).
+  quantifiersAll: ['ყველა', 'ყველაფერ', 'all', 'everything'],
   quantifiersExcept: ['გარდა', 'except'],
   preps: {
     ...KA_POSTPOSITIONS,
   },
   postpositions: KA_POSTPOSITIONS,
+  dativeRecipients: KA_DATIVE_RECIPIENTS,
   articles: [],
   pronounsDirect: [],
   pronounsContainer: [],

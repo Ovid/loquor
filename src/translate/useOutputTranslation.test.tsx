@@ -1203,5 +1203,16 @@ describe('LLM feature off ⇒ corpus-only (t1)', () => {
     expect(result.current.lines.some(l => l.pending)).toBe(false)
     expect(result.current.lines[0].text).toBe('A brand new uncovered sentence.')
     expect(engine.generateCalls).toBe(0) // LLM never engaged
+    // …and the miss is still logged (S2): with the LLM off, fr is resolver-less
+    // like a corpus-only language, so it must route through the corpus-only
+    // logging branch rather than `continue` past it and drop the telemetry.
+    expect(
+      readMisses().some(
+        m =>
+          m.language === 'fr' &&
+          m.en === 'A brand new uncovered sentence.' &&
+          m.kind === 'line',
+      ),
+    ).toBe(true)
   })
 })

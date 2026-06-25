@@ -292,14 +292,19 @@ export function useOutputTranslation(args: {
         const d = echoFreeze.get(l)
         if (d !== undefined && d !== null) continue
       }
-      // Corpus-only languages (spec §3): a miss degrades to English and is
-      // logged once per text — the LLM fallback is NEVER engaged (the small
-      // models cannot produce correct Georgian). Mark the basis so the `=== en`
-      // guard skips it on later renders; render falls through to English
-      // because no overlay entry is ever created for this id. Placed ahead of
-      // the backlog/live branches so ka never reaches the (null) resolver and
-      // every ka miss logs uniformly as kind 'line'.
-      if (CORPUS_ONLY_LANGS.has(lang)) {
+      // Corpus-only AT THIS MOMENT (spec §3): a miss degrades to English and is
+      // logged once per text — no LLM fallback is engaged. Two ways to be here:
+      // an OUTPUT-only language (ka — the small models cannot produce correct
+      // Georgian), OR fr/de/es while the LLM feature is hidden, where `lexLang`
+      // is null so no resolver was built. Mark the basis so the `=== en` guard
+      // skips it on later renders; render falls through to English because no
+      // overlay entry is ever created for this id. Placed ahead of the
+      // backlog/live branches so a resolver-less language never reaches the
+      // (null) resolver and every such miss logs uniformly as kind 'line'.
+      // Folding `!resolver` in here (rather than a bare `continue`) keeps miss
+      // telemetry flowing for fr/de/es-when-off, and narrows `resolver` to
+      // non-null for the branches below.
+      if (CORPUS_ONLY_LANGS.has(lang) || !resolver) {
         if (basisRef.current.get(l.id) !== en) {
           basisRef.current.set(l.id, en)
           const { core } = splitPromptResidue(en)
@@ -313,11 +318,6 @@ export function useOutputTranslation(args: {
         }
         continue
       }
-      // Past the corpus-only continue, the language has an LLM fallback, so the
-      // resolver exists (built above whenever lexLang is non-null). The guard
-      // narrows the type for the resolver-driven branches below; it never fires
-      // at runtime (ka is the only resolver-less language and it continued).
-      if (!resolver) continue
       const { resolve, settle, markPending } = resolver
       if (backlogRef.current.has(l.id)) {
         // Gate on TEXT, not id: an append merge onto a backlog tail line

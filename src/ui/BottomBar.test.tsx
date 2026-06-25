@@ -2,7 +2,10 @@ import { describe, it, expect } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import { BottomBar } from './BottomBar'
 import { nlModeSummary, readoutLang } from './nlModeSummary'
-import { GEORGIAN_ACTIVATION_TIP } from '../llm/notices'
+import {
+  GEORGIAN_ACTIVATION_TIP,
+  GEORGIAN_ACTIVATION_TIP_TYPE_ENGLISH,
+} from '../llm/notices'
 import type { NlState } from '../llm/types'
 
 describe('nlModeSummary', () => {
@@ -110,6 +113,7 @@ describe('BottomBar', () => {
         signature="03000077abcd"
         showBeta={false}
         showNoCorpus={false}
+        kaInput={false}
       />,
     )
     const bar = screen.getByRole('contentinfo', { name: /Status information/i })
@@ -134,6 +138,7 @@ describe('BottomBar', () => {
         signature="03000077abcd"
         showBeta={false}
         showNoCorpus={false}
+        kaInput={false}
       />,
     )
     const bar = screen.getByRole('contentinfo', { name: /Status information/i })
@@ -150,6 +155,7 @@ describe('BottomBar', () => {
         signature=""
         showBeta={false}
         showNoCorpus={false}
+        kaInput={false}
       />,
     )
     expect(
@@ -171,6 +177,7 @@ describe('BottomBar', () => {
         signature="03000077"
         showBeta={true}
         showNoCorpus={false}
+        kaInput={true}
       />,
     )
     const bar = screen.getByRole('contentinfo', { name: /Status information/i })
@@ -188,6 +195,34 @@ describe('BottomBar', () => {
     )
   })
 
+  it('Georgian beta with input OFF: the tip is the Phase-1 type-English form (S3)', () => {
+    // A hypothetical corpus-but-no-input game (showBeta from corpus presence, but
+    // kaInput false): the activation tip MUST be the type-English Phase-1 copy, not
+    // GEORGIAN_ACTIVATION_TIP ("type Georgian") — input raw-sends English there, so
+    // telling the player Georgian input works would be a lie (drift Decision 6).
+    render(
+      <BottomBar
+        nlState={{
+          phase: 'on',
+          language: 'ka',
+          model: 'grammar',
+          canUpgrade: true,
+        }}
+        storyTitle="Future Game"
+        debug={false}
+        signature="deadbeef"
+        showBeta={true}
+        showNoCorpus={false}
+        kaInput={false}
+      />,
+    )
+    const bar = screen.getByRole('contentinfo', { name: /Status information/i })
+    expect(bar).not.toHaveTextContent(GEORGIAN_ACTIVATION_TIP)
+    expect(
+      within(bar).getByText(GEORGIAN_ACTIVATION_TIP_TYPE_ENGLISH),
+    ).toHaveAttribute('lang', 'ka')
+  })
+
   it('Georgian no-corpus: the readout AND the bilingual notice (ka + en), NO tip', () => {
     render(
       <BottomBar
@@ -202,6 +237,7 @@ describe('BottomBar', () => {
         signature="03000077"
         showBeta={false}
         showNoCorpus={true}
+        kaInput={false}
       />,
     )
     const bar = screen.getByRole('contentinfo', { name: /Status information/i })

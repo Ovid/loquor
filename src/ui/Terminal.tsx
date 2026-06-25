@@ -415,6 +415,7 @@ export function Terminal({
         signature={signature}
         showBeta={showBetaNotice}
         showNoCorpus={showNoCorpusNotice}
+        kaInput={kaActive}
       />
       <ModelDownloadModal
         open={upgradeModalOpen || nl.state.phase === 'downloading'}

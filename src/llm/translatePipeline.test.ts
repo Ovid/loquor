@@ -394,7 +394,7 @@ function makeTranslate(opts: {
   // stage-7-bound clause with no lexicon resolution); pass one to exercise the
   // deterministic alias/lexicon stages.
   const liveRef = {
-    current: { internal: opts.internalOn, lex: opts.lex ?? null },
+    current: { internal: opts.internalOn, lex: opts.lex ?? null, llmEnabled: true },
   }
   const deps: TranslateDeps = {
     internal: opts.internalOn,
@@ -622,7 +622,7 @@ describe('createTranslate grammar-only + demotion', () => {
       language: 'ka',
       model: 'grammar',
     }
-    const liveRef = { current: { internal: internalOn, lex: kaLex } }
+    const liveRef = { current: { internal: internalOn, lex: kaLex, llmEnabled: true } }
     const watchdogMs = 1000
     const generateRaw = createGenerateRaw({
       engine,
@@ -709,6 +709,59 @@ describe('createTranslate grammar-only + demotion', () => {
     expect(setNotice).toHaveBeenLastCalledWith(grammarOnlyFirstMiss('fr'))
     setNotice.mockClear()
     await t('frobnique encore')
+    expect(setNotice).toHaveBeenLastCalledWith(couldntTranslate('fr'))
+  })
+
+  it('grammar-only + llmEnabled:false: first-miss skips the upgrade pitch and shows couldntTranslate', async () => {
+    // Clones the fr first-miss harness; the ONLY delta is llmEnabled:false in liveRef.
+    // With the feature hidden there is no upgrade to pitch, so the first-miss notice is
+    // suppressed and the player sees couldntTranslate instead (no confusion about an
+    // upgrade that isn't offered). makeTranslate's liveRef is internal so we build a
+    // minimal translate directly (same pattern as the ka harnesses above).
+    const engine = new FakeLlmEngine({ default: 'X' })
+    const setNotice = vi.fn()
+    const internalFr: Internal & { phase: 'on' } = on('fr', 'grammar')
+    const liveRefHidden = {
+      current: { internal: internalFr, lex: null, llmEnabled: false },
+    }
+    const generateRaw = createGenerateRaw({
+      engine,
+      watchdogMs: 1000,
+      engineGate: new EngineGate(),
+    })
+    const deps: TranslateDeps = {
+      internal: internalFr,
+      vocab: TEST_VOCAB,
+      grammar: buildGrammar(TEST_VOCAB),
+      generateRaw,
+      watchdogMs: 1000,
+      getContext: () => ({ location: '', recentOutput: '' }),
+      echoLocal: () => {},
+      sendLine: () => {},
+      sendCanonical: () => {},
+      awaitTurn: async () => ({ view: emptyView, reason: 'line' as const }),
+      refs: {
+        trackerRef: { current: new TextSceneTracker(TEST_VOCAB) },
+        translatingRef: { current: false },
+        queueRef: { current: [] },
+        queueIdRef: { current: 0 },
+        lastCommandRef: { current: null },
+        inSequenceRef: { current: false },
+        epochRef: { current: 0 },
+        liveRef: liveRefHidden,
+        educatedRef: { current: false },
+      },
+      demote: vi.fn(),
+      setPending: () => {},
+      setNotice,
+      syncQueue: () => {},
+    }
+    const t = createTranslate(deps)
+    await t('frobnique le gadget')
+    expect(engine.generateCalls).toBe(0)
+    // The upgrade pitch (grammarOnlyFirstMiss) must NOT appear.
+    expect(setNotice).not.toHaveBeenCalledWith(grammarOnlyFirstMiss('fr'))
+    // The plain abstain notice is shown instead.
     expect(setNotice).toHaveBeenLastCalledWith(couldntTranslate('fr'))
   })
 
@@ -864,7 +917,7 @@ describe('createTranslate grammar-only + demotion', () => {
         nouns: nounLexicon('ka', ZORK1_SIG),
         words: lexiconWordSet('ka', ZORK1_SIG),
       }
-      const liveRef = { current: { internal: internalOn, lex: kaLex } }
+      const liveRef = { current: { internal: internalOn, lex: kaLex, llmEnabled: true } }
       const generateRaw = createGenerateRaw({
         engine,
         watchdogMs: 1000,

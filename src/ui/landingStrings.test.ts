@@ -2,7 +2,11 @@
 // Player-first gate: a language can never ship half-English. Every ActiveLanguage
 // must define every LandingCopy field (non-empty), and a subtitle for every game.
 import { describe, it, expect } from 'vitest'
-import { LANDING_STRINGS, type LandingCopy } from './landingStrings'
+import {
+  LANDING_STRINGS,
+  KA_INPUT_COPY,
+  type LandingCopy,
+} from './landingStrings'
 import { NL_LANGUAGES } from '../llm/types'
 import { GAMES } from '../games/catalog'
 
@@ -73,4 +77,14 @@ describe('LANDING_STRINGS', () => {
       }
     })
   }
+
+  // Phase-2 Georgian-input copy is the headline of the gift: it must not leak
+  // English (§6 gate a / the no-forced-English north star). The only allowed
+  // Latin is the textual "(beta)" marker, which drops on native sign-off (§9).
+  it('KA_INPUT_COPY is Georgian-only except the (beta) marker', () => {
+    for (const [key, value] of Object.entries(KA_INPUT_COPY)) {
+      const withoutMarker = value.replace(/\(beta\)/g, '')
+      expect(withoutMarker, `KA_INPUT_COPY.${key}`).not.toMatch(/[A-Za-z]/)
+    }
+  })
 })

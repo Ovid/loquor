@@ -24,6 +24,19 @@ export const LANDING_EXAMPLES: Record<ActiveLanguage, string[]> = {
   es: ['coge la lámpara y ve al norte', 've al sur', 'mira'],
   // Georgian Phase 1 is read-Georgian / type-English: the player types commands
   // in English, so the ka examples ARE the English ones (verbatim). They must
-  // never imply Georgian input.
+  // never imply Georgian input. RETAINED for Zork II/III (which stay Phase 1);
+  // Landing.tsx swaps in LANDING_EXAMPLES_KA_INPUT for Zork I (kaInputActive).
   ka: [...LANDING_EXAMPLES_EN],
 }
+
+// Phase-2 Georgian-INPUT examples (spec §5.6), shown by Landing.tsx ONLY when
+// `kaInputActive` (Georgian selected AND Zork I — the one game with a ka input
+// lexicon). Mirrors the other languages' set: a natural compound (object +
+// movement), a bare direction, and a single verb — each parses DETERMINISTICALLY
+// via the ka input path on Zork I (no LLM), enforced by landingExamples.test.ts.
+// Requires the `და` clause-conjunction and `წადი` go-verb wiring. NATIVE-REVIEW-DRAFT.
+export const LANDING_EXAMPLES_KA_INPUT = [
+  'აიღე ფარანი და წადი ჩრდილოეთით', // take the lamp and go north
+  'წადი სამხრეთით', // go south
+  'მიმოიხედე', // look around
+]

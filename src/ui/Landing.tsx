@@ -4,9 +4,10 @@ import { useFocusTrap } from './useFocusTrap'
 import { readNlPref, writeNlPref, nlDisabledByChoice } from '../llm/nlpref'
 import { LANGUAGE_OPTIONS } from './languageOptions'
 import { LanguageCombobox } from './LanguageCombobox'
-import { LANDING_EXAMPLES } from './landingExamples'
-import { LANDING_STRINGS } from './landingStrings'
+import { LANDING_EXAMPLES, LANDING_EXAMPLES_KA_INPUT } from './landingExamples'
+import { LANDING_STRINGS, KA_INPUT_COPY } from './landingStrings'
 import { corpusFor } from '../translate/corpus/index'
+import { kaInputActive } from '../llm/lexicon/index'
 import type { NlLanguage } from '../llm/types'
 
 // The title screen offers only the play languages, not "Off" (disabling the NL
@@ -73,8 +74,19 @@ export function Landing({
   const [hadStoredOff] = useState(nlDisabledByChoice)
   // language is never 'off' on the landing, but the guard keeps the type narrow.
   const exampleLang = language === 'off' || language === 'en' ? 'en' : language
-  const examples = LANDING_EXAMPLES[exampleLang]
-  const s = LANDING_STRINGS[exampleLang]
+  // Phase-2 Georgian-input split (spec §5.6): Georgian input is active only on a
+  // game with a ka lexicon (Zork I today). When the chosen volume is that game,
+  // overlay the Georgian-input copy + examples; otherwise (Zork II/III) keep the
+  // Phase-1 type-English copy, so the landing never invites Georgian where it
+  // would always abstain. Tracks the in-game `kaInputActive` gate exactly.
+  const selectedSig = GAMES.find(g => g.slug === selected)?.sig ?? ''
+  const kaInput = kaInputActive(language, selectedSig)
+  const examples = kaInput
+    ? LANDING_EXAMPLES_KA_INPUT
+    : LANDING_EXAMPLES[exampleLang]
+  const s = kaInput
+    ? { ...LANDING_STRINGS[exampleLang], ...KA_INPUT_COPY }
+    : LANDING_STRINGS[exampleLang]
   const dismissRef = useRef<HTMLButtonElement>(null)
   const plateRef = useRef<HTMLDivElement>(null)
   const volumesRef = useRef<HTMLDivElement>(null)
@@ -149,10 +161,12 @@ export function Landing({
             role="region"
             aria-label={s.commandExamples}
             aria-live="polite"
-            // ka is read-Georgian / type-English: its examples ARE English, but
-            // the plate sets lang="ka", so without this a screen reader voices
-            // them with Georgian phonemes (3.1.2 — review I2). Override to en.
-            lang={exampleLang === 'ka' ? 'en' : undefined}
+            // Phase-1 ka is read-Georgian / type-English: its examples ARE
+            // English, but the plate sets lang="ka", so without this a screen
+            // reader voices them with Georgian phonemes (3.1.2 — review I2).
+            // Override to en. In Phase-2 (kaInput, Zork I) the examples ARE
+            // Georgian, so keep them at lang="ka" (no override) to voice correctly.
+            lang={exampleLang === 'ka' && !kaInput ? 'en' : undefined}
           >
             {examples.join(' · ')}
           </span>

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { Landing } from './Landing'
-import { LANDING_EXAMPLES } from './landingExamples'
-import { LANDING_STRINGS } from './landingStrings'
+import { LANDING_EXAMPLES, LANDING_EXAMPLES_KA_INPUT } from './landingExamples'
+import { LANDING_STRINGS, KA_INPUT_COPY } from './landingStrings'
 import { LS_KEYS } from '../storageKeys'
 import { FOCUSABLE } from './useFocusTrap'
 
@@ -67,6 +67,51 @@ describe('Landing', () => {
       <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
     )
     expect(screen.getByRole('main')).toBeInTheDocument()
+  })
+
+  // Phase-2 Georgian-input split (§5.6): the landing tracks `kaInputActive`, so
+  // Georgian-input copy/examples show for Zork I but Zork II/III stay Phase-1
+  // type-English (no misleading invite where input would always abstain).
+  describe('Georgian Phase-2 input split (§5.6)', () => {
+    const setKa = () =>
+      localStorage.setItem(
+        LS_KEYS.nlPref,
+        JSON.stringify({ language: 'ka', declined: false }),
+      )
+    const examplesRegion = () =>
+      screen.getByRole('region', {
+        name: LANDING_STRINGS.ka.commandExamples,
+      })
+
+    it('Zork I (default) invites Georgian input + shows Georgian examples voiced as ka', () => {
+      setKa()
+      const { container } = render(
+        <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+      )
+      // Phase-2 how-to ("type in Georgian"), not the Phase-1 "type in English".
+      const howto = container.querySelector('.howto')?.textContent ?? ''
+      expect(howto).toContain('აკრიფეთ ქართულად') // type in Georgian
+      expect(howto).not.toContain('ინგლისურად აკრიფეთ') // not the Phase-1 line
+      // Georgian command examples, voiced as Georgian (no lang="en" override).
+      const region = examplesRegion()
+      expect(region).toHaveTextContent(LANDING_EXAMPLES_KA_INPUT.join(' · '))
+      expect(region).not.toHaveAttribute('lang', 'en')
+    })
+
+    it('Zork II keeps the Phase-1 type-English copy + English examples voiced as en', () => {
+      setKa()
+      const { container } = render(
+        <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+      )
+      fireEvent.click(screen.getByText(LANDING_STRINGS.ka.subtitles.zork2))
+      const howto = container.querySelector('.howto')?.textContent ?? ''
+      expect(howto).toContain('ინგლისურად აკრიფეთ') // Phase-1 "type in English"
+      expect(howto).not.toContain(KA_INPUT_COPY.howToBody)
+      // English examples under the lang="ka" plate get the lang="en" override.
+      const region = examplesRegion()
+      expect(region).toHaveTextContent(LANDING_EXAMPLES.ka.join(' · '))
+      expect(region).toHaveAttribute('lang', 'en')
+    })
   })
 
   it('shows a resume hint for saved games', () => {

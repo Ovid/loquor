@@ -4,11 +4,13 @@
 // check runs the REAL raw-send predicate (isVocabPassthrough — the exact gate
 // the English basic-mode path uses); FR/DE/ES run the real deterministic path.
 import { describe, it, expect } from 'vitest'
-import { LANDING_EXAMPLES } from './landingExamples'
+import { LANDING_EXAMPLES, LANDING_EXAMPLES_KA_INPUT } from './landingExamples'
 import { splitClauses, isVocabPassthrough } from '../llm/inputTranslate'
 import { parseDirection } from '../llm/directions'
 import { parseLexicon } from '../llm/lexicon/parse'
 import { coreLexicon, nounLexicon } from '../llm/lexicon/index'
+import { KA_CORE } from '../llm/lexicon/ka.core'
+import { KA_ZORK1 } from '../llm/lexicon/ka.zork1'
 import { ZORK1_SIG, ZORK2_SIG, ZORK3_SIG } from '../llm/grammar/index'
 import { ZORK1_VOCAB } from '../llm/grammar/zork1.vocab'
 import { ZORK2_VOCAB } from '../llm/grammar/zork2.vocab'
@@ -93,4 +95,24 @@ describe('landing examples parse in basic mode for every game', () => {
       })
     }
   }
+})
+
+// Phase-2 Georgian-INPUT examples (spec §5.6) are Zork-I-ONLY (the one game with
+// a ka input lexicon), unlike the game-independent sets above. They must parse
+// via the ka DETERMINISTIC path — the exact chain the in-game ka picker uses on
+// Zork I (no LLM): a bare direction (directions.ts) or a ka lexicon command.
+// This is what makes the compound lead example `აიღე ფარანი და წადი ჩრდილოეთით`
+// honest — if the `და` split or `წადი` go-verb regressed, this fails.
+describe('Phase-2 ka-input landing examples parse on Zork I', () => {
+  it('every clause is a direction or a ka lexicon command', () => {
+    for (const example of LANDING_EXAMPLES_KA_INPUT) {
+      for (const clause of splitClauses(example)) {
+        const ok =
+          parseDirection(clause, ZORK1_VOCAB.movement) !== null ||
+          parseLexicon(clause, KA_CORE, KA_ZORK1, ZORK1_VOCAB, EMPTY_SCENE)
+            .kind === 'command'
+        expect(ok, `"${clause}" in "${example}"`).toBe(true)
+      }
+    }
+  })
 })

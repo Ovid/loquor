@@ -159,12 +159,14 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
       zork3: 'El Maestro del Calabozo',
     },
   },
-  // Georgian (ka) — Phase 1 is read-Georgian / TYPE-ENGLISH (spec §1, §3a): the
-  // game text is shown in Georgian, but the player types commands in English.
-  // The how-to says exactly that; it must NEVER imply Georgian input. The caveat
-  // carries the beta note (corpus-only — NO optional AI model is offered) instead
-  // of the model-upgrade copy the other languages use. Mkhedruli is unicameral —
-  // no capitalization (§4). Draft pending native review (§8).
+  // Georgian (ka) — this entry is the Phase-1 read-Georgian / TYPE-ENGLISH copy
+  // (spec §1, §3a): game text in Georgian, commands typed in English. It is
+  // RETAINED for Zork II/III, which stay Phase 1 (no ka input lexicon). For
+  // Zork I, Georgian input IS active (`kaInputActive`, spec §5.6) and Landing.tsx
+  // overlays KA_INPUT_COPY (below) over `howToBody`/`caveat`. The caveat carries
+  // the beta note (corpus-only — NO optional AI model is offered) instead of the
+  // model-upgrade copy the other languages use. Mkhedruli is unicameral — no
+  // capitalization (§4). Draft pending native review (§8).
   ka: {
     howToTitle: 'როგორ ვითამაშოთ.',
     // No embedded English here (3.1.2 — review I2): an English command quoted
@@ -202,4 +204,24 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
       zork3: 'დილეგის მბრძანებელი',
     },
   },
+}
+
+// Phase-2 Georgian-INPUT landing copy (spec §5.6), overlaid by Landing.tsx over
+// the Phase-1 `ka` entry's `howToBody`/`caveat` ONLY when `kaInputActive` — i.e.
+// Georgian is selected AND the chosen volume is Zork I (the one game with a ka
+// input lexicon). Zork II/III keep the Phase-1 type-English copy above, so the
+// landing never invites Georgian input where it would always abstain.
+//
+// Mirrors the in-game placeholder/help: "type in Georgian (or English)". The
+// Phase-2 examples are GEORGIAN (LANDING_EXAMPLES_KA_INPUT), so unlike the
+// Phase-1 English examples they ARE voiced as ka — Landing.tsx keeps the
+// command-examples region at lang="ka" (no lang="en" override) in this mode.
+// (beta) marker retained; drops only on native sign-off (§9). NATIVE-REVIEW-DRAFT.
+export const KA_INPUT_COPY: Pick<LandingCopy, 'howToBody' | 'caveat'> = {
+  howToBody:
+    'თამაშის ტექსტი ქართულად ჩანს; ბრძანებები აკრიფეთ ქართულად (ან ინგლისურად) — იხ. მაგალითები ქვემოთ.',
+  caveat:
+    'ქართული თარგმანი და ქართულად აკრეფა ჯერ სატესტოა (beta) — ზოგი ტექსტი ' +
+    'შეიძლება ინგლისურად გამოჩნდეს, ზოგი ბრძანება კი ვერ ამოიცნოს. ასეთ ' +
+    'შემთხვევაში სცადეთ ინგლისურად.',
 }

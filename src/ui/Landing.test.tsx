@@ -86,7 +86,11 @@ describe('Landing', () => {
     it('Zork I (default) invites Georgian input + shows Georgian examples voiced as ka', () => {
       setKa()
       const { container } = render(
-        <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+        <Landing
+          onEnter={() => {}}
+          savedSlugs={new Set()}
+          themeToggle={null}
+        />,
       )
       // Phase-2 how-to ("type in Georgian"), not the Phase-1 "type in English".
       const howto = container.querySelector('.howto')?.textContent ?? ''
@@ -101,7 +105,11 @@ describe('Landing', () => {
     it('Zork II keeps the Phase-1 type-English copy + English examples voiced as en', () => {
       setKa()
       const { container } = render(
-        <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+        <Landing
+          onEnter={() => {}}
+          savedSlugs={new Set()}
+          themeToggle={null}
+        />,
       )
       fireEvent.click(screen.getByText(LANDING_STRINGS.ka.subtitles.zork2))
       const howto = container.querySelector('.howto')?.textContent ?? ''

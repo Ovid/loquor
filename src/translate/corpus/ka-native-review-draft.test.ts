@@ -133,9 +133,7 @@ describe('ka provisional Georgian strings carry a NATIVE-REVIEW-DRAFT marker', (
     const rel = './zork1.ka.templates.ts'
     const lines = read(rel)
     const idx = lines.findIndex(
-      line =>
-        GEORGIAN.test(line) &&
-        line.includes('{obj.indef} აქ არ ჩანს'),
+      line => GEORGIAN.test(line) && line.includes('{obj.indef} აქ არ ჩანს'),
     )
     expect(
       idx,

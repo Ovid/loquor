@@ -199,7 +199,7 @@ describe('Terminal', () => {
 
   it('makes the game inert behind the download/upgrade modal (M9)', async () => {
     // The modal only opens when llmEnabled is true — set it for this test.
-    localStorage.setItem('loquor.llm', '1')
+    localStorage.setItem(LS_KEYS.llm, '1')
     nlOverride = {
       state: { phase: 'off', installed: false, canUpgrade: true },
       modalOpen: true,
@@ -225,7 +225,7 @@ describe('Terminal', () => {
       expect(screen.getByRole('dialog').closest('[inert]')).toBeNull()
     } finally {
       nlOverride = null
-      localStorage.removeItem('loquor.llm')
+      localStorage.removeItem(LS_KEYS.llm)
     }
   })
 
@@ -1157,6 +1157,34 @@ describe('Terminal', () => {
         { timeout: 8000 },
       )
       expect(screen.queryByText(llmHiddenMigrationNotice('en'))).toBeNull()
+    })
+
+    it('M2: still shows when the marker READ throws (blocked storage), matching the best-effort intent', async () => {
+      // Chrome "block all cookies" makes the localStorage getter throw. A
+      // returning user with a cached model (CacheStorage, which can outlive a
+      // blocked localStorage) must still get the actionable "re-enable in
+      // Preferences" notice — bailing on the throw would silence it for exactly
+      // the user who can't persist the one-time marker. It may recur (benign).
+      vi.spyOn(WebLlmEngine.prototype, 'isCached').mockResolvedValue(true)
+      const realGet = Storage.prototype.getItem
+      vi.spyOn(Storage.prototype, 'getItem').mockImplementation(function (
+        this: Storage,
+        k: string,
+      ) {
+        if (k === LS_KEYS.llmHiddenNoticeSeen) throw new Error('blocked')
+        return realGet.call(this, k)
+      })
+      render(
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
+      )
+      expect(
+        await screen.findByText(llmHiddenMigrationNotice('en')),
+      ).toBeInTheDocument()
     })
 
     it('M2: a toggle-on during the async isCached does not clobber the fresh "enabled" announcement ([I2])', async () => {

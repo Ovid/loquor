@@ -221,4 +221,13 @@ export class ZMachine {
   awaitTurn(): Promise<TurnResult> {
     return this.bridge.awaitTurn()
   }
+
+  /**
+   * The live, synchronous ViewState (the bridge's, before any React re-render).
+   * getContext() reads this so translate-time context isn't lagged by the React
+   * effect that updates viewRef (review S1). Pass-through to the bridge.
+   */
+  get currentView(): ViewState {
+    return this.bridge.currentView
+  }
 }

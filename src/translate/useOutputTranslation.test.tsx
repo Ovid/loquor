@@ -42,6 +42,7 @@ function setup(opts: {
   initial: ViewState
   watchdogMs?: number
   echoMap?: ReadonlyMap<string, string>
+  llmEnabled?: boolean
 }) {
   const engine = opts.engine ?? new FakeLlmEngine({ default: 'fallback-fr' })
   const gate = new EngineGate()
@@ -66,6 +67,7 @@ function setup(opts: {
         // Per-render override (em) so a test can advance the re-voice map;
         // defaults to the setup-time echoMap when a rerender omits it.
         echoMap: em === undefined ? opts.echoMap : em,
+        llmEnabled: opts.llmEnabled ?? true,
       }),
     {
       initialProps: {
@@ -1177,5 +1179,26 @@ describe('corpus-only languages (Georgian, spec §3)', () => {
     expect(
       ['fr', 'de', 'es'].some(l => CORPUS_ONLY_LANGS.has(l as never)),
     ).toBe(false)
+  })
+})
+
+describe('LLM feature off ⇒ corpus-only (t1)', () => {
+  it('a live miss stays English with no shimmer when llmEnabled is false', async () => {
+    const engine = new FakeLlmEngine({ cached: true, default: 'fallback-fr' })
+    await engine.load(() => {}, new AbortController().signal) // engine.isLoaded() === true
+    // Activate with empty transcript so the appended line is a LIVE miss
+    // (not backlog), then rerender with the uncovered line.
+    const { result, rerender } = setup({
+      language: 'fr',
+      engine,
+      initial: view([]),
+      llmEnabled: false,
+    })
+    rerender({ v: view([line('output', 'A brand new uncovered sentence.')]), lang: 'fr' })
+    // Allow any async work to settle
+    await act(async () => {})
+    expect(result.current.lines.some(l => l.pending)).toBe(false)
+    expect(result.current.lines[0].text).toBe('A brand new uncovered sentence.')
+    expect(engine.generateCalls).toBe(0) // LLM never engaged
   })
 })

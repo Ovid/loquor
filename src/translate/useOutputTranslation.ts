@@ -113,10 +113,14 @@ export function useOutputTranslation(args: {
    * compound's clauses each re-voice correctly. Null/empty when nothing is
    * recorded yet — the echo then falls to the English path. */
   echoMap?: ReadonlyMap<string, string> | null
+  /** LLM-feature preference (default true). When false the LLM output fallback
+   * is disabled (lexLang=null) — corpus-only, a miss degrades to English. */
+  llmEnabled?: boolean
 }): OutputTranslation {
   const { view, language, signature, engine, gate, corpusOverride } = args
   const watchdogMs = args.watchdogMs ?? XLATE_WATCHDOG_MS
   const echoMap = args.echoMap ?? null
+  const llmEnabled = args.llmEnabled ?? true
 
   // `lang` is the active OUTPUT language. It admits 'ka' in addition to the
   // input-lexicon languages (LexLang = fr|de|es): Georgian has a display corpus
@@ -136,9 +140,12 @@ export function useOutputTranslation(args: {
       ? language
       : null
   // The subset of `lang` that has an LLM fallback (i.e. not corpus-only): used
-  // only where a LexLang is structurally required. Null for 'ka' / inactive.
+  // only where a LexLang is structurally required. Null for 'ka' / inactive —
+  // and null whenever the LLM feature is hidden (corpus-only, defense-in-depth).
   const lexLang: LexLang | null =
-    lang !== null && !CORPUS_ONLY_LANGS.has(lang) ? (lang as LexLang) : null
+    llmEnabled && lang !== null && !CORPUS_ONLY_LANGS.has(lang)
+      ? (lang as LexLang)
+      : null
   const corpus: CompiledCorpus | null = useMemo(() => {
     if (lang === null) return null
     const c = corpusOverride ?? corpusFor(signature, lang)

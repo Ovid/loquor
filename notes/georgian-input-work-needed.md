@@ -1,96 +1,88 @@
-# Georgian Input (Phase 2) — Work Needing To Be Done
+# Georgian Input (Phase 2) — Work Status
 
 Derived from the UAT on 2026-06-24 (branch `ovid/georgian-input`). The game itself
-is in great shape: a full **350/350 Zork I win was achieved typing only Georgian**,
-all spec §6 gates are green (`103 files / 1717 tests`), and every Phase-2 grammar
-feature (postpositions, dative recipient, directions, abstain, English raw-send,
-disambiguation drop-the-noun reframe) was verified live in the browser.
+is in great shape: a full **350/350 Zork I win was achieved typing only Georgian**.
 
-These items are what's left — none of them block play. Priority order.
-
----
-
-## P1 — Player-facing Phase-2 gap (worth deciding/doing before drop-the-beta)
-
-### 1. Landing/title-screen copy still says "type English" for Georgian, and isn't game-aware
-- **What the player sees:** On the title screen with **Georgian + Zork I selected**, the
-  "how to play" block, the caveat line, and the example commands all tell the player
-  to type commands in **English** with **English** examples (`take the lamp and go north …`).
-- **Why it matters:** It's the first impression and it *contradicts* the (correct)
-  in-game placeholder/tip (`აკრიფეთ ქართულად ან ინგლისურად`) and the entire Phase-2
-  premise. A Georgian speaker is told "type English" exactly where you'd want to invite
-  Georgian. Not a hard blocker (the in-game placeholder reveals Georgian on command 1),
-  but it undersells the headline feature of the gift.
-- **Where:**
-  - `src/ui/landingStrings.ts` → `ka.howToBody` and `ka.caveat` (Phase-1 type-English copy)
-  - `src/ui/landingExamples.ts` → `LANDING_EXAMPLES.ka` (currently the English examples verbatim)
-- **Why it's more than a quick string swap (i.e. why I left it for you):** a *correct*
-  fix must mirror the spec's §5.6 `kaInputActive` signature-split — Georgian-input copy
-  for **Zork I**, but **type-English** copy retained for **Zork II/III** (which stay
-  Phase-1). That requires:
-  1. Wiring the **selected-game signature** into the landing copy selection (today the
-     `ka` arm is keyed by language only).
-  2. **Authoring Georgian-input copy** + **Georgian example commands** (e.g.
-     `აიღე ფარანი და წადი ჩრდილოეთით`, `წადი სამხრეთით`, `მიმოიხედე`) — `NATIVE-REVIEW-DRAFT`.
-  3. An **a11y change**: today the English examples sit in a `lang="en"` region (so a
-     screen reader pronounces them in English); Georgian examples need a `lang="ka"` region.
-  4. **Reworking `src/ui/landingExamples.test.ts`** — its invariant requires every example
-     to parse in BASIC mode for **all three** games, but Georgian input is **Zork-I-only**,
-     so that invariant conflicts with Zork-I-specific Georgian examples.
-- **Decision you need to make:** the landing default. Zork I is the default selection, so
-  should the landing show Georgian-input copy by default and switch to type-English when
-  the user picks II/III? (Recommended: yes — mirror `kaInputActive`.)
-- **Suggested approach:** brainstorm/spec the landing signature-split first (it's small but
-  has a UX + a11y + test-invariant decision baked in), then implement TDD.
+**Update 2026-06-25 (this session):** most of the backlog below is now **done**.
+What remains for you is **two decisions** — the `wrench` word (#2) and dropping
+`(beta)` (#6) — both flagged below. Suite is green: `103 files / 1728 tests`.
 
 ---
 
-## P2 — Native-speaker review items (the Tbilisi loop, spec §9; data edits, not bugs)
+## DONE this session
 
-All entries below are already marked `NATIVE-REVIEW-DRAFT` in code — these are just the
-specific ones the UAT surfaced, so your reviewers can prioritize them.
-
-### 2. `სასხლეტი` for "wrench" reads oddly (literally "trigger")
-- In-game it renders as `სასხლეტი გასაღები`. A native term like `ქანჩის გასაღები` /
-  `გასაღები` may read better. It *parses* fine.
-- **Where:** input noun in `src/llm/lexicon/ka.zork1.ts`; display form in the
-  `src/translate/corpus/zork1.ka.*` corpus.
-
-### 3. `სავლები` for "crawlway" (Cellar description) reads slightly off
-- Output corpus only. `სავალი` / a "crawl" phrasing may be more natural.
-- **Where:** `src/translate/corpus/zork1.ka.strings.ts` (Cellar room description).
-
-### 4. Off-winning-path lexicon verbs worth a glance
-- `წადე` → "push" (unusual; "push" is normally `დააჭირე` / a `ბიძგ-` form). `დააჭირე` is
-  already present and worked in-game, so `წადე` is a secondary alias.
-- `ახსენი` → "untie" (can read as "mention/remind"; untie isn't on the Zork I winning path).
-- **Where:** `src/llm/lexicon/ka.core.ts`.
-
----
-
-## P3 — Known / deferred (decide later)
-
-### 5. Parser-error `{raw}` still echoes the English canonical noun
-- Template `You can't see any {raw} here!` → `აქ ვერანაირ „{raw}"-ს ვერ ვხედავ!` echoes the
-  **English** noun (e.g. „troll", „button") for a Georgian player who typed Georgian.
-- Confined to **off-path error cases** (referencing an object that isn't there) and it
-  **predates Phase 2** (Phase-1 `{raw}` passthrough). The disambiguation reframe closed the
-  WHICH-PRINT echo but not these `{raw}` parser-feedback templates.
-- **Decision:** whether the "no forced English" north star wants these closed too (they're
-  harder — the noun comes from the canonical command, not a corpus object, so there's no
-  `{obj}` to substitute). Out of Phase-2 scope as written.
-- **Where:** `src/translate/corpus/zork1.ka.templates.ts` (the `{raw}` parser-feedback group, ~lines 31–49).
-
-### 6. Drop the `(beta)` marker
-- Per spec §9, only after native sign-off on the lexicon + corpus. Not yet — one-line change
-  in `src/llm/languageOptions.ts` when the Tbilisi loop confirms naturalness.
+- **#1 Landing copy (P1)** — `landingStrings.ts` `KA_INPUT_COPY` + `landingExamples.ts`
+  `LANDING_EXAMPLES_KA_INPUT`, gated in `Landing.tsx` on `kaInputActive(language,
+  selectedSig)`. Georgian-input copy + Georgian example commands show for **Zork I**;
+  **Zork II/III keep the Phase-1 type-English copy** (they have no ka lexicon, so an
+  invite would always abstain). Georgian examples are voiced as `lang="ka"` (the
+  `lang="en"` override now applies only to the Phase-1 English examples). Tests pin the
+  signature split + a no-English-leak guard on `KA_INPUT_COPY` (only `(beta)` Latin
+  allowed).
+- **#3 crawlway** — the off-reading `სავლები` → `ცოცვით გასავლელი` (crawl-root,
+  reframed as a nominative clause distinct from the narrow passage north). Display-only.
+- **#4 push / untie** — `წადე`→`უბიძგე` (push), `ახსენი`→`მოხსენი` (untie, distinct from
+  `გახსენი`=open and `ახსენე`=mention). Off the winning path. All still NATIVE-REVIEW-DRAFT.
+- **#5 `{raw}` parser-echo (P3)** — added the missing `"You can't see any {obj} here!"`
+  variant ka lacked (fr/de/es had it): a known object is now **named in Georgian**
+  (`ტროლი აქ არ ჩანს!`) via a §4-safe nominative reframe. The `{raw}` fallback remains
+  **only** for a noun with no corpus object — i.e. a genuinely untranslatable token or
+  the player's own raw-sent English, where verbatim echo is the honest behavior.
+- **NEW — compound + go-verb wiring** — surfaced while building the landing example.
+  Natural Georgian `აიღე ფარანი და წადი ჩრდილოეთით` ("take the lamp and go north") did
+  **not** work in-game: `splitClauses` had no Georgian `და`, and `LEAD` had no `წადი`.
+  Both wired (`inputTranslate.ts`, `directions.ts`) with tests. This is a real in-game
+  gap, not just a landing concern — a Georgian player would naturally type both forms.
 
 ---
 
-## Not needed (verified solid — for your peace of mind)
-- The full Zork I winning path parses deterministically in Georgian (no LLM) — confirmed by
-  a real 350/350 browser playthrough **and** the `parse.ka-walkthrough` gate.
-- Abstain (Georgian notice, no leak, nothing sent), English-ASCII raw-send, and the
-  disambiguation drop-the-noun reframe all work in the browser.
-- `ka` never reaches an LLM; Zork II/III correctly stay Phase-1 type-English.
-- `make`-level suite is green (1717 tests). No regressions introduced by this UAT (no code changed).
+## DECISION NEEDED — #2 `wrench` word (`სასხლეტი`, literally "trigger")
+
+`სასხლეტი` parses fine but reads oddly. The correct term is **`ქანჩის გასაღები`**
+(nut-key; web-confirmed via the Nova hardware retailer's category). **But it is NOT a
+safe string swap**, and that's why I stopped:
+
+- The wrench is **on the 350 winning path**, including the instrumental
+  `მოატრიალე ხრახნი სასხლეტით` ("turn bolt with wrench").
+- `ქანჩის გასაღები` is a **two-word genitive**. `expandGeorgian("ქანჩის გასაღებით")`
+  yields `ქანჩის · ით · გასაღებ` — the genitive `ქანჩის` is **stranded before the "with"**,
+  and the instrument resolves to bare `გასაღებ` (= "key", which collides with the
+  skeleton key). `ქანჩი` alone = "nut" = the **bolt** the wrench turns, so it can't be a
+  wrench synonym either.
+- This is exactly the **general-morphology case the spec deliberately deferred** (§8):
+  the single nominative-citation form can't decline a genitive compound in the
+  instrumental. `სასხლეტი` works only because it's a clean single token.
+
+**Options (your call):**
+
+1. **Keep `სასხლეტი`** for now; revisit with the native loop, which may suggest a clean
+   single-token term or a parse-safe colloquial instrument form.
+2. **Switch display to `ქანჩის გასაღები`** (player reads the correct word) and make input
+   accept the nominative `ქანჩის გასაღები`, **but** the formal instrumental
+   `ქანჩის გასაღებით` would still strand — needs the deferred morphology work or a native
+   ruling on an acceptable parse-safe form.
+3. **Do the morphology work** (handle a stranded genitive before a postposition) — larger,
+   out of the Phase-2 scope as written.
+
+Recommend **(1)** unless you want to invest in (3): it's the only fully-correct path, and
+the wrench already parses, so this is naturalness, not a blocker. `src/llm/lexicon/ka.zork1.ts`,
+`src/translate/corpus/zork1.ka.objects.ts`, `…strings.ts` (`(with the wrench)`), plus the
+walkthrough fixtures in `parse.ka-walkthrough.test.ts`.
+
+---
+
+## DECISION NEEDED — #6 Drop the `(beta)` marker
+
+Per spec §9, `(beta)` drops only on **native sign-off** of the lexicon + corpus. My
+web-dictionary research improved several words (#2-4) but is **not** a native review —
+I'm not a Georgian speaker. **Recommend keeping `(beta)`** until a native reviewer
+confirms naturalness; dropping it now would assert a finality the strings don't yet have.
+One-line change in `src/llm/languageOptions.ts` when you're ready.
+
+---
+
+## Still open for the native (Tbilisi) loop
+
+All ka lexicon/corpus strings remain `NATIVE-REVIEW-DRAFT`. The session's word choices
+(`ცოცვით გასავლელი`, `უბიძგე`, `მოხსენი`, `KA_INPUT_COPY`, the new `can't-see-any {obj}`
+reframe) are web-grounded drafts pending that review.

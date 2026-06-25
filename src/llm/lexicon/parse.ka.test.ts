@@ -134,4 +134,13 @@ describe('Georgian parse — multi-word objects in case roles (split-point rejoi
       text: 'inflate valve with pump',
     })
   })
+  it('mis-bind guard: a multi-word object that resolves whole is never split', () => {
+    // 'დიდ ზურმუხტ' (large emerald, adjective + noun) resolves as ONE noun before
+    // the prep, so obj is non-null and the rejoin search never runs — the command
+    // parses normally to 'put emerald in case'.
+    expect(ka('ჩადე დიდ ზურმუხტი ვიტრინაში')).toEqual({
+      kind: 'command',
+      text: 'put emerald in case',
+    })
+  })
 })

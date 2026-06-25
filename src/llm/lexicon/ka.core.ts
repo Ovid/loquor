@@ -68,16 +68,20 @@ export const KA_CORE: CoreLexicon = {
     გადააადგილე: 'move',
     წაანაცვლე: 'move',
     დააჭირე: 'push',
-    წადე: 'push',
+    // უბიძგე (imperative of ბიძგება, "push/shove") — replaces the odd `წადე`,
+    // which read as neither push nor a natural verb. NATIVE-REVIEW-DRAFT.
+    უბიძგე: 'push',
     გამოქაჩე: 'pull',
     მოქაჩე: 'pull',
     ასწიე: 'raise',
     ჩაუშვი: 'lower',
     // tie / inflate / wind / ring / wave / rub / dig / turn
     მიაბი: 'tie',
-    // untie: ახსენი (aorist 2sg of untie/unbind) — DISTINCT from გახსენი (open),
-    // resolving the Task-4 placeholder + its self-flagged open-collision.
-    ახსენი: 'untie', // ← review: confirm the untie sense reads naturally
+    // untie: მოხსენი (imperative of მოხსნა, "detach/unfasten") — replaces the
+    // ambiguous ახსენი, which collided in sense with ახსენე ("mention") and the
+    // ხსნა/"explain" reading. მოხსენი is DISTINCT from გახსენი ("open") and reads
+    // cleanly as untying/unfastening the rope from the railing. NATIVE-REVIEW-DRAFT.
+    მოხსენი: 'untie',
     გაბერე: 'inflate',
     დააქოქე: 'wind up',
     დარეკე: 'ring',

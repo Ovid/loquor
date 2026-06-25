@@ -43,6 +43,11 @@ So `ქანჩის გასაღები` is the _right_ word but current
 form. `სასხლეტი` ("trigger") reads wrong but works **only because it is a single
 token** (`სასხლეტით → ["ით", "სასხლეტ"]`, clean).
 
+> **RESOLVED 2026-06-25** (branch `ovid/georgian-genitive-case-objects`). The
+> stranded-modifier rejoin (`parse.ts`) now re-joins a genitive modifier across the case
+> suffix, so `ქანჩის გასაღებით` parses end-to-end and `ქანჩის გასაღები` is the shipped
+> wrench word — `სასხლეტი` is gone. The analysis below stands as the design rationale.
+
 ## Why this is general, not wrench-specific
 
 The lexicon today **avoids** the problem by hand-picking **single-token** instrument

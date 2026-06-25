@@ -528,7 +528,11 @@ export function parseLexicon(
     // object first — modifiers belong to the instrument) for the first k where the
     // trimmed object AND the modifier(s) + instrument BOTH resolve as nouns. Fires
     // only on !obj (never touches a command that already parses) and commits only a
-    // fully-resolving reparse, so it can't mis-bind. Move-one is just k=1.
+    // fully-resolving reparse. Move-one is just k=1. Safety rests on no modifier
+    // token being a standalone noun synonym: if a leading modifier resolved alone,
+    // smallest-first would bind it as the object and mis-split. No current ka.zork1
+    // modifier (ხელის, ჰაერის, ჯილდოების, გატეხილ, თვლებიან) is a standalone noun,
+    // so it's safe today; a future lexicon addition must preserve that.
     if (core.postpositions && !obj && objTokens.length > 1) {
       for (let k = 1; k < objTokens.length; k++) {
         const o = resolveNoun(objTokens.slice(0, k), core, nouns, vocab, scene)

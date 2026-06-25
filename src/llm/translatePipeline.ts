@@ -47,6 +47,7 @@ import {
   isEnglishPronounClause,
   resolveEnglishQuantifier,
   resolveEnglishQuantifierPhrase,
+  resolveNounReply,
 } from './lexicon/parse'
 import type { CoreLexicon, NounLexicon } from './lexicon/types'
 import { parseDirection } from './directions'
@@ -59,6 +60,7 @@ import {
   queueClearedNeedsAnswer,
   modelDownloadFailed,
   grammarOnlyFirstMiss,
+  promptAnswerHint,
 } from './notices'
 import { createLogger } from '../logger'
 import type { Internal } from './useModelDownload'
@@ -681,10 +683,46 @@ export function createTranslate(
         // On a yes/no confirmation, map the player's localized reflex reply
         // ("j"/"ja"/"oui"/"sí") to the interpreter's literal "y"/"n" key — the
         // localized prompt invited it but the interpreter only accepts Y (review I3).
-        const reply = isConfirmationPrompt(recentOutput)
-          ? confirmationReply(line, activeLang)
-          : line
-        sendTracked(reply)
+        if (isConfirmationPrompt(recentOutput)) {
+          sendTracked(confirmationReply(line, activeLang))
+          return 'ok'
+        }
+        // Disambiguation / orphan: the reply answers the PARSER with a NOUN
+        // ("yellow button" → "Which button?"). The output corpus renders the
+        // prompt in the player's language, so a non-English player answers in
+        // their language — which the English Z-parser can't read (I3). Resolve the
+        // reply through the noun lexicon (verbless path) and send the English noun.
+        // A QUOTED reply is the literal escape and skips resolution (decision 8);
+        // it raw-sends below (the decision-8 contract keeps the quotes).
+        const resolved =
+          !unquote(line) && lex?.nouns
+            ? resolveNounReply(
+                line,
+                lex.core,
+                lex.nouns,
+                vocab,
+                tracker.scene(),
+              )
+            : null
+        if (resolved) {
+          echoLocal(line) // a translated reply — echo the player's own words once
+          sendTracked(resolved, line, true)
+          return 'ok'
+        }
+        // Unresolved → mirror the stage-8 abstain policy: en (and ka's
+        // English-ASCII reply, §5.5) raw-send (Zork's parser reads English); a
+        // non-English reply with no resolution would only earn a useless English
+        // error and burn the turn, so abstain (leave the prompt open) and show a
+        // localized hint to answer with the full noun (I3, the "resolve + hint" call).
+        if (
+          activeLang === 'en' ||
+          (activeLang === 'ka' && !containsGeorgian(line))
+        ) {
+          sendTracked(line)
+          return 'ok'
+        }
+        setNotice(promptAnswerHint(activeLang))
+        retainTyped = line
         return 'ok'
       }
       // STAGE 2 (locked decision 8): a fully-quoted line ("…", «…», „…“, “…”)

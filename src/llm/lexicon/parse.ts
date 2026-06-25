@@ -557,3 +557,27 @@ export function parseLexicon(
 
   return MISS // strictness: something didn't consume
 }
+
+/** Resolve a disambiguation/orphan-prompt REPLY — a bare noun phrase with NO verb
+ * ("yellow button" answering "Which button?") — to the English noun the Z-parser
+ * expects, or null. parseLexicon requires a verb, so a prompt reply needs this
+ * verbless path: tokenize → the Georgian pre-stage (postposition split + -ი strip,
+ * ka only via core.postpositions) → resolveNoun over the whole span. Multilingual:
+ * the output corpus renders the prompt localized in every language, so fr/de/es
+ * answers (with their articles dropped by resolveNoun) resolve here too. A miss
+ * returns null — the caller raw-sends (en/ka-ASCII) or abstains with a hint (I3).
+ * A bare-adjective reply ("yellow") misses (no standalone adjective entry); the
+ * hint nudges the player to include the noun. */
+export function resolveNounReply(
+  reply: string,
+  core: CoreLexicon,
+  nouns: NounLexicon,
+  vocab: Vocab,
+  scene: Scene,
+): string | null {
+  let tokens = tokenize(reply)
+  if (tokens.length === 0) return null
+  if (core.postpositions) tokens = expandGeorgian(tokens, core.postpositions)
+  const hit = resolveNoun(tokens, core, nouns, vocab, scene)
+  return hit ? hit.emit : null
+}

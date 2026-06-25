@@ -21,6 +21,7 @@ import * as LexiconIndex from './lexicon/index'
 import {
   GEORGIAN_ACTIVATION_TIP,
   GEORGIAN_ACTIVATION_TIP_TYPE_ENGLISH,
+  promptAnswerHint,
 } from './notices'
 import { helpResponse, helpResponseTypeEnglish } from './help'
 
@@ -1033,6 +1034,102 @@ describe('useNaturalLanguage', () => {
     expect(sendLine).toHaveBeenCalledWith('the trophy case') // raw answer
     expect(echoLocal).not.toHaveBeenCalled()
     expect(generateSpy).not.toHaveBeenCalled()
+  })
+
+  it('a ka disambiguation reply resolves the Georgian noun to the English noun (I3)', async () => {
+    // The corpus renders "Which button…?" in Georgian, so a ka player answers in
+    // Georgian. That reply must be resolved through the noun lexicon and sent as
+    // the English noun — NOT raw-sent verbatim (which the English Z-parser can't
+    // read, with no LLM net to recover). echo shows the player's own words once.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"look"}',
+    })
+    const generateSpy = vi.spyOn(engine, 'generate')
+    const getContext = () => ({
+      location: 'Dam Lobby',
+      recentOutput:
+        'Which button do you mean, the yellow button or the brown button?',
+    })
+    const { hook, echoLocal, sendLine } = setup({
+      engine,
+      getContext,
+      vocab: ZORK1_VOCAB,
+      signature: ZORK1_SIG,
+    })
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
+    )
+    act(() => hook.result.current.setLanguage('ka'))
+    await act(async () => {
+      await hook.result.current.translate('ყვითელი ღილაკი') // "yellow button"
+    })
+    expect(sendLine).toHaveBeenCalledWith('yellow button')
+    expect(echoLocal).toHaveBeenCalledWith('ყვითელი ღილაკი')
+    expect(generateSpy).not.toHaveBeenCalled() // ka has no LLM net anyway
+  })
+
+  it('a ka prompt reply that misses resolution abstains with a localized hint (I3)', async () => {
+    // A bare adjective ("ყვითელი" = yellow) has no standalone noun entry, so it
+    // can't resolve. Rather than raw-send Georgian (an English error + burned
+    // turn, with an English leak), abstain and show the "answer with the full
+    // item name" hint in Georgian; leave the prompt open.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"look"}',
+    })
+    const getContext = () => ({
+      location: 'Dam Lobby',
+      recentOutput:
+        'Which button do you mean, the yellow button or the brown button?',
+    })
+    const { hook, sendLine } = setup({
+      engine,
+      getContext,
+      vocab: ZORK1_VOCAB,
+      signature: ZORK1_SIG,
+    })
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
+    )
+    act(() => hook.result.current.setLanguage('ka'))
+    let retained: string | null = 'unset'
+    await act(async () => {
+      retained = await hook.result.current.translate('ყვითელი') // bare "yellow"
+    })
+    expect(sendLine).not.toHaveBeenCalled() // nothing sent — Georgian not raw-sent
+    expect(hook.result.current.notice).toBe(promptAnswerHint('ka'))
+    expect(retained).toBe('ყვითელი') // restored to the field so it can be fixed
+  })
+
+  it('a ka English-ASCII prompt reply still raw-sends (§5.5)', async () => {
+    // A ka player who answers the disambiguation prompt in English keeps the
+    // English-ASCII raw-send: Zork's parser reads it directly.
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"look"}',
+    })
+    const getContext = () => ({
+      location: 'Dam Lobby',
+      recentOutput:
+        'Which button do you mean, the yellow button or the brown button?',
+    })
+    const { hook, sendLine } = setup({
+      engine,
+      getContext,
+      vocab: ZORK1_VOCAB,
+      signature: ZORK1_SIG,
+    })
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
+    )
+    act(() => hook.result.current.setLanguage('ka'))
+    await act(async () => {
+      await hook.result.current.translate('yellow button')
+    })
+    // Resolves via the vocab's own English surfaces OR raw-sends — either way the
+    // English noun reaches Zork (not abstained).
+    expect(sendLine).toHaveBeenCalledWith('yellow button')
   })
 
   // (A hook-level "observe is idempotent" test used to live here asserting

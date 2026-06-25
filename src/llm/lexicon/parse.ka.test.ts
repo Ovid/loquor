@@ -3,7 +3,7 @@
 // ka is OUTPUT-ONLY today; these exercise the Phase-2 INPUT pipeline directly
 // against KA_CORE / KA_ZORK1, the same parse.ts the fr/de/es cases use.
 import { describe, it, expect } from 'vitest'
-import { parseLexicon } from './parse'
+import { parseLexicon, resolveNounReply } from './parse'
 import { KA_CORE } from './ka.core'
 import { KA_ZORK1 } from './ka.zork1'
 import { ZORK1_VOCAB } from '../grammar/zork1.vocab'
@@ -11,6 +11,8 @@ import type { Scene } from '../scene/types'
 
 const empty: Scene = { inScope: [], antecedent: null }
 const ka = (c: string) => parseLexicon(c, KA_CORE, KA_ZORK1, ZORK1_VOCAB, empty)
+const kaReply = (r: string) =>
+  resolveNounReply(r, KA_CORE, KA_ZORK1, ZORK1_VOCAB, empty)
 
 describe('Georgian parse — postposition + case (spec §3.2, G1)', () => {
   it('instrumental -ით: kill troll with sword', () => {
@@ -66,5 +68,26 @@ describe('Georgian parse — "all"/"everything" quantifier (I1)', () => {
   })
   it('ყველა (all, vowel-final, strip is a no-op) → take all', () => {
     expect(ka('აიღე ყველა')).toEqual({ kind: 'command', text: 'take all' })
+  })
+})
+
+describe('resolveNounReply — verbless disambiguation/orphan reply (I3)', () => {
+  it('resolves a full Georgian noun phrase to the English noun', () => {
+    // "Which button?" answered with the full Georgian noun phrase → the specific
+    // English button (the bare ღილაკ is ambiguous, so the adjective is needed).
+    expect(kaReply('ყვითელი ღილაკი')).toBe('yellow button')
+    expect(kaReply('წითელი ღილაკი')).toBe('red button')
+  })
+  it('resolves a single-word recipient/orphan answer', () => {
+    expect(kaReply('ქურდი')).toBe('thief') // "give egg to whom?" → thief
+    expect(kaReply('ვიტრინა')).toBe('case') // "put coffin in what?" → trophy case
+  })
+  it('misses a bare adjective (no standalone entry) → caller hints', () => {
+    // "ყვითელი" (yellow) alone has no noun, so it can't resolve — the player gets
+    // the "answer with the full item name" hint instead.
+    expect(kaReply('ყვითელი')).toBeNull()
+  })
+  it('misses an empty reply', () => {
+    expect(kaReply('')).toBeNull()
   })
 })

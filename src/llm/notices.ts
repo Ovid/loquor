@@ -360,6 +360,27 @@ export function makeActivationNotice(): (
   }
 }
 
+/** A disambiguation/orphan-prompt reply we couldn't resolve to a known object:
+ * nudge the player to answer with the full item name (its noun), which the noun
+ * resolver can then match. Multilingual — every input-lex player can hit it (I3).
+ * (en and ka's English-ASCII reply raw-send and never reach here, but byLang needs
+ * an en fallback.) */
+export function promptAnswerHint(lang: ActiveLanguage): string {
+  return byLang(
+    {
+      en: 'Answer with the full item name — e.g. “red button”.',
+      fr: 'Répondez avec le nom complet de l’objet — p. ex. « bouton rouge ».',
+      de: 'Antworten Sie mit dem vollständigen Namen des Objekts — z. B. „roter Knopf“.',
+      es: 'Responde con el nombre completo del objeto — p. ej. «botón rojo».',
+      // NATIVE-REVIEW-DRAFT (ka §7): no-LLM ka prompt-reply hint — answer with the
+      // full Georgian name (the noun), not just the adjective. "Answer with the
+      // full item name — e.g. „red button“, not just „red“."
+      ka: 'უპასუხეთ ნივთის სრული სახელით — მაგ. „წითელი ღილაკი“, და არა მხოლოდ „წითელი“.',
+    },
+    lang,
+  )
+}
+
 /** A queued line was discarded because the game raised an interactive prompt. */
 export function queueClearedNeedsAnswer(lang: ActiveLanguage): string {
   return byLang(

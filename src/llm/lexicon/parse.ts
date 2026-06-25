@@ -531,8 +531,8 @@ export function parseLexicon(
     // fully-resolving reparse. Move-one is just k=1. Safety rests on no modifier
     // token being a standalone noun synonym: if a leading modifier resolved alone,
     // smallest-first would bind it as the object and mis-split. No current ka.zork1
-    // modifier (ხელის, ჰაერის, ჯილდოების, გატეხილ, თვლებიან) is a standalone noun,
-    // so it's safe today; a future lexicon addition must preserve that.
+    // modifier (ხელის, ჰაერის, ჯილდოების, გატეხილ, თვლებიან, ქანჩის) is a standalone
+    // noun, so it's safe today; a future lexicon addition must preserve that.
     if (core.postpositions && !obj && objTokens.length > 1) {
       for (let k = 1; k < objTokens.length; k++) {
         const o = resolveNoun(objTokens.slice(0, k), core, nouns, vocab, scene)

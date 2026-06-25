@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import 'fake-indexeddb/auto'
 import {
   render,
@@ -14,6 +14,8 @@ import { WebLlmEngine } from '../llm/engine.webllm'
 import { ZMachine } from '../zmachine/engine'
 import type { UseNaturalLanguage } from '../llm/useNaturalLanguage'
 import { PREFS_COPY } from './PreferencesModal'
+import { llmModeChange, llmHiddenMigrationNotice } from '../llm/notices'
+import { LS_KEYS } from '../storageKeys'
 
 // Passthrough mock: the real hook runs for every test, but a test can overlay
 // specific fields (e.g. a non-empty queue) that are otherwise unreachable
@@ -1036,6 +1038,96 @@ describe('Terminal', () => {
         name: PREFS_COPY.en.llmLabel,
       })
       expect(llmBox).not.toBeChecked()
+    })
+  })
+
+  describe('Terminal — LLM live behaviors', () => {
+    afterEach(() => {
+      nlOverride = null
+      localStorage.clear()
+      vi.restoreAllMocks()
+    })
+
+    it('t4: flipping the toggle on announces the mode change via aria-live', async () => {
+      render(
+        <Terminal storyBytes={bytes} storyTitle="Zork I" onChangeStory={() => {}} themeToggle={null} />,
+      )
+      await waitFor(
+        () => expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        { timeout: 8000 },
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Preferences' }))
+      fireEvent.click(screen.getByRole('checkbox', { name: PREFS_COPY.en.llmLabel }))
+      expect(await screen.findByText(llmModeChange('en', true))).toBeInTheDocument()
+    })
+
+    it('t2: toggling off during a download aborts it (cancelDownload called)', async () => {
+      const cancelDownload = vi.fn()
+      nlOverride = {
+        state: { phase: 'downloading', language: 'fr', loaded: 1, total: 2, etaSeconds: null },
+        cancelDownload,
+      }
+      localStorage.setItem(LS_KEYS.llm, '1')
+      render(
+        <Terminal storyBytes={bytes} storyTitle="Zork I" onChangeStory={() => {}} themeToggle={null} />,
+      )
+      await waitFor(
+        () => expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        { timeout: 8000 },
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Preferences' }))
+      fireEvent.click(screen.getByRole('checkbox', { name: PREFS_COPY.en.llmLabel }))
+      await waitFor(() => expect(cancelDownload).toHaveBeenCalled())
+    })
+
+    it('M2: a cached model + flag off + marker unset shows the one-time notice', async () => {
+      vi.spyOn(WebLlmEngine.prototype, 'isCached').mockResolvedValue(true)
+      render(
+        <Terminal storyBytes={bytes} storyTitle="Zork I" onChangeStory={() => {}} themeToggle={null} />,
+      )
+      expect(await screen.findByText(llmHiddenMigrationNotice('en'))).toBeInTheDocument()
+      expect(localStorage.getItem(LS_KEYS.llmHiddenNoticeSeen)).toBe('1')
+    })
+
+    it('M2: not shown when the marker is already set', async () => {
+      vi.spyOn(WebLlmEngine.prototype, 'isCached').mockResolvedValue(true)
+      localStorage.setItem(LS_KEYS.llmHiddenNoticeSeen, '1')
+      render(
+        <Terminal storyBytes={bytes} storyTitle="Zork I" onChangeStory={() => {}} themeToggle={null} />,
+      )
+      await waitFor(
+        () => expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        { timeout: 8000 },
+      )
+      expect(screen.queryByText(llmHiddenMigrationNotice('en'))).toBeNull()
+    })
+
+    it('M2: not shown to a user with no cached model', async () => {
+      vi.spyOn(WebLlmEngine.prototype, 'isCached').mockResolvedValue(false)
+      render(
+        <Terminal storyBytes={bytes} storyTitle="Zork I" onChangeStory={() => {}} themeToggle={null} />,
+      )
+      await waitFor(
+        () => expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        { timeout: 8000 },
+      )
+      expect(screen.queryByText(llmHiddenMigrationNotice('en'))).toBeNull()
+    })
+
+    it('t5: rapid toggle on→off→on never strands a download/upgrade modal', async () => {
+      render(
+        <Terminal storyBytes={bytes} storyTitle="Zork I" onChangeStory={() => {}} themeToggle={null} />,
+      )
+      await waitFor(
+        () => expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        { timeout: 8000 },
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Preferences' }))
+      const box = screen.getByRole('checkbox', { name: PREFS_COPY.en.llmLabel })
+      fireEvent.click(box) // on
+      fireEvent.click(box) // off
+      fireEvent.click(box) // on
+      expect(screen.getAllByRole('dialog')).toHaveLength(1)
     })
   })
 })

@@ -25,7 +25,11 @@ import {
   commandLabelTypeEnglish,
   commandPlaceholder,
   commandPlaceholderTypeEnglish,
+  llmModeChange,
+  llmHiddenMigrationNotice,
 } from '../llm/notices'
+import { readNlPref } from '../llm/nlpref'
+import { LS_KEYS } from '../storageKeys'
 import { useNaturalLanguage } from '../llm/useNaturalLanguage'
 import { kaInputActive } from '../llm/lexicon/index'
 import { isHelpTrigger } from '../llm/help'
@@ -36,7 +40,7 @@ import { WebLlmEngine } from '../llm/engine.webllm'
 import { selectedModelId } from '../llm/modelSelection'
 import { EngineGate } from '../shared/engineGate'
 import { GENERATE_WATCHDOG_MS } from '../llm/config'
-import type { LoadProgress } from '../llm/types'
+import type { LoadProgress, ActiveLanguage } from '../llm/types'
 import { OUTPUT_ONLY_LANGS } from '../llm/types'
 import { createLogger } from '../logger'
 
@@ -89,6 +93,10 @@ export function Terminal({
   const [restore, setRestore] = useState<{ text: string; key: number } | null>(
     null,
   )
+  // One Terminal-owned, visible aria-live region for LLM-feature events: the M2
+  // migration notice (actionable → visible) and the live mode-change
+  // announcement. Carries its own lang so a screen reader voices it correctly.
+  const [llmMsg, setLlmMsg] = useState<{ text: string; lang: ActiveLanguage } | null>(null)
   const recordEcho = useCallback((canonical: string, source: string) => {
     const k = loudEchoToken(canonical)
     const v = loudEchoToken(source)
@@ -228,6 +236,56 @@ export function Terminal({
     // engineRef is a stable RefObject (from useGameEngine); listed to satisfy
     // exhaustive-deps now that it's a hook return rather than a local useRef.
   }, [view.inputRequest, engineRef])
+
+  // Turn-off mid-download: a load in flight would otherwise resolve into on/full
+  // AFTER the user hid the feature. cancelDownload aborts it and settles to
+  // on/grammar. (downloads can't START while off — the modal is gated — so this
+  // only fires for an in-flight load at the moment of toggle-off.)
+  // Deps are deliberately specific (phase + cancelDownload, not the full `nl`
+  // object) so the abort fires only on the relevant state changes, not on every
+  // nl field update.
+  useEffect(
+    () => {
+      if (!llmEnabled && nl.state.phase === 'downloading') nl.cancelDownload()
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [llmEnabled, nl.state.phase, nl.cancelDownload],
+  )
+
+  // M2: a returning user whose model was cached before this feature shipped would
+  // find it silently gone. Show a one-time notice (model weights stay on disk).
+  // Trigger: feature off + a cached model + marker unset. Localized to the stored
+  // language (read synchronously so the notice isn't English before the async
+  // cache-restore resolves the active language). Mount-only.
+  useEffect(() => {
+    if (llmEnabled) return
+    try {
+      if (localStorage.getItem(LS_KEYS.llmHiddenNoticeSeen) === '1') return
+    } catch {
+      return
+    }
+    let cancelled = false
+    void llmEngine
+      .isCached()
+      .then(cached => {
+        if (cancelled || !cached) return
+        const pref = readNlPref().language
+        const lang: ActiveLanguage = pref === 'off' ? 'en' : pref
+        setLlmMsg({ text: llmHiddenMigrationNotice(lang), lang })
+        try {
+          localStorage.setItem(LS_KEYS.llmHiddenNoticeSeen, '1')
+        } catch {
+          // best-effort marker — if storage is blocked the notice may recur,
+          // which is benign (it never blocks play).
+        }
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+    // Mount-only one-time migration check (llmEngine is stable).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // The upgrade/download modal is suppressed for output-only languages (it does
   // nothing for them) AND whenever the LLM feature is hidden (no model to offer).
@@ -437,6 +495,16 @@ export function Terminal({
         kaInput={kaActive}
         llmEnabled={llmEnabled}
       />
+      {/* LLM-feature live region (M2 migration notice + mode-change). Always
+          mounted so the live region is registered before content appears;
+          visible so M2's "re-enable in Preferences" guidance is actionable.
+          A BARE aria-live region — deliberately NOT role="status": Terminal
+          already has one role="status" region, and existing tests rely on there
+          being exactly ONE status landmark. aria-live="polite" alone still
+          announces (same pattern as the ka announce region). */}
+      <div aria-live="polite" className="nl-notice" lang={llmMsg?.lang}>
+        {llmMsg?.text}
+      </div>
       <ModelDownloadModal
         open={modelModalOpen}
         warn={
@@ -462,7 +530,11 @@ export function Terminal({
         llmEnabled={llmEnabled}
         lang={activeLang}
         onToggleDebug={toggleDebug}
-        onToggleLlm={toggleLlm}
+        onToggleLlm={() => {
+          const next = !llmEnabled
+          toggleLlm()
+          setLlmMsg({ text: llmModeChange(activeLang, next), lang: activeLang })
+        }}
         onClose={() => setPrefsOpen(false)}
       />
     </div>

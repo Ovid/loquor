@@ -22,4 +22,9 @@ export const LS_KEYS = {
   miss: 'loquor.xlate.misses',
   /** Debug-view preference ('1' = on). Owner: src/ui/useDebug.ts */
   debug: 'loquor.debug',
+  /** LLM-fallback preference ('1' = on; absent = off/hidden). Owner: src/ui/useLlmFeature.ts */
+  llm: 'loquor.llm',
+  /** Write-once marker: the one-time "LLM now hidden" migration notice was shown
+   * to a returning opted-in user. Owner: src/ui/Terminal.tsx (M2). */
+  llmHiddenNoticeSeen: 'loquor.llm.hiddenNoticeSeen',
 } as const

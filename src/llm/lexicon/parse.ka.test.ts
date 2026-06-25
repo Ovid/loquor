@@ -52,6 +52,17 @@ describe('Georgian parse — postposition + case (spec §3.2, G1)', () => {
       text: 'give egg to thief',
     })
   })
+  it('G1 dative recipient: multi-word (adjective) object → give diamond to thief', () => {
+    // "მიეცი უზარმაზარი ბრილიანტი ქურდს" (give the huge diamond to the thief).
+    // The object is adjective+noun, so after the dative -ს stays on ქურდს the
+    // remainder is THREE tokens. The recipient is the LAST token; the object span
+    // is everything before it. The old `tokens.length === 2` guard rejected the
+    // qualified object and missed with no LLM net.
+    expect(ka('მიეცი უზარმაზარი ბრილიანტი ქურდს')).toEqual({
+      kind: 'command',
+      text: 'give diamond to thief',
+    })
+  })
   it('G1 dative recipient: tie rope to railing', () => {
     // მიაბი თოკი მოაჯირს → tie rope to railing (the other closed-set recipient).
     expect(ka('მიაბი თოკი მოაჯირს')).toEqual({

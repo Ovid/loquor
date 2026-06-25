@@ -532,25 +532,29 @@ export function parseLexicon(
   // splittable postposition (it collides with genitive -ის, e.g. სპილენძის
   // "brass"), so expandGeorgian leaves it attached: `მიეცი კვერცხი ქურდს` →
   // [give, კვერცხ, ქურდს]. The prep-split above can't fire (no prep token
-  // between the two nouns), so it falls through to here. When the verb takes a
-  // 'to' indirect object (verbs2), exactly two nouns remain, BOTH resolve, and
-  // the SECOND is in the closed dative-recipient set, emit
-  // `<verb> <obj> to <recipient>`. Bounded to core.dativeRecipients — the closed
-  // Zork I recipient set in dative form (thief ქურდს, wooden railing მოაჯირს) —
-  // NOT a bare `.endsWith('ს')` test: several non-recipient noun stems natively
-  // end in ს (chalice თას, scarab სკარაბეუს, screwdriver სახრახნის), which the
-  // suffix test mistranslated to a wrong `<obj> to <Y>` (C1, plan M3).
-  // core.dativeRecipients is present only for ka, so fr/de/es never reach this. A
-  // second noun that is not a known recipient falls through to MISS. (Spec §2 G1.)
-  // The recipient-set membership is this path's unique predicate, so check it
-  // first to short-circuit the two noun lookups for any other two-noun remainder.
+  // between the nouns), so it falls through to here. When the verb takes a
+  // 'to' indirect object (verbs2), the LAST token is in the closed
+  // dative-recipient set, and the OBJECT SPAN before it resolves as ONE noun,
+  // emit `<verb> <obj> to <recipient>`. The object span may be multi-token
+  // (adjective+noun, `უზარმაზარი ბრილიანტი ქურდს`), so the gate is "recipient is
+  // the final token", NOT a two-token remainder (I3). Bounded to
+  // core.dativeRecipients — the closed Zork I recipient set in dative form (thief
+  // ქურდს, wooden railing მოაჯირს) — NOT a bare `.endsWith('ს')` test: several
+  // non-recipient noun stems natively end in ს (chalice თას, scarab სკარაბეუს,
+  // screwdriver სახრახნის), which the suffix test mistranslated to a wrong
+  // `<obj> to <Y>` (C1, plan M3). core.dativeRecipients is present only for ka,
+  // so fr/de/es never reach this. A final token that is not a known recipient,
+  // or an object span that doesn't resolve as one noun, falls through to MISS.
+  // (Spec §2 G1.) The recipient-set membership is this path's unique predicate,
+  // so check it first to short-circuit the noun lookups for any other remainder.
+  const recipientTok = tokens[tokens.length - 1]
   if (
-    core.dativeRecipients?.has(tokens[1]) &&
-    tokens.length === 2 &&
+    core.dativeRecipients?.has(recipientTok) &&
+    tokens.length >= 2 &&
     verbArityOk(verb, vocab, 2)
   ) {
-    const obj = resolveNoun([tokens[0]], core, nouns, vocab, scene)
-    const rec = resolveNoun([tokens[1]], core, nouns, vocab, scene)
+    const obj = resolveNoun(tokens.slice(0, -1), core, nouns, vocab, scene)
+    const rec = resolveNoun([recipientTok], core, nouns, vocab, scene)
     if (obj && rec)
       return { kind: 'command', text: `${verb} ${obj.emit} to ${rec.emit}` }
   }

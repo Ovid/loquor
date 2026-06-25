@@ -17,7 +17,8 @@ export interface LandingCopy {
   howToBody: string // remainder of the how-to line
   progressNote: string // the dimmed "your progress is kept" line
   languageLabel: string // the inline picker label
-  caveat: string // the optional-model caveat paragraph
+  caveat: string // the optional-model caveat paragraph (shown when the LLM feature is ON)
+  caveatShort: string // the no-model caveat (shown when the LLM feature is OFF)
   descent: string // the radiogroup label
   enter: string // the primary "enter the game" button
   resume: string // the saved-game resume hint
@@ -45,6 +46,7 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
       'what you type, you can add an optional, experimental model — a ' +
       'one-time download whose richer understanding may be uneven across ' +
       'languages.',
+    caveatShort: 'Commands work in all four languages.',
     descent: '— choose your descent —',
     enter: 'Light the lamp →',
     resume: 'a saved descent awaits — you will resume where you left off',
@@ -76,6 +78,7 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
       'langues. Pour mieux comprendre ce que vous tapez, vous pouvez ajouter ' +
       'un modèle optionnel et expérimental — un téléchargement unique dont la ' +
       'compréhension plus riche peut être inégale selon les langues.',
+    caveatShort: 'Les commandes fonctionnent dans les quatre langues.',
     descent: '— choisissez votre descente —',
     enter: 'Allumez la lampe →',
     resume:
@@ -108,6 +111,7 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
       'von dem zu verstehen, was du schreibst, kannst du ein optionales, ' +
       'experimentelles Modell hinzufügen — ein einmaliger Download, dessen ' +
       'umfassenderes Verständnis je nach Sprache unterschiedlich ausfallen kann.',
+    caveatShort: 'Befehle funktionieren in allen vier Sprachen.',
     descent: '— wähle deinen Abstieg —',
     enter: 'Entzünde die Lampe →',
     resume:
@@ -140,6 +144,7 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
       'mejor lo que escribes, puedes añadir un modelo opcional y experimental ' +
       '— una descarga única cuya comprensión más rica puede ser desigual ' +
       'según el idioma.',
+    caveatShort: 'Los comandos funcionan en los cuatro idiomas.',
     descent: '— elige tu descenso —',
     enter: 'Enciende la lámpara →',
     resume: 'un descenso guardado te espera — continuarás donde lo dejaste',
@@ -183,6 +188,12 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
     // same beta note. Both are drafts pending native review (§8) — apply any
     // wording fix to BOTH so they don't drift (review S4).
     caveat:
+      `ქართული თარგმანი ჯერ სატესტოა ${GEORGIAN_STATUS_MARKER} — ზოგი ტექსტი შეიძლება ჯერ კიდევ ` +
+      'ინგლისურად გამოჩნდეს. ამ ეტაპზე ბრძანებები ინგლისურად აკრიფეთ.',
+    // ka caveat is about translation maturity, not the LLM — unchanged in both
+    // toggle states. caveatShort mirrors it so the completeness gate passes;
+    // Landing always renders s.caveat for ka regardless of the flag.
+    caveatShort:
       `ქართული თარგმანი ჯერ სატესტოა ${GEORGIAN_STATUS_MARKER} — ზოგი ტექსტი შეიძლება ჯერ კიდევ ` +
       'ინგლისურად გამოჩნდეს. ამ ეტაპზე ბრძანებები ინგლისურად აკრიფეთ.',
     descent: '— აირჩიეთ თქვენი ჩასვლა —',

@@ -9,6 +9,7 @@ import { LANDING_STRINGS, KA_INPUT_COPY } from './landingStrings'
 import { corpusFor } from '../translate/corpus/index'
 import { kaInputActive } from '../llm/lexicon/index'
 import type { NlLanguage } from '../llm/types'
+import { useLlmFeature } from './useLlmFeature'
 
 // The title screen offers only the play languages, not "Off" (disabling the NL
 // layer is an in-game advanced toggle, not a first-run choice): a new player is
@@ -87,6 +88,11 @@ export function Landing({
   const s = kaInput
     ? { ...LANDING_STRINGS[exampleLang], ...KA_INPUT_COPY }
     : LANDING_STRINGS[exampleLang]
+  const [llmEnabled] = useLlmFeature()
+  // ka's caveat is about translation maturity, not the LLM — unchanged in both
+  // states. en/fr/de/es show the short (no-model) caveat when the feature is off.
+  const caveatText =
+    exampleLang === 'ka' || llmEnabled ? s.caveat : s.caveatShort
   const dismissRef = useRef<HTMLButtonElement>(null)
   const plateRef = useRef<HTMLDivElement>(null)
   const volumesRef = useRef<HTMLDivElement>(null)
@@ -188,7 +194,7 @@ export function Landing({
             label={s.languageLabel.replace(/[:\s]+$/, '')}
           />
         </div>
-        <p className="lang-caveat">{s.caveat}</p>
+        <p className="lang-caveat">{caveatText}</p>
         <span className="label" id="descent-label">
           {s.descent}
         </span>

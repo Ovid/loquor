@@ -324,7 +324,19 @@ describe('Landing', () => {
     )
   })
 
-  it('shows the basic-now / optional-model caveat under the picker', () => {
+  it('flag OFF (default): shows the SHORT caveat, no model mention', () => {
+    render(
+      <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
+    )
+    expect(
+      screen.getByText(LANDING_STRINGS.en.caveatShort),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/Basic commands work now/i)).toBeNull()
+    expect(screen.queryByText(/optional, experimental model/i)).toBeNull()
+  })
+
+  it('flag ON: shows the full optional-model caveat (en/fr/de/es)', () => {
+    localStorage.setItem(LS_KEYS.llm, '1')
     render(
       <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
     )

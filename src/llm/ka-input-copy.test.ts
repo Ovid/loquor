@@ -22,9 +22,9 @@ import { GEORGIAN_STATUS_MARKER } from './config'
 
 const GEORGIAN = /[Ⴀ-ჿ]/
 // English PROSE words that must never appear in ka copy. (The deliberate English
-// tokens — the quoted escape example, meta-verb names save/restore/…, the status
-// marker "alpha", "version", "help" — are allowed; this only catches English
-// sentence prose.)
+// tokens — the quoted escape example, meta-verb names save/restore/…, "version",
+// "help" — are allowed; this only catches English sentence prose. The status
+// marker is Georgian now, so it is no longer an exception.)
 const STRAY_ENGLISH =
   /\b(type|please|command|sorry|understood|queue|dropped|thinking|queued|cleared|answer|actions|ran|translation|failed|timed)\b/i
 

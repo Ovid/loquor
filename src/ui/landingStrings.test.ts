@@ -80,9 +80,10 @@ describe('LANDING_STRINGS', () => {
   }
 
   // Phase-2 Georgian-input copy is the headline of the gift: it must not leak
-  // English (§6 gate a / the no-forced-English north star). The only allowed
-  // Latin is the textual status marker (GEORGIAN_STATUS_MARKER), which drops on
-  // native sign-off (§9).
+  // English (§6 gate a / the no-forced-English north star). Strip the intentional
+  // status marker (GEORGIAN_STATUS_MARKER — now itself Georgian, but excluded so
+  // this guard expresses intent and survives a marker change), then require pure
+  // Georgian.
   it('KA_INPUT_COPY is Georgian-only except the status marker', () => {
     for (const [key, value] of Object.entries(KA_INPUT_COPY)) {
       const withoutMarker = value.split(GEORGIAN_STATUS_MARKER).join('')

@@ -200,7 +200,10 @@ export const KA_ZORK1: NounLexicon = {
   'wooden door': ['ხის კარ', 'კარ'], // door კარი → კარ (the west lettering door)
   'wooden ladder': ['ხის კიბე', 'კიბე'], // ladder კიბე vowel-final
   'wooden railing': ['ხის მოაჯირ', 'მოაჯირ', 'მოაჯირს'], // G1 dative recipient მოაჯირს
-  wrench: ['სასხლეტ გასაღებ', 'სასხლეტ'], // head-noun სასხლეტი → სასხლეტ
+  // wrench = 'nut-key' (ქანჩის გასაღები), a genitive compound. ONLY the full
+  // two-word form — bare გასაღებ is the skeleton key, so no bare synonym. The -ით
+  // instrumental resolves via the stranded-modifier rejoin in parse.ts.
+  wrench: ['ქანჩის გასაღებ'],
   'yellow button': ['ყვითელ ღილაკ', 'ღილაკ'], // ღილაკი → ღილაკ
   // ZORK owner's manual: canonical 'zork owner's manual' (see ZORK1_KA_CANONICAL).
   "zork owner's manual": ['მფლობელის სახელმძღვანელო', 'სახელმძღვანელო'], // manual; vowel-final

@@ -157,7 +157,7 @@ export const ZORK1_KA_OBJECTS: ObjectsTable = {
   'wooden door': { indef: 'ხის კარი' },
   'wooden ladder': { indef: 'ხის კიბე' },
   'wooden railing': { indef: 'ხის მოაჯირი' },
-  wrench: { indef: 'სასხლეტი გასაღები' },
+  wrench: { indef: 'ქანჩის გასაღები' },
   'yellow button': { indef: 'ყვითელი ღილაკი' },
   // Printed name keeps the game's "ZORK" capitalization; ZORK1_KA_CANONICAL
   // maps it onto the lowercase vocab canonical. Display drops the brand.

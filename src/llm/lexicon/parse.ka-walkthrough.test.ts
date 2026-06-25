@@ -150,17 +150,17 @@ const FIXTURE: Record<string, { ka: string; expect: string }> = {
   },
   // Dam / maintenance room
   'take matches': { ka: 'აიღე ასანთი', expect: 'take match' },
-  'take wrench': { ka: 'აიღე სასხლეტი', expect: 'take wrench' },
+  'take wrench': { ka: 'აიღე ქანჩის გასაღები', expect: 'take wrench' },
   'take screwdriver': { ka: 'აიღე სახრახნისი', expect: 'take screwdriver' },
   'push yellow button': {
     ka: 'დააჭირე ყვითელი ღილაკი',
     expect: 'push yellow button',
   },
   'turn bolt with wrench': {
-    ka: 'მოატრიალე ხრახნი სასხლეტით',
+    ka: 'მოატრიალე ხრახნი ქანჩის გასაღებით',
     expect: 'turn bolt with wrench',
   },
-  'drop wrench': { ka: 'დადე სასხლეტი', expect: 'drop wrench' },
+  'drop wrench': { ka: 'დადე ქანჩის გასაღები', expect: 'drop wrench' },
   // Temple / candles / book / bell
   'take torch': { ka: 'აიღე ჩირაღდანი', expect: 'take torch' },
   'take bell': { ka: 'აიღე ზარი', expect: 'take bell' },

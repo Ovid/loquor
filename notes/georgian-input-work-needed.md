@@ -13,7 +13,7 @@ What remains for you is **two decisions** — the `wrench` word (#2) and droppin
 
 - **#1 Landing copy (P1)** — `landingStrings.ts` `KA_INPUT_COPY` + `landingExamples.ts`
   `LANDING_EXAMPLES_KA_INPUT`, gated in `Landing.tsx` on `kaInputActive(language,
-  selectedSig)`. Georgian-input copy + Georgian example commands show for **Zork I**;
+selectedSig)`. Georgian-input copy + Georgian example commands show for **Zork I**;
   **Zork II/III keep the Phase-1 type-English copy** (they have no ka lexicon, so an
   invite would always abstain). Georgian examples are voiced as `lang="ka"` (the
   `lang="en"` override now applies only to the Phase-1 English examples). Tests pin the
@@ -64,8 +64,10 @@ safe string swap**, and that's why I stopped:
 3. **Do the morphology work** (handle a stranded genitive before a postposition) — larger,
    out of the Phase-2 scope as written.
 
-Recommend **(1)** unless you want to invest in (3): it's the only fully-correct path, and
-the wrench already parses, so this is naturalness, not a blocker. `src/llm/lexicon/ka.zork1.ts`,
+**Your call: defer + write a spec.** The general problem (multi-word genitive objects in
+case roles — not just wrench) is written up as design input in
+**`notes/georgian-genitive-case-morphology.md`** to seed that spec. `სასხლეტი` stays for
+now (it parses); touch points when you build it: `src/llm/lexicon/ka.zork1.ts`,
 `src/translate/corpus/zork1.ka.objects.ts`, `…strings.ts` (`(with the wrench)`), plus the
 walkthrough fixtures in `parse.ka-walkthrough.test.ts`.
 

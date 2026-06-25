@@ -4,6 +4,7 @@ import {
   createGenerateRaw,
   createTranslate,
   ModelLoadError,
+  containsGeorgian,
 } from './translatePipeline'
 import type {
   ClauseDeps,
@@ -934,5 +935,23 @@ describe('createTranslate grammar-only + demotion', () => {
       )
       expect(hasNotice).toBe(true)
     })
+  })
+})
+
+describe('containsGeorgian (S1)', () => {
+  it('detects Mkhedruli (the common mainstream block)', () => {
+    expect(containsGeorgian('აიღე ფარანი')).toBe(true)
+  })
+  it('detects Asomtavruli (raw, whose lowercase falls OUTSIDE the range)', () => {
+    // U+10A0 lowercases to Nuskhuri U+2D00 (out of range) — the raw arm keeps it.
+    expect(containsGeorgian(String.fromCodePoint(0x10a0))).toBe(true)
+  })
+  it('detects all-Mtavruli input (caps styling; lowercases INTO Mkhedruli)', () => {
+    // U+1C90 (Mtavruli AN) is out of the raw range but lowercases to U+10D0; a
+    // miss on such a line must abstain, not raw-send Georgian bytes to Zork.
+    expect(containsGeorgian(String.fromCodePoint(0x1c90))).toBe(true)
+  })
+  it('treats plain ASCII English as non-Georgian (raw-sends on a ka miss)', () => {
+    expect(containsGeorgian('take lamp')).toBe(false)
   })
 })

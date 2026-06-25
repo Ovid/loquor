@@ -73,7 +73,16 @@ const log = createLogger('nl')
 // Extended (Mtavruli, U+1C90–1CBF) and Supplement (U+2D00–2D2F) are intentionally
 // NOT covered — typing them raw-sends instead of abstaining (safe degradation),
 // and the shared range stays consistent across the ka layers.
-const containsGeorgian = (s: string) => /[Ⴀ-ჿ]/.test(s)
+// Test the raw string AND its lowercased form (S1). Asomtavruli + Mkhedruli sit
+// in U+10A0–10FF directly, but Mtavruli (U+1C90–1CBF, the all-caps styling form)
+// does NOT — it lowercases INTO Mkhedruli, so the `.toLowerCase()` arm catches an
+// all-Mtavruli line that would otherwise raw-send Georgian bytes to the Z-parser
+// on a miss (English error + burned turn) instead of abstaining. Lowercasing
+// ALONE is wrong: Asomtavruli lowercases to Nuskhuri (U+2D00, OUTSIDE the range),
+// so the raw arm must stay to keep detecting it. exported for the unit test.
+const GEORGIAN_RE = /[Ⴀ-ჿ]/
+export const containsGeorgian = (s: string) =>
+  GEORGIAN_RE.test(s) || GEORGIAN_RE.test(s.toLowerCase())
 
 /** EN-only "translator broke, so the raw line went to the Z-parser" notice.
  * Intentionally NOT in notices.ts (which is multilingual): it fires only in

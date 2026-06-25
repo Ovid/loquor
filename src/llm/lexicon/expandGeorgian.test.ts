@@ -27,6 +27,12 @@ describe('expandGeorgian', () => {
     // აიღე (take, imperative) has no postposition/-ი: unchanged
     expect(expandGeorgian(['აიღე', 'ფანარი'], POST)).toEqual(['აიღე', 'ფანარ'])
   })
+  it('leaves a token that IS a bare postposition untouched (S2)', () => {
+    // ში alone is too short to split (2 > 2 is false) — but it must NOT then
+    // lose its -ი to the nominative strip (→ შ). A bare bound suffix is
+    // unrealistic input; keep it whole so it can only ever miss, never mangle.
+    expect(expandGeorgian(['ში'], POST)).toEqual(['ში'])
+  })
   it('handles a whole put-in clause', () => {
     // ჩადე X ყუთში → [ჩადე, X, ში, ყუთ]
     expect(expandGeorgian(['ჩადე', 'X', 'ყუთში'], POST)).toEqual([

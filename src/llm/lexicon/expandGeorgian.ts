@@ -28,8 +28,12 @@ export function expandGeorgian(
       out.push(post, token.slice(0, token.length - post.length))
       continue
     }
-    // Nominative -ი strip — only when no postposition matched.
-    if (token.length > 1 && token.endsWith('ი')) out.push(token.slice(0, -1))
+    // Nominative -ი strip — only when no postposition matched, and never on a
+    // token that IS itself a bare postposition (too short to split above), which
+    // would otherwise mangle 'ში' → 'შ' (S2). A bare suffix is unrealistic input;
+    // left whole it can only miss, never mis-resolve.
+    if (token.length > 1 && token.endsWith('ი') && !(token in postpositions))
+      out.push(token.slice(0, -1))
     else out.push(token)
   }
   return out

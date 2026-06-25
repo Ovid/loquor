@@ -9,10 +9,14 @@ import { parseDirection } from './directions'
 import { SOFT_NOOP_PAT } from './grammar/patterns'
 
 /** Sequential conjunctions, one per supported language: `and`/`then` (en),
- * `et`/`puis`/`ensuite` (fr), `und` (de), `y` (es). Matched whitespace-wrapped
- * so substrings like "sand"/"under"/"xyzzy"/"strengthen" never trip them; the
- * de/es words match what directions.ts/meta.ts cover (review C3). */
-const CLAUSE_CONJ = 'and|then|et|puis|ensuite|und|dann|danach|y'
+ * `et`/`puis`/`ensuite` (fr), `und` (de), `y` (es), `და` (ka). Matched
+ * whitespace-wrapped so substrings like "sand"/"under"/"xyzzy"/"strengthen"
+ * never trip them; the de/es words match what directions.ts/meta.ts cover
+ * (review C3). `და` is Mkhedruli (non-ASCII), so it can only match a Georgian
+ * conjunct — a Phase-2 ka player typing `აიღე ფარანი და წადი ჩრდილოეთით` — and
+ * never appears whitespace-wrapped in en/fr/de/es input; no Zork I object name
+ * contains a standalone `და` token, so it can't split a noun phrase. */
+const CLAUSE_CONJ = 'and|then|et|puis|ensuite|und|dann|danach|y|და'
 
 /** Clause separators: a whitespace-wrapped conjunction, OR sentence punctuation
  * `.`/`;`/`,`. A comma now separates too (UAT: an object list "A, B et C" is the

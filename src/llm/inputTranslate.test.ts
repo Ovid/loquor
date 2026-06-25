@@ -380,6 +380,19 @@ describe('splitClauses', () => {
     ])
   })
 
+  it('splits on Georgian "და" (Phase-2 ka compounds)', () => {
+    // `აიღე ფარანი და წადი ჩრდილოეთით` = "take the lamp and go north".
+    expect(splitClauses('აიღე ფარანი და წადი ჩრდილოეთით')).toEqual([
+      'აიღე ფარანი',
+      'წადი ჩრდილოეთით',
+    ])
+    // `და` is whitespace-wrapped: an object name with no standalone `და` token
+    // (e.g. the genitive `მონეტების ...`) is never split.
+    expect(splitClauses('აიღე მონეტების ტყავის ტომარა')).toEqual([
+      'აიღე მონეტების ტყავის ტომარა',
+    ])
+  })
+
   it('absorbs a doubled connector "und dann" / "and then" (UAT F4)', () => {
     // A run of conjunctions is one separator, so no dangling "dann …" clause.
     expect(splitClauses('geh nach norden und dann nach osten')).toEqual([

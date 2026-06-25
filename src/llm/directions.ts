@@ -177,6 +177,12 @@ const LEAD = new Set([
   'hacia',
   'al',
   'el',
+  // Georgian (ka) — "go" so `წადი ჩრდილოეთით` ("go north") resolves like the
+  // other languages' go-verbs, not just the bare direction `ჩრდილოეთით`. Only
+  // stripped when the remainder is still a known direction, so `წადი <noun>`
+  // never becomes a spurious direction. (`წადი` "go" ≠ the lexicon verb `წადე`.)
+  'წადი',
+  'წადით',
 ])
 
 /**

@@ -80,8 +80,15 @@ describe('Georgian directions (spec §3.3)', () => {
     ['გარეთ', 'out'],
     ['ჩრდილოაღმოსავლეთი', 'northeast'],
     ['ჩრდილოაღმოსავლეთით', 'northeast'], // diagonal adverbial -ით form (spec §3.3)
+    ['წადი ჩრდილოეთით', 'north'], // "go north" — წადი is a LEAD go-verb
+    ['წადით სამხრეთით', 'south'], // polite/plural "go south"
   ]
   for (const [input, canon] of cases)
     it(`${input} → ${canon}`, () =>
       expect(parseDirection(input, MOVE)).toBe(canon))
+
+  // `წადი <non-direction>` must NOT become a spurious direction (the LEAD strip
+  // only resolves when the remainder is itself a known direction).
+  it('წადი ფარანი → null (not a direction)', () =>
+    expect(parseDirection('წადი ფარანი', MOVE)).toBe(null))
 })

@@ -59,12 +59,12 @@ None found.
 - **Bug:** The `INSTRUMENTS` table pins `root = 'გასაღებ'` for **both**
   `['wrench', 'გასაღებ']` and `['skeleton key', 'გასაღებ']`, and the loop asserts
   only `expect(out).toContain(root)`. The wrench corpus output is `(ქანჩის
-  გასაღებით)` and the skeleton-key output is `(ღია გასაღებით)`
+გასაღებით)` and the skeleton-key output is `(ღია გასაღებით)`
   (`zork1.ka.strings.ts:1818,1820`) — both contain `გასაღებ`. So a regression that
   reverted the wrench to render like the skeleton key would still pass. The
   wrench's distinguishing token `ქანჩის` is never asserted. (Input-side coverage
   DOES distinguish them — `parse.ka-uat.test.ts` / `parse.ka-walkthrough.test.ts`
-  — so this is a weak *output*-UAT assertion, not an uncovered behavior.)
+  — so this is a weak _output_-UAT assertion, not an uncovered behavior.)
 - **Impact:** Test-quality only; the weak assertion is not wrong, just permissive.
 - **Suggested fix:** Tighten the wrench row to assert its distinguishing token,
   e.g. `['wrench', 'ქანჩის']`, or add a second `toContain('ქანჩის')` check on the
@@ -98,7 +98,7 @@ Plan/notes docs consulted: `docs/superpowers/specs/2026-06-24-loquor-georgian-in
   სასხლეტი" stance were updated with explicit `RESOLVED 2026-06-25` markers, and
   `git grep სასხლეტ` confirms the token is absent from `src/` and tests (notes
   history only). The standing CLAUDE.md source-of-truth-list / "raw-sends English"
-  housekeeping is owed at Phase-2 *input*-line merge time per that design's §13 —
+  housekeeping is owed at Phase-2 _input_-line merge time per that design's §13 —
   not this genitive branch's responsibility.
 
 ## Review Metadata
@@ -122,7 +122,7 @@ Plan/notes docs consulted: `docs/superpowers/specs/2026-06-24-loquor-georgian-in
   (already fixed on this branch and re-verified correct); the Security S12
   prompt-injection mitigation (confirmed intact — `recentOutput` is structurally
   available to `buildPrompt` but never read into the model prompt, and the window
-  change only *narrows* the window).
+  change only _narrows_ the window).
 - **Steering files consulted:** `CLAUDE.md` — no contradiction with shipped code;
   the deterministic-`ka`-coverage rule, the keep-`ka`-out-of-LLM-input rule, and
   the "fix in one language is a fix in all" rule are all respected.

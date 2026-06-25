@@ -1194,7 +1194,10 @@ describe('LLM feature off ⇒ corpus-only (t1)', () => {
       initial: view([]),
       llmEnabled: false,
     })
-    rerender({ v: view([line('output', 'A brand new uncovered sentence.')]), lang: 'fr' })
+    rerender({
+      v: view([line('output', 'A brand new uncovered sentence.')]),
+      lang: 'fr',
+    })
     // Allow any async work to settle
     await act(async () => {})
     expect(result.current.lines.some(l => l.pending)).toBe(false)

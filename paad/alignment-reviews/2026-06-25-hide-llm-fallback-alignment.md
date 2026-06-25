@@ -18,6 +18,7 @@ plan's line-number references were verified against current `HEAD`.
 ## Issues Reviewed
 
 ### [1] Task 8 (upgrade-pitch suppression) addressed an implied, unstated requirement
+
 - **Category:** scope compliance (task → implied requirement)
 - **Severity:** Important
 - **Documents:** spec (north-star goal vs un-enumerated gate points/tests) ↔ plan Task 8
@@ -25,23 +26,25 @@ plan's line-number references were verified against current `HEAD`.
   `grammarOnlyFirstMiss` notice ("…add the optional upgrade for full sentences")
   — a common-path trace for fr/de/es in basic mode — wasn't enumerated. Task 8
   suppresses it (ka byte-for-byte unchanged).
-- **Resolution:** **Keep + add to spec.** Added an explicit *Behavior when off*
+- **Resolution:** **Keep + add to spec.** Added an explicit _Behavior when off_
   bullet and a `translatePipeline.ts` gate point to the spec.
 
 ### [2] M2 migration-notice delivery channel deviated from the spec
+
 - **Category:** design alignment (plan contradicts spec detail)
 - **Severity:** Important
-- **Documents:** spec §a11y(2) / §M2 *Delivery* (`Terminal.tsx:~413`) ↔ plan Task 11
+- **Documents:** spec §a11y(2) / §M2 _Delivery_ (`Terminal.tsx:~413`) ↔ plan Task 11
 - **Issue:** The spec said deliver M2 via the "existing NL-notice channel
   (~413)," but ~413 is the **ka-only** announce region (gated on `outLang==='ka'`)
   and can't carry an en/fr/de/es notice. The plan used a dedicated Terminal-owned
   `aria-live` region (not `role="status"`, to avoid colliding with the single
   existing status region).
 - **Resolution:** **Keep the region + fix the spec.** Rewrote the spec's a11y §2
-  and M2 *Delivery* to describe the dedicated region and explain the corrected
+  and M2 _Delivery_ to describe the dedicated region and explain the corrected
   reference.
 
 ### [3] t3 and t5 were named spec tests but only behaviorally covered
+
 - **Category:** requirements coverage (named tests partially covered)
 - **Severity:** Important (t5) / Minor (t3)
 - **Documents:** spec §Testing (t3, t5) ↔ plan Tasks 7/11

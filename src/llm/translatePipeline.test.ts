@@ -394,7 +394,11 @@ function makeTranslate(opts: {
   // stage-7-bound clause with no lexicon resolution); pass one to exercise the
   // deterministic alias/lexicon stages.
   const liveRef = {
-    current: { internal: opts.internalOn, lex: opts.lex ?? null, llmEnabled: true },
+    current: {
+      internal: opts.internalOn,
+      lex: opts.lex ?? null,
+      llmEnabled: true,
+    },
   }
   const deps: TranslateDeps = {
     internal: opts.internalOn,
@@ -622,7 +626,9 @@ describe('createTranslate grammar-only + demotion', () => {
       language: 'ka',
       model: 'grammar',
     }
-    const liveRef = { current: { internal: internalOn, lex: kaLex, llmEnabled: true } }
+    const liveRef = {
+      current: { internal: internalOn, lex: kaLex, llmEnabled: true },
+    }
     const watchdogMs = 1000
     const generateRaw = createGenerateRaw({
       engine,
@@ -917,7 +923,9 @@ describe('createTranslate grammar-only + demotion', () => {
         nouns: nounLexicon('ka', ZORK1_SIG),
         words: lexiconWordSet('ka', ZORK1_SIG),
       }
-      const liveRef = { current: { internal: internalOn, lex: kaLex, llmEnabled: true } }
+      const liveRef = {
+        current: { internal: internalOn, lex: kaLex, llmEnabled: true },
+      }
       const generateRaw = createGenerateRaw({
         engine,
         watchdogMs: 1000,

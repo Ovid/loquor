@@ -128,7 +128,9 @@ describe('PreferencesModal — LLM toggle', () => {
     const debugBox = screen.getByRole('checkbox', {
       name: PREFS_COPY.en.debugLabel,
     })
-    const llmBox = screen.getByRole('checkbox', { name: PREFS_COPY.en.llmLabel })
+    const llmBox = screen.getByRole('checkbox', {
+      name: PREFS_COPY.en.llmLabel,
+    })
     expect(
       debugBox.compareDocumentPosition(llmBox) &
         Node.DOCUMENT_POSITION_FOLLOWING,

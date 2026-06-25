@@ -96,7 +96,10 @@ export function Terminal({
   // One Terminal-owned, visible aria-live region for LLM-feature events: the M2
   // migration notice (actionable → visible) and the live mode-change
   // announcement. Carries its own lang so a screen reader voices it correctly.
-  const [llmMsg, setLlmMsg] = useState<{ text: string; lang: ActiveLanguage } | null>(null)
+  const [llmMsg, setLlmMsg] = useState<{
+    text: string
+    lang: ActiveLanguage
+  } | null>(null)
   const recordEcho = useCallback((canonical: string, source: string) => {
     const k = loudEchoToken(canonical)
     const v = loudEchoToken(source)

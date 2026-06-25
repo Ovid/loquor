@@ -1028,7 +1028,8 @@ describe('Terminal', () => {
         />,
       )
       await waitFor(
-        () => expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        () =>
+          expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
         { timeout: 8000 },
       )
       // Default-off: the model download/upgrade modal is not present.
@@ -1050,42 +1051,73 @@ describe('Terminal', () => {
 
     it('t4: flipping the toggle on announces the mode change via aria-live', async () => {
       render(
-        <Terminal storyBytes={bytes} storyTitle="Zork I" onChangeStory={() => {}} themeToggle={null} />,
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
       )
       await waitFor(
-        () => expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        () =>
+          expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
         { timeout: 8000 },
       )
       fireEvent.click(screen.getByRole('button', { name: 'Preferences' }))
-      fireEvent.click(screen.getByRole('checkbox', { name: PREFS_COPY.en.llmLabel }))
-      expect(await screen.findByText(llmModeChange('en', true))).toBeInTheDocument()
+      fireEvent.click(
+        screen.getByRole('checkbox', { name: PREFS_COPY.en.llmLabel }),
+      )
+      expect(
+        await screen.findByText(llmModeChange('en', true)),
+      ).toBeInTheDocument()
     })
 
     it('t2: toggling off during a download aborts it (cancelDownload called)', async () => {
       const cancelDownload = vi.fn()
       nlOverride = {
-        state: { phase: 'downloading', language: 'fr', loaded: 1, total: 2, etaSeconds: null },
+        state: {
+          phase: 'downloading',
+          language: 'fr',
+          loaded: 1,
+          total: 2,
+          etaSeconds: null,
+        },
         cancelDownload,
       }
       localStorage.setItem(LS_KEYS.llm, '1')
       render(
-        <Terminal storyBytes={bytes} storyTitle="Zork I" onChangeStory={() => {}} themeToggle={null} />,
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
       )
       await waitFor(
-        () => expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        () =>
+          expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
         { timeout: 8000 },
       )
       fireEvent.click(screen.getByRole('button', { name: 'Preferences' }))
-      fireEvent.click(screen.getByRole('checkbox', { name: PREFS_COPY.en.llmLabel }))
+      fireEvent.click(
+        screen.getByRole('checkbox', { name: PREFS_COPY.en.llmLabel }),
+      )
       await waitFor(() => expect(cancelDownload).toHaveBeenCalled())
     })
 
     it('M2: a cached model + flag off + marker unset shows the one-time notice', async () => {
       vi.spyOn(WebLlmEngine.prototype, 'isCached').mockResolvedValue(true)
       render(
-        <Terminal storyBytes={bytes} storyTitle="Zork I" onChangeStory={() => {}} themeToggle={null} />,
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
       )
-      expect(await screen.findByText(llmHiddenMigrationNotice('en'))).toBeInTheDocument()
+      expect(
+        await screen.findByText(llmHiddenMigrationNotice('en')),
+      ).toBeInTheDocument()
       expect(localStorage.getItem(LS_KEYS.llmHiddenNoticeSeen)).toBe('1')
     })
 
@@ -1093,10 +1125,16 @@ describe('Terminal', () => {
       vi.spyOn(WebLlmEngine.prototype, 'isCached').mockResolvedValue(true)
       localStorage.setItem(LS_KEYS.llmHiddenNoticeSeen, '1')
       render(
-        <Terminal storyBytes={bytes} storyTitle="Zork I" onChangeStory={() => {}} themeToggle={null} />,
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
       )
       await waitFor(
-        () => expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        () =>
+          expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
         { timeout: 8000 },
       )
       expect(screen.queryByText(llmHiddenMigrationNotice('en'))).toBeNull()
@@ -1105,10 +1143,16 @@ describe('Terminal', () => {
     it('M2: not shown to a user with no cached model', async () => {
       vi.spyOn(WebLlmEngine.prototype, 'isCached').mockResolvedValue(false)
       render(
-        <Terminal storyBytes={bytes} storyTitle="Zork I" onChangeStory={() => {}} themeToggle={null} />,
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
       )
       await waitFor(
-        () => expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        () =>
+          expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
         { timeout: 8000 },
       )
       expect(screen.queryByText(llmHiddenMigrationNotice('en'))).toBeNull()
@@ -1116,10 +1160,16 @@ describe('Terminal', () => {
 
     it('t5: rapid toggle on→off→on never strands a download/upgrade modal', async () => {
       render(
-        <Terminal storyBytes={bytes} storyTitle="Zork I" onChangeStory={() => {}} themeToggle={null} />,
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
       )
       await waitFor(
-        () => expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        () =>
+          expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
         { timeout: 8000 },
       )
       fireEvent.click(screen.getByRole('button', { name: 'Preferences' }))

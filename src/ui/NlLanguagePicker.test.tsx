@@ -325,7 +325,12 @@ describe('NlLanguagePicker — LLM feature hidden', () => {
   it('grammar-only: no basic chip, no improve button, no dangling description', () => {
     render(
       <NlLanguagePicker
-        state={{ phase: 'on', language: 'fr', model: 'grammar', canUpgrade: true }}
+        state={{
+          phase: 'on',
+          language: 'fr',
+          model: 'grammar',
+          canUpgrade: true,
+        }}
         onSelect={() => {}}
         onUpgrade={() => {}}
         llmEnabled={false}
@@ -341,7 +346,12 @@ describe('NlLanguagePicker — LLM feature hidden', () => {
   it('regression: with llmEnabled (default) the affordances still render', () => {
     render(
       <NlLanguagePicker
-        state={{ phase: 'on', language: 'fr', model: 'grammar', canUpgrade: true }}
+        state={{
+          phase: 'on',
+          language: 'fr',
+          model: 'grammar',
+          canUpgrade: true,
+        }}
         onSelect={() => {}}
         onUpgrade={() => {}}
       />,

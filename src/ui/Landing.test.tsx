@@ -328,9 +328,7 @@ describe('Landing', () => {
     render(
       <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
     )
-    expect(
-      screen.getByText(LANDING_STRINGS.en.caveatShort),
-    ).toBeInTheDocument()
+    expect(screen.getByText(LANDING_STRINGS.en.caveatShort)).toBeInTheDocument()
     expect(screen.queryByText(/Basic commands work now/i)).toBeNull()
     expect(screen.queryByText(/optional, experimental model/i)).toBeNull()
   })

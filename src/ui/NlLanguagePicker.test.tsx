@@ -305,3 +305,48 @@ describe('NlLanguagePicker', () => {
     expect(screen.queryByText(/^Language:/)).not.toBeInTheDocument()
   })
 })
+
+describe('NlLanguagePicker — LLM feature hidden', () => {
+  it('off · cached: no installed chip when llmEnabled is false', () => {
+    render(
+      <NlLanguagePicker
+        state={{ phase: 'off', installed: true, canUpgrade: true }}
+        onSelect={() => {}}
+        onUpgrade={() => {}}
+        llmEnabled={false}
+      />,
+    )
+    expect(screen.queryByText('installed')).toBeNull()
+    expect(screen.queryByText('not installed')).toBeNull()
+    // The combobox itself is unaffected — the language picker still works.
+    expect(screen.getByRole('combobox')).toBeInTheDocument()
+  })
+
+  it('grammar-only: no basic chip, no improve button, no dangling description', () => {
+    render(
+      <NlLanguagePicker
+        state={{ phase: 'on', language: 'fr', model: 'grammar', canUpgrade: true }}
+        onSelect={() => {}}
+        onUpgrade={() => {}}
+        llmEnabled={false}
+      />,
+    )
+    expect(screen.queryByText('simplifié')).toBeNull()
+    expect(
+      screen.queryByRole('button', { name: /improve|model anyway/i }),
+    ).toBeNull()
+    expect(screen.getByRole('combobox')).not.toHaveAttribute('aria-describedby')
+  })
+
+  it('regression: with llmEnabled (default) the affordances still render', () => {
+    render(
+      <NlLanguagePicker
+        state={{ phase: 'on', language: 'fr', model: 'grammar', canUpgrade: true }}
+        onSelect={() => {}}
+        onUpgrade={() => {}}
+      />,
+    )
+    expect(screen.getByText('simplifié')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /improve/i })).toBeInTheDocument()
+  })
+})

@@ -5,6 +5,7 @@ import type { Vocab } from './grammar/types'
 import { META_COMMANDS } from './meta'
 import type { CoreLexicon, NounLexicon } from './lexicon/types'
 import { fold } from './lexicon/fold'
+import { expandGeorgian } from './lexicon/expandGeorgian'
 import { parseDirection } from './directions'
 import { SOFT_NOOP_PAT } from './grammar/patterns'
 
@@ -137,6 +138,17 @@ function isForeignNoun(
 ): boolean {
   if (!nounSet) return false
   const tokens = fold(clause.replace(/[!.?,;:]+$/, '').trim()).split(/\s+/)
+  // Georgian: the noun lexicon stores the post-expandGeorgian bare stem (წიგნ),
+  // but the player types the nominative citation form (წიგნი). ka has NO
+  // articles, so without reducing the typed -ი the verbless object conjunct is
+  // invisible to the article path and drops the verb — with no LLM net (I1).
+  // ka only (core.postpositions); fr/de/es have none, so they keep the article
+  // path below (byte-identical).
+  const post = core?.postpositions
+  if (post) {
+    const phrase = expandGeorgian(tokens, post).join(' ')
+    return phrase.length > 0 && nounSet.has(phrase)
+  }
   const articles = core?.articles ?? []
   const phrase =
     tokens.length > 1 && articles.includes(tokens[0])

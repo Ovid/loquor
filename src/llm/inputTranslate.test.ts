@@ -19,6 +19,7 @@ import { META_COMMANDS } from './meta'
 import { FR_CORE } from './lexicon/fr.core'
 import { ES_CORE } from './lexicon/es.core'
 import { DE_CORE } from './lexicon/de.core'
+import { KA_CORE } from './lexicon/ka.core'
 import { ES_ZORK1 } from './lexicon/es.zork1'
 import type { Vocab } from './grammar/types'
 import type { NounLexicon } from './lexicon/types'
@@ -687,6 +688,26 @@ describe('fillElidedVerbs (verb-gapping across compound conjuncts)', () => {
     expect(
       fillElidedVerbs(splitClauses('coger ajo y xyzzy'), ES_CORE, vocab, nouns),
     ).toEqual(['coger ajo', 'xyzzy'])
+  })
+
+  it('gaps a Georgian object conjunct — nominative -ი reduced to the stored stem (I1)', () => {
+    // "აიღე ფარანი და წიგნი" (take the lamp and the book). ka stores the
+    // post-expandGeorgian bare stem (წიგნ), but the player types the nominative
+    // citation form (წიგნი); ka has NO articles, so without reducing the typed
+    // -ი the verbless 2nd conjunct is invisible and drops the verb — and ka has
+    // no LLM net to recover it. The stored stem must match after the strip.
+    const nouns: NounLexicon = {
+      'brass lantern': ['სპილენძის ფარან', 'ფარან'],
+      'black book': ['შავ წიგნ', 'წიგნ'],
+    }
+    expect(
+      fillElidedVerbs(
+        splitClauses('აიღე ფარანი და წიგნი'),
+        KA_CORE,
+        vocab,
+        nouns,
+      ),
+    ).toEqual(['აიღე ფარანი', 'აიღე წიგნი'])
   })
 })
 

@@ -80,6 +80,76 @@ describe('Georgian UAT — scope disambiguation', () => {
 // parseLexicon (isMetaCommand runs at the pipeline's meta stage; Georgian meta
 // words via core.metaAliases at the alias stage), so pin it at that layer, NOT by
 // calling parseLexicon('save'). (isMetaCommand imported at top.)
+// Georgian completion playthrough (notes/uat-georgian-playthrough.md, 2026-06-26).
+// Each block pins a finding from playing Zork I end-to-end in real Georgian.
+describe('Georgian playthrough — motion verbs (enter/board)', () => {
+  // Finding 7 (blocker) + Finding 2: enter/board a vehicle or the house uses the
+  // inessive case (ნავში "into boat", სახლში "into house"). expandGeorgian splits
+  // -ში to a LEADING prep token [ში, noun], which no path resolved (the prep-split
+  // loop needs an object token BEFORE the prep). The motion-verb absorb drops the
+  // leading locational postposition so these become the bare-object commands the
+  // Z-parser accepts. ნავ is shared by magic/punctured boat → shared word 'boat'.
+  it('enter boat (შედი ნავში → enter boat)', () => {
+    expect(ka('შედი ნავში')).toEqual({ kind: 'command', text: 'enter boat' })
+  })
+  it('board boat (ჩაჯექი ნავში → board boat)', () => {
+    expect(ka('ჩაჯექი ნავში')).toEqual({ kind: 'command', text: 'board boat' })
+  })
+  it('enter house (შედი სახლში → enter house)', () => {
+    expect(ka('შედი სახლში')).toEqual({ kind: 'command', text: 'enter house' })
+  })
+})
+
+describe('Georgian playthrough — launch/echo/move/wait synonyms', () => {
+  // Finding 7: launch. The shipping verb გაუშვი already works (FIND_DEFAULT_VERBS);
+  // pin it, and add the natural word a player reaches for at the river (გაცურე).
+  it('launch — shipping გაუშვი still works', () => {
+    expect(ka('გაუშვი')).toEqual({ kind: 'command', text: 'launch' })
+  })
+  it('launch — გაცურე synonym', () => {
+    expect(ka('გაცურე')).toEqual({ kind: 'command', text: 'launch' })
+  })
+  // Finding 5: Loud Room echo. echo is an intransitive game verb, so ექო maps as a
+  // core verb (NOT an English 'echo' idiom, which would inject the ASCII token
+  // 'echo' into the ka word set — KNOWN_COLLISIONS.ka must stay []).
+  it('echo (ექო → echo)', () => {
+    expect(ka('ექო')).toEqual({ kind: 'command', text: 'echo' })
+  })
+  // Finding 3: move rug. Shipping verb is წაანაცვლე; the colloquial გადასწიე/გადაწიე
+  // (what most speakers type first) are added as synonyms.
+  it('move rug — colloquial გადასწიე', () => {
+    expect(ka('გადასწიე ხალიჩა')).toEqual({ kind: 'command', text: 'move rug' })
+  })
+  it('move rug — colloquial გადაწიე', () => {
+    expect(ka('გადაწიე ხალიჩა')).toEqual({ kind: 'command', text: 'move rug' })
+  })
+  // Finding 6: wait. Shipping verb is დაიცადე; მოიცადე is the other natural form.
+  it('wait — მოიცადე synonym', () => {
+    expect(ka('მოიცადე')).toEqual({ kind: 'command', text: 'wait' })
+  })
+})
+
+describe('Georgian playthrough — displayed compound object names', () => {
+  // Findings 1 & 4: a native speaker types the on-screen name. The display drops
+  // the leading adjective (small/secret), so the player types the middle form
+  // (საფოსტო ყუთი / ხაფანგ-კარი), which matched neither the full stored form nor
+  // the bare head. Added as exact input synonyms — NOT via a generic
+  // leading-modifier stripper, which would mis-resolve ხაფანგ-კარი → the ambiguous
+  // door set (trap door's salient word is ხაფანგ "trap", not the head კარ "door").
+  it('open mailbox via displayed name (გააღე საფოსტო ყუთი)', () => {
+    expect(ka('გააღე საფოსტო ყუთი')).toEqual({
+      kind: 'command',
+      text: 'open mailbox',
+    })
+  })
+  it('open trap door via displayed name (გააღე ხაფანგ-კარი)', () => {
+    expect(ka('გააღე ხაფანგ-კარი')).toEqual({
+      kind: 'command',
+      text: 'open trapdoor',
+    })
+  })
+})
+
 describe('Georgian UAT — meta verbs (finding-8)', () => {
   it('English meta verbs are recognized for any language (save/quit/score/restart)', () => {
     // 'i' and 'l' are in-world game shortcuts (inventory/look), NOT meta —

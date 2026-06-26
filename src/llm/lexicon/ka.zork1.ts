@@ -172,7 +172,10 @@ export const KA_ZORK1: NounLexicon = {
   shovel: ['ნიჩაბ'], // ნიჩაბი → ნიჩაბ
   skeleton: ['ჩონჩხ'], // ჩონჩხი → ჩონჩხ (skeleton/bones)
   'skeleton key': ['ღია გასაღებ', 'გასაღებ'], // გასაღები → გასაღებ (key)
-  'small mailbox': ['პატარა საფოსტო ყუთ', 'ყუთ'], // ყუთი → ყუთ (mailbox)
+  // +displayed middle form 'საფოსტო ყუთ': a player types the on-screen name,
+  // dropping the leading adjective პატარა "small" (UAT finding 1). Unambiguous —
+  // საფოსტო "postal" appears only here.
+  'small mailbox': ['პატარა საფოსტო ყუთ', 'საფოსტო ყუთ', 'ყუთ'], // ყუთი → ყუთ (mailbox)
   'small piece of vitreous slag': ['მინისებრ წიდის პატარა ნაჭერ', 'ნაჭერ'], // slag piece ნაჭერი → ნაჭერ
   'small pile of coal': ['ნახშირის პატარა გროვა', 'ნახშირ'], // coal ნახშირი → ნახშირ
   songbird: ['მგალობელ ფრინველ', 'ფრინველ'], // ფრინველი → ფრინველ (bird)
@@ -189,9 +192,12 @@ export const KA_ZORK1: NounLexicon = {
   torch: ['ჩირაღდან'], // ჩირაღდანი → ჩირაღდან
   'tour guidebook': ['ტურისტულ გზამკვლევ', 'გზამკვლევ'], // guide გზამკვლევი → გზამკვლევ
   // corpus has a hyphen (ხაფანგი-კარი) → folds to two tokens → reduced
-  // 'საიდუმლო ხაფანგ კარ'. Keep that reduced display form AND the hyphen-free
-  // head noun the player types (ხაფანგ).
-  'trap door': ['საიდუმლო ხაფანგ კარ', 'ხაფანგ'], // trap ხაფანგი → ხაფანგ
+  // 'საიდუმლო ხაფანგ კარ'. Keep that reduced display form, the on-screen middle
+  // form 'ხაფანგ კარ' (player drops the leading adjective საიდუმლო "secret" — UAT
+  // finding 4), AND the hyphen-free head noun (ხაფანგ). NOT resolved by a generic
+  // modifier strip: dropping ხაფანგ → bare კარ mis-binds to the ambiguous door set
+  // (trap door's salient word is ხაფანგ "trap", not the head კარ "door").
+  'trap door': ['საიდუმლო ხაფანგ კარ', 'ხაფანგ კარ', 'ხაფანგ'], // trap ხაფანგი → ხაფანგ
   tree: ['ხე'], // vowel-final
   troll: ['ტროლ'], // ტროლი → ტროლ
   'trophy case': ['ჯილდოების ვიტრინა', 'ვიტრინა'], // ვიტრინა vowel-final (case)

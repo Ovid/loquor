@@ -472,7 +472,8 @@ export const ZORK1_KA_STRINGS: Record<string, string> = {
   // UAT-georgian-completion Finding 2: "Shore, in the magic boat" leaked raw
   // English off the golden path. All langs had the same gap — pinned in all four.
   'Dam Base, in the magic boat': 'კაშხლის ძირი, ჯადოსნურ ნავში',
-  'White Cliffs Beach, in the magic boat': 'თეთრი კლდეების სანაპირო, ჯადოსნურ ნავში',
+  'White Cliffs Beach, in the magic boat':
+    'თეთრი კლდეების სანაპირო, ჯადოსნურ ნავში',
   'Shore, in the magic boat': 'ნაპირი, ჯადოსნურ ნავში',
   'Aragain Falls, in the magic boat': 'არაგეინის ჩანჩქერი, ჯადოსნურ ნავში',
   'Sandy Beach': 'ქვიშიანი სანაპირო',

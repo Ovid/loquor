@@ -11,8 +11,10 @@
 **Play Zork in your own words.** Loquor runs **Zork I, II, and III** entirely in
 your browser and lets you type what you want to do in plain language — in
 **English, French, German, or Spanish** — and turns it into commands the game
-understands. Pick a game, play it, and pick up automatically where you left off.
-The game runs on your machine; the base experience never phones home.
+understands. **Georgian (ქართული)** is supported too, on Zork I: read the game in
+Georgian and type your commands in it, with no AI model required. Pick a game,
+play it, and pick up automatically where you left off. The game runs on your
+machine; the base experience never phones home.
 
 ## Speak, and be understood
 
@@ -23,13 +25,15 @@ offline** — no account, no download, no GPU required.
 
 Want richer understanding of the things you type? Add the **optional AI model**
 (WebLLM, via WebGPU): a one-time download that then runs **entirely on your
-device**. It's an upgrade, never a gate — pick a language and you're playing
-immediately, with or without it.
+device**. It's hidden by default — you enable it in Preferences — and an upgrade,
+never a gate: pick a language and you're playing immediately, with or without it.
+(The AI model covers English, French, German, and Spanish; Georgian runs without
+one.)
 
 And Loquor doesn't just understand you — it can **answer in your language**, too.
 Output translation renders Zork's replies back into the tongue you chose (rolling
-out now, starting with Zork I in French, German, and Spanish), so the whole
-adventure reads end to end in your own words.
+out now, starting with Zork I in French, German, Spanish, and Georgian), so the
+whole adventure reads end to end in your own words.
 
 It's built to be played by everyone: full keyboard operation, screen-reader
 support, and high-contrast themes are requirements, not afterthoughts.
@@ -68,8 +72,9 @@ The base game is fully self-hosted — engine, fonts, and story files all ship w
 the app, so it plays with no network access and nothing leaves your machine.
 There is **one documented exception**: turning on the optional AI model triggers a
 one-time, third-party download of the model weights (the disclosed, opt-in
-download modal). After that fetch the model is cached and runs entirely
-on-device/offline.
+download modal). The model is **off by default** — hidden until you enable it in
+Preferences — so a fresh install never reaches that download at all. After the
+fetch the model is cached and runs entirely on-device/offline.
 
 ## Running locally
 
@@ -107,7 +112,9 @@ binding automatically (no platform table) and is a silent ~0.1s no-op when healt
 Loquor is in active development. The playable engine + custom UI and the
 **multilingual natural-language layer** (deterministic grammar with an optional
 on-device LLM; English, French, German, and Spanish) are built and under active
-refinement. **Output translation** — Zork's replies rendered in your language — is
-rolling out, starting with Zork I in French, German, and Spanish. Design specs and
-plans live under [`docs/superpowers/`](docs/superpowers/); contributor guidance is
-in [`CLAUDE.md`](CLAUDE.md).
+refinement. **Georgian (ქართული)** is supported on Zork I — both output and input
+— deterministically, with no AI model. **Output translation** — Zork's replies
+rendered in your language — is rolling out, starting with Zork I in French,
+German, Spanish, and Georgian. Design specs and plans live under
+[`docs/superpowers/`](docs/superpowers/); contributor guidance is in
+[`CLAUDE.md`](CLAUDE.md).

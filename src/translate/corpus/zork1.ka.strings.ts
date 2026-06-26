@@ -467,6 +467,14 @@ export const ZORK1_KA_STRINGS: Record<string, string> = {
   'Egyptian Room': 'ეგვიპტური ოთახი',
   'Frigid River, in the magic boat': 'მდინარე ფრიჯიდი, ჯადოსნურ ნავში',
   'Sandy Beach, in the magic boat': 'ქვიშიანი სანაპირო, ჯადოსნურ ნავში',
+  // Other rooms reachable WHILE in the boat (board point + the landing beaches),
+  // composed by DESCRIBE-ROOM as "<room>, in the magic boat" (gverbs.zil:1662).
+  // UAT-georgian-completion Finding 2: "Shore, in the magic boat" leaked raw
+  // English off the golden path. All langs had the same gap — pinned in all four.
+  'Dam Base, in the magic boat': 'კაშხლის ძირი, ჯადოსნურ ნავში',
+  'White Cliffs Beach, in the magic boat': 'თეთრი კლდეების სანაპირო, ჯადოსნურ ნავში',
+  'Shore, in the magic boat': 'ნაპირი, ჯადოსნურ ნავში',
+  'Aragain Falls, in the magic boat': 'არაგეინის ჩანჩქერი, ჯადოსნურ ნავში',
   'Sandy Beach': 'ქვიშიანი სანაპირო',
   'Sandy Cave': 'ქვიშიანი გამოქვაბული',
   Shore: 'ნაპირი',

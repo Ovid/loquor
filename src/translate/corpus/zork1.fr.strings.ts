@@ -404,6 +404,14 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
   'Egyptian Room': 'Salle égyptienne',
   'Frigid River, in the magic boat': 'Rivière Frigid, dans le bateau magique',
   'Sandy Beach, in the magic boat': 'Plage de sable, dans le bateau magique',
+  // Other rooms reachable WHILE in the boat (board point + landing beaches),
+  // composed as "<room>, in the magic boat" (gverbs.zil:1662).
+  // UAT-georgian-completion Finding 2 — same gap in all four languages.
+  'Dam Base, in the magic boat': 'Pied du barrage, dans le bateau magique',
+  'White Cliffs Beach, in the magic boat':
+    'Plage des Falaises blanches, dans le bateau magique',
+  'Shore, in the magic boat': 'Rivage, dans le bateau magique',
+  'Aragain Falls, in the magic boat': 'Chutes Aragain, dans le bateau magique',
   'Sandy Beach': 'Plage de sable',
   'Sandy Cave': 'Grotte de sable',
   Shore: 'Rivage',

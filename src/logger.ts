@@ -13,9 +13,32 @@
  * touching any call site, and `debug` is already gated to dev-only so the
  * diagnostic firehose never ships to a release console.
  */
+import { LS_KEYS } from './storageKeys'
+
+/**
+ * Routine console diagnostics (info + debug) are a firehose — autosave writes,
+ * per-clause NL traces — so they're gated behind the user's "Debug mode"
+ * preference (Preferences ▸ Debug mode, the same `loquor.debug` flag that shows
+ * translated commands). Off by default → a clean console; on → the full trace.
+ * warn/error always emit (real problems), independent of this. Read live so a
+ * toggle takes effect without a reload; try/catch because localStorage throws
+ * when cookies are blocked and is absent in non-DOM contexts.
+ *
+ * ponytail: per-call localStorage read — fine at a few lines per turn. Cache +
+ * `storage` event listener only if it ever lands in a hot loop.
+ */
+function debugEnabled(): boolean {
+  try {
+    return localStorage.getItem(LS_KEYS.debug) === '1'
+  } catch {
+    return false
+  }
+}
+
 export interface Logger {
-  /** Dev-only diagnostics (gated; silent in production and under test). */
+  /** Verbose diagnostics; emitted only when the Debug-mode preference is on. */
   debug(...args: unknown[]): void
+  /** Routine diagnostics; emitted only when the Debug-mode preference is on. */
   info(...args: unknown[]): void
   warn(...args: unknown[]): void
   error(...args: unknown[]): void
@@ -72,11 +95,11 @@ export function createLogger(tag: string): Logger {
   const prefix = `[${tag}]`
   return {
     debug: (...args) => {
-      // Dev-only: keep the diagnostic firehose out of release + test consoles.
-      if (import.meta.env.DEV && import.meta.env.MODE !== 'test')
-        console.log(...withPrefix(prefix, args))
+      if (debugEnabled()) console.log(...withPrefix(prefix, args))
     },
-    info: (...args) => console.info(...withPrefix(prefix, args)),
+    info: (...args) => {
+      if (debugEnabled()) console.info(...withPrefix(prefix, args))
+    },
     warn: (...args) => {
       const a = withPrefix(prefix, args)
       record('warn', a)

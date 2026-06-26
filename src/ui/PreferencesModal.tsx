@@ -21,7 +21,8 @@ export const PREFS_COPY: Record<ActiveLanguage, PrefsCopy> = {
   en: {
     heading: 'Preferences',
     debugLabel: 'Debug mode',
-    debugHelp: 'Show translated commands (e.g. “> up”) in the transcript.',
+    debugHelp:
+      'Show translated commands (e.g. “> up”) in the transcript, and write diagnostic logs to the browser console.',
     llmLabel: 'Natural-language model (experimental)',
     llmHelp:
       'Adds an optional on-device model that understands more of what you type. Hidden by default.',
@@ -32,7 +33,7 @@ export const PREFS_COPY: Record<ActiveLanguage, PrefsCopy> = {
     heading: 'Préférences',
     debugLabel: 'Mode débogage',
     debugHelp:
-      'Afficher les commandes traduites (par ex. « > up ») dans la transcription.',
+      'Afficher les commandes traduites (par ex. « > up ») dans la transcription et écrire des journaux de diagnostic dans la console du navigateur.',
     llmLabel: 'Modèle de langage naturel (expérimental)',
     llmHelp:
       'Ajoute un modèle optionnel, exécuté sur l’appareil, qui comprend mieux ce que vous tapez. Masqué par défaut.',
@@ -42,7 +43,8 @@ export const PREFS_COPY: Record<ActiveLanguage, PrefsCopy> = {
   de: {
     heading: 'Einstellungen',
     debugLabel: 'Debug-Modus',
-    debugHelp: 'Übersetzte Befehle (z. B. „> up“) im Protokoll anzeigen.',
+    debugHelp:
+      'Übersetzte Befehle (z. B. „> up“) im Protokoll anzeigen und Diagnoseprotokolle in die Browser-Konsole schreiben.',
     llmLabel: 'Sprachmodell für natürliche Sprache (experimentell)',
     llmHelp:
       'Fügt ein optionales, auf dem Gerät laufendes Modell hinzu, das mehr von dem versteht, was Sie eingeben. Standardmäßig ausgeblendet.',
@@ -53,7 +55,7 @@ export const PREFS_COPY: Record<ActiveLanguage, PrefsCopy> = {
     heading: 'Preferencias',
     debugLabel: 'Modo de depuración',
     debugHelp:
-      'Mostrar los comandos traducidos (p. ej. «> up») en la transcripción.',
+      'Mostrar los comandos traducidos (p. ej. «> up») en la transcripción y escribir registros de diagnóstico en la consola del navegador.',
     llmLabel: 'Modelo de lenguaje natural (experimental)',
     llmHelp:
       'Añade un modelo opcional, ejecutado en el dispositivo, que entiende mejor lo que escribes. Oculto por defecto.',
@@ -66,7 +68,9 @@ export const PREFS_COPY: Record<ActiveLanguage, PrefsCopy> = {
   ka: {
     heading: 'პარამეტრები',
     debugLabel: 'გამართვის რეჟიმი',
-    debugHelp: 'ჩანაწერში თარგმნილი ბრძანებების ჩვენება (მაგ. „> up“).',
+    // NATIVE-REVIEW-DRAFT (§8): the console-diagnostics clause mirrors en/fr/de/es.
+    debugHelp:
+      'ჩანაწერში თარგმნილი ბრძანებების ჩვენება (მაგ. „> up“) და დიაგნოსტიკური ჟურნალების ბრაუზერის კონსოლში ჩაწერა.',
     // NATIVE-REVIEW-DRAFT (§8): ka has no input/output LLM in either state, so
     // this toggle is functionally inert for ka — but the panel still renders in
     // Georgian when ka is active, so the copy must exist. Mkhedruli is unicameral.

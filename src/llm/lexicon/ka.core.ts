@@ -79,6 +79,10 @@ export const KA_CORE: CoreLexicon = {
     // move / push / pull / raise / lower
     გადააადგილე: 'move',
     წაანაცვლე: 'move',
+    // colloquial "shove aside / displace" — what most speakers type first for
+    // "move rug" (the only way underground). UAT finding 3. NATIVE-REVIEW-DRAFT.
+    გადასწიე: 'move',
+    გადაწიე: 'move',
     დააჭირე: 'push',
     // უბიძგე (imperative of ბიძგება, "push/shove") — replaces the odd `წადე`,
     // which read as neither push nor a natural verb. NATIVE-REVIEW-DRAFT.
@@ -111,8 +115,19 @@ export const KA_CORE: CoreLexicon = {
     ჩამოძვერი: 'climb down', // ← review: confirm ჩამოძვერი reads as "climb down"
     გადაკვეთე: 'cross',
     გაუშვი: 'launch',
+    // გაცურე ("sail/set off") — the natural word a player reaches for at the
+    // Frigid River; გაუშვი already works but no one types it. UAT finding 7.
+    გაცურე: 'launch',
     ილოცე: 'pray',
     დაიცადე: 'wait',
+    // მოიცადე — the other natural imperative of "wait". UAT finding 6.
+    მოიცადე: 'wait',
+    // echo (Loud Room): ექო is the natural Georgian, and echo is an INTRANSITIVE
+    // game verb (verbsOnly), so it maps as a core verb here — NOT as an English
+    // 'echo'→'echo' idiom, which would inject the ASCII token 'echo' into the ka
+    // word set (KNOWN_COLLISIONS.ka must stay []). The Georgian key ექო is
+    // non-ASCII, so no collision. UAT finding 5; parallels the Spanish eco→echo fix.
+    ექო: 'echo',
     // unlock — no single-word verb key: the 'გასაღებით გააღე' idiom below
     // (open-with-key) is the natural Georgian form; the Task-4 placeholder
     // (გააღე_გასაღებით) is removed since the idiom covers it.

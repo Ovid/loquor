@@ -96,3 +96,69 @@ describe('PreferencesModal', () => {
     }
   })
 })
+
+describe('PreferencesModal — LLM toggle', () => {
+  it('exposes the LLM checkbox by accessible name/description and reflects state', () => {
+    render(
+      <PreferencesModal
+        open
+        debug={false}
+        llmEnabled
+        onToggleDebug={noop}
+        onToggleLlm={noop}
+        onClose={noop}
+      />,
+    )
+    const box = screen.getByRole('checkbox', { name: PREFS_COPY.en.llmLabel })
+    expect(box).toBeChecked()
+    expect(box).toHaveAccessibleDescription(PREFS_COPY.en.llmHelp)
+  })
+
+  it('sits BELOW the debug row (DOM order)', () => {
+    render(
+      <PreferencesModal
+        open
+        debug={false}
+        llmEnabled={false}
+        onToggleDebug={noop}
+        onToggleLlm={noop}
+        onClose={noop}
+      />,
+    )
+    const debugBox = screen.getByRole('checkbox', {
+      name: PREFS_COPY.en.debugLabel,
+    })
+    const llmBox = screen.getByRole('checkbox', {
+      name: PREFS_COPY.en.llmLabel,
+    })
+    expect(
+      debugBox.compareDocumentPosition(llmBox) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
+  it('calls onToggleLlm when clicked', () => {
+    const onToggleLlm = vi.fn()
+    render(
+      <PreferencesModal
+        open
+        debug={false}
+        llmEnabled={false}
+        onToggleDebug={noop}
+        onToggleLlm={onToggleLlm}
+        onClose={noop}
+      />,
+    )
+    fireEvent.click(
+      screen.getByRole('checkbox', { name: PREFS_COPY.en.llmLabel }),
+    )
+    expect(onToggleLlm).toHaveBeenCalledTimes(1)
+  })
+
+  it('has LLM copy for every NL language (incl. ka)', () => {
+    for (const lang of ['en', 'fr', 'de', 'es', 'ka'] as const) {
+      expect(PREFS_COPY[lang].llmLabel).toBeTruthy()
+      expect(PREFS_COPY[lang].llmHelp).toBeTruthy()
+    }
+  })
+})

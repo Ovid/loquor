@@ -396,3 +396,49 @@ export function queueClearedNeedsAnswer(lang: ActiveLanguage): string {
     lang,
   )
 }
+
+/** Live announcement when the LLM-feature toggle flips (a11y rule 3): the
+ * status-bar affordances appear/disappear OUTSIDE the prefs modal the user is in,
+ * so the change must reach assistive tech via an aria-live region. */
+export function llmModeChange(lang: ActiveLanguage, enabled: boolean): string {
+  return byLang(
+    enabled
+      ? {
+          en: 'Natural-language model enabled.',
+          fr: 'Modèle de langage naturel activé.',
+          de: 'Sprachmodell für natürliche Sprache aktiviert.',
+          es: 'Modelo de lenguaje natural activado.',
+          // NATIVE-REVIEW-DRAFT (ka §7): mode-change announcement, Georgian.
+          ka: 'ბუნებრივი ენის მოდელი ჩაირთო.',
+        }
+      : {
+          en: 'Natural-language model hidden.',
+          fr: 'Modèle de langage naturel masqué.',
+          de: 'Sprachmodell für natürliche Sprache ausgeblendet.',
+          es: 'Modelo de lenguaje natural oculto.',
+          // NATIVE-REVIEW-DRAFT (ka §7): mode-change announcement, Georgian.
+          ka: 'ბუნებრივი ენის მოდელი დაიმალა.',
+        },
+    lang,
+  )
+}
+
+/** One-time notice (M2) for a returning user whose model was cached before this
+ * feature shipped: the model is now hidden, not gone — re-enable it in
+ * Preferences (the weights stay on disk, no re-download). The text references the
+ * LOCALIZED Preferences panel name (matches PreferencesModal copy). */
+export function llmHiddenMigrationNotice(lang: ActiveLanguage): string {
+  return byLang(
+    {
+      en: 'The experimental natural-language model is now hidden — re-enable it in Preferences.',
+      fr: 'Le modèle expérimental de langage naturel est maintenant masqué — réactivez-le dans les Préférences.',
+      de: 'Das experimentelle Sprachmodell ist jetzt ausgeblendet — aktivieren Sie es in den Einstellungen wieder.',
+      es: 'El modelo experimental de lenguaje natural ahora está oculto — vuelve a activarlo en Preferencias.',
+      // NATIVE-REVIEW-DRAFT (ka §7): ka never caches a model, so this rarely
+      // renders for ka — entry present for completeness. Names the localized
+      // Preferences panel ("პარამეტრები", per PreferencesModal ka copy).
+      ka: 'ბუნებრივი ენის ექსპერიმენტული მოდელი ახლა დამალულია — ჩართეთ ის ხელახლა პარამეტრებში.',
+    },
+    lang,
+  )
+}

@@ -41,7 +41,7 @@ export function readoutLang(state: NlState): ActiveLanguage {
  * Decision 6/§8) and the bar's Georgian beta/activation notices already convey
  * the read-Georgian / type-English mode; the story title carries the rest.
  */
-export function nlModeSummary(state: NlState): string {
+export function nlModeSummary(state: NlState, llmEnabled = true): string {
   switch (state.phase) {
     case 'disabled':
       return 'no NL' // this game has no vocab — the picker never appears
@@ -52,6 +52,9 @@ export function nlModeSummary(state: NlState): string {
     case 'on': {
       if (OUTPUT_ONLY_LANGS.has(state.language)) return '' // ka: title-only
       const lang = state.language as 'en' | 'fr' | 'de' | 'es'
+      // Feature hidden: no tier token / separator — the model concept is gone,
+      // so report only what stays true (the localized input indicator).
+      if (!llmEnabled) return INPUT[lang]
       const tier = state.model === 'grammar' ? basicChip(lang) : FULL[lang]
       return `${tier} · ${INPUT[lang]}`
     }

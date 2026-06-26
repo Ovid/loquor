@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import 'fake-indexeddb/auto'
 import {
   render,
@@ -6,6 +6,7 @@ import {
   fireEvent,
   waitFor,
   within,
+  act,
 } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { Terminal } from './Terminal'
@@ -13,6 +14,9 @@ import { helpResponse } from '../llm/help'
 import { WebLlmEngine } from '../llm/engine.webllm'
 import { ZMachine } from '../zmachine/engine'
 import type { UseNaturalLanguage } from '../llm/useNaturalLanguage'
+import { PREFS_COPY } from './PreferencesModal'
+import { llmModeChange, llmHiddenMigrationNotice } from '../llm/notices'
+import { LS_KEYS } from '../storageKeys'
 
 // Passthrough mock: the real hook runs for every test, but a test can overlay
 // specific fields (e.g. a non-empty queue) that are otherwise unreachable
@@ -194,6 +198,8 @@ describe('Terminal', () => {
   })
 
   it('makes the game inert behind the download/upgrade modal (M9)', async () => {
+    // The modal only opens when llmEnabled is true — set it for this test.
+    localStorage.setItem(LS_KEYS.llm, '1')
     nlOverride = {
       state: { phase: 'off', installed: false, canUpgrade: true },
       modalOpen: true,
@@ -219,6 +225,7 @@ describe('Terminal', () => {
       expect(screen.getByRole('dialog').closest('[inert]')).toBeNull()
     } finally {
       nlOverride = null
+      localStorage.removeItem(LS_KEYS.llm)
     }
   })
 
@@ -653,6 +660,8 @@ describe('Terminal', () => {
     it('always shows the bottom bar with the NL-mode readout for French', async () => {
       // The bug this fixes: the bottom bar used to appear ONLY in Georgian. It is
       // now always present, in every language, carrying the diagnostic readout.
+      // With llmEnabled=false (the default), the tier token is suppressed and the
+      // summary is just the localized input indicator ('saisie' for French).
       nlOverride = {
         state: { phase: 'on', language: 'fr', model: 'full', canUpgrade: true },
       }
@@ -670,7 +679,7 @@ describe('Terminal', () => {
           { name: /Status information/i },
           { timeout: 8000 },
         )
-        expect(bar).toHaveTextContent('complet · saisie')
+        expect(bar).toHaveTextContent('saisie')
         expect(bar).toHaveTextContent('Zork I')
       } finally {
         nlOverride = null
@@ -952,7 +961,8 @@ describe('Terminal', () => {
         const bar = screen.getByRole('contentinfo', {
           name: /Status information/i,
         })
-        expect(bar).toHaveTextContent('full · input')
+        // With llmEnabled=false (default), the tier token is hidden — just the input indicator.
+        expect(bar).toHaveTextContent('input')
       } finally {
         nlOverride = null
       }
@@ -1005,6 +1015,296 @@ describe('Terminal', () => {
         key: 'Escape',
       })
       await waitFor(() => expect(open).toHaveFocus())
+    })
+  })
+
+  describe('Terminal — LLM feature default off', () => {
+    it('renders the LLM toggle in Preferences (default unchecked) and no model modal', async () => {
+      render(
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
+      )
+      await waitFor(
+        () =>
+          expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        { timeout: 8000 },
+      )
+      // Default-off: the model download/upgrade modal is not present.
+      expect(screen.queryByRole('dialog')).toBeNull()
+      fireEvent.click(screen.getByRole('button', { name: 'Preferences' }))
+      const llmBox = screen.getByRole('checkbox', {
+        name: PREFS_COPY.en.llmLabel,
+      })
+      expect(llmBox).not.toBeChecked()
+    })
+  })
+
+  describe('Terminal — LLM live behaviors', () => {
+    afterEach(() => {
+      nlOverride = null
+      localStorage.clear()
+      vi.restoreAllMocks()
+    })
+
+    it('t4: flipping the toggle on announces the mode change via aria-live', async () => {
+      render(
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
+      )
+      await waitFor(
+        () =>
+          expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        { timeout: 8000 },
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Preferences' }))
+      fireEvent.click(
+        screen.getByRole('checkbox', { name: PREFS_COPY.en.llmLabel }),
+      )
+      expect(
+        await screen.findByText(llmModeChange('en', true)),
+      ).toBeInTheDocument()
+    })
+
+    it('t2: toggling off during a download aborts it (cancelDownload called)', async () => {
+      const cancelDownload = vi.fn()
+      nlOverride = {
+        state: {
+          phase: 'downloading',
+          language: 'fr',
+          loaded: 1,
+          total: 2,
+          etaSeconds: null,
+        },
+        cancelDownload,
+      }
+      localStorage.setItem(LS_KEYS.llm, '1')
+      render(
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
+      )
+      await waitFor(
+        () =>
+          expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        { timeout: 8000 },
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Preferences' }))
+      fireEvent.click(
+        screen.getByRole('checkbox', { name: PREFS_COPY.en.llmLabel }),
+      )
+      await waitFor(() => expect(cancelDownload).toHaveBeenCalled())
+    })
+
+    it('M2: a cached model + flag off + marker unset shows the one-time notice', async () => {
+      vi.spyOn(WebLlmEngine.prototype, 'isCached').mockResolvedValue(true)
+      render(
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
+      )
+      expect(
+        await screen.findByText(llmHiddenMigrationNotice('en')),
+      ).toBeInTheDocument()
+      expect(localStorage.getItem(LS_KEYS.llmHiddenNoticeSeen)).toBe('1')
+    })
+
+    it('M2: not shown when the marker is already set', async () => {
+      vi.spyOn(WebLlmEngine.prototype, 'isCached').mockResolvedValue(true)
+      localStorage.setItem(LS_KEYS.llmHiddenNoticeSeen, '1')
+      render(
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
+      )
+      await waitFor(
+        () =>
+          expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        { timeout: 8000 },
+      )
+      expect(screen.queryByText(llmHiddenMigrationNotice('en'))).toBeNull()
+    })
+
+    it('M2: not shown to a user with no cached model', async () => {
+      vi.spyOn(WebLlmEngine.prototype, 'isCached').mockResolvedValue(false)
+      render(
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
+      )
+      await waitFor(
+        () =>
+          expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        { timeout: 8000 },
+      )
+      expect(screen.queryByText(llmHiddenMigrationNotice('en'))).toBeNull()
+    })
+
+    it('M2: still shows when the marker READ throws (blocked storage), matching the best-effort intent', async () => {
+      // Chrome "block all cookies" makes the localStorage getter throw. A
+      // returning user with a cached model (CacheStorage, which can outlive a
+      // blocked localStorage) must still get the actionable "re-enable in
+      // Preferences" notice — bailing on the throw would silence it for exactly
+      // the user who can't persist the one-time marker. It may recur (benign).
+      vi.spyOn(WebLlmEngine.prototype, 'isCached').mockResolvedValue(true)
+      const realGet = Storage.prototype.getItem
+      vi.spyOn(Storage.prototype, 'getItem').mockImplementation(function (
+        this: Storage,
+        k: string,
+      ) {
+        if (k === LS_KEYS.llmHiddenNoticeSeen) throw new Error('blocked')
+        return realGet.call(this, k)
+      })
+      render(
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
+      )
+      expect(
+        await screen.findByText(llmHiddenMigrationNotice('en')),
+      ).toBeInTheDocument()
+    })
+
+    it('M2: a toggle-on during the async isCached does not clobber the fresh "enabled" announcement ([I2])', async () => {
+      // isCached() is genuinely async (dynamic import + cache probe). Hold it
+      // open until AFTER the player toggles the model on, then resolve true: the
+      // stale migration notice must NOT overwrite the fresh "enabled" line, and
+      // the one-time marker must NOT be spent (so M2 can still fire on a future
+      // genuinely-off boot).
+      let resolveCached!: (cached: boolean) => void
+      vi.spyOn(WebLlmEngine.prototype, 'isCached').mockReturnValue(
+        new Promise<boolean>(r => {
+          resolveCached = r
+        }),
+      )
+      render(
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
+      )
+      await waitFor(
+        () =>
+          expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        { timeout: 8000 },
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Preferences' }))
+      fireEvent.click(
+        screen.getByRole('checkbox', { name: PREFS_COPY.en.llmLabel }),
+      )
+      expect(
+        await screen.findByText(llmModeChange('en', true)),
+      ).toBeInTheDocument()
+      // The cache probe resolves only now, after the toggle.
+      await act(async () => {
+        resolveCached(true)
+        await Promise.resolve()
+      })
+      expect(screen.queryByText(llmHiddenMigrationNotice('en'))).toBeNull()
+      expect(screen.getByText(llmModeChange('en', true))).toBeInTheDocument()
+      expect(localStorage.getItem(LS_KEYS.llmHiddenNoticeSeen)).toBeNull()
+    })
+
+    it('t5: rapid toggle on→off→on never strands a download/upgrade modal', async () => {
+      render(
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+        />,
+      )
+      await waitFor(
+        () =>
+          expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        { timeout: 8000 },
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Preferences' }))
+      const box = screen.getByRole('checkbox', { name: PREFS_COPY.en.llmLabel })
+      fireEvent.click(box) // on
+      fireEvent.click(box) // off
+      fireEvent.click(box) // on
+      expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    })
+
+    it('the mode-change announcement auto-clears (does not linger)', async () => {
+      render(
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+          announceClearMs={40}
+        />,
+      )
+      await waitFor(
+        () =>
+          expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        { timeout: 8000 },
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Preferences' }))
+      fireEvent.click(
+        screen.getByRole('checkbox', { name: PREFS_COPY.en.llmLabel }),
+      )
+      // It announces the change first…
+      expect(
+        await screen.findByText(llmModeChange('en', true)),
+      ).toBeInTheDocument()
+      // …then clears itself so it doesn't sit on screen forever.
+      await waitFor(() =>
+        expect(screen.queryByText(llmModeChange('en', true))).toBeNull(),
+      )
+    })
+
+    it('M2: the migration notice does NOT auto-clear (stays actionable)', async () => {
+      vi.spyOn(WebLlmEngine.prototype, 'isCached').mockResolvedValue(true)
+      render(
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+          announceClearMs={30}
+        />,
+      )
+      // Shows on mount.
+      expect(
+        await screen.findByText(llmHiddenMigrationNotice('en')),
+      ).toBeInTheDocument()
+      // The boot reliably takes far longer than the 30ms transient window; if M2
+      // were transient it would have cleared by the time the game is up. It isn't.
+      await waitFor(
+        () =>
+          expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        { timeout: 8000 },
+      )
+      expect(
+        screen.getByText(llmHiddenMigrationNotice('en')),
+      ).toBeInTheDocument()
     })
   })
 })

@@ -66,7 +66,8 @@ export const PROMPT_CONTEXT_CAP = 1500
  * picker label, the two landing caveats, and the in-game activation tip all show
  * it) — exactly the "one place to tune" case this file exists for — so it lives
  * here instead of being duplicated across four display sites where it could
- * drift. Voiced as part of the accessible name; the surrounding `lang="ka"` keeps
- * a screen reader from switching language on the parenthesised word.
+ * drift. Written in Georgian (`ალფა`) so the `ka` surface stays all-Georgian;
+ * voiced as part of the accessible name, where the surrounding `lang="ka"` lets a
+ * screen reader read it natively instead of as a Latin word with Georgian phonemes.
  */
-export const GEORGIAN_STATUS_MARKER = '(alpha)'
+export const GEORGIAN_STATUS_MARKER = '(ალფა)'

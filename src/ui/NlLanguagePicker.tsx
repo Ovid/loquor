@@ -19,6 +19,7 @@ export function NlLanguagePicker({
   onSelect,
   onUpgrade,
   hideUpgrade = false,
+  llmEnabled = true,
 }: {
   state: NlState
   onSelect: (lang: NlLanguage) => void
@@ -28,6 +29,9 @@ export function NlLanguagePicker({
    * DISPLAY but raw-send English input — there is no NL input to upgrade, so
    * the model offer is meaningless. Suppress it. */
   hideUpgrade?: boolean
+  /** LLM-feature preference. When false, the model affordances (installed chip,
+   * basic chip, improve button) are not rendered — the combobox stays. */
+  llmEnabled?: boolean
 }) {
   // No vocab for this game → silently render nothing (no picker).
   if (state.phase === 'disabled') return null
@@ -41,7 +45,10 @@ export function NlLanguagePicker({
   }
   const value: NlLanguage = state.phase === 'on' ? state.language : 'off'
   const grammarOnly =
-    state.phase === 'on' && state.model === 'grammar' && !hideUpgrade
+    state.phase === 'on' &&
+    state.model === 'grammar' &&
+    !hideUpgrade &&
+    llmEnabled
 
   return (
     <span className="nl-toggle">
@@ -55,7 +62,7 @@ export function NlLanguagePicker({
         // announces it as the control's description (m3).
         describedById={grammarOnly ? 'nl-basic-state' : undefined}
       />
-      {state.phase === 'off' && (
+      {state.phase === 'off' && llmEnabled && (
         <span className="nl-chip">
           {' '}
           <span className="sep" aria-hidden="true">
@@ -64,7 +71,7 @@ export function NlLanguagePicker({
           {state.installed ? 'installed' : 'not installed'}
         </span>
       )}
-      {state.phase === 'on' && state.model === 'grammar' && !hideUpgrade && (
+      {grammarOnly && (
         <>
           {' '}
           <span className="sep" aria-hidden="true">

@@ -169,6 +169,10 @@ export interface Lex {
 export interface LiveState {
   internal: Internal
   lex: Lex | null
+  /** LLM-feature preference (carried from useNaturalLanguage's liveRef). When
+   * false, stage 8 omits the upgrade-pitch first-miss notice — hiding the model
+   * means hiding its sales pitch (the deterministic floor is the same). */
+  llmEnabled: boolean
 }
 
 /** The bounded lazy-load + watchdog generation wrapper. NL always passes a real
@@ -964,9 +968,16 @@ export function createTranslate(
           // lexicon raw-sends exactly as en does — degrade, never block. Only a
           // line containing Georgian falls through to the abstain notice below.
           sendTracked(line)
-        } else if (grammarOnly && !educatedRef.current) {
+        } else if (
+          grammarOnly &&
+          !educatedRef.current &&
+          (live.llmEnabled || activeLang === 'ka')
+        ) {
           // First grammar-only abstain this stint: connect the miss to the
           // declined/absent upgrade at the moment of confusion (once per stint).
+          // Suppressed when the LLM feature is HIDDEN (no upgrade to pitch) —
+          // except ka, whose first-miss notice carries no pitch anyway and stays
+          // the no-LLM language's chosen Georgian wording (CLAUDE.md ka rule).
           educatedRef.current = true
           setNotice(grammarOnlyFirstMiss(activeLang))
         } else {

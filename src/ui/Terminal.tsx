@@ -10,6 +10,7 @@ import { BottomBar } from './BottomBar'
 import { PreferencesModal, prefsOpenLabel } from './PreferencesModal'
 import { LANDING_STRINGS } from './landingStrings'
 import { useDebug } from './useDebug'
+import { useLlmFeature } from './useLlmFeature'
 import {
   useGameEngine,
   useCapability,
@@ -24,7 +25,11 @@ import {
   commandLabelTypeEnglish,
   commandPlaceholder,
   commandPlaceholderTypeEnglish,
+  llmModeChange,
+  llmHiddenMigrationNotice,
 } from '../llm/notices'
+import { readNlPref } from '../llm/nlpref'
+import { LS_KEYS } from '../storageKeys'
 import { useNaturalLanguage } from '../llm/useNaturalLanguage'
 import { kaInputActive } from '../llm/lexicon/index'
 import { isHelpTrigger } from '../llm/help'
@@ -35,11 +40,17 @@ import { WebLlmEngine } from '../llm/engine.webllm'
 import { selectedModelId } from '../llm/modelSelection'
 import { EngineGate } from '../shared/engineGate'
 import { GENERATE_WATCHDOG_MS } from '../llm/config'
-import type { LoadProgress } from '../llm/types'
+import type { LoadProgress, ActiveLanguage } from '../llm/types'
 import { OUTPUT_ONLY_LANGS } from '../llm/types'
 import { createLogger } from '../logger'
 
 const log = createLogger('ui')
+
+// How long a TRANSIENT LLM mode-change announcement ("model enabled/hidden")
+// stays before it auto-clears. It has done its job once announced/read, so it
+// shouldn't sit on screen forever. The M2 migration notice is NOT transient (its
+// "re-enable in Preferences" guidance must stay readable) and ignores this.
+const LLM_ANNOUNCE_CLEAR_MS = 7000
 
 export function Terminal({
   storyBytes,
@@ -47,6 +58,7 @@ export function Terminal({
   onChangeStory,
   themeToggle,
   backgroundInert = false,
+  announceClearMs = LLM_ANNOUNCE_CLEAR_MS,
 }: {
   storyBytes: Uint8Array
   /** The current game's title — the game screen's heading for screen readers. */
@@ -56,6 +68,10 @@ export function Terminal({
   /** True while the change-story overlay covers the game — makes the whole
    *  terminal inert so a screen-reader virtual cursor can't read it (M9). */
   backgroundInert?: boolean
+  /** Delay (ms) before a transient LLM mode-change announcement auto-clears.
+   *  Injectable (mirrors useOutputTranslation's watchdogMs) so tests don't wait
+   *  the full production delay. The M2 migration notice is not transient. */
+  announceClearMs?: number
 }) {
   // Game-loop coordination lives in extracted hooks (F-17): the ZMachine
   // boot/dispose lifecycle and device-capability detection.
@@ -88,6 +104,16 @@ export function Terminal({
   const [restore, setRestore] = useState<{ text: string; key: number } | null>(
     null,
   )
+  // One Terminal-owned, visible aria-live region for LLM-feature events: the M2
+  // migration notice (actionable → visible) and the live mode-change
+  // announcement. Carries its own lang so a screen reader voices it correctly.
+  const [llmMsg, setLlmMsg] = useState<{
+    text: string
+    lang: ActiveLanguage
+    /** Transient (mode-change) announcements auto-clear after announceClearMs so
+     *  they don't linger; the M2 migration notice is persistent (actionable). */
+    transient: boolean
+  } | null>(null)
   const recordEcho = useCallback((canonical: string, source: string) => {
     const k = loudEchoToken(canonical)
     const v = loudEchoToken(source)
@@ -129,6 +155,15 @@ export function Terminal({
     [engineRef],
   )
 
+  const [llmEnabled, toggleLlm] = useLlmFeature()
+  // Live mirror of llmEnabled for async callbacks that capture a stale value at
+  // their start (the M2 mount effect's isCached().then — [I2]). Written in an
+  // effect (not render) so the callback always reads the latest committed value.
+  const llmEnabledRef = useRef(llmEnabled)
+  useEffect(() => {
+    llmEnabledRef.current = llmEnabled
+  }, [llmEnabled])
+
   const nl = useNaturalLanguage({
     engine: llmEngine,
     capability,
@@ -144,6 +179,7 @@ export function Terminal({
     watchdogMs: GENERATE_WATCHDOG_MS,
     signature, // Task 21 consumes it (per-game noun lexicons); '' until boot resolves
     gate,
+    llmEnabled,
   })
 
   const [debug, toggleDebug] = useDebug()
@@ -182,6 +218,7 @@ export function Terminal({
     engine: llmEngine,
     gate,
     echoMap,
+    llmEnabled,
   })
 
   // The active NL language: `activeLang` (incl. 'en') localizes copy; `nlLang`
@@ -224,16 +261,97 @@ export function Terminal({
     // exhaustive-deps now that it's a hook return rather than a local useRef.
   }, [view.inputRequest, engineRef])
 
+  // Turn-off mid-download: a load in flight would otherwise resolve into on/full
+  // AFTER the user hid the feature. cancelDownload aborts it and settles to
+  // on/grammar. (downloads can't START while off — the modal is gated — so this
+  // only fires for an in-flight load at the moment of toggle-off.)
+  // Deps are deliberately specific (phase + cancelDownload, not the full `nl`
+  // object) so the abort fires only on the relevant state changes, not on every
+  // nl field update.
+  useEffect(
+    () => {
+      if (!llmEnabled && nl.state.phase === 'downloading') nl.cancelDownload()
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [llmEnabled, nl.state.phase, nl.cancelDownload],
+  )
+
+  // M2: a returning user whose model was cached before this feature shipped would
+  // find it silently gone. Show a one-time notice (model weights stay on disk).
+  // Trigger: feature off + a cached model + marker unset. Localized to the stored
+  // language (read synchronously so the notice isn't English before the async
+  // cache-restore resolves the active language). Mount-only.
+  useEffect(() => {
+    if (llmEnabled) return
+    let seen = false
+    try {
+      seen = localStorage.getItem(LS_KEYS.llmHiddenNoticeSeen) === '1'
+    } catch {
+      // Storage blocked (e.g. Chrome "block all cookies", whose localStorage
+      // getter itself throws): we can't confirm the notice was already shown, so
+      // fall through and let it show. The marker is best-effort and a recurring
+      // notice is benign (the write side below accepts the same). BAILING here
+      // would instead silence the actionable "re-enable in Preferences" guidance
+      // for exactly the blocked-storage user who can't persist the marker.
+    }
+    if (seen) return
+    let cancelled = false
+    void llmEngine
+      .isCached()
+      .then(cached => {
+        // Re-check live intent ([I2]): isCached() is genuinely async (dynamic
+        // import + cache probe). If the player toggled the model ON during that
+        // window, this stale notice would clobber the fresh "model enabled"
+        // announcement with a persistent, now-false "model hidden" one — and
+        // spend the one-time marker. Bail without writing the marker so M2 can
+        // still appear on a future genuinely-off boot.
+        if (cancelled || !cached || llmEnabledRef.current) return
+        const pref = readNlPref().language
+        const lang: ActiveLanguage = pref === 'off' ? 'en' : pref
+        setLlmMsg({
+          text: llmHiddenMigrationNotice(lang),
+          lang,
+          transient: false,
+        })
+        try {
+          localStorage.setItem(LS_KEYS.llmHiddenNoticeSeen, '1')
+        } catch {
+          // best-effort marker — if storage is blocked the notice may recur,
+          // which is benign (it never blocks play).
+        }
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+    // Mount-only one-time migration check (llmEngine is stable).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // A transient mode-change announcement should not linger — once it has been
+  // announced/read it auto-clears after announceClearMs. The M2 migration notice
+  // is persistent (transient:false), so this leaves it alone. Cleanup clears the
+  // pending timer on unmount or when the message changes (e.g. a rapid re-toggle
+  // re-arms it), so no stale timer fires on an unmounted Terminal.
+  useEffect(() => {
+    if (!llmMsg?.transient) return
+    const id = setTimeout(() => setLlmMsg(null), announceClearMs)
+    return () => clearTimeout(id)
+  }, [llmMsg, announceClearMs])
+
   // The upgrade/download modal is suppressed for output-only languages (it does
-  // nothing for them). Single source so the modal's visibility and the
-  // background-inert/focus-trap state can never drift apart.
-  const upgradeModalOpen = nl.modalOpen && !outputOnly
+  // nothing for them) AND whenever the LLM feature is hidden (no model to offer).
+  // Single source so the modal's visibility and the background-inert/focus-trap
+  // state can never drift apart.
+  const upgradeModalOpen = nl.modalOpen && !outputOnly && llmEnabled
+  const downloadingModalOpen = llmEnabled && nl.state.phase === 'downloading'
+  // the model download/upgrade modal opens only with the LLM feature on
+  const modelModalOpen = upgradeModalOpen || downloadingModalOpen
 
   // The download/upgrade modal is open — everything behind it must be inert so
   // a screen-reader virtual cursor stays inside the dialog (aria-modal alone is
   // unevenly honored). The modal is a sibling below, so it stays operable (M9).
-  const modalOpen =
-    upgradeModalOpen || nl.state.phase === 'downloading' || prefsOpen
+  const modalOpen = modelModalOpen || prefsOpen
   const bgInert = backgroundInert || modalOpen
 
   return (
@@ -252,6 +370,7 @@ export function Terminal({
             onSelect={nl.setLanguage}
             onUpgrade={nl.requestUpgrade}
             hideUpgrade={outputOnly}
+            llmEnabled={llmEnabled}
           />
         }
         prefsToggle={
@@ -426,9 +545,20 @@ export function Terminal({
         showBeta={showBetaNotice}
         showNoCorpus={showNoCorpusNotice}
         kaInput={kaActive}
+        llmEnabled={llmEnabled}
       />
+      {/* LLM-feature live region (M2 migration notice + mode-change). Always
+          mounted so the live region is registered before content appears;
+          visible so M2's "re-enable in Preferences" guidance is actionable.
+          A BARE aria-live region — deliberately NOT role="status": Terminal
+          already has one role="status" region, and existing tests rely on there
+          being exactly ONE status landmark. aria-live="polite" alone still
+          announces (same pattern as the ka announce region). */}
+      <div aria-live="polite" className="nl-notice" lang={llmMsg?.lang}>
+        {llmMsg?.text}
+      </div>
       <ModelDownloadModal
-        open={upgradeModalOpen || nl.state.phase === 'downloading'}
+        open={modelModalOpen}
         warn={
           (nl.state.phase === 'on' || nl.state.phase === 'off') &&
           !nl.state.canUpgrade
@@ -449,8 +579,18 @@ export function Terminal({
       <PreferencesModal
         open={prefsOpen}
         debug={debug}
+        llmEnabled={llmEnabled}
         lang={activeLang}
         onToggleDebug={toggleDebug}
+        onToggleLlm={() => {
+          const next = !llmEnabled
+          toggleLlm()
+          setLlmMsg({
+            text: llmModeChange(activeLang, next),
+            lang: activeLang,
+            transient: true,
+          })
+        }}
         onClose={() => setPrefsOpen(false)}
       />
     </div>

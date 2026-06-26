@@ -2607,3 +2607,57 @@ describe('EngineGate integration (output-translation spec §6)', () => {
     expect(sendLine).toHaveBeenCalledWith('open mailbox')
   })
 })
+
+describe('effectiveModel (LLM feature hidden)', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('off: a cached model still reports grammar in the public state', async () => {
+    const { hook } = setup({
+      engine: new FakeLlmEngine({ cached: true }),
+      llmEnabled: false,
+    })
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({
+        phase: 'off',
+        installed: true,
+      }),
+    )
+    act(() => hook.result.current.setLanguage('fr'))
+    expect(hook.result.current.state).toMatchObject({
+      phase: 'on',
+      language: 'fr',
+      model: 'grammar',
+    })
+  })
+
+  it('on (default): a cached model reports full (regression)', async () => {
+    const { hook } = setup({ engine: new FakeLlmEngine({ cached: true }) })
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({
+        phase: 'off',
+        installed: true,
+      }),
+    )
+    act(() => hook.result.current.setLanguage('fr'))
+    expect(hook.result.current.state).toMatchObject({
+      phase: 'on',
+      language: 'fr',
+      model: 'full',
+    })
+  })
+
+  it('t3: boot with stored fr + cached model + flag off ⇒ fr/grammar, engine never loads', async () => {
+    localStorage.setItem('loquor.nl', JSON.stringify({ language: 'fr' }))
+    const engine = new FakeLlmEngine({ cached: true })
+    const loadSpy = vi.spyOn(engine, 'load')
+    const { hook } = setup({ engine, llmEnabled: false })
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({
+        phase: 'on',
+        language: 'fr',
+        model: 'grammar',
+      }),
+    )
+    expect(loadSpy).not.toHaveBeenCalled()
+  })
+})

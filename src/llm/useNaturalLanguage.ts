@@ -24,6 +24,7 @@ import {
 } from './lexicon/index'
 import type { InputLexLang } from './lexicon/types'
 import { useModelDownload } from './useModelDownload'
+import type { Internal } from './useModelDownload'
 import {
   createGenerateRaw,
   createTranslate,
@@ -54,6 +55,11 @@ export interface UseNaturalLanguageArgs {
    * tests need no change; Terminal passes ONE instance shared with the
    * output-translation hook. Input work runs at 'input' priority. */
   gate?: EngineGate
+  /** LLM-feature preference (default true so existing callers/tests are
+   * unchanged). When false the effective model is forced to 'grammar' at every
+   * read, so the input pipeline never reaches the LLM stage and the engine never
+   * lazy-loads — even if a cached model promoted `internal.model` to 'full'. */
+  llmEnabled?: boolean
 }
 
 export interface UseNaturalLanguage {
@@ -129,6 +135,7 @@ export function useNaturalLanguage(
     watchdogMs,
     signature,
     gate: gateArg,
+    llmEnabled = true,
   } = args
   // One stable fallback gate when the caller doesn't supply a shared one.
   const [fallbackGate] = useState(() => new EngineGate())
@@ -186,7 +193,7 @@ export function useNaturalLanguage(
     cancelDownload,
     requestUpgrade,
     demoteToGrammar,
-  } = useModelDownload({ engine, hasVocab, setNotice })
+  } = useModelDownload({ engine, hasVocab, setNotice, llmEnabled })
 
   // Own a scene tracker; rebuild + reset when the game (vocab) changes.
   const trackerRef = useRef<TextSceneTracker | null>(null)
@@ -275,11 +282,11 @@ export function useNaturalLanguage(
       return {
         phase: 'on',
         language: internal.language,
-        model: internal.model,
+        model: llmEnabled ? internal.model : 'grammar',
         canUpgrade,
       }
     return { phase: 'off', installed, canUpgrade }
-  }, [hasVocab, canUpgrade, internal, installed])
+  }, [hasVocab, canUpgrade, internal, installed, llmEnabled])
 
   // The active picker language ('off' while the layer is off/downloading) and,
   // for non-English languages, the deterministic lexicons keyed by (language,
@@ -315,9 +322,18 @@ export function useNaturalLanguage(
   // closure snapshotted at its creation. The ref always carries the freshest
   // phase/language/lexicons; the drain re-reads it at every line boundary.
   // Synced in an effect (not during render) per react-hooks/refs.
-  const liveRef = useRef<LiveState>({ internal, lex })
+  const liveRef = useRef<LiveState>({ internal, lex, llmEnabled })
   useEffect(() => {
-    liveRef.current = { internal, lex }
+    // effectiveModel: when the feature is hidden, the live input pipeline must
+    // see grammar-only regardless of internal.model (a cached model may say
+    // 'full'). Forcing it here makes runLine's grammarOnly true → stage 7 skips
+    // the engine → no lazy-load. `llmEnabled` is also carried so stage 8 can
+    // suppress the upgrade-pitch notice.
+    const liveInternal: Internal =
+      !llmEnabled && internal.phase === 'on'
+        ? { ...internal, model: 'grammar' }
+        : internal
+    liveRef.current = { internal: liveInternal, lex, llmEnabled }
   })
 
   // One bounded inference: lazy-load the model if needed, then race generate()

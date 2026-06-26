@@ -113,10 +113,14 @@ export function useOutputTranslation(args: {
    * compound's clauses each re-voice correctly. Null/empty when nothing is
    * recorded yet — the echo then falls to the English path. */
   echoMap?: ReadonlyMap<string, string> | null
+  /** LLM-feature preference (default true). When false the LLM output fallback
+   * is disabled (lexLang=null) — corpus-only, a miss degrades to English. */
+  llmEnabled?: boolean
 }): OutputTranslation {
   const { view, language, signature, engine, gate, corpusOverride } = args
   const watchdogMs = args.watchdogMs ?? XLATE_WATCHDOG_MS
   const echoMap = args.echoMap ?? null
+  const llmEnabled = args.llmEnabled ?? true
 
   // `lang` is the active OUTPUT language. It admits 'ka' in addition to the
   // input-lexicon languages (LexLang = fr|de|es): Georgian has a display corpus
@@ -136,9 +140,12 @@ export function useOutputTranslation(args: {
       ? language
       : null
   // The subset of `lang` that has an LLM fallback (i.e. not corpus-only): used
-  // only where a LexLang is structurally required. Null for 'ka' / inactive.
+  // only where a LexLang is structurally required. Null for 'ka' / inactive —
+  // and null whenever the LLM feature is hidden (corpus-only, defense-in-depth).
   const lexLang: LexLang | null =
-    lang !== null && !CORPUS_ONLY_LANGS.has(lang) ? (lang as LexLang) : null
+    llmEnabled && lang !== null && !CORPUS_ONLY_LANGS.has(lang)
+      ? (lang as LexLang)
+      : null
   const corpus: CompiledCorpus | null = useMemo(() => {
     if (lang === null) return null
     const c = corpusOverride ?? corpusFor(signature, lang)
@@ -285,14 +292,19 @@ export function useOutputTranslation(args: {
         const d = echoFreeze.get(l)
         if (d !== undefined && d !== null) continue
       }
-      // Corpus-only languages (spec §3): a miss degrades to English and is
-      // logged once per text — the LLM fallback is NEVER engaged (the small
-      // models cannot produce correct Georgian). Mark the basis so the `=== en`
-      // guard skips it on later renders; render falls through to English
-      // because no overlay entry is ever created for this id. Placed ahead of
-      // the backlog/live branches so ka never reaches the (null) resolver and
-      // every ka miss logs uniformly as kind 'line'.
-      if (CORPUS_ONLY_LANGS.has(lang)) {
+      // Corpus-only AT THIS MOMENT (spec §3): a miss degrades to English and is
+      // logged once per text — no LLM fallback is engaged. Two ways to be here:
+      // an OUTPUT-only language (ka — the small models cannot produce correct
+      // Georgian), OR fr/de/es while the LLM feature is hidden, where `lexLang`
+      // is null so no resolver was built. Mark the basis so the `=== en` guard
+      // skips it on later renders; render falls through to English because no
+      // overlay entry is ever created for this id. Placed ahead of the
+      // backlog/live branches so a resolver-less language never reaches the
+      // (null) resolver and every such miss logs uniformly as kind 'line'.
+      // Folding `!resolver` in here (rather than a bare `continue`) keeps miss
+      // telemetry flowing for fr/de/es-when-off, and narrows `resolver` to
+      // non-null for the branches below.
+      if (CORPUS_ONLY_LANGS.has(lang) || !resolver) {
         if (basisRef.current.get(l.id) !== en) {
           basisRef.current.set(l.id, en)
           const { core } = splitPromptResidue(en)
@@ -306,11 +318,6 @@ export function useOutputTranslation(args: {
         }
         continue
       }
-      // Past the corpus-only continue, the language has an LLM fallback, so the
-      // resolver exists (built above whenever lexLang is non-null). The guard
-      // narrows the type for the resolver-driven branches below; it never fires
-      // at runtime (ka is the only resolver-less language and it continued).
-      if (!resolver) continue
       const { resolve, settle, markPending } = resolver
       if (backlogRef.current.has(l.id)) {
         // Gate on TEXT, not id: an append merge onto a backlog tail line

@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createLogger, recentLogs, clearLogs } from './logger'
+import { LS_KEYS } from './storageKeys'
 
 // F-14: pins the logger's calling convention — the tag is folded into the first
 // string arg (so existing `[nl] …` / `[xlate] …` assertions keep matching), and
@@ -27,6 +28,7 @@ describe('createLogger', () => {
   })
 
   it('routes channels to the matching console method', () => {
+    localStorage.setItem(LS_KEYS.debug, '1') // info is gated on Debug mode
     const info = vi.spyOn(console, 'info').mockImplementation(() => {})
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -42,17 +44,46 @@ describe('createLogger', () => {
       info.mockRestore()
       warn.mockRestore()
       error.mockRestore()
+      localStorage.removeItem(LS_KEYS.debug)
     }
   })
 
-  it('suppresses debug under test (dev-only diagnostic gate)', () => {
-    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
-    try {
-      createLogger('nl').debug('noisy diagnostic')
-      expect(logSpy).not.toHaveBeenCalled() // MODE === 'test'
-    } finally {
-      logSpy.mockRestore()
-    }
+  // info + debug are the firehose (autosave writes, per-clause NL traces) and
+  // are gated behind the user's Debug-mode preference (`loquor.debug`). Off by
+  // default → a clean console; on → the full trace.
+  describe('Debug-mode gate (loquor.debug)', () => {
+    afterEach(() => localStorage.removeItem(LS_KEYS.debug))
+
+    it('suppresses info and debug when Debug mode is off (default)', () => {
+      const info = vi.spyOn(console, 'info').mockImplementation(() => {})
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      try {
+        const log = createLogger('nl')
+        log.info('routine autosave')
+        log.debug('noisy clause trace')
+        expect(info).not.toHaveBeenCalled()
+        expect(logSpy).not.toHaveBeenCalled()
+      } finally {
+        info.mockRestore()
+        logSpy.mockRestore()
+      }
+    })
+
+    it('emits info and debug when Debug mode is on', () => {
+      localStorage.setItem(LS_KEYS.debug, '1')
+      const info = vi.spyOn(console, 'info').mockImplementation(() => {})
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      try {
+        const log = createLogger('nl')
+        log.info('routine autosave')
+        log.debug('noisy clause trace')
+        expect(info).toHaveBeenCalledWith('[nl] routine autosave')
+        expect(logSpy).toHaveBeenCalledWith('[nl] noisy clause trace')
+      } finally {
+        info.mockRestore()
+        logSpy.mockRestore()
+      }
+    })
   })
 })
 

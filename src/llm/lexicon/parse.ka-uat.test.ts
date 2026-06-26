@@ -150,6 +150,56 @@ describe('Georgian playthrough — displayed compound object names', () => {
   })
 })
 
+// Georgian COMPLETION playthrough (notes/uat-georgian-completion.md, run 2,
+// 2026-06-26). Pins the run-2 findings that were clear deterministic gaps.
+describe('Georgian completion — exit the boat (Finding 3)', () => {
+  // Finding 3 (near-fatal): board/launch were fixed but NO Georgian exit form
+  // worked, stranding a monolingual player in the boat above the falls. The
+  // antonym of `შედი ნავში`. Two root causes fixed:
+  //  (a) ablative `ნავიდან` (boat-from) carries the consonant-stem linking vowel
+  //      `-იდან`; the bare `-დან` split left `ნავი` (≠ stored stem `ნავ`). The
+  //      `იდან` postposition variant strips it so `ნავ` resolves.
+  //  (b) only `გადი`→exit existed; the natural leave/get-out/get-down verbs did
+  //      not. NB Zork `LEAVE OBJECT` = V-DROP (drops the boat!) — so these all
+  //      emit `exit` (V-EXIT), never `leave`.
+  it('exit boat — ablative გადი ნავიდან', () => {
+    expect(ka('გადი ნავიდან')).toEqual({ kind: 'command', text: 'exit boat' })
+  })
+  it('exit boat — დატოვე ნავი (leave → exit, nominative)', () => {
+    expect(ka('დატოვე ნავი')).toEqual({ kind: 'command', text: 'exit boat' })
+  })
+  it('exit boat — გამოდი ნავიდან (get out)', () => {
+    expect(ka('გამოდი ნავიდან')).toEqual({ kind: 'command', text: 'exit boat' })
+  })
+  it('exit boat — ჩამოდი ნავიდან (get down)', () => {
+    expect(ka('ჩამოდი ნავიდან')).toEqual({ kind: 'command', text: 'exit boat' })
+  })
+  // The same ablative fix lets `exit house` work (the spec's documented intent —
+  // `exit სახლიდან "out of house"` — never actually resolved either: `სახლიდან`
+  // → bare `დან` split → `სახლი` ≠ stored stem `სახლ`).
+  it('exit house — ablative გადი სახლიდან', () => {
+    expect(ka('გადი სახლიდან')).toEqual({ kind: 'command', text: 'exit house' })
+  })
+})
+
+describe('Georgian completion — climb synonym (Finding minor)', () => {
+  // `აცოცდი ხეზე` abstained — only `აძვერი`/`ჩაძვერი` mapped. აცოცდი ("clamber
+  // up") is the other natural Georgian climb imperative.
+  it('climb tree — აცოცდი ხეზე', () => {
+    expect(ka('აცოცდი ხეზე')).toEqual({ kind: 'command', text: 'climb tree' })
+  })
+})
+
+describe('Georgian completion — Ulysses magic word (Finding)', () => {
+  // The cyclops scare-word. ოდისევსი (Odysseus) abstained, forcing the player
+  // to type the Latin `Ulysses`. Zork accepts ODYSSEUS too (gsyntax.zil:335
+  // SYNONYM ODYSSEUS ULYSSES), so map the Georgian transliteration → odysseus as
+  // a single-word meta alias (resolved upstream, like the other ka meta words).
+  it('ოდისევსი maps to the odysseus scare-word', () => {
+    expect(KA_CORE.metaAliases['ოდისევსი']).toBe('odysseus')
+  })
+})
+
 describe('Georgian UAT — meta verbs (finding-8)', () => {
   it('English meta verbs are recognized for any language (save/quit/score/restart)', () => {
     // 'i' and 'l' are in-world game shortcuts (inventory/look), NOT meta —

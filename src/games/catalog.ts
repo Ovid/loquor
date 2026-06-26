@@ -4,6 +4,9 @@ export interface Game {
   slug: 'zork1' | 'zork2' | 'zork3'
   numeral: string
   title: string
+  /** Story-file path, **relative** (no leading slash) so it resolves against the
+   *  deploy directory and the app can be served from any subpath. Pairs with
+   *  `base: './'` in vite.config.ts. */
   file: string
   /** Story signature (first 0x1E bytes, hex) — the single key under which a
    *  game is looked up in the translation-corpus registry (corpusFor) and the
@@ -17,21 +20,21 @@ export const GAMES: Game[] = [
     slug: 'zork1',
     numeral: 'I',
     title: 'Zork I',
-    file: '/games/zork1.z3',
+    file: 'games/zork1.z3',
     sig: ZORK1_SIG,
   },
   {
     slug: 'zork2',
     numeral: 'II',
     title: 'Zork II',
-    file: '/games/zork2.z3',
+    file: 'games/zork2.z3',
     sig: ZORK2_SIG,
   },
   {
     slug: 'zork3',
     numeral: 'III',
     title: 'Zork III',
-    file: '/games/zork3.z3',
+    file: 'games/zork3.z3',
     sig: ZORK3_SIG,
   },
 ]

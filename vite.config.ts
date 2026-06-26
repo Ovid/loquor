@@ -30,6 +30,13 @@ function glkapiDevEsm(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Relative base so the built app is position-independent: it can be served
+  // from `/`, `/paad/zork/`, or any subpath without a rebuild. Vite rewrites all
+  // bundled asset URLs (and index.html refs) as relative; the one runtime
+  // string-fetch (game story files in catalog.ts) is relative for the same
+  // reason. Caveat: the host must serve the directory with a trailing slash
+  // (`/paad/zork/`), or document-relative URLs resolve one level too high.
+  base: './',
   plugins: [react(), glkapiDevEsm()],
   optimizeDeps: {
     // Scan only the app's own entry. With `entries` unset, Vite globs **/*.html

@@ -182,6 +182,20 @@ describe('Georgian completion — exit the boat (Finding 3)', () => {
   })
 })
 
+describe('Georgian completion — tie locative (Finding 1)', () => {
+  // The dative `მიაბი თოკი მოაჯირს` → `tie rope to railing` already works (G1).
+  // But the equally natural LOCATIVE `მოაჯირზე` ("onto the railing", -ზე) split
+  // to the prep `on`, emitting `tie rope on railing` — which Zork REJECTS (its
+  // only object syntax is TIE OBJECT TO OBJECT, gsyntax.zil:497). Coerce the
+  // locative-derived `on` to `to` for `tie` so the natural form also resolves.
+  it('tie rope to railing — locative მოაჯირზე (-ზე → to)', () => {
+    expect(ka('მიაბი თოკი მოაჯირზე')).toEqual({
+      kind: 'command',
+      text: 'tie rope to railing',
+    })
+  })
+})
+
 describe('Georgian completion — climb synonym (Finding minor)', () => {
   // `აცოცდი ხეზე` abstained — only `აძვერი`/`ჩაძვერი` mapped. აცოცდი ("clamber
   // up") is the other natural Georgian climb imperative.

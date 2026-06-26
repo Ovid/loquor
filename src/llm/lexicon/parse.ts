@@ -577,11 +577,19 @@ export function parseLexicon(
         }
       }
     }
-    if (obj && ind && verbArityOk(verb, vocab, 2))
+    if (obj && ind && verbArityOk(verb, vocab, 2)) {
+      // Zork's TIE has only one object syntax: TIE OBJECT *TO* OBJECT
+      // (gsyntax.zil:497). A locative-derived `on` (Georgian -ზე, "tie onto the
+      // railing"; the same surface any language can produce) would be rejected by
+      // the Z-parser. Coerce `tie … on …` → `tie … to …`. Safe for all languages:
+      // `tie X on Y` is NEVER valid Zork, so this only turns a guaranteed reject
+      // into the intended command. (UAT-completion Finding 1.)
+      const outPrep = verb === 'tie' && prep === 'on' ? 'to' : prep
       return {
         kind: 'command',
-        text: `${verb} ${obj.emit} ${prep} ${ind.emit}`,
+        text: `${verb} ${obj.emit} ${outPrep} ${ind.emit}`,
       }
+    }
   }
 
   // --- G1 (Georgian dative recipient): `<give/tie-verb> <obj> <recipientDAT>`.

@@ -10,15 +10,13 @@
 // — when you touch one entry, check the other three for the same issue.
 import type { ActiveLanguage } from '../llm/types'
 import type { Game } from '../games/catalog'
-import { GEORGIAN_STATUS_MARKER } from '../llm/config'
 
 export interface LandingCopy {
   howToTitle: string // bold lead-in of the how-to line
   howToBody: string // remainder of the how-to line
   progressNote: string // the dimmed "your progress is kept" line
   languageLabel: string // the inline picker label
-  caveat: string // the optional-model caveat paragraph (shown when the LLM feature is ON)
-  caveatShort: string // the no-model caveat (shown when the LLM feature is OFF)
+  caveat: string // the adventure teaser paragraph under the how-to line
   descent: string // the radiogroup label
   enter: string // the primary "enter the game" button
   resume: string // the saved-game resume hint
@@ -42,11 +40,8 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
       'Your progress is kept; close the tab and return whenever you like.',
     languageLabel: 'Language:',
     caveat:
-      'Basic commands work now in all four languages. To understand more of ' +
-      'what you type, you can add an optional, experimental model — a ' +
-      'one-time download whose richer understanding may be uneven across ' +
-      'languages.',
-    caveatShort: 'Commands work in all four languages.',
+      'Beneath you sleeps the Great Underground Empire — its treasures, its ' +
+      'traps, its waiting dark. Your descent begins.',
     descent: '— choose your descent —',
     enter: 'Light the lamp →',
     resume: 'a saved descent awaits — you will resume where you left off',
@@ -74,11 +69,8 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
       'Votre progression est conservée ; fermez l’onglet et revenez quand vous voulez.',
     languageLabel: 'Langue :',
     caveat:
-      'Les commandes de base fonctionnent dès maintenant dans les quatre ' +
-      'langues. Pour mieux comprendre ce que vous tapez, vous pouvez ajouter ' +
-      'un modèle optionnel et expérimental — un téléchargement unique dont la ' +
-      'compréhension plus riche peut être inégale selon les langues.',
-    caveatShort: 'Les commandes fonctionnent dans les quatre langues.',
+      'Sous vos pieds sommeille le Grand Empire Souterrain — ses trésors, ses ' +
+      'pièges, ses ténèbres patientes. Votre descente commence.',
     descent: '— choisissez votre descente —',
     enter: 'Allumez la lampe →',
     resume:
@@ -107,11 +99,8 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
       'Dein Fortschritt wird gespeichert; schließe den Tab und kehre zurück, wann immer du willst.',
     languageLabel: 'Sprache:',
     caveat:
-      'Grundbefehle funktionieren schon jetzt in allen vier Sprachen. Um mehr ' +
-      'von dem zu verstehen, was du schreibst, kannst du ein optionales, ' +
-      'experimentelles Modell hinzufügen — ein einmaliger Download, dessen ' +
-      'umfassenderes Verständnis je nach Sprache unterschiedlich ausfallen kann.',
-    caveatShort: 'Befehle funktionieren in allen vier Sprachen.',
+      'Unter dir schläft das große unterirdische Reich — seine Schätze, seine ' +
+      'Fallen, seine wartende Dunkelheit. Dein Abstieg beginnt.',
     descent: '— wähle deinen Abstieg —',
     enter: 'Entzünde die Lampe →',
     resume:
@@ -140,11 +129,8 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
       'Tu progreso se guarda; cierra la pestaña y vuelve cuando quieras.',
     languageLabel: 'Idioma:',
     caveat:
-      'Los comandos básicos ya funcionan en los cuatro idiomas. Para entender ' +
-      'mejor lo que escribes, puedes añadir un modelo opcional y experimental ' +
-      '— una descarga única cuya comprensión más rica puede ser desigual ' +
-      'según el idioma.',
-    caveatShort: 'Los comandos funcionan en los cuatro idiomas.',
+      'Bajo tus pies duerme el Gran Imperio Subterráneo — sus tesoros, sus ' +
+      'trampas, su oscuridad expectante. Tu descenso comienza.',
     descent: '— elige tu descenso —',
     enter: 'Enciende la lámpara →',
     resume: 'un descenso guardado te espera — continuarás donde lo dejaste',
@@ -165,13 +151,14 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
       zork3: 'El Maestro del Calabozo',
     },
   },
-  // Georgian (ka) — this entry is the Phase-1 read-Georgian / TYPE-ENGLISH copy
-  // (spec §1, §3a): game text in Georgian, commands typed in English. It is
-  // RETAINED for Zork II/III, which stay Phase 1 (no ka input lexicon). For
-  // Zork I, Georgian input IS active (`kaInputActive`, spec §5.6) and Landing.tsx
-  // overlays KA_INPUT_COPY (below) over `howToBody`/`caveat`. The caveat carries
-  // the beta note (corpus-only — NO optional AI model is offered) instead of the
-  // model-upgrade copy the other languages use. Mkhedruli is unicameral — no
+  // Georgian (ka) — Phase-1 read-Georgian / TYPE-ENGLISH copy (spec §1, §3a):
+  // game text in Georgian, commands typed in English. RETAINED for Zork II/III,
+  // which stay Phase 1 (no ka input lexicon). For Zork I, Georgian input IS
+  // active (`kaInputActive`, spec §5.6) and Landing.tsx overlays KA_INPUT_COPY
+  // (below) over `howToBody` only. The `caveat` is now the shared adventure
+  // teaser (atmosphere, no model/beta wording) — the alpha-status disclosure
+  // lives on the picker label (`languageOptions.ts`) and the in-game BottomBar
+  // beta note, so the teaser stays pure flavor. Mkhedruli is unicameral — no
   // capitalization (§4). Draft pending native review (§8).
   ka: {
     howToTitle: 'როგორ ვითამაშოთ.',
@@ -184,18 +171,13 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
     progressNote:
       'თქვენი მონაცემები ინახება; დახურეთ ფანჯარა და დაბრუნდით, როცა მოგესურვებათ.',
     languageLabel: 'ენა:',
-    // SIBLING COPY: BottomBar.tsx renders the in-game variant of this
-    // same beta note. Both are drafts pending native review (§8) — apply any
-    // wording fix to BOTH so they don't drift (review S4).
+    // Adventure teaser, mirrored from en/fr/de/es (atmosphere, no model/beta
+    // wording). The alpha-status disclosure is NOT here — it lives on the picker
+    // label (`languageOptions.ts`) and the in-game BottomBar beta note. Draft
+    // pending native review (§8).
     caveat:
-      `ქართული თარგმანი ჯერ სატესტოა ${GEORGIAN_STATUS_MARKER} — ზოგი ტექსტი შეიძლება ჯერ კიდევ ` +
-      'ინგლისურად გამოჩნდეს. ამ ეტაპზე ბრძანებები ინგლისურად აკრიფეთ.',
-    // ka caveat is about translation maturity, not the LLM — unchanged in both
-    // toggle states. caveatShort mirrors it so the completeness gate passes;
-    // Landing always renders s.caveat for ka regardless of the flag.
-    caveatShort:
-      `ქართული თარგმანი ჯერ სატესტოა ${GEORGIAN_STATUS_MARKER} — ზოგი ტექსტი შეიძლება ჯერ კიდევ ` +
-      'ინგლისურად გამოჩნდეს. ამ ეტაპზე ბრძანებები ინგლისურად აკრიფეთ.',
+      'თქვენს ფეხქვეშ მიძინებულია დიდი მიწისქვეშა იმპერია — მისი საგანძური, ' +
+      'მისი ხაფანგები, მისი მომლოდინე სიბნელე. თქვენი ჩასვლა იწყება.',
     descent: '— აირჩიეთ თქვენი ჩასვლა —',
     enter: 'აანთეთ ლამპა →',
     resume: 'შენახული ჩასვლა გელოდებათ — გააგრძელებთ იქიდან, სადაც გაჩერდით',
@@ -219,22 +201,19 @@ export const LANDING_STRINGS: Record<ActiveLanguage, LandingCopy> = {
 }
 
 // Phase-2 Georgian-INPUT landing copy (spec §5.6), overlaid by Landing.tsx over
-// the Phase-1 `ka` entry's `howToBody`/`caveat` ONLY when `kaInputActive` — i.e.
-// Georgian is selected AND the chosen volume is Zork I (the one game with a ka
-// input lexicon). Zork II/III keep the Phase-1 type-English copy above, so the
-// landing never invites Georgian input where it would always abstain.
+// the Phase-1 `ka` entry's `howToBody` ONLY when `kaInputActive` — i.e. Georgian
+// is selected AND the chosen volume is Zork I (the one game with a ka input
+// lexicon). Zork II/III keep the Phase-1 type-English `howToBody` above, so the
+// landing never invites Georgian input where it would always abstain. The
+// `caveat` is no longer overridden — both phases share the atmospheric teaser
+// (the alpha-status disclosure lives on the picker label + in-game BottomBar).
 //
 // Mirrors the in-game placeholder/help: "type in Georgian (or English)". The
 // Phase-2 examples are GEORGIAN (LANDING_EXAMPLES_KA_INPUT), so unlike the
 // Phase-1 English examples they ARE voiced as ka — Landing.tsx keeps the
 // command-examples region at lang="ka" (no lang="en" override) in this mode.
-// status marker (GEORGIAN_STATUS_MARKER) retained; drops only on native sign-off
-// (§9). NATIVE-REVIEW-DRAFT.
-export const KA_INPUT_COPY: Pick<LandingCopy, 'howToBody' | 'caveat'> = {
+// NATIVE-REVIEW-DRAFT.
+export const KA_INPUT_COPY: Pick<LandingCopy, 'howToBody'> = {
   howToBody:
     'თამაშის ტექსტი ქართულად ჩანს; ბრძანებები აკრიფეთ ქართულად (ან ინგლისურად) — იხ. მაგალითები ქვემოთ.',
-  caveat:
-    `ქართული თარგმანი და ქართულად აკრეფა ჯერ სატესტოა ${GEORGIAN_STATUS_MARKER} — ზოგი ტექსტი ` +
-    'შეიძლება ინგლისურად გამოჩნდეს, ზოგი ბრძანება კი ვერ ამოიცნოს. ასეთ ' +
-    'შემთხვევაში სცადეთ ინგლისურად.',
 }

@@ -21,7 +21,6 @@ const SCALAR_KEYS = [
   'progressNote',
   'languageLabel',
   'caveat',
-  'caveatShort',
   'descent',
   'enter',
   'resume',

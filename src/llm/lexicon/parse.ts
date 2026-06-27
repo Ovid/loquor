@@ -120,6 +120,26 @@ function resolveNoun(
     const hit = tryResolve(s)
     if (hit) return hit
   }
+  // Georgian dative direct object (ka only — gated on core.postpositions). A
+  // dative -ს on the HEAD noun (ღილაკს "button", ყვითელ ღილაკს "yellow button")
+  // is not a splittable postposition (it collides with genitive -ის) and not the
+  // nominative -ი strip, so it arrives attached and misses. Resolve-GATED: ONLY
+  // after the as-is lookups miss, retry with a single trailing -ს dropped from
+  // the LAST token; commit only a hit. Safe by construction — recipients
+  // (ქურდს/მოაჯირს, dual-listed) and native -ს stems (თას/სკარაბეუს/სახრახნის)
+  // resolve as-is and never reach here, so the G1 path and the round-trip gate
+  // are untouched (spec §3; defuses the ka-dative-direct-object-deferred risk).
+  // Mechanically this strips a trailing -ს from any missed last token, so it also
+  // recovers a native-stem DATIVE (double-ს სახრახნისს → სახრახნის) and a genitive
+  // modifier (ოქროს → ოქრო → pot) — both consistent, no wrong-noun collision
+  // exists in the lexicon (verified exhaustively).
+  if (core.postpositions && span.length > 0) {
+    const last = span[span.length - 1]
+    if (last.length > 1 && last.endsWith('ს')) {
+      const hit = tryResolve([...span.slice(0, -1), last.slice(0, -1)])
+      if (hit) return hit
+    }
+  }
   return null
 }
 

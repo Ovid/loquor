@@ -19,7 +19,14 @@ const KA_POSTPOSITIONS: Readonly<Record<string, string>> = {
   ში: 'in', // inessive
   ზე: 'on', // superessive
   ით: 'with', // instrumental
-  დან: 'from', // ablative
+  დან: 'from', // ablative (vowel-stem: მდინარე → მდინარედან)
+  // ablative on a CONSONANT stem carries a linking -ი- (ნავი → ნავიდან, სახლი →
+  // სახლიდან). The bare `-დან` split would leave the stem WITH that -ი (ნავი ≠
+  // stored stem ნავ), so it missed. Listed longest-first, `იდან` wins and strips
+  // both, yielding the bare stem. Vowel-stem ablatives (…ედან/…ადან) still match
+  // `-დან`. UAT-completion Finding 3 (exit boat). (No noun in the closed Zork I
+  // set ends in a literal -იდან, so this never over-splits a nominative.)
+  იდან: 'from',
   თან: 'at', // adessive (only if 'at' ∈ vocab.preps — see validate gate)
 }
 
@@ -72,13 +79,25 @@ export const KA_CORE: CoreLexicon = {
     ჩართე: 'turn on',
     გამორთე: 'turn off',
     ჩააქრე: 'extinguish',
-    // enter / board / leave
+    // enter / board / exit
     შედი: 'enter',
     ჩაჯექი: 'board',
     გადი: 'exit',
+    // exit/disembark the boat (UAT-completion Finding 3): the natural antonyms of
+    // შედი ნავში — დატოვე "leave", გამოდი "get out", ჩამოდი "get down". ALL emit
+    // `exit` (V-EXIT, which takes the vehicle), NEVER `leave`: Zork `LEAVE OBJECT`
+    // is V-DROP (it would drop the boat). `ჩამოდი`/`გამოდი` don't collide with the
+    // `down`/`out` directions, which are separate words (ქვემოთ / გარეთ).
+    დატოვე: 'exit',
+    გამოდი: 'exit',
+    ჩამოდი: 'exit',
     // move / push / pull / raise / lower
     გადააადგილე: 'move',
     წაანაცვლე: 'move',
+    // colloquial "shove aside / displace" — what most speakers type first for
+    // "move rug" (the only way underground). UAT finding 3. NATIVE-REVIEW-DRAFT.
+    გადასწიე: 'move',
+    გადაწიე: 'move',
     დააჭირე: 'push',
     // უბიძგე (imperative of ბიძგება, "push/shove") — replaces the odd `წადე`,
     // which read as neither push nor a natural verb. NATIVE-REVIEW-DRAFT.
@@ -105,14 +124,28 @@ export const KA_CORE: CoreLexicon = {
     // climb / cross / launch / pray / wait
     აძვერი: 'climb',
     ჩაძვერი: 'climb',
+    // აცოცდი ("clamber up") — the other natural climb imperative; `აცოცდი ხეზე`
+    // abstained in run 2 (only აძვერი mapped). UAT-completion Finding (minor).
+    აცოცდი: 'climb',
     // climb-down: the 'climb down' verb phrase (verbs1), so 'ჩამოძვერი ხე' →
     // 'climb down tree' — the player descends the tree he climbed for the egg.
     // (Bare descent is the direction 'down', owned by directions.ts.)
     ჩამოძვერი: 'climb down', // ← review: confirm ჩამოძვერი reads as "climb down"
     გადაკვეთე: 'cross',
     გაუშვი: 'launch',
+    // გაცურე ("sail/set off") — the natural word a player reaches for at the
+    // Frigid River; გაუშვი already works but no one types it. UAT finding 7.
+    გაცურე: 'launch',
     ილოცე: 'pray',
     დაიცადე: 'wait',
+    // მოიცადე — the other natural imperative of "wait". UAT finding 6.
+    მოიცადე: 'wait',
+    // echo (Loud Room): ექო is the natural Georgian, and echo is an INTRANSITIVE
+    // game verb (verbsOnly), so it maps as a core verb here — NOT as an English
+    // 'echo'→'echo' idiom, which would inject the ASCII token 'echo' into the ka
+    // word set (KNOWN_COLLISIONS.ka must stay []). The Georgian key ექო is
+    // non-ASCII, so no collision. UAT finding 5; parallels the Spanish eco→echo fix.
+    ექო: 'echo',
     // unlock — no single-word verb key: the 'გასაღებით გააღე' idiom below
     // (open-with-key) is the natural Georgian form; the Task-4 placeholder
     // (გააღე_გასაღებით) is removed since the idiom covers it.
@@ -152,5 +185,10 @@ export const KA_CORE: CoreLexicon = {
     გასვლა: 'quit',
     ქულა: 'score',
     ყურება: 'look',
+    // ოდისევსი (Odysseus) — the cyclops scare-word. Zork accepts ODYSSEUS as a
+    // synonym of ULYSSES (gsyntax.zil:335), so the natural Georgian mythological
+    // name resolves to the raw English `odysseus` rather than forcing the player
+    // to type the Latin `Ulysses`. UAT-completion Finding (Ulysses).
+    ოდისევსი: 'odysseus',
   },
 }

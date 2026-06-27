@@ -51,9 +51,14 @@ export const ZORK1_DE_TEMPLATES: readonly Template[] = [
     en: "You can't see any {obj} here!",
     out: 'Du siehst {obj.akkDef} hier nirgends!',
   },
+  // {raw} fallback: see zork1.fr.templates.ts — Zork emits this only for a
+  // dictionary word with no in-scope object, so {raw} is the parser's ENGLISH
+  // token (input synonyms like lamp/bottle/boat miss the display-name {obj} keys
+  // and land here). The template pre-empts the LLM, so echoing leaks English in
+  // every mode; DROP the token for a generic German line.
   {
     en: "You can't see any {raw} here!",
-    out: 'Du siehst hier kein „{raw}“!',
+    out: 'So etwas siehst du hier nicht!',
   },
   // Parser object-disambiguation prompt (two candidate books): {obj}/{obj2} in
   // nominative definite. No dative preposition precedes a slot.

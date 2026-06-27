@@ -36,21 +36,27 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
     en: 'You used the word "{raw}" in a way that I don\'t understand.',
     out: 'სიტყვა „{raw}“ ისე გამოიყენე, რომ ვერ გავიგე.',
   },
-  // The NOT-HERE message names the object the player referenced. fr/de/es carry
-  // BOTH a {obj} variant (printed object name → translated) and a {raw} fallback;
-  // ka had ONLY {raw}, so it echoed the parser's ENGLISH noun (lamp, troll,
-  // button) even for objects we DO model — a forced-English leak for a Georgian
-  // player (CLAUDE.md no-forced-English; ka has no LLM net). Add the {obj}
-  // variant: it wins the tie-break over {raw} for a known printed object, and
-  // sidesteps §4 by reframing the transitive "I can't see any X" (dative object,
-  // un-composable on the citation form) to the intransitive "X is not visible
-  // here" — {obj} is the NOMINATIVE subject of ჩანს, the same caseless slot as
-  // "{obj.indef} აქ არ არის!" below. The {raw} fallback stays for a noun with no
-  // corpus object. NATIVE-REVIEW-DRAFT (ka §4 case forms): provisional wording.
+  // The NOT-HERE message names the object the player referenced. Two variants:
+  //  - {obj}: a KNOWN printed object → its translated Georgian name as the
+  //    NOMINATIVE subject of ჩანს (the §4-safe reframe of the transitive
+  //    "I can't see any X"). Wins the tie-break over {raw} (rawCount 0 < 1), so a
+  //    known object renders in Georgian, never the parser's English noun.
+  //  - {raw} fallback: Zork emits this ONLY for a dictionary word with no object
+  //    in scope, and that word is the parser's ENGLISH token. The {obj} keys are
+  //    DISPLAY names, but the INPUT synonyms the ka lexicon emits (lamp→brass
+  //    lantern, bottle→glass bottle, boat) are NOT display-name keys, so they
+  //    miss {obj} and land here — echoing the token forces a Georgian player to
+  //    read English (CLAUDE.md no-forced-English; ka has no LLM net), and it is
+  //    UNLOGGED by loquorMisses, so the leak is SILENT. UAT run 3 hit it via the
+  //    input placeholder's own example command (take lamp → „…„lamp“-ს…").
+  //    So the `out` DROPS the English token (drop-the-token reframe, as the
+  //    disambiguation / incomplete-put prompts already do): a generic "nothing of
+  //    the sort is here". The player typed the noun, so its identity is known.
+  //    NATIVE-REVIEW-DRAFT (ka §4 case forms): provisional wording.
   { en: "You can't see any {obj} here!", out: '{obj.indef} აქ არ ჩანს!' },
   {
     en: "You can't see any {raw} here!",
-    out: 'აქ ვერანაირ „{raw}“-ს ვერ ვხედავ!',
+    out: 'აქ ასეთი არაფერი არ ჩანს!',
   },
   {
     en: 'You can\'t use multiple direct objects with "{raw}".',

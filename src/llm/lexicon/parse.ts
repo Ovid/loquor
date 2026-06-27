@@ -19,6 +19,16 @@ const MISS: LexResult = { kind: 'miss' }
 // would otherwise miss the verb-only arity gate. (UAT S3, Frigid River.)
 const FIND_DEFAULT_VERBS = new Set(['launch'])
 
+// Georgian motion verbs whose English form takes a BARE object but whose Georgian
+// complement carries a locational case (enter ნავში "into boat", board ნავში,
+// climb ხეზე "onto tree", exit სახლიდან "out of house"). expandGeorgian splits
+// that case ending to a LEADING prep token, which the prep-split loop can't
+// resolve (it needs an object token BEFORE the prep). parseLexicon absorbs that
+// one leading postposition for exactly these verbs. The closed set keeps it from
+// silently forgiving a stray case on an unrelated verb. (UAT ka findings 2 & 7 —
+// the boat gate had no Georgian path and no compass bypass.)
+const KA_MOTION_VERBS = new Set(['enter', 'board', 'exit', 'climb'])
+
 interface NounHit {
   emit: string
   canonical: string
@@ -479,6 +489,23 @@ export function parseLexicon(
       : MISS
   }
 
+  // --- Georgian motion verb (enter/board/exit/climb): the complement's
+  // locational case ending (ნავში "into boat", ხეზე "onto tree") was split by
+  // expandGeorgian to a LEADING prep token [ში/ზე/დან, noun]. English ENTER/BOARD/
+  // EXIT/CLIMB take a BARE object, so absorb that leading postposition and resolve
+  // the rest as the object. ka only (gated on core.postpositions); fr/de/es never
+  // produce a leading split prep, so this is inert for them. ---
+  if (
+    core.postpositions &&
+    KA_MOTION_VERBS.has(verb) &&
+    tokens.length >= 2 &&
+    tokens[0] in core.postpositions
+  ) {
+    const obj = resolveNoun(tokens.slice(1), core, nouns, vocab, scene)
+    if (obj && verbArity1or2(verb, vocab))
+      return { kind: 'command', text: `${verb} ${obj.emit}` }
+  }
+
   // --- Personal-a / leading to-prep (the NOTE in es.core.ts preps):
   // `<verb> a/al <noun>` with NOTHING before the prep marks an animate
   // DIRECT object, not an indirect one — emit `<verb> <noun>`, never
@@ -550,11 +577,19 @@ export function parseLexicon(
         }
       }
     }
-    if (obj && ind && verbArityOk(verb, vocab, 2))
+    if (obj && ind && verbArityOk(verb, vocab, 2)) {
+      // Zork's TIE has only one object syntax: TIE OBJECT *TO* OBJECT
+      // (gsyntax.zil:497). A locative-derived `on` (Georgian -ზე, "tie onto the
+      // railing"; the same surface any language can produce) would be rejected by
+      // the Z-parser. Coerce `tie … on …` → `tie … to …`. Safe for all languages:
+      // `tie X on Y` is NEVER valid Zork, so this only turns a guaranteed reject
+      // into the intended command. (UAT-completion Finding 1.)
+      const outPrep = verb === 'tie' && prep === 'on' ? 'to' : prep
       return {
         kind: 'command',
-        text: `${verb} ${obj.emit} ${prep} ${ind.emit}`,
+        text: `${verb} ${obj.emit} ${outPrep} ${ind.emit}`,
       }
+    }
   }
 
   // --- G1 (Georgian dative recipient): `<give/tie-verb> <obj> <recipientDAT>`.

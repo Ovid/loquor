@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { compileCorpus, matchLine } from './match'
 import { ZORK1_FR } from './corpus/zork1.fr'
+import { ZORK1_DE } from './corpus/zork1.de'
+import { ZORK1_ES } from './corpus/zork1.es'
 import type { TranslationCorpus } from './types'
 
 const corpus: TranslationCorpus = {
@@ -278,9 +280,13 @@ describe('real Zork I French corpus smoke (Task 15)', () => {
       'Vous ne voyez la lampe en laiton nulle part !',
     )
   })
-  it('cannot-see reply still hits for an unknown typed token ({raw})', () => {
+  it('cannot-see reply DROPS the typed token instead of echoing English ({raw})', () => {
+    // Zork emits this only for a dictionary noun with no in-scope object, so the
+    // token is always English (an input synonym that missed the display-name
+    // {obj} keys). The template pre-empts the LLM, so echoing would leak English
+    // in every mode — drop it for a generic French line.
     expect(matchLine(real, "You can't see any frobnitz here!")).toBe(
-      'Vous ne voyez aucun « frobnitz » ici !',
+      'Vous ne voyez rien de tel ici !',
     )
   })
   it('presence line composes with the indefinite form', () => {
@@ -514,4 +520,27 @@ describe('{verb} match-only slot', () => {
       compileCorpus(mkCorpus([{ en: '{verb} and {verb}', out: 'x' }])),
     ).toThrow(/repeated slot/)
   })
+})
+
+// UAT run 3 (ka) found "You can't see any lamp here!" echoing the English token
+// "lamp" inside a Georgian frame — a SILENT leak (loquorMisses doesn't catch a
+// {raw} corpus template). The fix (drop the token) is cross-language: every
+// corpus' {raw} not-found fallback pre-empts the LLM, so echoing leaks English in
+// EVERY mode. "lamp" is an INPUT synonym (→ brass lantern), so it never matches
+// the display-name {obj} keys and always lands on this fallback.
+describe('not-found message drops the English token in every language', () => {
+  // ka is asserted in zork1.ka.uat.test.ts (no-Latin check); fr above. Pin de/es.
+  for (const [lang, corpus] of [
+    ['de', ZORK1_DE],
+    ['es', ZORK1_ES],
+  ] as const) {
+    it(`${lang}: "You can't see any lamp here!" never echoes "lamp"`, () => {
+      const out = matchLine(
+        compileCorpus(corpus),
+        "You can't see any lamp here!",
+      )
+      expect(out).not.toBeNull()
+      expect(out).not.toContain('lamp')
+    })
+  }
 })

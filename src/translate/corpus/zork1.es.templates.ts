@@ -39,9 +39,14 @@ export const ZORK1_ES_TEMPLATES: readonly Template[] = [
     en: "You can't see any {obj} here!",
     out: 'No ves {obj.indef} por ninguna parte.',
   },
+  // {raw} fallback: see zork1.fr.templates.ts — Zork emits this only for a
+  // dictionary word with no in-scope object, so {raw} is the parser's ENGLISH
+  // token (input synonyms like lamp/bottle/boat miss the display-name {obj} keys
+  // and land here). The template pre-empts the LLM, so echoing leaks English in
+  // every mode; DROP the token for a generic Spanish line.
   {
     en: "You can't see any {raw} here!",
-    out: '¡No ves ningún «{raw}» aquí!',
+    out: 'No ves nada de eso por aquí.',
   },
   // Parser object-disambiguation prompt (gparser.zil WHICH-PRINT, two
   // candidates). Runtime-composed from the ambiguous books the player holds, in

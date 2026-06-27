@@ -83,9 +83,16 @@ export const ZORK1_FR_TEMPLATES: readonly Template[] = [
     en: "You can't see any {obj} here!",
     out: 'Vous ne voyez {obj.def} nulle part !',
   },
+  // {raw} fallback: Zork emits "You can't see any X here!" only for a dictionary
+  // word with no object in scope — and X is the parser's ENGLISH token. The {obj}
+  // variant covers DISPLAY names; the INPUT synonyms the lexicon emits (lamp→
+  // lampe en laiton, bottle, boat) are not display-name keys, so they land here.
+  // This template pre-empts the LLM, so echoing {raw} leaks English in EVERY mode
+  // (CLAUDE.md no-forced-English, incl. basic mode). DROP the token (the player
+  // typed the noun, so its identity is known) — generic "you don't see any such".
   {
     en: "You can't see any {raw} here!",
-    out: 'Vous ne voyez aucun « {raw} » ici !',
+    out: 'Vous ne voyez rien de tel ici !',
   },
   // Parser object-disambiguation prompt (gparser.zil WHICH-PRINT, two
   // candidates). Runtime-composed from the ambiguous books the player holds, in

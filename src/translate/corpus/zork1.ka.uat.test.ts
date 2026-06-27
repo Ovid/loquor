@@ -110,12 +110,18 @@ describe('Zork I × Georgian — "can\'t see any {obj}" names the object (Phase 
     expect(redButton).not.toContain('button')
   })
 
-  // An UNKNOWN noun (no corpus object) still falls back to the {raw} echo — that
-  // word is not one we can translate, so verbatim is the honest behavior.
-  it('falls back to {raw} for a noun with no corpus object', () => {
-    expect(matchLine(c, "You can't see any frobozz here!")).toBe(
-      'აქ ვერანაირ „frobozz“-ს ვერ ვხედავ!',
-    )
+  // An input SYNONYM (lamp/bottle/boat) is a real Zork noun but NOT a display-name
+  // {obj} key, so it lands on the {raw} fallback. Echoing it would force a Georgian
+  // player to read English (UAT run 3 — `აიღე ფარანი` is the input placeholder's
+  // own example, and the leak is UNLOGGED by loquorMisses). So the {raw} `out`
+  // DROPS the English token: a generic Georgian "nothing of the sort is here",
+  // with no Latin letters at all.
+  it('drops the English token (no forced English) for an input-synonym noun', () => {
+    for (const noun of ['lamp', 'bottle', 'boat', 'frobozz']) {
+      const out = matchLine(c, `You can't see any ${noun} here!`)
+      expect(out).toBe('აქ ასეთი არაფერი არ ჩანს!')
+      expect(out).not.toMatch(/[A-Za-z]/) // no echoed English token
+    }
   })
 })
 

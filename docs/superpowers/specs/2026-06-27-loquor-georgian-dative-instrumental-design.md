@@ -296,10 +296,14 @@ load-bearing. Add to `parse.ka-uat.test.ts` (or the walkthrough suite):
 string-inventory/coverage gates for output are untouched. Green = the closed-set
 safety holds.
 
-**Out of scope (pre-existing, not introduced here):** `მიეცი ოქრო ქურდს` →
-`give pot to thief` (gold resolves via the pot-of-gold canonical's emit). Adjacent
-to the recipient path but unchanged by this work; noted so a reviewer doesn't
-attribute it to F2.
+**Correct, not a quirk (noted to pre-empt a false F2 flag):** `მიეცი ოქრო ქურდს`
+→ `give pot to thief`. This is faithful to Zork — there is no separate "gold"
+object; `gold` is one of the pot of gold's own dictionary words (vocab synonyms
+`['gold', 'pot', 'treasure']`, emit `pot`), exactly as typing "gold" does in the
+original English game. The internal `pot` emit is never shown to the player (they
+typed Georgian, see Georgian output; canonical is hidden in debug-off). Unchanged
+by this work — listed only so a reviewer doesn't attribute it to the F2 recipient
+path.
 
 ---
 

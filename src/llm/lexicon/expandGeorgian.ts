@@ -28,7 +28,9 @@ export function expandGeorgian(
     // token is never -ი-stripped to a bare object; emit [ით, stem] so the
     // existing -ით prep-split fires. Exact match ⇒ no collision with თ-stem
     // nominatives (ასანთი/ყუთი are not keys).
-    const fused = fusedInstrumentals[token]
+    const fused = Object.hasOwn(fusedInstrumentals, token)
+      ? fusedInstrumentals[token]
+      : undefined
     if (fused) {
       out.push('ით', fused)
       continue
@@ -45,7 +47,11 @@ export function expandGeorgian(
     // token that IS itself a bare postposition (too short to split above), which
     // would otherwise mangle 'ში' → 'შ' (S2). A bare suffix is unrealistic input;
     // left whole it can only miss, never mis-resolve.
-    if (token.length > 1 && token.endsWith('ი') && !(token in postpositions))
+    if (
+      token.length > 1 &&
+      token.endsWith('ი') &&
+      !Object.hasOwn(postpositions, token)
+    )
       out.push(token.slice(0, -1))
     else out.push(token)
   }

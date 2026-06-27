@@ -1,16 +1,18 @@
-# Pending — two `ka` findings deliberately NOT fixed (UAT-completion run 2)
+# Resolved — two `ka` findings, both FIXED 2026-06-27 (were deferred at UAT-completion run 2)
 
 Branch `ovid/georgian-fixes`. Five findings from
-`notes/uat-georgian-completion.md` were fixed (see git log). These two were left
-**deliberately** — each has a working Georgian alternative, and the obvious fix
-either regresses other commands or needs your call on a parked design question.
+`notes/uat-georgian-completion.md` were fixed first (see git log). These two were
+initially left **deliberately** — each had a working Georgian alternative, and the
+obvious fix either regressed other commands or needed a call on a parked design
+question. Both have since been FIXED (2026-06-27) — see the per-finding DECISION
+blocks below; the root-cause analysis is retained for the record.
 
-**DECISION (2026-06-27, Ovid): leave BOTH as-is.** Each has a working,
-fully-Georgian path (orphan prompt / disambiguation reply), so no monolingual
-player is blocked or forced to read English, and the obvious fixes carry a real
-regression / parked-design risk. Re-open if a later run shows the friction
-actually stops a player. Details + the options weighed are kept below for the
-record.
+**DECISION (2026-06-27, Ovid): FIX BOTH** (reverses the earlier "leave as-is").
+Both shipped via
+`docs/superpowers/plans/2026-06-27-loquor-georgian-dative-instrumental.md`:
+finding 1 — `KA_FUSED_INSTRUMENTALS` map (`ტუმბოთი → with pump`, plus the
+`ტუმბოთ` synonym removal + reply prep-drop); finding 2 — resolve-gated trailing
+`-ს` strip in `resolveNoun`. Root-cause notes are kept below for the record.
 
 ---
 
@@ -69,10 +71,12 @@ choice is correct.
 3. **Add `ტუმბოთი` as a literal pre-mapped instrumental phrase** somewhere — feels
    like whack-a-mole; punts the general vowel-stem-instrumental problem.
 
-**DECISION (2026-06-27, Ovid): #1 — leave as-is.** The vowel-stem `-თი` fusion +
-2-char-suffix collision is a stated, specific reason; the pump is the only
-vowel-stem instrument that matters in Zork I, and the orphan-prompt path solves
-the puzzle in Georgian with no English.
+**DECISION (2026-06-27, Ovid): FIXED** (was #1 leave-as-is). Shipped via the
+exact-token `KA_FUSED_INSTRUMENTALS` map (`ტუმბოთი → [ით, ტუმბო]`, so the `-ით`
+prep-split emits `with pump`), with the now-redundant `ტუმბოთ` synonym removed and
+a reply-path leading-prep drop for the „რით?" orphan answer. The `-თი` collision
+is avoided by exact-token matching — i.e. option #3 done safely, not the unsafe
+blanket `-თი` postposition. `გაბერე პლასტმასი ტუმბოთი` now consumes a turn.
 
 ---
 
@@ -113,16 +117,23 @@ the puzzle in Georgian with no English.
 3. **Adjective-in-command** as a separate effort (per-object adjective matching).
    Larger; lower priority than #2.
 
-**DECISION (2026-06-27, Ovid): #1 — leave as-is.** The bare-verb +
-4-candidate-Georgian-disambiguation path works end-to-end with no English, and
-the dative-`-ს` direct object stays parked (collision risk vs the G1 recipient
-`-ს`). The memory `ka-dative-direct-object-deferred` remains the record of the
-parked question; not greenlit this round.
+**DECISION (2026-06-27, Ovid): FIXED** (was #1 leave-as-is). Shipped via a
+resolve-gated trailing `-ს` strip in `resolveNoun` (option #2): the noun is tried
+as-is first, and only on a miss is one trailing `-ს` dropped and retried. The G1
+recipient collision is sidestepped by construction — recipients (`ქურდს` /
+`მოაჯირს`, dual-listed) and native-`ს` stems (`თას` / `სკარაბეუს` / `სახრახნის`)
+resolve as-is and never reach the strip, so the parked risk does not materialize.
+All four `push <color> button` commands + the disambiguation reply now work; the
+adjective-in-command half resolves too, since the buttons store the adjective+noun
+synonym, so once `-ს` is stripped `ყვითელ ღილაკ` matches directly. The memory
+`ka-dative-direct-object-deferred` is updated to RESOLVED.
 
 ---
 
 ### Common thread
-Both are **frictions, not blockers** — each has a working, fully-Georgian path,
-so no monolingual player is stuck or forced to read English. Neither was skipped
-for convenience; each is held on a concrete reason (a regression risk / a parked
-design decision that's yours).
+
+Both were **frictions, not blockers** — each already had a working, fully-Georgian
+path, so no monolingual player was ever stuck or forced to read English. Neither
+was skipped for convenience; each was held on a concrete reason (a regression risk
+/ a parked design decision). Both are now FIXED (2026-06-27) — see the DECISION
+blocks above.

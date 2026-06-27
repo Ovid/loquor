@@ -267,8 +267,8 @@ describe('Georgian reply path — instrumental orphan answer ("რით?")', ()
     expect(reply('ტუმბოით')).toBe('pump')
   })
   it('formal instrumental ტუმბოთი resolves to the pump', () => {
-    // Today via the 'ტუმბოთ' synonym in KA_ZORK1 (-ი strip). Task 3 removes that
-    // synonym and adds ტუმბოთი to fusedInstrumentals → [ით, ტუმბო] → prep-drop.
+    // Routes through the fused map (ტუმბოთი → [ით, ტუმბო]) then the reply
+    // prep-drop. (Pre-fused-map this resolved via the now-removed 'ტუმბოთ' synonym.)
     expect(reply('ტუმბოთი')).toBe('pump')
   })
   it('bare ტუმბო resolves to the pump', () => {

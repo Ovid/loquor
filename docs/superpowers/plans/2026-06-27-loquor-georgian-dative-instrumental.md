@@ -48,7 +48,7 @@ Append to `src/llm/lexicon/expandGeorgian.test.ts`, inside the existing `describ
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run src/llm/lexicon/expandGeorgian.test.ts -t "fused"`
-Expected: FAIL — `ტუმბოთი` currently strips to `['ტუმბოთ']` (the third arg is ignored / not a parameter yet), not `['ით', 'ტუმბო']`.
+Expected: FAIL — `ტუმბოთი` currently strips to `['ტუმბოთ']` (the third arg is ignored / not a parameter yet), not `['ით', 'ტუმბო']`. (Vitest uses esbuild, so the extra 3rd arg runs fine here; do **not** run `make typecheck` between this step and Step 3 — the not-yet-added param is a `tsc` error until Step 4.)
 
 - [ ] **Step 3: Add the `fusedInstrumentals` field to `CoreLexicon`**
 
@@ -400,7 +400,7 @@ describe('Georgian F2 — dative -ს direct object', () => {
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run src/llm/lexicon/parse.ka-uat.test.ts -t "dative -ს direct object"`
-Expected: FAIL on the button cases (currently `{ kind: 'miss' }`) and the reply case (`expected null to be 'yellow button'`). The two REGRESSION blocks already pass — they pin behaviour the fix must not break.
+Expected: FAIL on **five** assertions — the four button cases (`{ kind: 'miss' }`), the reply case (`expected null to be 'yellow button'`), **and `აიღე სახრახნისს`** (the screwdriver *dative* `სახრახნისს` → currently `{ kind: 'miss' }`; the strip newly enables it by reducing the double-`ს` dative to the stored stem `სახრახნის`). Note: the second REGRESSION block is mislabelled — it pins both *unchanged* behaviour (the recipient-G1 block; the nominatives `სახრახნისი`/`თასი`/`სკარაბეუსი`, which already pass) **and** one *fix-enabled* case (the screwdriver dative). The recipient-G1 block passes today; do not expect it to fail.
 
 - [ ] **Step 3: Add the resolve-gated `-ს` strip to `resolveNoun`**
 
@@ -487,7 +487,7 @@ Expected: PASS — no failures, and **no stray `console.error`/`console.warn`** 
 - [ ] **Step 2: Lint, format, typecheck**
 
 Run: `make lint && make format && make typecheck`
-Expected: clean (no errors; any auto-fixes are formatting-only).
+Expected: clean (no errors; any auto-fixes are formatting-only). **Caveat:** `notes/uat-georgian-run3.md` is already prettier-dirty at HEAD (pre-existing, not ours), so `make format` will reformat it as a side effect. Revert that unrelated churn before committing: `git checkout -- notes/uat-georgian-run3.md` (the Step 5 commit stages only `pending.md`). Do **not** run `make all` here — its `format-check` fails on those pre-existing files.
 
 - [ ] **Step 3: Flip the `pending.md` decisions**
 

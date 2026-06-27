@@ -42,4 +42,18 @@ describe('expandGeorgian', () => {
       'ყუთ',
     ])
   })
+  it('routes a fused instrumental to [ით, stem] (ტუმბოთი → with pump)', () => {
+    // Vowel stem ტუმბო (pump): instrumental -ით fuses to -თი. Exact-token map
+    // emits [ით, stem] so the existing -ით prep-split can fire.
+    expect(expandGeorgian(['ტუმბოთი'], POST, { ტუმბოთი: 'ტუმბო' })).toEqual([
+      'ით',
+      'ტუმბო',
+    ])
+  })
+  it('exact-token fused map never touches a თ-stem nominative', () => {
+    // ასანთი (matchbook) / ყუთი (box) are NOT keys → normal -ი strip, fused map skipped.
+    const fused = { ტუმბოთი: 'ტუმბო' }
+    expect(expandGeorgian(['ასანთი'], POST, fused)).toEqual(['ასანთ'])
+    expect(expandGeorgian(['ყუთი'], POST, fused)).toEqual(['ყუთ'])
+  })
 })

@@ -402,7 +402,8 @@ export function parseLexicon(
   // stripping the WHOLE clause before verb lookup would mangle the verb into a
   // non-key and MISS with no LLM net. Only when this core declares postpositions
   // (i.e. only ka); fr/de/es have none, so this is a no-op (byte-identical).
-  if (core.postpositions) tokens = expandGeorgian(tokens, core.postpositions)
+  if (core.postpositions)
+    tokens = expandGeorgian(tokens, core.postpositions, core.fusedInstrumentals)
 
   // --- No remainder: verb-only. ---
   if (tokens.length === 0)
@@ -646,7 +647,8 @@ export function resolveNounReply(
 ): string | null {
   let tokens = tokenize(reply)
   if (tokens.length === 0) return null
-  if (core.postpositions) tokens = expandGeorgian(tokens, core.postpositions)
+  if (core.postpositions)
+    tokens = expandGeorgian(tokens, core.postpositions, core.fusedInstrumentals)
   const hit = resolveNoun(tokens, core, nouns, vocab, scene)
   return hit ? hit.emit : null
 }

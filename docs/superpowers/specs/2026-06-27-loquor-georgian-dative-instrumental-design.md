@@ -1,7 +1,15 @@
 # Loquor Input Translation — Georgian dative `-ს` & fused instrumental `-თი`
 
-**Status:** Approved design (brainstormed 2026-06-27). Branch:
+**Status:** Approved design (brainstormed 2026-06-27; revised same day after an
+adversarial `/pushback` review that implemented + ran the suite). Branch:
 `ovid/georgian-fixes`. Closes the two `ka` frictions parked in `/workspace/pending.md`.
+
+**Pushback outcome:** F2 (dative `-ს`) verified solid as written — collision
+sweep, G1 trace, and full regression all green. F1 (fused instrumental) had a
+**blocker the first draft missed**: the new map collides with the round-trip
+gate's reconstruction of an already-stored synonym (`ტუმბოთ`). §2 below now
+carries the fix (drop the redundant synonym) **and** a small reply-path
+enhancement that turns the fix into a net win — see §2.3.
 
 **Source-of-truth lineage:** Extends the Georgian Phase-2 input design
 (`2026-06-24-loquor-georgian-input-design.md`, the top `ka` authority) with two
@@ -141,6 +149,52 @@ Exact-token match against a closed set. `ასანთი`/`ყუთი` are 
 keep their current (correct) handling. The map is gate-tested (§4); a future
 entry must round-trip and UAT-pin like any lexicon data.
 
+### 2.2 Round-trip blocker — drop the redundant `ტუმბოთ` synonym (REQUIRED)
+`ka.zork1.ts:110` currently dual-lists the bare residue `ტუმბოთ` as a pump
+synonym. The **round-trip gate** (`roundtrip.test.ts`'s `toInputForm`) reattaches
+a nominative `-ი` to every consonant-final stored stem to simulate player input —
+so it reconstructs `ტუმბოთ` → `ტუმბოთი` and asserts `take ტუმბოთი` → `take pump`.
+Once F1 routes `ტუმბოთი` to the instrumental, that becomes `take with pump` →
+miss, and **the gate goes red** (reproduced by the pushback review: 1 failure).
+The pushback also confirmed there is no *other* `ს`/`თ`-residue collision — this
+is the only one.
+
+Fix: **remove `ტუმბოთ` from the synonym list** (leave `['ხელის ჰაერის ტუმბო',
+'ტუმბო']`). With it gone, the gate reconstructs only the vowel-final citation form
+`ტუმბო` (unchanged) and `ხელის ჰაერის ტუმბო`, both of which resolve. `ტუმბოთ`
+appears nowhere else in `src` (grep-verified: only the line-110 value + two
+comments).
+
+### 2.3 Reply-path enhancement — accept the case-marked instrumental answer
+Removing `ტუმბოთ` would *regress* one real path: the orphan prompt is **„რით?"**
+("with what?", *instrumental*), so the grammatically natural answer is the
+instrumental **`ტუმბოთი`**, not bare `ტუმბო`. Today `resolveNounReply('ტუმბოთი')`
+→ `pump` (via the `ტუმბოთ` residue, probe-verified); dropping `ტუმბოთ` would make
+it miss. Worse, the *colloquial* `ტუმბოით` reply **already** misses today
+(probe-verified `null`) — `resolveNounReply` does a single `resolveNoun` over the
+whole span, so a leading split prep (`[ით, ტუმბო]`) strands it.
+
+Fix (a net improvement, not just a patch): in `resolveNounReply`, after the
+Georgian pre-stage, if the result **leads with a prep token** drop it and retry:
+
+```ts
+if (core.postpositions)
+  tokens = expandGeorgian(tokens, core.postpositions, core.fusedInstrumentals)
+let hit = resolveNoun(tokens, core, nouns, vocab, scene)
+// ka: a reply to an instrumental prompt ("რით?") arrives case-marked
+// (ტუმბოთი/ტუმბოით → [ით, ტუმბო]); drop a leading prep so the bare instrument
+// resolves. Gated on core.postpositions (ka only — only expandGeorgian can
+// synthesize a leading prep token); fr/de/es never reach this.
+if (!hit && core.postpositions && tokens.length > 1 && core.preps[tokens[0]])
+  hit = resolveNoun(tokens.slice(1), core, nouns, vocab, scene)
+return hit ? hit.emit : null
+```
+
+Net result: the natural instrumental orphan answer `ტუმბოთი` → `pump` is
+**preserved**, and the previously-broken `ტუმბოით` reply now works too. Georgian
+prep tokens (ში/ზე/ით/დან/თან) are never nouns, so the drop can't mis-resolve a
+real answer.
+
 ---
 
 ## 3. F2 — dative `-ს` direct object (`ღილაკს`)
@@ -211,13 +265,20 @@ existing hit.
 closed Zork I noun set, not provably safe in general," so the gates are
 load-bearing. Add to `parse.ka-uat.test.ts` (or the walkthrough suite):
 
-**F1 pins**
+**F1 pins (command path)**
 - `გაბერე პლასტმასი ტუმბოთი` → `inflate valve with pump` (the fix).
 - `გაბერე პლასტმასი ტუმბოით` → `inflate valve with pump` (colloquial still green).
 - `გააღე ყუთი` → `open mailbox` and `აიღე ასანთი` → `take match` (the `-თი`
   collision nouns untouched).
 
-**F2 pins**
+**F1 pins (round-trip blocker + reply path — §2.2 / §2.3)**
+- After dropping `ტუმბოთ`, the round-trip suite stays green (the regression the
+  pushback reproduced is gone).
+- `resolveNounReply('ტუმბოთი')` → `pump` (natural instrumental orphan answer,
+  preserved) and `resolveNounReply('ტუმბოით')` → `pump` (previously missed —
+  now fixed). `resolveNounReply('ტუმბო')` → `pump` (bare, unchanged).
+
+**F2 pins (command path)**
 - `დააჭირე ლურჯ/წითელ/ყავისფერ/ყვითელ ღილაკს` → `push blue/red/brown/yellow button`.
 - `დააჭირე ღილაკს` → `push button`.
 - Regression: `მიეცი კვერცხი ქურდს` → `give egg to thief`;
@@ -225,9 +286,20 @@ load-bearing. Add to `parse.ka-uat.test.ts` (or the walkthrough suite):
 - Regression: chalice/scarab/screwdriver in **both** nominative and dative still
   resolve (e.g. `აიღე სახრახნისი` and `აიღე სახრახნისს` → `take screwdriver`).
 
+**F2 pin (reply path)**
+- `resolveNounReply('ყვითელ ღილაკს')` → `yellow button` (the disambiguation
+  reply — currently misses; the §3 strip in `resolveNoun` repairs it since
+  `resolveNounReply` calls `resolveNoun`). This pins the all-Georgian
+  disambiguation workaround against a future `resolveNounReply` refactor.
+
 **Full suite.** Run the round-trip, walkthrough, and `ka`-uat suites; the
 string-inventory/coverage gates for output are untouched. Green = the closed-set
 safety holds.
+
+**Out of scope (pre-existing, not introduced here):** `მიეცი ოქრო ქურდს` →
+`give pot to thief` (gold resolves via the pot-of-gold canonical's emit). Adjacent
+to the recipient path but unchanged by this work; noted so a reviewer doesn't
+attribute it to F2.
 
 ---
 
@@ -265,11 +337,14 @@ fr/de/es: unchanged.
 
 - `src/llm/lexicon/types.ts` — add optional `fusedInstrumentals` to `CoreLexicon`.
 - `src/llm/lexicon/ka.core.ts` — `KA_FUSED_INSTRUMENTALS`; wire into `KA_CORE`.
-- `src/llm/lexicon/expandGeorgian.ts` — new param; exact-token check first.
-- `src/llm/lexicon/parse.ts` — pass the map at the `expandGeorgian` call site
-  (`parseLexicon` and `resolveNounReply`); resolve-gated `-ს` strip in
-  `resolveNoun`.
+- `src/llm/lexicon/expandGeorgian.ts` — new param (default `{}`); exact-token
+  check first.
+- `src/llm/lexicon/ka.zork1.ts` — **drop the `ტუმბოთ` synonym at line 110**
+  (§2.2, the round-trip blocker fix).
+- `src/llm/lexicon/parse.ts` — pass the map at both `expandGeorgian` call sites
+  (`parseLexicon`, `resolveNounReply`); resolve-gated `-ს` strip in `resolveNoun`
+  (§3); leading-prep drop in `resolveNounReply` (§2.3).
 - `src/llm/lexicon/parse.ka-uat.test.ts` (and/or `parse.ka-walkthrough.test.ts`)
-  — the pins in §4.
+  — the command + reply pins in §4.
 - `src/llm/lexicon/expandGeorgian.test.ts` — F1 unit pin + collision-noun pins.
 - `pending.md`, the memory file (§6).

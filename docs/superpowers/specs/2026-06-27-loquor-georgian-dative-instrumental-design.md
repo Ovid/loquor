@@ -247,9 +247,14 @@ in `ს` resolves *before* it and is never touched:
   all resolve before the fallback).
 
 The only span that reaches the strip is one that misses as-is *and* becomes a
-valid noun after dropping one `-ს` — i.e. a genuine dative direct object.
-Dropping the dative marker is semantically the same noun, so the repair is always
-correct, never a different object. A span that doesn't resolve after stripping
+valid noun after dropping one `-ს`. This is **trailing-`-ს` recovery, not
+dative-only**: the same drop also recovers a genitive modifier (`ოქროს ქოთან` →
+`pot of gold`) and a double-`-ს` native-stem dative (`სახრახნისს` → screwdriver).
+All three are the *same* noun with one trailing `-ს` removed, so the repair is
+always correct, never a different object — and that no-collision property is
+gate-locked (a brute-force in `roundtrip.test.ts` appends `-ს` to every stored
+surface and asserts it recovers the same noun or misses, never a wrong one), so a
+future lexicon entry that broke it would redden the suite. A span that doesn't resolve after stripping
 (e.g. the whole-remainder attempt `კვერცხ ქურდს` in a give-command) still misses
 and falls through to G1 — no regression.
 

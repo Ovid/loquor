@@ -165,3 +165,43 @@ describe('noun entries round-trip through the parser (every word, every game)', 
       })
     }
 })
+
+// F2 collision lock (review I2). The dative `-ს` strip (parse.ts) fires only when
+// the as-is lookup misses, then drops one trailing `-ს` and retries. It is
+// trailing-`-ს` recovery (dative + genitive), and the design's safety rests on
+// "no stored surface + `-ს` resolves to a DIFFERENT noun." ka has no LLM net, so
+// that invariant must be a gate, not a comment: brute-force `surface + 'ს'` across
+// every stored noun and assert it recovers the SAME noun or misses — never a wrong
+// one. A future ka.zork1 entry whose `surface + 'ს'` collided would redden here.
+describe('ka dative `-ს` strip never resolves to a wrong noun (F2 collision lock, I2)', () => {
+  it('the dative `-ს` form of any stored ka/zork1 noun resolves like its nominative (or misses)', () => {
+    const core = coreLexicon('ka')
+    const nouns = nounLexicon('ka', ZORK1_SIG)!
+    const takeWord = Object.entries(core.verbs).find(
+      ([, to]) => to === 'take',
+    )![0]
+    // Every noun in scope so a genuine cross-noun collision surfaces (scoping to
+    // one canonical would mask it); an ambiguous span emits the shared Z-parser
+    // dictionary word (ღილაკ → 'button') — the documented disambiguation path.
+    const allInScope: Scene = {
+      inScope: ZORK1_VOCAB.nouns.map(n => ({ canonical: n.canonical })),
+      antecedent: null,
+    }
+    const parse = (s: string) =>
+      parseLexicon(`${takeWord} ${s}`, core, nouns, ZORK1_VOCAB, allInScope)
+    const failures: string[] = []
+    for (const words of Object.values(nouns))
+      for (const w of words) {
+        // The dative (`w`+ს) and the player's nominative (toInputForm) are the SAME
+        // noun. The roundtrip gate above proves the nominative resolves correctly;
+        // the strip must recover that exact emit, or miss — never a different noun.
+        const nom = parse(toInputForm('ka', w))
+        const dat = parse(`${w}ს`)
+        if (dat.kind !== 'command') continue // miss is fine (recovery is best-effort)
+        const want = nom.kind === 'command' ? nom.text : '(nominative miss)'
+        if (dat.text !== want)
+          failures.push(`${w}ს → '${dat.text}' (nominative gives '${want}')`)
+      }
+    expect(failures).toEqual([])
+  })
+})

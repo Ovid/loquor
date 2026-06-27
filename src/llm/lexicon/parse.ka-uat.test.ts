@@ -275,3 +275,23 @@ describe('Georgian reply path — instrumental orphan answer ("რით?")', ()
     expect(reply('ტუმბო')).toBe('pump')
   })
 })
+
+describe('Georgian F1 — fused instrumental (pump)', () => {
+  it('fused ტუმბოთი: inflate plastic with pump', () => {
+    expect(ka('გაბერე პლასტმასი ტუმბოთი')).toEqual({
+      kind: 'command',
+      text: 'inflate valve with pump',
+    })
+  })
+  it('colloquial ტუმბოით still works', () => {
+    expect(ka('გაბერე პლასტმასი ტუმბოით')).toEqual({
+      kind: 'command',
+      text: 'inflate valve with pump',
+    })
+  })
+  it('the -თი collision nouns are untouched', () => {
+    // ასანთი (matchbook) and ყუთი (box) are NOT fused-map keys.
+    expect(ka('აიღე ასანთი')).toEqual({ kind: 'command', text: 'take match' })
+    expect(ka('გააღე ყუთი')).toEqual({ kind: 'command', text: 'open mailbox' })
+  })
+})

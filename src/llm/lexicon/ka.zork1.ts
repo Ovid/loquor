@@ -143,7 +143,9 @@ export const KA_ZORK1: NounLexicon = {
   'nasty knife': ['საზიზღარ დანა', 'დანა', 'დან'], // დანა vowel-final (knife)
   'number of ghosts': ['მოჩვენებებ'], // მოჩვენებები → მოჩვენებებ (ghosts/spirits)
   painting: ['ნახატ'], // ნახატი → ნახატ
-  'pair of candles': ['ორ სანთელ', 'სანთელ'], // candles სანთელი → სანთელ
+  // singular სანთელი → სანთელ; displayed PLURAL სანთები + syncopated plural
+  // სანთლები → stems სანთებ / სანთლებ (UAT run 3: the Altar shows the plural).
+  'pair of candles': ['ორ სანთელ', 'სანთელ', 'სანთებ', 'სანთლებ'],
   'pair of hands': ['ორ ხელ', 'ხელ'], // hands ხელი → ხელ
   passage: ['გასასვლელ'], // გასასვლელი → გასასვლელ (path/trail)
   pedestal: ['კვარცხლბეკ'], // კვარცხლბეკი → კვარცხლბეკ

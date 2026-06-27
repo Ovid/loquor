@@ -150,6 +150,37 @@ describe('Georgian playthrough — displayed compound object names', () => {
   })
 })
 
+// Georgian COMPLETION run 3 (notes/uat-georgian-run3.md, 2026-06-27).
+describe('Georgian run 3 — candles displayed plural', () => {
+  // The Altar displays the candles as the Georgian PLURAL (სანთები / the
+  // syncopated სანთლები) — the natural thing to type — but the lexicon carried
+  // only the singular stem სანთელ, so the plural surfaces abstained (run 3). Same
+  // family as the displayed-compound-name findings: a native speaker types what
+  // is on screen. Add the plural stems as synonyms; the singular still works.
+  it('take candles via the displayed plural (აიღე სანთები / სანთლები)', () => {
+    expect(ka('აიღე სანთები')).toEqual({
+      kind: 'command',
+      text: 'take candles',
+    })
+    expect(ka('აიღე სანთლები')).toEqual({
+      kind: 'command',
+      text: 'take candles',
+    })
+  })
+  it('light candles with match via the plural (აანთე სანთები ასანთით)', () => {
+    expect(ka('აანთე სანთები ასანთით')).toEqual({
+      kind: 'command',
+      text: 'light candles with match',
+    })
+  })
+  it('singular still resolves (regression)', () => {
+    expect(ka('აიღე სანთელი')).toEqual({
+      kind: 'command',
+      text: 'take candles',
+    })
+  })
+})
+
 // Georgian COMPLETION playthrough (notes/uat-georgian-completion.md, run 2,
 // 2026-06-26). Pins the run-2 findings that were clear deterministic gaps.
 describe('Georgian completion — exit the boat (Finding 3)', () => {

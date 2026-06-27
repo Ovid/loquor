@@ -85,9 +85,21 @@ on turn one. This is the top output fix.
    a generic in-language line. Cross-language: the template pre-empts the LLM, so it
    leaked in EVERY mode for fr/de/es too — fixed in all four. The `{obj}` variant still
    names known display-name objects in-language.
+   - **✅ RE-VERIFIED in a fresh tab (2026-06-27, after fixes landed):** at Canyon View
+     `აიღე ფარანი` / `აიღე ბოთლი` / `გადი ნავიდან` (input still parses → take lamp / take
+     bottle / exit boat) now all print **„აქ ასეთი არაფერი არ ჩანს!"** ("there's nothing
+     like that here") — fully Georgian, **zero English token**. Cross-language spot-check:
+     switched picker to Español, `coge lámpara` / `coge botella` → **„No ves nada de eso
+     por aquí."** (Spanish, no English). The "all langs" claim holds. The reframe is now
+     generic (no longer names the object), matching the disambiguation drop-the-token
+     approach.
 2. ✅ **FIXED (commit 4ec2013)** — 🟧 displayed plural „სანთები"/„სანთლები" rejected; added
    the plural stems as ka synonyms (singular still works). fr/de/es already carried their
    plurals, so ka-only.
+   - **✅ RE-VERIFIED in a fresh tab (2026-06-27):** `აიღე სანთები` → `take candles`,
+     `აიღე სანთლები` → `take candles`, and the Hades ritual `აანთე სანთები ასანთით` →
+     `light candles with match` — all `stage:"lexicon"` now (were abstains). The form
+     matching what's on screen works.
 3. 🟦 **Residual UNKNOWN — never verified by ANY run for ka:** the OUTPUT corpus of the
    late-game success scenes (Hades exorcism, machine/diamond, songbird bauble) and
    especially the **endgame / Stone Barrow victory text**. Input verbs all work, but no

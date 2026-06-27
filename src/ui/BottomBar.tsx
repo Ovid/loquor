@@ -77,9 +77,10 @@ export function BottomBar({
         <>
           {/* Beta notice — Georgian ONLY (Decision 1): the screen is Georgian,
               so a Georgian screen reader voices it correctly and the English
-              half is just clutter. SIBLING COPY: landingStrings.ts `ka.caveat`
-              is the landing-plate variant of this same beta note — apply any
-              wording fix to BOTH so they don't drift (review S4). Both are
+              half is just clutter. This is now the PRIMARY in-game alpha/beta
+              disclosure: the landing teaser (landingStrings.ts `ka.caveat`) was
+              reframed to pure adventure flavor, so the honesty note lives here
+              and on the picker label (`languageOptions.ts`), not the teaser.
               NATIVE-REVIEW-DRAFT (§8). */}
           <span lang="ka">
             ქართული თარგმანი ჯერ სატესტოა — ზოგი ტექსტი შეიძლება ინგლისურად

@@ -162,4 +162,23 @@ describe('ka lexicon validation (Zork I only — spec §6)', () => {
       .sort()
     expect(overlap).toEqual([...(KNOWN_COLLISIONS.ka[ZORK1_SIG] ?? [])].sort())
   })
+  // Fused-instrumental map invariant (I1). expandGeorgian emits [ით, stem] on an
+  // exact-token hit, so the entry is only well-formed if (a) 'ით' is a real
+  // postposition key (else the synthesized prep token can't split) and (b) the
+  // stem resolves as a stored noun (else the bare stem silently misses). ka has no
+  // LLM net, so a malformed FUTURE entry would ship as a guaranteed raw-English
+  // leak; this gate fails the suite instead. The shipped ტუმბოთი → ტუმბო is sound.
+  it('every fused-instrumental entry is well-formed (ით is a postposition; stem is a stored noun)', () => {
+    const fused = core.fusedInstrumentals ?? {}
+    expect(Object.hasOwn(core.postpositions ?? {}, 'ით')).toBe(true)
+    const nounSurfaces = new Set(Object.values(lex).flat())
+    for (const [surface, stem] of Object.entries(fused)) {
+      expect(fold(surface), `key ${surface}`).toBe(surface)
+      expect(fold(stem), `value ${stem}`).toBe(stem)
+      expect(
+        nounSurfaces.has(stem),
+        `${surface} → ${stem} not a stored noun`,
+      ).toBe(true)
+    }
+  })
 })

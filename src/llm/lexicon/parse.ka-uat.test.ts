@@ -3,7 +3,7 @@
 // findings against the SHIPPING KA_CORE + KA_ZORK1 and the real ZORK1_VOCAB.
 // Mirrors parse.es-uat.test.ts. NATIVE-REVIEW-DRAFT fixtures.
 import { describe, it, expect } from 'vitest'
-import { parseLexicon } from './parse'
+import { parseLexicon, resolveNounReply } from './parse'
 import { KA_CORE } from './ka.core'
 import { KA_ZORK1 } from './ka.zork1'
 import { ZORK1_VOCAB } from '../grammar/zork1.vocab'
@@ -255,5 +255,108 @@ describe('Georgian UAT — meta verbs (finding-8)', () => {
   it('Georgian meta aliases map to raw English meta', () => {
     expect(KA_CORE.metaAliases['ინვენტარი']).toBe('inventory')
     expect(KA_CORE.metaAliases['გასვლა']).toBe('quit')
+  })
+})
+
+describe('Georgian reply path — instrumental orphan answer ("რით?")', () => {
+  const reply = (s: string) =>
+    resolveNounReply(s, KA_CORE, KA_ZORK1, ZORK1_VOCAB, empty)
+  it('colloquial instrumental ტუმბოით resolves to the pump', () => {
+    // Answer to the inflate orphan prompt; -ით splits to [ით, ტუმბო], the
+    // leading prep is dropped, ტუმბო resolves.
+    expect(reply('ტუმბოით')).toBe('pump')
+  })
+  it('formal instrumental ტუმბოთი resolves to the pump', () => {
+    // Routes through the fused map (ტუმბოთი → [ით, ტუმბო]) then the reply
+    // prep-drop. (Pre-fused-map this resolved via the now-removed 'ტუმბოთ' synonym.)
+    expect(reply('ტუმბოთი')).toBe('pump')
+  })
+  it('bare ტუმბო resolves to the pump', () => {
+    expect(reply('ტუმბო')).toBe('pump')
+  })
+})
+
+describe('Georgian F1 — fused instrumental (pump)', () => {
+  it('fused ტუმბოთი: inflate plastic with pump', () => {
+    expect(ka('გაბერე პლასტმასი ტუმბოთი')).toEqual({
+      kind: 'command',
+      text: 'inflate valve with pump',
+    })
+  })
+  it('colloquial ტუმბოით still works', () => {
+    expect(ka('გაბერე პლასტმასი ტუმბოით')).toEqual({
+      kind: 'command',
+      text: 'inflate valve with pump',
+    })
+  })
+  it('the -თი collision nouns are untouched', () => {
+    // ასანთი (matchbook) and ყუთი (box) are NOT fused-map keys.
+    expect(ka('აიღე ასანთი')).toEqual({ kind: 'command', text: 'take match' })
+    expect(ka('გააღე ყუთი')).toEqual({ kind: 'command', text: 'open mailbox' })
+  })
+})
+
+describe('Georgian F2 — dative -ს direct object', () => {
+  it('push <color> button (dative head ღილაკს) — all four colours', () => {
+    expect(ka('დააჭირე ლურჯ ღილაკს')).toEqual({
+      kind: 'command',
+      text: 'push blue button',
+    })
+    expect(ka('დააჭირე წითელ ღილაკს')).toEqual({
+      kind: 'command',
+      text: 'push red button',
+    })
+    expect(ka('დააჭირე ყავისფერ ღილაკს')).toEqual({
+      kind: 'command',
+      text: 'push brown button',
+    })
+    expect(ka('დააჭირე ყვითელ ღილაკს')).toEqual({
+      kind: 'command',
+      text: 'push yellow button',
+    })
+  })
+  it('bare dative ღილაკს → push button (Z-parser disambiguates)', () => {
+    expect(ka('დააჭირე ღილაკს')).toEqual({
+      kind: 'command',
+      text: 'push button',
+    })
+  })
+  it('disambiguation reply ყვითელ ღილაკს resolves to the button', () => {
+    expect(
+      resolveNounReply('ყვითელ ღილაკს', KA_CORE, KA_ZORK1, ZORK1_VOCAB, empty),
+    ).toBe('yellow button')
+  })
+  it('REGRESSION: dative recipients still route through G1', () => {
+    expect(ka('მიეცი კვერცხი ქურდს')).toEqual({
+      kind: 'command',
+      text: 'give egg to thief',
+    })
+    expect(ka('მიაბი თოკი მოაჯირს')).toEqual({
+      kind: 'command',
+      text: 'tie rope to railing',
+    })
+  })
+  it('REGRESSION: native -ს stems resolve in nominative AND dative', () => {
+    // screwdriver სახრახნის: nominative სახრახნისი, dative სახრახნისს.
+    expect(ka('აიღე სახრახნისი')).toEqual({
+      kind: 'command',
+      text: 'take screwdriver',
+    })
+    expect(ka('აიღე სახრახნისს')).toEqual({
+      kind: 'command',
+      text: 'take screwdriver',
+    })
+    // chalice თას (nominative თასი); scarab სკარაბეუს (nominative სკარაბეუსი).
+    expect(ka('აიღე თასი')).toEqual({ kind: 'command', text: 'take chalice' })
+    expect(ka('აიღე სკარაბეუსი')).toEqual({
+      kind: 'command',
+      text: 'take scarab',
+    })
+  })
+  it('REGRESSION: genitive ოქროს still resolves to the pot of gold', () => {
+    // The strip also lands a genitive modifier (ოქროს → ოქრო); bare ოქრო is
+    // deliberately mapped to the pot of gold (correct Zork — no takeable "gold").
+    // Pinned so a future lexicon change can't silently break this strip-into-genitive.
+    expect(ka('აიღე ოქროს')).toEqual({ kind: 'command', text: 'take pot' })
   })
 })

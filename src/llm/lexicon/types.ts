@@ -71,6 +71,12 @@ export interface CoreLexicon {
    *  so the path gates on membership here instead. Present only for ka (which has
    *  postpositions); absent elsewhere, so the G1 path never fires for fr/de/es. */
   dativeRecipients?: ReadonlySet<string>
+  /** ka only. Closed map of fused-instrumental SURFACE forms → bare stem, for
+   *  vowel stems where the instrumental -ით fuses to -თი (ტუმბოთი "with the
+   *  pump"), so the generic -ით split can't fire. expandGeorgian emits [ით, stem]
+   *  on an exact-token hit; the value MUST resolve as a noun and 'ით' MUST be a
+   *  key in postpositions. Present only for ka. */
+  fusedInstrumentals?: Readonly<Record<string, string>>
 }
 
 /** Per-game noun lexicon: vocab CANONICAL → foreign surface words/phrases

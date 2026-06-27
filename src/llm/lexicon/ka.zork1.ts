@@ -100,14 +100,15 @@ export const KA_ZORK1: NounLexicon = {
   'green bubble': ['მწვანე ბუშტ', 'ბუშტ'], // bubble ბუშტი → ბუშტ
   ground: ['მიწა'], // vowel-final (ground/floor)
   'group of tool chests': ['ხელსაწყოების ყუთებ', 'ყუთებ'], // ყუთები → ყუთებ (chests)
-  // ტუმბო is vowel-final. Its FORMAL instrumental 'ტუმბოთი' fuses -ით → -თი,
-  // which expandGeorgian's -ი strip leaves as 'ტუმბოთ' (the -ით postposition never
-  // matches -თი) — i.e. no 'with' prep token is emitted and the prep-split can't
-  // fire. The walkthrough fixture therefore uses the SPLIT-SAFE instrumental
-  // 'ტუმბოით' → [ით, ტუმბო] (← review: confirm this colloquial -ით form vs formal
-  // -თი). 'ტუმბოთ' is listed too so the formal form still resolves as the bare
-  // object if a player types it.
-  'hand-held air pump': ['ხელის ჰაერის ტუმბო', 'ტუმბო', 'ტუმბოთ'], // ტუმბო vowel-final (pump)
+  // ტუმბო is vowel-final. Its FORMAL instrumental 'ტუმბოთი' fuses -ით → -თი; the
+  // KA_FUSED_INSTRUMENTALS map (ka.core.ts) routes 'ტუმბოთი' → [ით, ტუმბო] so the
+  // -ით prep-split emits 'with pump' (spec §2). The colloquial 'ტუმბოით' splits
+  // the same way. The old 'ტუმბოთ' bare synonym is REMOVED: with the fused map it
+  // is redundant for commands, and as a round-trip image it reroutes to "with
+  // pump" and reddens the gate (spec §2.2). The instrumental orphan reply
+  // ('ტუმბოთი'/'ტუმბოით', answering „რით?") resolves via the reply-path leading-
+  // prep drop (spec §2.3).
+  'hand-held air pump': ['ხელის ჰაერის ტუმბო', 'ტუმბო'], // ტუმბო vowel-final (pump)
   'huge diamond': ['უზარმაზარ ბრილიანტ', 'ბრილიანტ'], // ბრილიანტი → ბრილიანტ (diamond)
   'jade figurine': ['ნეფრიტის ფიგურა', 'ფიგურა', 'ნეფრიტ'], // ფიგურა vowel-final; jade ნეფრიტი → ნეფრიტ
   // jeweled = -იანი adjective (M2 opt b: corpus simplified off the -ით participle).

@@ -324,24 +324,25 @@ describe('Landing', () => {
     )
   })
 
-  it('flag OFF (default): shows the SHORT caveat, no model mention', () => {
+  it('shows the adventure teaser, never the old model/experimental copy', () => {
     render(
       <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
     )
-    expect(screen.getByText(LANDING_STRINGS.en.caveatShort)).toBeInTheDocument()
+    expect(screen.getByText(LANDING_STRINGS.en.caveat)).toBeInTheDocument()
+    // The upsell moved off the teaser (the download modal owns the disclosure):
+    // no model/experimental/language-count copy leaks onto the landing.
     expect(screen.queryByText(/Basic commands work now/i)).toBeNull()
     expect(screen.queryByText(/optional, experimental model/i)).toBeNull()
+    expect(screen.queryByText(/all four languages/i)).toBeNull()
   })
 
-  it('flag ON: shows the full optional-model caveat (en/fr/de/es)', () => {
+  it('teaser is unaffected by the LLM feature flag (no model upsell either way)', () => {
     localStorage.setItem(LS_KEYS.llm, '1')
     render(
       <Landing onEnter={() => {}} savedSlugs={new Set()} themeToggle={null} />,
     )
-    expect(screen.getByText(/Basic commands work now/i)).toBeInTheDocument()
-    expect(
-      screen.getByText(/optional, experimental model/i),
-    ).toBeInTheDocument()
+    expect(screen.getByText(LANDING_STRINGS.en.caveat)).toBeInTheDocument()
+    expect(screen.queryByText(/optional, experimental model/i)).toBeNull()
   })
 
   it('shows the Zork trademark / open-source footnote', () => {

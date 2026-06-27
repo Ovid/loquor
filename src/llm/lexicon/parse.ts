@@ -120,6 +120,29 @@ function resolveNoun(
     const hit = tryResolve(s)
     if (hit) return hit
   }
+  // Georgian dative direct object (ka only — gated on core.postpositions). A
+  // dative -ს on the HEAD noun (ღილაკს "button", ყვითელ ღილაკს "yellow button")
+  // is not a splittable postposition (it collides with genitive -ის) and not the
+  // nominative -ი strip, so it arrives attached and misses. Resolve-GATED: ONLY
+  // after the as-is lookups miss, retry with a single trailing -ს dropped from
+  // the LAST token; commit only a hit. Safe by construction — recipients
+  // (ქურდს/მოაჯირს, dual-listed) and native -ს stems (თას/სკარაბეუს/სახრახნის)
+  // resolve as-is and never reach here, so the G1 path and the round-trip gate
+  // are untouched (spec §3; defuses the ka-dative-direct-object-deferred risk).
+  // Mechanically this is trailing-`-ს` recovery, not just the dative: it strips a
+  // trailing -ს from any missed last token, so it ALSO recovers a native-stem
+  // DATIVE (double-ს სახრახნისს → სახრახნის) and a GENITIVE modifier (ოქროს → ოქრო →
+  // pot) — both consistent, no wrong-noun collision exists in the lexicon. That
+  // no-collision invariant is gate-locked (roundtrip.test.ts brute-forces
+  // surface+`-ს` across every canonical), so a future ka.zork1 entry that
+  // introduced one would redden the suite rather than ship a silent leak.
+  if (core.postpositions && span.length > 0) {
+    const last = span[span.length - 1]
+    if (last.length > 1 && last.endsWith('ს')) {
+      const hit = tryResolve([...span.slice(0, -1), last.slice(0, -1)])
+      if (hit) return hit
+    }
+  }
   return null
 }
 
@@ -402,7 +425,8 @@ export function parseLexicon(
   // stripping the WHOLE clause before verb lookup would mangle the verb into a
   // non-key and MISS with no LLM net. Only when this core declares postpositions
   // (i.e. only ka); fr/de/es have none, so this is a no-op (byte-identical).
-  if (core.postpositions) tokens = expandGeorgian(tokens, core.postpositions)
+  if (core.postpositions)
+    tokens = expandGeorgian(tokens, core.postpositions, core.fusedInstrumentals)
 
   // --- No remainder: verb-only. ---
   if (tokens.length === 0)
@@ -499,7 +523,7 @@ export function parseLexicon(
     core.postpositions &&
     KA_MOTION_VERBS.has(verb) &&
     tokens.length >= 2 &&
-    tokens[0] in core.postpositions
+    Object.hasOwn(core.postpositions, tokens[0])
   ) {
     const obj = resolveNoun(tokens.slice(1), core, nouns, vocab, scene)
     if (obj && verbArity1or2(verb, vocab))
@@ -530,7 +554,9 @@ export function parseLexicon(
   // English prep. ---
   for (let i = 1; i < tokens.length - 1; i++) {
     const prep =
-      core.preps[tokens[i]] ??
+      (Object.hasOwn(core.preps, tokens[i])
+        ? core.preps[tokens[i]]
+        : undefined) ??
       (vocab.preps.includes(tokens[i]) ? tokens[i] : undefined)
     if (!prep || !vocab.preps.includes(prep)) continue
     // Spanish personal-`a`: a leading `a`/`al` on the object span marks an
@@ -646,7 +672,24 @@ export function resolveNounReply(
 ): string | null {
   let tokens = tokenize(reply)
   if (tokens.length === 0) return null
-  if (core.postpositions) tokens = expandGeorgian(tokens, core.postpositions)
-  const hit = resolveNoun(tokens, core, nouns, vocab, scene)
+  if (core.postpositions)
+    tokens = expandGeorgian(tokens, core.postpositions, core.fusedInstrumentals)
+  let hit = resolveNoun(tokens, core, nouns, vocab, scene)
+  // ka: a reply to a postpositional prompt arrives case-marked, so expandGeorgian
+  // synthesizes a leading prep token (the instrumental "რით?"/"with what?" →
+  // ტუმბოთი/ტუმბოით → [ით, ტუმბო]; any of ში/ზე/დან/თან likewise). Drop ANY leading
+  // postposition so the bare noun resolves — the gate is truthiness only, broader
+  // than just the instrumental ით, and always safe (it resolves a real noun or
+  // returns null → abstain, never raw-sends Georgian). Gated on core.postpositions
+  // (ka only — only expandGeorgian can synthesize a leading prep token); fr/de/es
+  // never reach it. Object.hasOwn so a player token of constructor/toString can't
+  // index a truthy prototype member.
+  if (
+    !hit &&
+    core.postpositions &&
+    tokens.length > 1 &&
+    Object.hasOwn(core.preps, tokens[0])
+  )
+    hit = resolveNoun(tokens.slice(1), core, nouns, vocab, scene)
   return hit ? hit.emit : null
 }

@@ -42,6 +42,14 @@ const KA_DATIVE_RECIPIENTS: ReadonlySet<string> = new Set([
   'მოაჯირს', // wooden railing
 ])
 
+// Fused-instrumental surface forms (spec §2). Vowel stems where the instrumental
+// -ით fuses to -თი, so expandGeorgian's generic -ით split can't fire. Exact-token
+// → emit [ით, stem]. ტუმბო (pump) is the ONLY vowel-stem instrument in Zork I.
+// NATIVE-REVIEW-DRAFT. Zork-I-only, like the rest of ka.
+const KA_FUSED_INSTRUMENTALS: Readonly<Record<string, string>> = {
+  ტუმბოთი: 'ტუმბო', // pump: instrumental -ით fuses to -თი on the vowel stem
+}
+
 export const KA_CORE: CoreLexicon = {
   verbs: {
     // take / get
@@ -172,6 +180,7 @@ export const KA_CORE: CoreLexicon = {
   },
   postpositions: KA_POSTPOSITIONS,
   dativeRecipients: KA_DATIVE_RECIPIENTS,
+  fusedInstrumentals: KA_FUSED_INSTRUMENTALS,
   articles: [],
   pronounsDirect: [],
   pronounsContainer: [],

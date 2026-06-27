@@ -649,6 +649,12 @@ export function resolveNounReply(
   if (tokens.length === 0) return null
   if (core.postpositions)
     tokens = expandGeorgian(tokens, core.postpositions, core.fusedInstrumentals)
-  const hit = resolveNoun(tokens, core, nouns, vocab, scene)
+  let hit = resolveNoun(tokens, core, nouns, vocab, scene)
+  // ka: a reply to an instrumental prompt ("რით?"/"with what?") arrives
+  // case-marked (ტუმბოთი/ტუმბოით → [ით, ტუმბო]); drop a leading prep so the bare
+  // instrument resolves. Gated on core.postpositions (ka only — only
+  // expandGeorgian can synthesize a leading prep token); fr/de/es never reach it.
+  if (!hit && core.postpositions && tokens.length > 1 && core.preps[tokens[0]])
+    hit = resolveNoun(tokens.slice(1), core, nouns, vocab, scene)
   return hit ? hit.emit : null
 }

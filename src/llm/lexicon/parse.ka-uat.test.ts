@@ -3,7 +3,7 @@
 // findings against the SHIPPING KA_CORE + KA_ZORK1 and the real ZORK1_VOCAB.
 // Mirrors parse.es-uat.test.ts. NATIVE-REVIEW-DRAFT fixtures.
 import { describe, it, expect } from 'vitest'
-import { parseLexicon } from './parse'
+import { parseLexicon, resolveNounReply } from './parse'
 import { KA_CORE } from './ka.core'
 import { KA_ZORK1 } from './ka.zork1'
 import { ZORK1_VOCAB } from '../grammar/zork1.vocab'
@@ -255,5 +255,23 @@ describe('Georgian UAT — meta verbs (finding-8)', () => {
   it('Georgian meta aliases map to raw English meta', () => {
     expect(KA_CORE.metaAliases['ინვენტარი']).toBe('inventory')
     expect(KA_CORE.metaAliases['გასვლა']).toBe('quit')
+  })
+})
+
+describe('Georgian reply path — instrumental orphan answer ("რით?")', () => {
+  const reply = (s: string) =>
+    resolveNounReply(s, KA_CORE, KA_ZORK1, ZORK1_VOCAB, empty)
+  it('colloquial instrumental ტუმბოით resolves to the pump', () => {
+    // Answer to the inflate orphan prompt; -ით splits to [ით, ტუმბო], the
+    // leading prep is dropped, ტუმბო resolves.
+    expect(reply('ტუმბოით')).toBe('pump')
+  })
+  it('formal instrumental ტუმბოთი resolves to the pump', () => {
+    // Today via the 'ტუმბოთ' synonym in KA_ZORK1 (-ი strip). Task 3 removes that
+    // synonym and adds ტუმბოთი to fusedInstrumentals → [ით, ტუმბო] → prep-drop.
+    expect(reply('ტუმბოთი')).toBe('pump')
+  })
+  it('bare ტუმბო resolves to the pump', () => {
+    expect(reply('ტუმბო')).toBe('pump')
   })
 })

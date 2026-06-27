@@ -16,9 +16,10 @@ finding 1 — `KA_FUSED_INSTRUMENTALS` map (`ტუმბოთი → with pump
 
 ---
 
-## 1. `inflate <X> with pump` — instrumental `ტუმბოთი` abstains  🟧
+## 1. `inflate <X> with pump` — instrumental `ტუმბოთი` abstains 🟧
 
 ### What the player sees
+
 - `გაბერე პლასტმასი ტუმბოთი` ("inflate plastic with pump", one command) →
   **abstains** (no turn consumed).
 - The puzzle is still solvable in Georgian via the orphan prompt:
@@ -28,6 +29,7 @@ finding 1 — `KA_FUSED_INSTRUMENTALS` map (`ტუმბოთი → with pump
   (`მოკალი ტროლი მახვილით`, `დაატრიალე ხრახნი … გასაღებით`) but **not** inflate.
 
 ### Why it happens (root cause)
+
 The instrument is the **pump**, which is **vowel-final**: `ტუმბო`. Georgian's
 instrumental case `-ით` **fuses** onto a vowel stem as `-თი`, so "with the pump"
 is `ტუმბოთი`, not `*ტუმბოით`.
@@ -47,6 +49,7 @@ is `ტუმბოთი`, not `*ტუმბოით`.
 fine.)
 
 ### Why I didn't "just add `-თი` as a postposition"
+
 A `-თი → with` postposition is the obvious fix and it is **unsafe** — `-თι` is a
 2-char suffix that collides with the **nominative** of real nouns whose stem ends
 in `თ`:
@@ -60,13 +63,14 @@ chose to dodge this (the `ტუმბოთ` synonym handles the bare/orphan ca
 choice is correct.
 
 ### Options for you
+
 1. **Leave as-is (my recommendation).** Working orphan-prompt alternative; the
    "specific reason" (vowel-stem fusion + 2-char-suffix collision) is real and
    stated. The pump is the **only** vowel-stem instrument that matters in Zork I.
 2. **Narrow special-case** for the pump only: in the prep-split fallback, when a
    `verbs2` verb's object span is followed by a single bare token that is a known
    **instrument** synonym (TOOLBIT) with no prep, emit `<verb> <obj> with
-   <instr>`. Solves inflate without the `-თი` collision, but it's bespoke and
+<instr>`. Solves inflate without the `-თი` collision, but it's bespoke and
    could mis-fire on other juxtapositions — needs care and its own tests.
 3. **Add `ტუმბოთი` as a literal pre-mapped instrumental phrase** somewhere — feels
    like whack-a-mole; punts the general vowel-stem-instrumental problem.
@@ -80,9 +84,10 @@ blanket `-თი` postposition. `გაბერე პლასტმასი 
 
 ---
 
-## 2. `push <color> button` — adjective-modified, dative direct object  🟧
+## 2. `push <color> button` — adjective-modified, dative direct object 🟧
 
 ### What the player sees
+
 - `დააჭირე ყვითელ ღილაკს` ("push yellow button") → **abstains**.
 - Fully-Georgian workaround works end-to-end: bare `დააჭირე ღილაკი`
   (`push button`) → 4-candidate **Georgian** disambiguation („რომელი გულისხმობ —
@@ -90,11 +95,12 @@ blanket `-თი` postposition. `გაბერე პლასტმასი 
   `ყვითელი ღილაკი` → `> yellow button` → „წკაპ." ✅ No English at any step.
 
 ### Why it happens — TWO independent reasons
-1. **Adjective-in-command.** The compound-name fix accepts noun *names*
+
+1. **Adjective-in-command.** The compound-name fix accepts noun _names_
    (`საფოსტო ყუთი`) but not an **adjective + noun** in a command
    (`ყვითელ ღილაკ…`). There is no per-object adjective-agreement machinery, and
    adjectives inflect/agree, so this is real infrastructure, not a one-liner.
-2. **Dative `-ს` on a *direct* object.** `ღილაკს` is the dative form. This is the
+2. **Dative `-ს` on a _direct_ object.** `ღილაკს` is the dative form. This is the
    exact case parked in memory **`ka-dative-direct-object-deferred`**: a `-ს`
    direct object collides with the **G1 recipient `-ს`** path (give/tie
    `… ქურდს` / `… მოაჯირს`). Naively forgiving `-ს` on a direct object risks
@@ -102,6 +108,7 @@ blanket `-თი` postposition. `გაბერე პლასტმასი 
    **needing your call** before anyone touches it.
 
 ### Why I didn't touch it
+
 - It sits on the deferred `-ს` direct-object question that's yours to decide.
 - Even setting `-ს` aside, the adjective-in-command half is non-trivial new
   parsing surface.
@@ -109,6 +116,7 @@ blanket `-თი` postposition. `გაბერე პლასტმასი 
   disambiguation reply), so the player is never blocked or forced into English.
 
 ### Options for you
+
 1. **Leave as-is (my recommendation for now).** Working all-Georgian path; the
    `-ს` direct-object risk is documented and yours.
 2. **Tackle the dative `-ს` direct object** as its own scoped piece (with the

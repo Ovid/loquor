@@ -192,7 +192,7 @@ The architecture is genuinely well-layered. **madge reports zero circular depend
 - **Status:** Partially fixed
 - **Status reason:** The NARROW, high-value slice was done; the full god-component decomposition was deliberately NOT (adversarial-review verdict, ratified with Ovid). **Done:** `Terminal` no longer hard-`new`s its collaborators — `engine?: LlmEngine` and `gate?: EngineGate` are now injectable props (default-constructed when omitted, via the existing `useState` initializers, so production wiring is byte-for-byte unchanged). This removes the "composition root directly instantiates `WebLlmEngine`/`EngineGate`" coupling the evidence named (`:85,88`) and, more concretely, **closes the F-o Terminal test gap** the report flagged as "would require the F-d engine-injection refactor": a test now injects a `FakeLlmEngine` whose `isCached()` rejects and asserts the M2 migration-probe catch surfaces `log.warn('llm-hidden migration probe failed', …)` instead of swallowing it (that path was inert across the suite before, since the real `isCached` degrades faults to false internally). Two new tests (inject-and-unload proves the prop is consumed; the F-o catch); full `Terminal.test.tsx` 42/42 green, typecheck + lint clean. **Deliberately NOT done:** splitting the 598-line render / the M2 effect / the ~13 derived flags into sub-components. The report itself rates `Terminal` "largely appropriate as the composition root," and the prior campaign already extracted `useGameEngine`/`useLlmFeature`/`useSceneObservation`; the remainder is mostly irreducible JSX wiring + a11y-critical render logic (live regions, `ka` notices, `onSubmit` routing), where a further split is churn-for-aesthetics on the highest-fan-in/highest-churn file for no behavioral win — the YAGNI/"talk to me first" call. The Medium-impact concern is materially reduced (the testability + concrete-coupling half), not the line count.
 - **Status date:** 2026-06-28 15:42 UTC
-- **Status commit:** (this commit)
+- **Status commit:** d5672f4
 
 ### [F-e] Feature envy — `scene/tracker` imports `refusalApplies` from `inputTranslate`
 
@@ -241,6 +241,10 @@ The architecture is genuinely well-layered. **madge reports zero circular depend
 - **Explanation:** `FallbackResolverDeps` requires the caller to hand over five of `useOutputTranslation`'s internal mutable refs (`epochRef`, `basisRef`, `retryRef`, `acsRef`, `setOverlay`); `settle()`/`failEnglish()` mutate the hook's live state through them. A deliberate, documented F-3 decomposition that makes the dense logic testable — but the "extraction" shares mutable state rather than a clean interface, so the two must keep their epoch/basis invariants in sync across the boundary.
 - **Evidence:** `src/translate/fallbackResolve.ts:54-70`.
 - **Found by:** Coupling & Dependencies
+- **Status:** Won't fix
+- **Status reason:** Adversarial-review verdict, ratified with Ovid 2026-06-28. The flaw names the shared-mutable-refs interface as a leak, but that shape was a *deliberate, documented F-3 decomposition whose stated goal — making the dense resolution logic testable — is already met*: `fallbackResolve.test.ts` (≈365 lines, 20+ cases) unit-tests `markPending`/`settle`/`resolve` directly across the epoch/basis/retry/supersession matrix. The five injected refs (`epochRef`/`basisRef`/`retryRef`/`acsRef`/`setOverlay`) ARE `useOutputTranslation`'s live React state; a "cleaner interface" either copies them in (losing the live-mutation semantics the design needs) or wraps them in a callback object (the same coupling with more ceremony). So a rewrite would replace the very safety net that proves the code works, for zero behavioral gain on a seam with one production caller — exactly the working-tested-deliberate-decision reversal the project's YAGNI/"talk to me first" rules push back on. No code change.
+- **Status date:** 2026-06-28 15:43 UTC
+- **Status commit:** (no code change — decision recorded in report)
 
 ### [F-j] GlkOte protocol + autosave snapshot are unversioned, shape-sniffed
 
@@ -249,6 +253,10 @@ The architecture is genuinely well-layered. **madge reports zero circular depend
 - **Explanation:** The VM↔React "update" contract has no version field; the reducer discriminates windows by structural shape (`lines[]` ⇒ grid, `text[]` ⇒ buffer) and parses flat alternating `[style,text,...]` runs by index parity, and the autosave snapshot is an unversioned IndexedDB blob. Brittle to an upstream bump of the SHA-pinned `glkapi.js` or external `ifvms`; defended by a loud drift warn + restore-path validation, but there is no version handshake for snapshot-schema migration.
 - **Evidence:** `src/glkote-react/reduce.ts:196-200,13-20,213-217`; `src/glkote-react/types.ts:91`; `src/glkote-react/bridge.ts:158,170-191`.
 - **Found by:** Integration & Data
+- **Status:** Skipped (deferred — YAGNI against a pinned dependency)
+- **Status reason:** Adversarial-review verdict, ratified with Ovid 2026-06-28. Deferred rather than fixed because the bump it guards against is pinned *not to happen*: `glkapi.js` is vendored at a fixed commit SHA and `ifvms` is a versioned dep, so a protocol/snapshot-shape change is a deliberate manual act, not a silent drift — and that act already trips two loud defenses (the reducer's drift `log.warn` at `reduce.ts:213-217` and the restore-path validation at `bridge.ts:158-191`, which falls back to the reducer-built view on any malformed snapshot and never crashes). Adding a version *field* with no second version to discriminate against, plus migration infrastructure for a schema that has exactly one shape, builds a framework for a future that's pinned away — nothing concretely improves today (no current bug, no player-facing symptom, existing failure mode is already non-crashing). Revisit IF/WHEN the vendored `glkapi.js` SHA or the `ifvms` version is actually bumped (that is the moment a second shape exists and a version handshake earns its keep). No code change.
+- **Status date:** 2026-06-28 15:43 UTC
+- **Status commit:** (no code change — decision recorded in report)
 
 ### [F-k] Unconditional full-tail autosave write every turn (no equality dedup)
 

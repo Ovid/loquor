@@ -36,9 +36,9 @@ preview: ensure-deps ## Preview the production build locally
 	npx vite preview
 
 typecheck: ## Type-check with the TypeScript compiler (no emit)
-	# `tsc -b` (build mode) is required: the root tsconfig is solution-style
-	# (files:[] + references), and references are only followed in build mode.
-	# Plain `tsc --noEmit` here would type-check NOTHING.
+	@# `tsc -b` (build mode) is required: the root tsconfig is solution-style
+	@# (files:[] + references), and references are only followed in build mode.
+	@# Plain `tsc --noEmit` here would type-check NOTHING.
 	npx tsc -b
 
 test: ## Run the full test suite (one-shot)

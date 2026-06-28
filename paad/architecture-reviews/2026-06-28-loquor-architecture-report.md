@@ -139,7 +139,7 @@ The architecture is genuinely well-layered. **madge reports zero circular depend
 - **Status:** Fixed
 - **Status reason:** Collapsed the language-MEMBERSHIP drift (the High-impact core) into one source of truth: `LEX_LANGS`/`INPUT_LEX_LANGS` are now `as const` arrays in `lexicon/types.ts` from which the `LexLang`/`InputLexLang` TYPES derive (preserving the `ka`-is-a-compile-error-in-LLM-maps guarantee) AND the runtime Sets `OUTPUT_ONLY_LANGS` (`llm/types.ts`) + `CORPUS_ONLY_LANGS` (`corpus/index.ts`) derive — so "which languages have an input lexicon / lack an LLM" is declared once, not in 4 hand-maintained places. Added an executable coherence anchor (`types.test.ts` "language membership coherence (F-a anchor)") that fails if a new `NL_LANGUAGES` member is left unclassified — the "a fix in one language is a fix in all" mandate made enforceable. Folded the two stray parallel unions the report's evidence missed (`nlModeSummary.ts` `'en'|'fr'|'de'|'es'` → `'en'|LexLang`; `composed-families.ts` `EXEMPTIONS` → `Record<LexLang>`). **Deliberately NOT done** (adversarial-review decision, ratified with Ovid): a single mega-`LanguageProfile` folding directions/notices/affirmatives — that would INVERT strength S-a (cohesive per-subsystem registries) and weaken the type guarantee; those stay as per-facet modules. madge still reports 0 cycles (`lexicon/types` stays an import-free leaf).
 - **Status date:** 2026-06-28 09:58 UTC
-- **Status commit:** (backfilled below)
+- **Status commit:** 9a0679c
 
 ### [F-b] God function — `createTranslate`/`runLine`
 - **Category:** Flaw 2 — God object (function)
@@ -157,7 +157,7 @@ The architecture is genuinely well-layered. **madge reports zero circular depend
 - **Status:** Partially fixed
 - **Status reason:** The genuine DUPLICATION the flaw names — the `containsGeorgian` en/ka-ASCII raw-send predicate inlined at three sites in `translatePipeline.ts` (723, 966, 990) — is centralized into one `rawSendsToParser(lang, line)` helper next to `containsGeorgian`; the two `sendTracked` branches (en, ka-ASCII) merged into one. Behavior-preserving (pinned by `translatePipeline.test.ts:964/981/1015`). The OTHER sites the report lists are NOT duplication and were deliberately left: (1) the `OUTPUT_ONLY_LANGS.has(language) && lex===null` bail at `translatePipeline.ts:~1055` is a documented DISTINCT predicate ("no-LLM language AND no lexicon", comment at 1044-1051: "the coupling is the meaning here, not a leftover"), not a copy of the raw-send decision; (2) `Terminal.tsx:197-209` and `useNaturalLanguage.ts` consume the already-centralized `kaInputActive` + `OUTPUT_ONLY_LANGS` SSOTs to compute per-render view flags — correct reuse of a single source, and collapsing those into one threaded value is the `Terminal` god-component decomposition (F-d), not this flaw. Adversarial review confirmed this addresses the duplication half of F-c; the remainder is intentional.
 - **Status date:** 2026-06-28 09:58 UTC
-- **Status commit:** (backfilled below)
+- **Status commit:** 1852efd
 
 ### [F-d] `Terminal.tsx` — god component / concrete-wiring hub
 - **Category:** Flaw 2 — God object / Flaw 3 — Tight coupling
@@ -189,7 +189,7 @@ The architecture is genuinely well-layered. **madge reports zero circular depend
 - **Status:** Fixed
 - **Status reason:** `OutLang` was `LexLang | 'ka'` — structurally identical to `InputLexLang` declared in another module, so the dup could drift. Replaced with `export type OutLang = InputLexLang` (pure-type alias, zero behavior change, typecheck-pinned). Combined with the F-a change (the runtime `ka`-membership fact now derives from the same `INPUT_LEX_LANGS` array), the "ka has no LLM" fact is no longer belt-and-suspendered across a type union AND a runtime Set AND a separate `OutLang` union. NB: the report's "runtime re-derivation of `lexLang` via `CORPUS_ONLY_LANGS.has(...)`" at `useOutputTranslation.ts:135-148` is intentionally KEPT — it narrows `OutLang→LexLang` for the LLM-fallback machinery (the place the `ka`-is-a-compile-error guarantee is enforced), so it's a deliberate type narrowing, not drift.
 - **Status date:** 2026-06-28 09:58 UTC
-- **Status commit:** (backfilled below)
+- **Status commit:** 540ad88
 
 ### [F-h] Temporal coupling — boot `preload → prepare → init` ordering
 - **Category:** Flaw 27 — Temporal coupling (= Flaw 16 sync integration, deduped)

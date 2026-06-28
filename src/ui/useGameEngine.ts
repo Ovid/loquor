@@ -44,7 +44,12 @@ export function useGameEngine(
   const [signature, setSignature] = useState<string>('')
   const engineRef = useRef<ZMachine | null>(null)
   const onBootErrorRef = useRef(onBootError)
-  onBootErrorRef.current = onBootError
+  // Keep the latest callback in a ref (written in an effect, not during render —
+  // react-hooks/refs) so the boot effect, keyed only on [storyBytes], calls the
+  // current callback without an unstable identity re-triggering a boot.
+  useEffect(() => {
+    onBootErrorRef.current = onBootError
+  })
 
   useEffect(() => {
     let cancelled = false

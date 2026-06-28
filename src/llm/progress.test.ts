@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { pct, estimateRemainingSeconds, formatEta } from './progress'
+import type { ActiveLanguage } from './types'
 
 describe('pct', () => {
   it('rounds the fraction to an integer percent', () => {
@@ -102,12 +103,24 @@ describe('formatEta', () => {
     expect(formatEta(7170)).toBe('~2h 0m remaining')
   })
 
-  it('localizes the ETA for FR/DE/ES (review I4 — no English in the localized modal)', () => {
-    // No "remaining" / "min" English fragment leaks for non-English players.
-    expect(formatEta(45, 'fr')).toBe('~45 s restantes')
-    expect(formatEta(90, 'de')).toBe('noch ~2 Min.')
-    expect(formatEta(3700, 'es')).toBe('~1 h 2 min restantes')
-    for (const s of ['~45 s restantes', 'noch ~2 Min.', '~1 h 2 min restantes'])
-      expect(s).not.toMatch(/remaining/)
+  it('localizes EVERY band for EVERY language (review I4 — no English leaks; ka has no LLM net, so this pure fn is its only ETA check)', () => {
+    // [s-band 45s, min-band 90s→2min, hm-band 3700s→1h2m] per language.
+    const expected: Record<ActiveLanguage, [string, string, string]> = {
+      en: ['~45s remaining', '~2 min remaining', '~1h 2m remaining'],
+      fr: ['~45 s restantes', '~2 min restantes', '~1 h 2 min restantes'],
+      de: ['noch ~45 s', 'noch ~2 Min.', 'noch ~1 Std. 2 Min.'],
+      es: ['~45 s restantes', '~2 min restantes', '~1 h 2 min restantes'],
+      ka: ['~45 წმ-ღა დარჩა', '~2 წთ-ღა დარჩა', '~1 სთ 2 წთ-ღა დარჩა'],
+    }
+    for (const lang of Object.keys(expected) as ActiveLanguage[]) {
+      const [s, min, hm] = expected[lang]
+      expect(formatEta(45, lang)).toBe(s)
+      expect(formatEta(90, lang)).toBe(min)
+      expect(formatEta(3700, lang)).toBe(hm)
+    }
+    // The English time-word never leaks into a non-English ETA (the point of I4).
+    for (const lang of ['fr', 'de', 'es', 'ka'] as const)
+      for (const secs of [45, 90, 3700])
+        expect(formatEta(secs, lang)).not.toMatch(/remaining/)
   })
 })

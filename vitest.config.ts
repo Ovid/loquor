@@ -27,6 +27,12 @@ export default defineConfig({
         'src/main.tsx',
         'src/test/**',
         'src/**/*.d.ts',
+        // Type-only modules: pure interfaces/types that compile to zero runtime
+        // code, so they can never be "covered" and only show as misleading 0%
+        // rows. (Other `types.ts` files carry real runtime values — emptyView,
+        // ABSTAIN — and stay measured.)
+        'src/llm/grammar/types.ts',
+        'src/translate/types.ts',
         'vendor/**',
       ],
       // Regression gate. Set a few points below the measured numbers (≈97%

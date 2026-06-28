@@ -1,10 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import {
-  pct,
-  estimateRemainingSeconds,
-  retainSamples,
-  formatEta,
-} from './progress'
+import { pct, estimateRemainingSeconds, formatEta } from './progress'
+import type { ProgressSample } from './progress'
 import type { ActiveLanguage } from './types'
 
 describe('pct', () => {
@@ -28,116 +24,79 @@ describe('pct', () => {
 })
 
 describe('estimateRemainingSeconds', () => {
-  it('returns null until there are at least two samples', () => {
-    expect(estimateRemainingSeconds([])).toBeNull()
-    expect(estimateRemainingSeconds([{ pct: 10, t: 0 }])).toBeNull()
+  const s = (pct: number, t: number): ProgressSample => ({ pct, t })
+
+  it('returns null when the latest sample adds no signal (anchor == latest)', () => {
+    // The first sample of a phase IS the anchor: no elapsed time, no estimate.
+    expect(estimateRemainingSeconds(s(10, 1000), s(10, 1000))).toBeNull()
   })
 
-  it('extrapolates a linear rate to the remaining percent', () => {
+  it('extrapolates the cumulative rate to the remaining percent', () => {
     // 0% → 50% over 10s = 5%/s; 50% left → 10s.
-    expect(
-      estimateRemainingSeconds([
-        { pct: 0, t: 0 },
-        { pct: 50, t: 10_000 },
-      ]),
-    ).toBe(10)
-  })
-
-  it('uses only a recent window so a changing rate adapts', () => {
-    // A slow start then a faster recent segment: the estimate follows the recent
-    // 10%-in-10s rate (70% left → 70s), not the slow opening.
-    expect(
-      estimateRemainingSeconds(
-        [
-          { pct: 0, t: 0 },
-          { pct: 20, t: 20_000 },
-          { pct: 30, t: 30_000 },
-        ],
-        15_000,
-      ),
-    ).toBe(70)
+    expect(estimateRemainingSeconds(s(0, 0), s(50, 10_000))).toBe(10)
+    // Anchored partway: 10% → 50% over 1s = 40%/s; 50% left → 1.25s.
+    expect(estimateRemainingSeconds(s(10, 1000), s(50, 2000))).toBeCloseTo(1.25)
   })
 
   it('returns null instead of NaN when a sample pct is non-finite (S7)', () => {
     // WebLLM can report non-numeric progress; NaN must not leak into state.
-    expect(
-      estimateRemainingSeconds([
-        { pct: 10, t: 0 },
-        { pct: NaN, t: 5_000 },
-      ]),
-    ).toBeNull()
-    expect(
-      estimateRemainingSeconds([
-        { pct: NaN, t: 0 },
-        { pct: 50, t: 5_000 },
-      ]),
-    ).toBeNull()
-  })
-
-  it('damps a recent burst instead of collapsing to it (smoothing)', () => {
-    // Steady ~1%/s for 45s, then a 30%-in-5s cache-hit burst. The un-smoothed
-    // recent-window slope crashes the ETA toward the burst rate (~7s); the
-    // time-weighted EMA over a longer horizon keeps it near the sustained rate.
-    // Default args (this pins the shipped smoothing behavior); band, not a point,
-    // so constant tuning doesn't break it.
-    const eta = estimateRemainingSeconds([
-      { pct: 0, t: 0 },
-      { pct: 10, t: 10_000 },
-      { pct: 20, t: 20_000 },
-      { pct: 30, t: 30_000 },
-      { pct: 40, t: 40_000 },
-      { pct: 45, t: 45_000 },
-      { pct: 75, t: 50_000 }, // burst: 30% in 5s
-    ])
-    expect(eta).not.toBeNull()
-    expect(eta as number).toBeGreaterThan(9)
-    expect(eta as number).toBeLessThan(20)
+    expect(estimateRemainingSeconds(s(10, 0), s(NaN, 5_000))).toBeNull()
+    expect(estimateRemainingSeconds(s(NaN, 0), s(50, 5_000))).toBeNull()
   })
 
   it('returns null when stalled (no forward progress) or already done', () => {
-    expect(
-      estimateRemainingSeconds([
-        { pct: 60, t: 0 },
-        { pct: 60, t: 8_000 },
-      ]),
-    ).toBeNull()
-    expect(
-      estimateRemainingSeconds([
-        { pct: 0, t: 0 },
-        { pct: 100, t: 5_000 },
-      ]),
-    ).toBeNull()
-  })
-})
-
-describe('retainSamples', () => {
-  it('keeps only samples within the horizon of the latest, then caps the count', () => {
-    const s = [
-      { pct: 1, t: 0 }, // 100s before latest — dropped
-      { pct: 2, t: 50_000 }, // 50s before latest — outside a 40s horizon
-      { pct: 3, t: 70_000 }, // within 40s
-      { pct: 4, t: 100_000 }, // latest
-    ]
-    expect(retainSamples(s, 40_000, 100)).toEqual([
-      { pct: 3, t: 70_000 },
-      { pct: 4, t: 100_000 },
-    ])
+    expect(estimateRemainingSeconds(s(60, 0), s(60, 8_000))).toBeNull()
+    expect(estimateRemainingSeconds(s(0, 0), s(100, 5_000))).toBeNull()
+    // A backward sample (phase reset reaching the estimator un-anchored) → null,
+    // never a negative or absurd estimate.
+    expect(estimateRemainingSeconds(s(100, 0), s(13, 600))).toBeNull()
   })
 
-  it('caps the retained count so a fast callback rate cannot grow unbounded', () => {
-    // 500 samples spanning 5s (all within a 60s horizon) — the cap keeps the
-    // most recent `cap` of them, the memory backstop the old .slice(-60) was.
-    const many = Array.from({ length: 500 }, (_, i) => ({
-      pct: i / 10,
-      t: i * 10,
-    }))
-    const kept = retainSamples(many, 60_000, 300)
-    expect(kept).toHaveLength(300)
-    expect(kept[kept.length - 1]).toEqual({ pct: 49.9, t: 4990 })
+  it('a fixed anchor + per-phase reset avoids the boundary spike', () => {
+    // WHY the caller re-anchors on a progress DROP: WebLLM's `timeElapsed` is
+    // cumulative across phases but `progress` resets fetch→cache-load. Dividing
+    // ~296s of fetch-elapsed by the load phase's fresh 13% yields a ~30-min
+    // spike — the bug. Re-anchored to the load phase's own start, it's sane.
+    const spike = estimateRemainingSeconds(s(0, 0), s(13, 296_000)) as number
+    expect(spike).toBeGreaterThan(30 * 60) // the bug, if we DON'T re-anchor
+    expect(estimateRemainingSeconds(s(13, 296_000), s(13, 296_000))).toBeNull()
   })
 
-  it('returns an empty array unchanged', () => {
-    expect(retainSamples([], 60_000, 300)).toEqual([])
+  // Regression: replay the FETCH phase of a real ~5-min Safari download trace
+  // (params_shard 1..30, [roundedPct, wallClockMs]). The old per-segment EMA
+  // bounced 1min↔2min on adjacent readings; the cumulative average must trend
+  // down — and be strictly monotonic once past the volatile early shards.
+  const FETCH_TRACE: Array<[number, number]> = [
+    [0, 339715], [3, 368600], [6, 375692], [9, 376043], [12, 404585],
+    [15, 414115], [18, 414275], [21, 442632], [24, 454384], [27, 455159],
+    [30, 481138], [33, 492077], [47, 493047], [50, 493066], [53, 511836],
+    [55, 525603], [58, 528104], [61, 529396], [65, 545958], [68, 560364],
+    [71, 562534], [74, 563542], [77, 577979], [80, 595461], [83, 597549],
+    [86, 597921], [89, 606170], [92, 612351], [94, 616725], [97, 625331],
+    [100, 634951],
+  ]
+
+  it('trends down across a real download trace (no bounce)', () => {
+    const anchor = s(...FETCH_TRACE[0])
+    const etas = FETCH_TRACE.map(([p, t]) => estimateRemainingSeconds(anchor, s(p, t)))
+    // Every mid-download reading is a finite, positive estimate (first sample is
+    // the anchor → null; 100% → null).
+    for (const eta of etas.slice(1, -1)) {
+      expect(eta).not.toBeNull()
+      expect(eta as number).toBeGreaterThan(0)
+    }
+    // Overall downward: the last computable ETA is a tiny fraction of the first.
+    const computable = etas.filter((e): e is number => e !== null)
+    expect(computable[computable.length - 1]).toBeLessThan(computable[0] / 10)
+  })
+
+  it('is strictly monotonic once past the volatile early shards (pct ≥ 50)', () => {
+    const anchor = s(...FETCH_TRACE[0])
+    const backHalf = FETCH_TRACE.filter(([p]) => p >= 50 && p < 100).map(
+      ([p, t]) => estimateRemainingSeconds(anchor, s(p, t)) as number,
+    )
+    for (let i = 1; i < backHalf.length; i++)
+      expect(backHalf[i]).toBeLessThan(backHalf[i - 1])
   })
 })
 

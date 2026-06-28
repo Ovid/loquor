@@ -284,6 +284,74 @@ describe('useNaturalLanguage', () => {
     })
   })
 
+  it('re-anchors the ETA when WebLLM resets progress at a phase boundary', async () => {
+    // WebLLM downloads in phases (fetch params, then load-from-cache), each
+    // restarting `progress` at ~0. Without re-anchoring, the fetch phase's
+    // elapsed time would divide the load phase's fresh low percent and spike the
+    // ETA. The drop in percent must reset the anchor: the first post-drop sample
+    // yields null, and the next a sane estimate from the NEW phase's start.
+    let emit!: (p: import('./types').LoadProgress) => void
+    let resolveLoad!: () => void
+    const blockingEngine: import('./types').LlmEngine = {
+      isCached: async () => false,
+      deleteCache: async () => {},
+      isLoaded: () => false,
+      unload: async () => {},
+      generate: async () => '{"verb":"__UNKNOWN__"}',
+      load: (onProgress, signal) =>
+        new Promise<void>((resolve, reject) => {
+          emit = onProgress
+          resolveLoad = resolve
+          signal.addEventListener('abort', () =>
+            reject(new DOMException('aborted', 'AbortError')),
+          )
+        }),
+    }
+    const { hook } = setup({ engine: blockingEngine })
+    await waitFor(() =>
+      expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
+    )
+
+    const nowSpy = vi.spyOn(Date, 'now')
+    try {
+      act(() => hook.result.current.requestDownload())
+      // Fetch phase climbs to 90% over 90s (a long elapsed time).
+      act(() => {
+        nowSpy.mockReturnValue(0)
+        emit({ loaded: 0, total: 100, text: '' })
+      })
+      act(() => {
+        nowSpy.mockReturnValue(90_000)
+        emit({ loaded: 90, total: 100, text: '' })
+      })
+      // Phase boundary: progress DROPS to 10%. Re-anchored → first post-drop
+      // sample has no elapsed time of its own → null, NOT a ~13-min spike from
+      // dividing 90s of fetch time by the load phase's 10%.
+      act(() => {
+        nowSpy.mockReturnValue(91_000)
+        emit({ loaded: 10, total: 100, text: '' })
+      })
+      const afterDrop = hook.result.current.state
+      expect(afterDrop).toMatchObject({ phase: 'downloading', loaded: 10 })
+      if (afterDrop.phase !== 'downloading') throw new Error('expected downloading')
+      expect(afterDrop.etaSeconds).toBeNull()
+      // Next load-phase sample: 10%→50% over 1s ⇒ 50% left at 40%/s ≈ 1.25s,
+      // measured from the NEW anchor — no fetch-phase contamination.
+      act(() => {
+        nowSpy.mockReturnValue(92_000)
+        emit({ loaded: 50, total: 100, text: '' })
+      })
+      const s = hook.result.current.state
+      if (s.phase !== 'downloading') throw new Error('expected downloading')
+      expect(s.etaSeconds).toBeCloseTo(1.25)
+    } finally {
+      nowSpy.mockRestore()
+    }
+    await act(async () => {
+      resolveLoad()
+    })
+  })
+
   it('command translation echoes English then sends the canonical command', async () => {
     const engine = new FakeLlmEngine({
       cached: true,

@@ -19,66 +19,36 @@ export interface ProgressSample {
 }
 
 /**
- * Keep only the progress samples worth estimating from: those within `horizonMs`
- * of the latest sample, then the most recent `cap` of those. Time-based, NOT a
- * bare count cap — a count cap (the old `.slice(-60)`) silently collapses the
- * estimator's smoothing window when WebLLM fires progress callbacks rapidly (60
- * samples can span a few seconds, not the intended horizon), which is what made
- * the ETA jump. The count `cap` is only a memory backstop for a pathological
- * callback rate, set well above the horizon's expected sample count.
- */
-export function retainSamples(
-  samples: ProgressSample[],
-  horizonMs: number,
-  cap: number,
-): ProgressSample[] {
-  if (samples.length === 0) return samples
-  const latestT = samples[samples.length - 1].t
-  return samples.filter(s => s.t >= latestT - horizonMs).slice(-cap)
-}
-
-/**
- * Estimate seconds remaining from progress samples, or null when there isn't
- * enough signal yet (fewer than two samples, no forward progress, or already
- * complete).
+ * Seconds remaining as a CUMULATIVE-AVERAGE rate over the current phase: from
+ * the phase's first sample `start` (the anchor) to the latest `cur`. Returns
+ * null when there isn't enough signal — no elapsed time, no forward progress, a
+ * non-finite sample, or already complete (review S7).
  *
- * The rate is a TIME-WEIGHTED exponential moving average of the inter-sample
- * rates across a recent window, not a single window slope. A multi-shard CDN
- * download is bursty (per-shard speed, CDN throttling, gaps), so a raw slope
- * faithfully reproduces that burstiness and the ETA bounces (28s → 2min → 12s).
- * The EMA damps a single fast/slow burst while a longer `tauMs` memory still lets
- * a sustained change through, and recent segments weigh more (so a genuine late
- * slowdown is reflected). `windowMs` bounds how far back to look; `tauMs` is the
- * smoothing time constant.
+ * Why cumulative-average and not a per-segment / EMA rate: a real WebLLM
+ * download fires progress callbacks in BURSTS (adjacent samples seen 19ms–28s
+ * apart on a captured 5-min trace) with BYTE-QUANTIZED percent, so a per-segment
+ * rate is an artifact of WHEN a callback fired, not true speed — it swings
+ * orders of magnitude between neighbours and the ETA bounces non-monotonically
+ * (1min↔2min) while percent climbs steadily. Averaging over the whole phase from
+ * a fixed anchor is inherently smooth and was monotonic across the back half of
+ * the real trace. The estimator stays stateless; the caller (useModelDownload)
+ * resets the anchor at each phase boundary — WebLLM restarts `progress` at 0 when
+ * it moves fetch→cache-load→GPU — so one phase's elapsed time never divides the
+ * next phase's progress (which would spike the ETA to ~30 min at the boundary).
+ * A backward `cur` (a reset that reaches the estimator un-anchored) yields null,
+ * never a negative estimate.
  */
 export function estimateRemainingSeconds(
-  samples: ProgressSample[],
-  windowMs = 60_000,
-  tauMs = 20_000,
+  start: ProgressSample,
+  cur: ProgressSample,
 ): number | null {
-  if (samples.length < 2) return null
-  const latest = samples[samples.length - 1]
-  // A non-finite sample (WebLLM reporting non-numeric progress) must yield null,
-  // not propagate NaN into state (review S7).
-  if (!Number.isFinite(latest.pct)) return null
-  if (latest.pct <= 0 || latest.pct >= 100) return null
-  const recent = samples.filter(s => s.t >= latest.t - windowMs)
-  // Time-weighted EMA over consecutive segments (oldest → newest). A non-finite
-  // or zero-/negative-time segment is skipped; a non-monotone blip clamps to 0
-  // rather than going negative.
-  let ema: number | null = null
-  for (let i = 1; i < recent.length; i++) {
-    const dT = recent[i].t - recent[i - 1].t
-    const dPct = recent[i].pct - recent[i - 1].pct
-    if (!(dT > 0) || !Number.isFinite(dPct)) continue
-    const inst = Math.max(0, dPct) / dT // %/ms
-    const alpha = 1 - Math.exp(-dT / tauMs)
-    ema = ema === null ? inst : ema + alpha * (inst - ema)
-  }
-  // No usable segment, or stalled (rate ≈ 0) → no estimate rather than Infinity.
-  if (ema === null || ema <= 0) return null
-  const remainingPct = 100 - latest.pct
-  return Math.round(remainingPct / ema) / 1000
+  if (!Number.isFinite(start.pct) || !Number.isFinite(cur.pct)) return null
+  if (cur.pct <= 0 || cur.pct >= 100) return null
+  const dT = cur.t - start.t
+  const dPct = cur.pct - start.pct
+  if (!(dT > 0) || !(dPct > 0)) return null
+  const ratePerMs = dPct / dT // %/ms averaged over the phase so far
+  return Math.round((100 - cur.pct) / ratePerMs) / 1000
 }
 
 // Localized ETA strings (review I4): the modal is localized EN/FR/DE/ES, so the

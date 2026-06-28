@@ -10,19 +10,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ActiveLanguage, LlmEngine, NlLanguage } from './types'
 import { OUTPUT_ONLY_LANGS } from './types'
 import { readNlPref, writeNlPref } from './nlpref'
-import {
-  pct as toPct,
-  estimateRemainingSeconds,
-  retainSamples,
-} from './progress'
+import { pct as toPct, estimateRemainingSeconds } from './progress'
 import type { ProgressSample } from './progress'
-import {
-  DOWNLOAD_STALL_MS,
-  DOWNLOAD_RETRY_MS,
-  DL_ETA_WINDOW_MS,
-  DL_ETA_TAU_MS,
-  DL_SAMPLE_CAP,
-} from './config'
+import { DOWNLOAD_STALL_MS, DOWNLOAD_RETRY_MS } from './config'
 import { modelDownloadFailed, modelDownloadStalled } from './notices'
 import { createLogger } from '../logger'
 
@@ -85,10 +75,16 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
   // tick; fires only on genuine silence. Held in a ref so cancelDownload can
   // clear it too.
   const stallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // (percent, time) samples for the active download, used to estimate the time
-  // remaining. Reset at the start of each requestDownload; sampled in its progress
-  // callback (a side-effect context — keeps the timing out of render).
-  const dlSamplesRef = useRef<ProgressSample[]>([])
+  // Phase anchor for the download ETA: the first progress sample of the current
+  // phase. WebLLM runs several phases (fetch params, load-from-cache, GPU), each
+  // RESTARTING progress at ~0; the ETA is a cumulative average from this anchor,
+  // re-anchored on a percent DROP so a finished phase's elapsed time never
+  // inflates the next phase's estimate. Null until the first sample of an attempt.
+  const phaseAnchorRef = useRef<ProgressSample | null>(null)
+  // The PREVIOUS sample's percent — a phase boundary is a drop from this (≈100 at
+  // a phase's end) to the next phase's fresh ~0, NOT a drop below the (low-pct)
+  // anchor. So the drop is detected against this, not the anchor.
+  const lastPctRef = useRef(0)
   // The language the player picked when the model wasn't cached yet — the
   // download modal flow activates THIS language once the load resolves.
   const pendingLangRef = useRef<ActiveLanguage>('en')
@@ -228,33 +224,33 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
     // supersede/cancel makes the next attempt stale() and is never retried.
     let retriesLeft = 1
     const attempt = () => {
-      dlSamplesRef.current = [] // fresh ETA samples per attempt
+      phaseAnchorRef.current = null // fresh ETA anchor per attempt
+      lastPctRef.current = 0
       armStall()
       engine
         .load(p => {
           if (stale()) return
           armStall() // progress arrived — reset the no-progress timer
-          // Retain samples by TIME (not a bare count) so a fast callback rate
-          // can't collapse the EMA's smoothing window — the cause of the ETA
-          // bounce. The count cap is only a memory backstop.
-          dlSamplesRef.current = retainSamples(
-            [
-              ...dlSamplesRef.current,
-              { pct: toPct(p.loaded, p.total), t: Date.now() },
-            ],
-            DL_ETA_WINDOW_MS,
-            DL_SAMPLE_CAP,
-          )
+          // Cumulative-average ETA from the phase anchor (see progress.ts). A
+          // percent DROP marks a new WebLLM phase (fetch→cache-load→GPU restarts
+          // progress at ~0); re-anchor so the finished phase's elapsed time
+          // doesn't inflate the new phase's estimate. The first sample of a phase
+          // is its own anchor, so it yields no ETA until the next sample.
+          const sample: ProgressSample = {
+            pct: toPct(p.loaded, p.total),
+            t: Date.now(),
+          }
+          const prev = phaseAnchorRef.current
+          const newPhase = prev === null || sample.pct < lastPctRef.current
+          const anchor = newPhase ? sample : prev
+          phaseAnchorRef.current = anchor
+          lastPctRef.current = sample.pct
           setInternal({
             phase: 'downloading',
             language: pendingLangRef.current,
             loaded: p.loaded,
             total: p.total,
-            etaSeconds: estimateRemainingSeconds(
-              dlSamplesRef.current,
-              DL_ETA_WINDOW_MS,
-              DL_ETA_TAU_MS,
-            ),
+            etaSeconds: estimateRemainingSeconds(anchor, sample),
           })
         }, ac.signal)
         .then(() => {

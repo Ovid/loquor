@@ -56,20 +56,6 @@ export const DOWNLOAD_STALL_MS = 60_000
 export const DOWNLOAD_RETRY_MS = 2000
 
 /**
- * Download-progress ETA smoothing (the modal's "~Ns remaining" line). The
- * estimate is a TIME-WEIGHTED EMA of the download rate: `WINDOW` bounds how far
- * back to look, `TAU` is the smoothing time constant, `SAMPLE_CAP` is a memory
- * backstop on retained samples. A multi-shard CDN download is bursty, so a short,
- * un-smoothed window made the ETA bounce non-monotonically (28s → 2min → 12s as
- * the percent rose steadily); a longer window + EMA damp it. The cap is a count,
- * but retention is by TIME (`retainSamples`) so a fast callback rate can't shrink
- * the effective window — the cap only guards memory at a pathological rate.
- */
-export const DL_ETA_WINDOW_MS = 60_000
-export const DL_ETA_TAU_MS = 20_000
-export const DL_SAMPLE_CAP = 600
-
-/**
  * Upper bound (ms) on how long `runGenerationGuarded` waits for an orphaned
  * generation to settle after `ac.abort()` before treating the engine as DEAD and
  * releasing the gate (review S2). Generous so only a truly wedged worker / lost

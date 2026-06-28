@@ -1040,6 +1040,9 @@ export const ZORK1_KA_STRINGS: Record<string, string> = {
     'რატომ უბრალოდ არ დადიხარ ნორმალური ხალხივით?',
   'The incantation echoes back faintly, but nothing else happens.':
     'შელოცვა სუსტ ექოს გამოსცემს, მაგრამ მეტი არაფერი ხდება.',
+  // Bare `echo` in a LOUD-RUNS room (Deep Canyon etc.): the literal sound-effect
+  // string (gverbs.zil V-ECHO). The echo "says" the Georgian word for echo (ექო).
+  'echo echo ...': 'ექო ექო ...',
   'You will be lost without me!': 'ჩემ გარეშე დაიკარგები!',
   'Bizarre!': 'უცნაურია!',
   "You can't fit through the crack.": 'ნაპრალში ვერ ეტევი.',

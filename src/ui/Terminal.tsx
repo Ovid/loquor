@@ -56,6 +56,7 @@ export function Terminal({
   storyBytes,
   storyTitle,
   onChangeStory,
+  onBootFail,
   themeToggle,
   backgroundInert = false,
   announceClearMs = LLM_ANNOUNCE_CLEAR_MS,
@@ -64,6 +65,10 @@ export function Terminal({
   /** The current game's title — the game screen's heading for screen readers. */
   storyTitle: string
   onChangeStory: () => void
+  /** Called when the VM fails to boot the story (corrupt/unsupported file, glk
+   *  init throw). Lets the host surface the failure to the player rather than
+   *  leaving a blank, frozen terminal (F-l). */
+  onBootFail?: (err: unknown) => void
   themeToggle: ReactNode
   /** True while the change-story overlay covers the game — makes the whole
    *  terminal inert so a screen-reader virtual cursor can't read it (M9). */
@@ -75,7 +80,7 @@ export function Terminal({
 }) {
   // Game-loop coordination lives in extracted hooks (F-17): the ZMachine
   // boot/dispose lifecycle and device-capability detection.
-  const { view, signature, engineRef } = useGameEngine(storyBytes)
+  const { view, signature, engineRef } = useGameEngine(storyBytes, onBootFail)
   const capability = useCapability()
   const viewRef = useRef<ViewState>(view)
   const inputRef = useRef<HTMLInputElement>(null)

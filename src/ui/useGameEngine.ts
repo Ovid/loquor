@@ -28,7 +28,14 @@ const log = createLogger('ui')
  * and char-ack. The StrictMode-safe `dispose()` in cleanup stops a throwaway
  * engine persisting stale autosaves behind the live one's back.
  */
-export function useGameEngine(storyBytes: Uint8Array): {
+export function useGameEngine(
+  storyBytes: Uint8Array,
+  // Called when boot() rejects (corrupt/unsupported story, glk init throw). The
+  // hook always logs the failure; this lets the host ALSO surface it to the
+  // player instead of leaving a blank, frozen terminal (F-l). Held in a ref so
+  // an unstable callback identity can't re-trigger the boot effect.
+  onBootError?: (err: unknown) => void,
+): {
   view: ViewState
   signature: string
   engineRef: React.RefObject<ZMachine | null>
@@ -36,6 +43,8 @@ export function useGameEngine(storyBytes: Uint8Array): {
   const [view, setView] = useState<ViewState>(emptyView)
   const [signature, setSignature] = useState<string>('')
   const engineRef = useRef<ZMachine | null>(null)
+  const onBootErrorRef = useRef(onBootError)
+  onBootErrorRef.current = onBootError
 
   useEffect(() => {
     let cancelled = false
@@ -52,7 +61,10 @@ export function useGameEngine(storyBytes: Uint8Array): {
         if (!cancelled) setSignature(sig)
       })
       .catch(err => {
-        if (!cancelled) log.error('boot failed', err)
+        if (!cancelled) {
+          log.error('boot failed', err)
+          onBootErrorRef.current?.(err)
+        }
       })
     return () => {
       cancelled = true

@@ -80,6 +80,28 @@ describe('Terminal', () => {
     spy.mockRestore()
   })
 
+  it('calls onBootFail so the host can surface a boot failure (F-l)', async () => {
+    // The boot error must reach the player, not just the console: a story that
+    // fetches OK but fails to boot (corrupt/unsupported) otherwise leaves a
+    // blank, frozen terminal. Terminal hands the rejection up to its host.
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const onBootFail = vi.fn()
+    render(
+      <Terminal
+        storyBytes={new Uint8Array([1, 2, 3, 4])}
+        storyTitle="Zork I"
+        onChangeStory={() => {}}
+        themeToggle={null}
+        onBootFail={onBootFail}
+      />,
+    )
+    await waitFor(() => expect(onBootFail).toHaveBeenCalledTimes(1))
+    expect(onBootFail.mock.calls[0][0]).toBeTruthy() // the boot error
+    // The hook still logs too (the console path is not replaced, only added to).
+    expect(spy).toHaveBeenCalledWith('[ui] boot failed', expect.anything())
+    spy.mockRestore()
+  })
+
   it('renders queued lines with a "queued" chip and keeps the input enabled (F-A)', async () => {
     nlOverride = {
       state: { phase: 'on', language: 'en', model: 'full', canUpgrade: true },

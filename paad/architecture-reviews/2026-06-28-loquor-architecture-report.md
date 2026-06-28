@@ -256,6 +256,9 @@ The architecture is genuinely well-layered. **madge reports zero circular depend
 - **Explanation:** `engine.boot(...).catch(err => log.error('boot failed', err))` sends the error only to the console/ring. The `loadError` user-facing surface is wired solely to `App.tsx`'s story-_fetch_ path, not to `boot()`. So a story that fetches OK but fails to boot (corrupt/unsupported story, glk init throw) yields a blank/frozen terminal with no message — a dead-end for the player. **This is the one finding naming a concrete unhandled player-facing failure** (see Next Questions / the CLAUDE.md "player experience first" rule).
 - **Evidence:** `src/ui/useGameEngine.ts:54-56`; `src/ui/App.tsx:74-76`; `src/ui/Landing.tsx:251`.
 - **Found by:** Error Handling & Observability
+- **Status:** Fixed
+- **Status reason:** A boot failure now reaches the player instead of only the console. `useGameEngine` gained an optional `onBootError` callback (held in a ref so an unstable identity can't re-trigger boot) that fires alongside the existing `log.error('boot failed', …)`; `Terminal` exposes it as an `onBootFail` prop; `App` wires that to the SAME `loadError` surface a fetch failure already uses (`describeLoadError` → `Landing`'s `role="alert"` box) and resets `slug`/`bytes` to drop back to the landing. So a story that fetches OK but fails to boot (corrupt/unsupported file, glk-init throw) shows a readable message and a recoverable landing, not a blank/frozen terminal. Pinned by a new App integration test (long-but-invalid body → boots, fails, surfaces "could not be loaded" + returns to landing) and a Terminal unit test (`onBootFail` is called with the boot error); the pre-existing `Terminal.test.tsx:67` log-only test still holds (the console path is added to, not replaced).
+- **Status date:** 2026-06-28 10:38 UTC
 
 ### [F-m] `orphanSettleMs` 30_000 inline magic, outside `config.ts`
 

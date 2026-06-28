@@ -318,6 +318,15 @@ export const ES_CORE: CoreLexicon = {
     esconde: 'hide',
     esconder: 'hide',
     eco: 'echo', // Loud Room puzzle solution; 'echo' is a game verb (fr/de pass the English word through)
+    // Cyclops magic word (verb-only spoken command — the Z-parser treats the
+    // hero's name as a verb). "Ulises"/"Odiseo" are the Spanish names of
+    // Ulysses/Odysseus; saying either makes the Cyclops flee and clears the only
+    // staircase up. Zork accepts both ULYSSES (a verbSynonym) and ODYSSEUS (a
+    // verbsOnly verb), so each bare command clears the arity gate. fr already maps
+    // 'ulysse'; es had no alias, so "Ulises"/"Odiseo" missed to the LLM (which
+    // returns "look" and leaves the Cyclops blocking — see fr.core). (Review I1.)
+    ulises: 'ulysses',
+    odiseo: 'odysseus',
   },
   verbIdioms: [
     { phrase: 'echa un vistazo a', to: 'examine' },

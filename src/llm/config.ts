@@ -48,6 +48,18 @@ export const DOWNLOAD_STALL_MS = 60_000
  */
 export const DOWNLOAD_RETRY_MS = 2000
 
+/**
+ * Upper bound (ms) on how long `runGenerationGuarded` waits for an orphaned
+ * generation to settle after `ac.abort()` before treating the engine as DEAD and
+ * releasing the gate (review S2). Generous so only a truly wedged worker / lost
+ * device trips it — a healthy engine honours the abort in well under a second.
+ * Lives here with the other pipeline watchdogs (was an inline `?? 30_000` magic
+ * default inside the shared helper before F-m); the two call sites pass it, the
+ * same way they pass `GENERATE_WATCHDOG_MS`. The shared helper stays free of an
+ * `llm/config` import (keeps `src/shared` independent of the `llm` layer).
+ */
+export const ORPHAN_SETTLE_MS = 30_000
+
 /** Safety cap: at most this many clauses run per compound input (locked decision 6). */
 export const MAX_CLAUSES = 8
 

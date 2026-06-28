@@ -51,7 +51,12 @@ import {
 } from './lexicon/parse'
 import type { CoreLexicon, NounLexicon } from './lexicon/types'
 import { parseDirection } from './directions'
-import { MAX_CLAUSES, QUEUE_CAP, LOAD_WATCHDOG_MS } from './config'
+import {
+  MAX_CLAUSES,
+  QUEUE_CAP,
+  LOAD_WATCHDOG_MS,
+  ORPHAN_SETTLE_MS,
+} from './config'
 import {
   queueFullDropped,
   nothingSent,
@@ -294,6 +299,7 @@ export function createGenerateRaw(deps: GenerateRawDeps): GenerateRaw {
         messages,
         grammar,
         watchdogMs,
+        orphanSettleMs: ORPHAN_SETTLE_MS,
         timeoutError: () => new WatchdogTimeout(),
         onOrphanError: err =>
           log.error(

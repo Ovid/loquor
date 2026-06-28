@@ -39,6 +39,7 @@ describe('runGenerationGuarded (review I2)', () => {
         messages: MSGS,
         grammar: null,
         watchdogMs: 1000,
+        orphanSettleMs: 30_000,
         timeoutError: timeout,
       }),
     ).resolves.toBe('done')
@@ -63,6 +64,7 @@ describe('runGenerationGuarded (review I2)', () => {
       messages: MSGS,
       grammar: null,
       watchdogMs: 10,
+      orphanSettleMs: 30_000,
       timeoutError: timeout,
     }).catch(e => {
       thrown = e
@@ -80,6 +82,7 @@ describe('runGenerationGuarded (review I2)', () => {
       messages: MSGS,
       grammar: null,
       watchdogMs: 10,
+      orphanSettleMs: 30_000,
       timeoutError: timeout,
       onOrphanError,
     }).catch(() => {})
@@ -126,6 +129,7 @@ describe('runGenerationGuarded (review I2)', () => {
       messages: MSGS,
       grammar: null,
       watchdogMs: 10,
+      orphanSettleMs: 30_000,
       timeoutError: timeout,
       onOrphanError,
     }).catch(() => {})
@@ -140,6 +144,7 @@ describe('runGenerationGuarded (review I2)', () => {
       messages: MSGS,
       grammar: null,
       watchdogMs: 1000,
+      orphanSettleMs: 30_000,
       timeoutError: timeout,
       onOrphanError,
     })
@@ -158,6 +163,7 @@ describe('runGenerationGuarded (review I2)', () => {
       messages: MSGS,
       grammar: null,
       watchdogMs: 1000,
+      orphanSettleMs: 30_000,
       timeoutError: timeout,
       acs,
     })

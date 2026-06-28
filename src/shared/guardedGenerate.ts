@@ -38,9 +38,10 @@ export interface GuardedGenerateArgs {
    * to settle after ac.abort() before treating the engine as DEAD and releasing
    * the gate (review S2). A wedged worker / lost device can leave generate()
    * pending forever; an unbounded await would hold the shared gate for the
-   * whole session. Generous by default so only a truly wedged engine trips it
-   * (a healthy engine honours the abort in well under a second). */
-  orphanSettleMs?: number
+   * whole session. Required and supplied by the caller (production passes
+   * `config.ORPHAN_SETTLE_MS`, like `watchdogMs`) so the shared helper carries no
+   * magic default and `src/shared` stays free of an `llm/config` import (F-m). */
+  orphanSettleMs: number
   /** Invoked when the WATCHDOG won the race AND the orphaned generation then
    * settled with a GENUINE (non-abort) rejection — a hard-dead engine (crash /
    * WebGPU device lost) that the bare `await gen.catch(() => {})` used to
@@ -66,7 +67,7 @@ export async function runGenerationGuarded(
   args: GuardedGenerateArgs,
 ): Promise<string> {
   const { engine, messages, grammar, watchdogMs, timeoutError, acs } = args
-  const orphanSettleMs = args.orphanSettleMs ?? 30_000
+  const orphanSettleMs = args.orphanSettleMs
   const ac = new AbortController()
   acs?.add(ac)
   let watchdogId: ReturnType<typeof setTimeout>

@@ -270,6 +270,9 @@ The architecture is genuinely well-layered. **madge reports zero circular depend
 - **Explanation:** The orphan-settle bound `args.orphanSettleMs ?? 30_000` is an inline default in the exact helper `config.ts` was created to centralize, and both call sites rely on the fallback rather than passing it — the one watchdog tunable that escaped the F-13 sweep.
 - **Evidence:** `src/shared/guardedGenerate.ts:69`.
 - **Found by:** Error Handling & Observability
+- **Status:** Fixed
+- **Status reason:** The orphan-settle bound now lives in `config.ts` as `ORPHAN_SETTLE_MS = 30_000` (beside the other pipeline watchdogs), and `orphanSettleMs` was made a REQUIRED field of `GuardedGenerateArgs` — exactly mirroring the sibling `watchdogMs`, which is already required and config-sourced at the call sites. The inline `args.orphanSettleMs ?? 30_000` magic default is gone from the shared helper; both production call sites (`translatePipeline.ts`, `fallbackResolve.ts`) now pass `ORPHAN_SETTLE_MS`. The shared helper deliberately does NOT import `llm/config` (keeps `src/shared` independent of the `llm` layer / S-c); the llm/translate-layer call sites do the import, as they already do for `watchdogMs`. Behavior-preserving (value unchanged); `guardedGenerate.test.ts` updated to pass the now-required arg (61 tests green across guardedGenerate/config/translatePipeline/fallbackResolve).
+- **Status date:** 2026-06-28 10:48 UTC
 
 ### [F-n] `LLM_ANNOUNCE_CLEAR_MS = 7000` UI tunable outside `config.ts`
 

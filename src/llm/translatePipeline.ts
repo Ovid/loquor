@@ -781,75 +781,30 @@ export function createTranslate(
       return 'ok'
     }
 
-    // Run ONE LINE through the full pipeline (stages 1–8). Returns 'flush'
-    // when the game raised an interactive prompt: queued lines were typed
-    // BEFORE the player saw that question, so the drain must discard them
-    // rather than feed them to it (F-A). Returns 'stale' when the story
-    // epoch changed while a clause was translating ([O]) — the caller
-    // abandons the drain without sending. Errors propagate to the per-line
-    // catch in the drain below. `settled` is the previous drained line's
-    // turn-boundary view context (non-null only when the drain awaited that
-    // boundary): it is FRESHER than getContext(), whose backing view ref
-    // only updates after a React re-render the synchronous drain never
-    // yields for.
-    const runLine = async (
+    // The UNIFIED CLAUSE LOOP (locked decisions 1–9): a single command is the
+    // degenerate total===1 case of the compound machinery. Runs each clause
+    // through runClause, owning the per-clause turn boundary when total>1 (the
+    // hook's observe is deferred via inSequenceRef). Returns the loop OUTCOME —
+    // {kind:'done', done, total, stopReason, stopError} for stage 8 to act on —
+    // or {kind:'stale'} when the story changed mid-clause ([O]). A clause-time
+    // generate error on a SINGLE command is rethrown (the drain's per-line catch
+    // owns it, unchanged contract); a ModelLoadError demotes and stops in-band.
+    const runCompound = async (
       line: string,
-      fromQueue: boolean,
+      activeLang: ActiveLanguage,
+      lex: Lex | null,
+      grammarOnly: boolean,
       settled: ViewContext | null,
-    ): Promise<'ok' | 'flush' | 'stale'> => {
-      // [N] Resolve the ACTIVE language and lexicons per LINE, not per
-      // drain: a picker change mid-drain applies to every line that runs
-      // after it. The drain's phase gate guarantees 'on' here; the 'en'
-      // arm only keeps the narrowing total for TS.
-      const live = liveRef.current
-      const activeLang: ActiveLanguage =
-        live.internal.phase === 'on' ? live.internal.language : 'en'
-      const lex = live.lex
-      // Grammar-only: the model isn't loaded for this stint, so stage 7 abstains
-      // (runClause skips the engine) and stage 8 educates / EN raw-sends.
-      const grammarOnly =
-        live.internal.phase === 'on' && live.internal.model === 'grammar'
-      // STAGE 1 (spec §4): a reply to an interpreter/parser prompt answers the
-      // game, not the translator — handlePromptReply owns that decision. Checked
-      // before the clause split so a reply containing "and" is never split.
-      const recentOutput = (settled ?? getContext()).recentOutput
-      const replyOutcome = handlePromptReply(
-        line,
-        fromQueue,
-        recentOutput,
-        activeLang,
-        lex,
-      )
-      if (replyOutcome !== null) return replyOutcome
-      // STAGE 2 (locked decision 8): a fully-quoted line ("…", «…», „…“, “…”)
-      // is the escape hatch — send the unquoted text verbatim, bypassing every
-      // translation stage. No echo, no latch: the player typed the command.
-      const quoted = unquote(line)
-      if (quoted) {
-        lastCommandRef.current = null
-        sendTracked(quoted)
-        return 'ok'
-      }
-
-      // LOCALIZED HELP (Task 11): Zork I has no native help verb, so a bare help
-      // word ("ayuda"/"aide"/"hilfe"/"help", incl. English) is intercepted and
-      // answered with a localized cheat-sheet via the SAME aria-live notice seam
-      // the other NL notices use — it reaches the game NOT at all (no sendTracked,
-      // no turn burned). English "help" is intercepted too: there is no native help
-      // to fall through to, and with a model on the LLM would otherwise mistranslate
-      // it (observed: help → look). Placed beside the quoted-escape (both are
-      // pre-clause line escapes that bypass translation) so it sits with the
-      // existing meta-routing.
-      if (isHelpTrigger(line, activeLang)) {
-        lastCommandRef.current = null
-        setNotice(helpResponse(activeLang))
-        return 'ok'
-      }
-
-      // UNIFIED CLAUSE LOOP: a single command is the degenerate total===1
-      // case of the compound machinery (locked decisions 1–9). Only when
-      // total>1 does the hook own the turn boundary (awaitTurn + observe);
-      // a single command leaves the turn to Terminal's observe effect.
+    ): Promise<
+      | { kind: 'stale' }
+      | {
+          kind: 'done'
+          done: number
+          total: number
+          stopReason: string | null
+          stopError: unknown
+        }
+    > => {
       // fillElidedVerbs lets a verbless conjunct inherit the previous clause's
       // verb ("prends le couteau et la corde" → "…et prends la corde") so it
       // resolves deterministically instead of an LLM-invented verb; length is
@@ -923,7 +878,7 @@ export function createTranslate(
         // [O] An await elapsed: if the story changed underneath this drain,
         // the translated result belongs to the OLD game — drop it unsent
         // and abandon everything ('stale' bypasses stage 8 entirely).
-        if (epochRef.current !== epoch) return 'stale'
+        if (epochRef.current !== epoch) return { kind: 'stale' }
         // TEMP per-clause diagnostics — what the live scene fed the stage vs.
         // what it emitted, and WHICH stage produced it. Remove once quality
         // is tuned.
@@ -1028,6 +983,89 @@ export function createTranslate(
         !(stopError instanceof ModelLoadError)
       )
         log.error('translation failed:', stopError)
+
+      return { kind: 'done', done, total, stopReason, stopError }
+    }
+
+    // Run ONE LINE through the full pipeline (stages 1–8). Returns 'flush'
+    // when the game raised an interactive prompt: queued lines were typed
+    // BEFORE the player saw that question, so the drain must discard them
+    // rather than feed them to it (F-A). Returns 'stale' when the story
+    // epoch changed while a clause was translating ([O]) — the caller
+    // abandons the drain without sending. Errors propagate to the per-line
+    // catch in the drain below. `settled` is the previous drained line's
+    // turn-boundary view context (non-null only when the drain awaited that
+    // boundary): it is FRESHER than getContext(), whose backing view ref
+    // only updates after a React re-render the synchronous drain never
+    // yields for.
+    const runLine = async (
+      line: string,
+      fromQueue: boolean,
+      settled: ViewContext | null,
+    ): Promise<'ok' | 'flush' | 'stale'> => {
+      // [N] Resolve the ACTIVE language and lexicons per LINE, not per
+      // drain: a picker change mid-drain applies to every line that runs
+      // after it. The drain's phase gate guarantees 'on' here; the 'en'
+      // arm only keeps the narrowing total for TS.
+      const live = liveRef.current
+      const activeLang: ActiveLanguage =
+        live.internal.phase === 'on' ? live.internal.language : 'en'
+      const lex = live.lex
+      // Grammar-only: the model isn't loaded for this stint, so stage 7 abstains
+      // (runClause skips the engine) and stage 8 educates / EN raw-sends.
+      const grammarOnly =
+        live.internal.phase === 'on' && live.internal.model === 'grammar'
+      // STAGE 1 (spec §4): a reply to an interpreter/parser prompt answers the
+      // game, not the translator — handlePromptReply owns that decision. Checked
+      // before the clause split so a reply containing "and" is never split.
+      const recentOutput = (settled ?? getContext()).recentOutput
+      const replyOutcome = handlePromptReply(
+        line,
+        fromQueue,
+        recentOutput,
+        activeLang,
+        lex,
+      )
+      if (replyOutcome !== null) return replyOutcome
+      // STAGE 2 (locked decision 8): a fully-quoted line ("…", «…», „…“, “…”)
+      // is the escape hatch — send the unquoted text verbatim, bypassing every
+      // translation stage. No echo, no latch: the player typed the command.
+      const quoted = unquote(line)
+      if (quoted) {
+        lastCommandRef.current = null
+        sendTracked(quoted)
+        return 'ok'
+      }
+
+      // LOCALIZED HELP (Task 11): Zork I has no native help verb, so a bare help
+      // word ("ayuda"/"aide"/"hilfe"/"help", incl. English) is intercepted and
+      // answered with a localized cheat-sheet via the SAME aria-live notice seam
+      // the other NL notices use — it reaches the game NOT at all (no sendTracked,
+      // no turn burned). English "help" is intercepted too: there is no native help
+      // to fall through to, and with a model on the LLM would otherwise mistranslate
+      // it (observed: help → look). Placed beside the quoted-escape (both are
+      // pre-clause line escapes that bypass translation) so it sits with the
+      // existing meta-routing.
+      if (isHelpTrigger(line, activeLang)) {
+        lastCommandRef.current = null
+        setNotice(helpResponse(activeLang))
+        return 'ok'
+      }
+
+      // Stages 3–8: the unified clause loop (a single command is the degenerate
+      // total===1 compound). runCompound owns the per-clause turn boundary and
+      // returns the outcome; stage 8 below acts on it.
+      const compound = await runCompound(
+        line,
+        activeLang,
+        lex,
+        grammarOnly,
+        settled,
+      )
+      // [O] The story changed mid-clause — the result belonged to the OLD game
+      // and was dropped unsent; abandon this line (bypasses stage 8 entirely).
+      if (compound.kind === 'stale') return 'stale'
+      const { done, total, stopReason, stopError } = compound
 
       if (done === 0) {
         // STAGE 8 — abstain policy (spec §4, UAT F-R): the shared abstainPolicy

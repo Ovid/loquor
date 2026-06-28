@@ -148,6 +148,92 @@ export class ModelLoadError extends Error {
   }
 }
 
+/** What an abstain resolves to: WHAT to do, not how. The caller performs the
+ * effects against its live refs — keeping the decision free of the closure's
+ * mutable state. */
+export interface AbstainDecision {
+  /** Raw line to send VERBATIM to the Z-parser, or null for no send. */
+  send: string | null
+  /** Notice to show (setNotice), or null for no notice. */
+  notice: string | null
+  /** Line to restore to the input field (retainTyped), or null. */
+  retain: string | null
+  /** Latch the grammar-only first-miss education flag (educatedRef). */
+  educate: boolean
+}
+
+/** Everything the abstain decision reads. */
+export interface AbstainContext {
+  /** The stop reason: null (a deliberate abstain), WatchdogTimeout,
+   * ModelLoadError, or another generate error. */
+  error: unknown
+  lang: ActiveLanguage
+  line: string
+  /** A queued line never restores to the field (the player has moved on). */
+  fromQueue: boolean
+  /** Stage 7 was skipped (model not loaded for this stint). */
+  grammarOnly: boolean
+  /** educatedRef.current — the first-miss notice fires once per grammar-only stint. */
+  educated: boolean
+  /** liveRef's LLM-feature preference — a hidden model omits the upgrade pitch. */
+  llmEnabled: boolean
+}
+
+/**
+ * STAGE 8 — the abstain DECISION (spec §4, UAT F-R), extracted pure so the two
+ * sites that abstain — `runLine`'s `done===0` fallthrough and the drain's
+ * per-line error catch — share ONE policy instead of each re-encoding the
+ * EN-raw / ka-ASCII / non-EN choice (F-b's named duplication). Takes the error
+ * OBJECT (not a boolean) so the ModelLoadError / WatchdogTimeout / generate-error
+ * three-way that drives distinct notices stays intact (S-j). Pure: returns a
+ * decision; the caller applies it (send / notice / retain / educate latch).
+ */
+export function abstainPolicy(c: AbstainContext): AbstainDecision {
+  const { error, lang, line, fromQueue, grammarOnly, educated, llmEnabled } = c
+  // en (and a ka English-ASCII miss, §5.5) raw-sends to the Z-parser, whose own
+  // error is useful; a non-EN / Georgian line raw-sent would only earn a useless
+  // "I don't know the word…" and burn a turn — so it abstains with a notice.
+  const rawSends = rawSendsToParser(lang, line)
+  let send: string | null = null
+  let notice: string | null = null
+  let educate = false
+  if (error !== null) {
+    // A translator FAILURE (not a deliberate abstain): don't blame the player's
+    // wording (Task 21 review). Checked first ([B]).
+    if (error instanceof ModelLoadError) {
+      // Clause-time load failure (the caller fires demote()): the shared
+      // basic-mode notice; EN still raw-sends the typed line.
+      notice = modelDownloadFailed(lang)
+      if (lang === 'en') send = line
+    } else {
+      // Timeout or engine fault: EN raw-sends "sent as typed"; non-EN sends
+      // nothing and shows a localized failure notice.
+      const timedOut = error instanceof WatchdogTimeout
+      if (lang === 'en') {
+        send = line
+        notice = sentAsTyped(timedOut)
+      } else {
+        notice = nothingSent(lang, timedOut)
+      }
+    }
+  } else if (rawSends) {
+    // Deliberate abstain, en / ka-ASCII: degrade to the raw Z-parser, never block.
+    send = line
+  } else if (grammarOnly && !educated && (llmEnabled || lang === 'ka')) {
+    // First grammar-only abstain this stint: connect the miss to the
+    // declined/absent upgrade (once). Suppressed when the LLM feature is HIDDEN
+    // (no upgrade to pitch) — except ka, whose first-miss notice carries no pitch.
+    educate = true
+    notice = grammarOnlyFirstMiss(lang)
+  } else {
+    notice = couldntTranslate(lang)
+  }
+  // Only the NOTICE branches retain the typed line; a raw send consumed it, and a
+  // queued line never restores (it would clobber what the player is now typing).
+  const retain = !fromQueue && !rawSends ? line : null
+  return { send, notice, retain, educate }
+}
+
 // MAX_CLAUSES / QUEUE_CAP / LOAD_WATCHDOG_MS now live in ./config (F-13).
 
 /** Which pipeline stage produced a clause's command (spec §4 stages 3–7). */
@@ -634,142 +720,91 @@ export function createTranslate(
       ;(canonical ? sendCanonical : sendLine)(text)
     }
 
-    // Shared abstain-on-error action (review S6): a translator failure (timeout
-    // or engine fault) on a line. EN raw-sends the typed line (the Z-parser's
-    // own error is useful) with a "sent as typed" notice; a non-EN line sends
-    // NOTHING — raw FR/DE/ES earns only a useless "I don't know the word…" and
-    // burns a game turn — and shows a notice instead. Used by both the in-runLine
-    // stage-8 path and the drain's per-line catch.
-    const abstainOnError = (
-      lang: ActiveLanguage,
-      line: string,
-      timedOut: boolean,
-    ) => {
-      if (lang === 'en') {
-        sendTracked(line)
-        setNotice(sentAsTyped(timedOut))
-      } else {
-        setNotice(nothingSent(lang, timedOut))
-      }
-    }
-
-    // Run ONE LINE through the full pipeline (stages 1–8). Returns 'flush'
-    // when the game raised an interactive prompt: queued lines were typed
-    // BEFORE the player saw that question, so the drain must discard them
-    // rather than feed them to it (F-A). Returns 'stale' when the story
-    // epoch changed while a clause was translating ([O]) — the caller
-    // abandons the drain without sending. Errors propagate to the per-line
-    // catch in the drain below. `settled` is the previous drained line's
-    // turn-boundary view context (non-null only when the drain awaited that
-    // boundary): it is FRESHER than getContext(), whose backing view ref
-    // only updates after a React re-render the synchronous drain never
-    // yields for.
-    const runLine = async (
+    // STAGE 1 (spec §4): the game is asking. The interpreter's yes/no
+    // confirmations (restart/quit/restore), the parser's disambiguation
+    // questions ("Which door…?"), and the parser's orphan prompts ("What do you
+    // want to put the coffin in?") are read as ordinary LINE input, so the
+    // player's reply answers the INTERPRETER/PARSER and must not be translated —
+    // else "Y" → "look" (restart never confirms) or "wooden door" gets mangled.
+    // Returns the line outcome when `recentOutput` IS such a prompt, else null
+    // (the caller proceeds to stages 2–8). A QUEUED line cannot be a reply — the
+    // player hadn't seen the question when they typed it — so it flushes.
+    const handlePromptReply = (
       line: string,
       fromQueue: boolean,
-      settled: ViewContext | null,
-    ): Promise<'ok' | 'flush' | 'stale'> => {
-      // [N] Resolve the ACTIVE language and lexicons per LINE, not per
-      // drain: a picker change mid-drain applies to every line that runs
-      // after it. The drain's phase gate guarantees 'on' here; the 'en'
-      // arm only keeps the narrowing total for TS.
-      const live = liveRef.current
-      const activeLang: ActiveLanguage =
-        live.internal.phase === 'on' ? live.internal.language : 'en'
-      const lex = live.lex
-      // Grammar-only: the model isn't loaded for this stint, so stage 7 abstains
-      // (runClause skips the engine) and stage 8 educates / EN raw-sends.
-      const grammarOnly =
-        live.internal.phase === 'on' && live.internal.model === 'grammar'
-      // STAGE 1 (spec §4): the game is asking. The interpreter's yes/no
-      // confirmations (restart/quit/restore), the parser's disambiguation
-      // questions ("Which door…?"), and the parser's orphan prompts ("What do
-      // you want to put the coffin in?") are read as ordinary LINE input, so the
-      // player's reply answers the INTERPRETER/PARSER and must not be translated —
-      // else "Y" → "look" (restart never confirms) or "wooden door" gets
-      // mangled. Checked before the clause split so a reply containing "and"
-      // is never split either. A QUEUED line cannot be such a reply — the
-      // player hadn't seen the question when they typed it — so it signals a
-      // flush instead of answering.
-      const recentOutput = (settled ?? getContext()).recentOutput
+      recentOutput: string,
+      activeLang: ActiveLanguage,
+      lex: Lex | null,
+    ): 'flush' | 'ok' | null => {
       if (
-        isConfirmationPrompt(recentOutput) ||
-        isDisambiguationPrompt(recentOutput) ||
-        isOrphanPrompt(recentOutput) // parser orphan ("What do you want to …?") — the reply answers the parser (review I1)
-      ) {
-        lastCommandRef.current = null
-        if (fromQueue) return 'flush'
-        // On a yes/no confirmation, map the player's localized reflex reply
-        // ("j"/"ja"/"oui"/"sí") to the interpreter's literal "y"/"n" key — the
-        // localized prompt invited it but the interpreter only accepts Y (review I3).
-        if (isConfirmationPrompt(recentOutput)) {
-          sendTracked(confirmationReply(line, activeLang))
-          return 'ok'
-        }
-        // Disambiguation / orphan: the reply answers the PARSER with a NOUN
-        // ("yellow button" → "Which button?"). The output corpus renders the
-        // prompt in the player's language, so a non-English player answers in
-        // their language — which the English Z-parser can't read (I3). Resolve the
-        // reply through the noun lexicon (verbless path) and send the English noun.
-        // A QUOTED reply is the literal escape and skips resolution (decision 8);
-        // it raw-sends below (the decision-8 contract keeps the quotes).
-        const resolved =
-          !unquote(line) && lex?.nouns
-            ? resolveNounReply(
-                line,
-                lex.core,
-                lex.nouns,
-                vocab,
-                tracker.scene(),
-              )
-            : null
-        if (resolved) {
-          echoLocal(line) // a translated reply — echo the player's own words once
-          sendTracked(resolved, line, true)
-          return 'ok'
-        }
-        // Unresolved → mirror the stage-8 abstain policy: en (and ka's
-        // English-ASCII reply, §5.5) raw-send (Zork's parser reads English); a
-        // non-English reply with no resolution would only earn a useless English
-        // error and burn the turn, so abstain (leave the prompt open) and show a
-        // localized hint to answer with the full noun (I3, the "resolve + hint" call).
-        if (rawSendsToParser(activeLang, line)) {
-          sendTracked(line)
-          return 'ok'
-        }
-        setNotice(promptAnswerHint(activeLang))
-        retainTyped = line
+        !isConfirmationPrompt(recentOutput) &&
+        !isDisambiguationPrompt(recentOutput) &&
+        !isOrphanPrompt(recentOutput) // parser orphan — the reply answers the parser (review I1)
+      )
+        return null
+      lastCommandRef.current = null
+      if (fromQueue) return 'flush'
+      // On a yes/no confirmation, map the player's localized reflex reply
+      // ("j"/"ja"/"oui"/"sí") to the interpreter's literal "y"/"n" key — the
+      // localized prompt invited it but the interpreter only accepts Y (review I3).
+      if (isConfirmationPrompt(recentOutput)) {
+        sendTracked(confirmationReply(line, activeLang))
         return 'ok'
       }
-      // STAGE 2 (locked decision 8): a fully-quoted line ("…", «…», „…“, “…”)
-      // is the escape hatch — send the unquoted text verbatim, bypassing every
-      // translation stage. No echo, no latch: the player typed the command.
-      const quoted = unquote(line)
-      if (quoted) {
-        lastCommandRef.current = null
-        sendTracked(quoted)
+      // Disambiguation / orphan: the reply answers the PARSER with a NOUN
+      // ("yellow button" → "Which button?"). The output corpus renders the
+      // prompt in the player's language, so a non-English player answers in
+      // their language — which the English Z-parser can't read (I3). Resolve the
+      // reply through the noun lexicon (verbless path) and send the English noun.
+      // A QUOTED reply is the literal escape and skips resolution (decision 8);
+      // it raw-sends below (the decision-8 contract keeps the quotes).
+      const resolved =
+        !unquote(line) && lex?.nouns
+          ? resolveNounReply(line, lex.core, lex.nouns, vocab, tracker.scene())
+          : null
+      if (resolved) {
+        echoLocal(line) // a translated reply — echo the player's own words once
+        sendTracked(resolved, line, true)
         return 'ok'
       }
+      // Unresolved → mirror the stage-8 abstain policy: en (and ka's
+      // English-ASCII reply, §5.5) raw-send (Zork's parser reads English); a
+      // non-English reply with no resolution would only earn a useless English
+      // error and burn the turn, so abstain (leave the prompt open) and show a
+      // localized hint to answer with the full noun (I3, the "resolve + hint" call).
+      if (rawSendsToParser(activeLang, line)) {
+        sendTracked(line)
+        return 'ok'
+      }
+      setNotice(promptAnswerHint(activeLang))
+      retainTyped = line
+      return 'ok'
+    }
 
-      // LOCALIZED HELP (Task 11): Zork I has no native help verb, so a bare help
-      // word ("ayuda"/"aide"/"hilfe"/"help", incl. English) is intercepted and
-      // answered with a localized cheat-sheet via the SAME aria-live notice seam
-      // the other NL notices use — it reaches the game NOT at all (no sendTracked,
-      // no turn burned). English "help" is intercepted too: there is no native help
-      // to fall through to, and with a model on the LLM would otherwise mistranslate
-      // it (observed: help → look). Placed beside the quoted-escape (both are
-      // pre-clause line escapes that bypass translation) so it sits with the
-      // existing meta-routing.
-      if (isHelpTrigger(line, activeLang)) {
-        lastCommandRef.current = null
-        setNotice(helpResponse(activeLang))
-        return 'ok'
-      }
-
-      // UNIFIED CLAUSE LOOP: a single command is the degenerate total===1
-      // case of the compound machinery (locked decisions 1–9). Only when
-      // total>1 does the hook own the turn boundary (awaitTurn + observe);
-      // a single command leaves the turn to Terminal's observe effect.
+    // The UNIFIED CLAUSE LOOP (locked decisions 1–9): a single command is the
+    // degenerate total===1 case of the compound machinery. Runs each clause
+    // through runClause, owning the per-clause turn boundary when total>1 (the
+    // hook's observe is deferred via inSequenceRef). Returns the loop OUTCOME —
+    // {kind:'done', done, total, stopReason, stopError} for stage 8 to act on —
+    // or {kind:'stale'} when the story changed mid-clause ([O]). A clause-time
+    // generate error on a SINGLE command is rethrown (the drain's per-line catch
+    // owns it, unchanged contract); a ModelLoadError demotes and stops in-band.
+    const runCompound = async (
+      line: string,
+      activeLang: ActiveLanguage,
+      lex: Lex | null,
+      grammarOnly: boolean,
+      settled: ViewContext | null,
+    ): Promise<
+      | { kind: 'stale' }
+      | {
+          kind: 'done'
+          done: number
+          total: number
+          stopReason: string | null
+          stopError: unknown
+        }
+    > => {
       // fillElidedVerbs lets a verbless conjunct inherit the previous clause's
       // verb ("prends le couteau et la corde" → "…et prends la corde") so it
       // resolves deterministically instead of an LLM-invented verb; length is
@@ -843,7 +878,7 @@ export function createTranslate(
         // [O] An await elapsed: if the story changed underneath this drain,
         // the translated result belongs to the OLD game — drop it unsent
         // and abandon everything ('stale' bypasses stage 8 entirely).
-        if (epochRef.current !== epoch) return 'stale'
+        if (epochRef.current !== epoch) return { kind: 'stale' }
         // TEMP per-clause diagnostics — what the live scene fed the stage vs.
         // what it emitted, and WHICH stage produced it. Remove once quality
         // is tuned.
@@ -949,55 +984,109 @@ export function createTranslate(
       )
         log.error('translation failed:', stopError)
 
-      if (done === 0) {
-        // STAGE 8 — abstain policy (spec §4, UAT F-R). English: the raw line
-        // goes to the Z-parser, whose own error message is genuinely useful.
-        // Non-English: raw French/German/Spanish would only earn a useless
-        // "I don't know the word …" AND burn a game turn — send NOTHING and
-        // show a styled notice instead. Engine errors are checked FIRST
-        // ([B]): EN still raw-sends, but a translator failure must not
-        // masquerade as a deliberate abstain — it gets the failure notice.
+      return { kind: 'done', done, total, stopReason, stopError }
+    }
+
+    // Run ONE LINE through the full pipeline (stages 1–8). Returns 'flush'
+    // when the game raised an interactive prompt: queued lines were typed
+    // BEFORE the player saw that question, so the drain must discard them
+    // rather than feed them to it (F-A). Returns 'stale' when the story
+    // epoch changed while a clause was translating ([O]) — the caller
+    // abandons the drain without sending. Errors propagate to the per-line
+    // catch in the drain below. `settled` is the previous drained line's
+    // turn-boundary view context (non-null only when the drain awaited that
+    // boundary): it is FRESHER than getContext(), whose backing view ref
+    // only updates after a React re-render the synchronous drain never
+    // yields for.
+    const runLine = async (
+      line: string,
+      fromQueue: boolean,
+      settled: ViewContext | null,
+    ): Promise<'ok' | 'flush' | 'stale'> => {
+      // [N] Resolve the ACTIVE language and lexicons per LINE, not per
+      // drain: a picker change mid-drain applies to every line that runs
+      // after it. The drain's phase gate guarantees 'on' here; the 'en'
+      // arm only keeps the narrowing total for TS.
+      const live = liveRef.current
+      const activeLang: ActiveLanguage =
+        live.internal.phase === 'on' ? live.internal.language : 'en'
+      const lex = live.lex
+      // Grammar-only: the model isn't loaded for this stint, so stage 7 abstains
+      // (runClause skips the engine) and stage 8 educates / EN raw-sends.
+      const grammarOnly =
+        live.internal.phase === 'on' && live.internal.model === 'grammar'
+      // STAGE 1 (spec §4): a reply to an interpreter/parser prompt answers the
+      // game, not the translator — handlePromptReply owns that decision. Checked
+      // before the clause split so a reply containing "and" is never split.
+      const recentOutput = (settled ?? getContext()).recentOutput
+      const replyOutcome = handlePromptReply(
+        line,
+        fromQueue,
+        recentOutput,
+        activeLang,
+        lex,
+      )
+      if (replyOutcome !== null) return replyOutcome
+      // STAGE 2 (locked decision 8): a fully-quoted line ("…", «…», „…“, “…”)
+      // is the escape hatch — send the unquoted text verbatim, bypassing every
+      // translation stage. No echo, no latch: the player typed the command.
+      const quoted = unquote(line)
+      if (quoted) {
         lastCommandRef.current = null
-        if (stopError !== null) {
-          if (stopError instanceof ModelLoadError) {
-            // Clause-time load failure (demote already fired): the shared
-            // basic-mode notice; EN still raw-sends the typed line.
-            setNotice(modelDownloadFailed(activeLang))
-            if (activeLang === 'en') sendTracked(line)
-          } else {
-            // The translator broke (timeout/engine error) — don't blame the
-            // player's wording (Task 21 review).
-            abstainOnError(
-              activeLang,
-              line,
-              stopError instanceof WatchdogTimeout,
-            )
-          }
-        } else if (rawSendsToParser(activeLang, line)) {
-          // en, and (§5.5) a ka player's English (ASCII) line that missed the
-          // Georgian lexicon: raw-send to the Z-parser — degrade, never block. A
-          // ka line CONTAINING Georgian is excluded by rawSendsToParser and falls
-          // through to the abstain notice below.
-          sendTracked(line)
-        } else if (
-          grammarOnly &&
-          !educatedRef.current &&
-          (live.llmEnabled || activeLang === 'ka')
-        ) {
-          // First grammar-only abstain this stint: connect the miss to the
-          // declined/absent upgrade at the moment of confusion (once per stint).
-          // Suppressed when the LLM feature is HIDDEN (no upgrade to pitch) —
-          // except ka, whose first-miss notice carries no pitch anyway and stays
-          // the no-LLM language's chosen Georgian wording (CLAUDE.md ka rule).
-          educatedRef.current = true
-          setNotice(grammarOnlyFirstMiss(activeLang))
-        } else {
-          setNotice(couldntTranslate(activeLang))
-        }
-        // Only the NOTICE branches retain the typed line; the raw-send arms (en,
-        // and ka-ASCII via §5.5) consumed it — don't re-populate the input field.
-        const rawSent = rawSendsToParser(activeLang, line)
-        if (!fromQueue && !rawSent) retainTyped = line
+        sendTracked(quoted)
+        return 'ok'
+      }
+
+      // LOCALIZED HELP (Task 11): Zork I has no native help verb, so a bare help
+      // word ("ayuda"/"aide"/"hilfe"/"help", incl. English) is intercepted and
+      // answered with a localized cheat-sheet via the SAME aria-live notice seam
+      // the other NL notices use — it reaches the game NOT at all (no sendTracked,
+      // no turn burned). English "help" is intercepted too: there is no native help
+      // to fall through to, and with a model on the LLM would otherwise mistranslate
+      // it (observed: help → look). Placed beside the quoted-escape (both are
+      // pre-clause line escapes that bypass translation) so it sits with the
+      // existing meta-routing.
+      if (isHelpTrigger(line, activeLang)) {
+        lastCommandRef.current = null
+        setNotice(helpResponse(activeLang))
+        return 'ok'
+      }
+
+      // Stages 3–8: the unified clause loop (a single command is the degenerate
+      // total===1 compound). runCompound owns the per-clause turn boundary and
+      // returns the outcome; stage 8 below acts on it.
+      const compound = await runCompound(
+        line,
+        activeLang,
+        lex,
+        grammarOnly,
+        settled,
+      )
+      // [O] The story changed mid-clause — the result belonged to the OLD game
+      // and was dropped unsent; abandon this line (bypasses stage 8 entirely).
+      if (compound.kind === 'stale') return 'stale'
+      const { done, total, stopReason, stopError } = compound
+
+      if (done === 0) {
+        // STAGE 8 — abstain policy (spec §4, UAT F-R): the shared abstainPolicy
+        // decision drives the EN-raw / ka-ASCII / non-EN choice (one place, F-b);
+        // applied here against the live refs. See abstainPolicy's doc comment for
+        // the full rationale (engine-error-first, the §5.5 ka raw-send, the
+        // once-per-stint first-miss latch, and why a queued line never restores).
+        lastCommandRef.current = null
+        const decision = abstainPolicy({
+          error: stopError,
+          lang: activeLang,
+          line,
+          fromQueue,
+          grammarOnly,
+          educated: educatedRef.current,
+          llmEnabled: live.llmEnabled,
+        })
+        if (decision.educate) educatedRef.current = true
+        if (decision.send !== null) sendTracked(decision.send)
+        if (decision.notice !== null) setNotice(decision.notice)
+        if (decision.retain !== null) retainTyped = decision.retain
       } else if (done < total) {
         // Truncated sequence → make it visible (decision 7); an engine
         // error labels the notice so it can't pass for a quiet stop ([B]).
@@ -1100,10 +1189,23 @@ export function createTranslate(
           if (!(err instanceof WatchdogTimeout))
             log.error('translation failed:', err)
           // F2/F-R: honor stage-8's abstain policy here too (this outer catch
-          // catches the total===1 rethrow that bypassed the in-runLine path).
-          abstainOnError(liveLang(), line, err instanceof WatchdogTimeout)
-          // Non-EN abstainOnError sends nothing → restore the typed line (M8).
-          if (!fromQueue && liveLang() !== 'en') retainTyped = line
+          // catches the total===1 rethrow that bypassed the in-runLine path) —
+          // the SAME shared decision runLine's stage 8 uses. A thrown error is
+          // never the grammar-only abstain path (grammar-only abstains in
+          // runClause without generating, so it cannot throw), hence grammarOnly:
+          // false; abstainPolicy ignores educated/llmEnabled on an error anyway.
+          const decision = abstainPolicy({
+            error: err,
+            lang: liveLang(),
+            line,
+            fromQueue,
+            grammarOnly: false,
+            educated: educatedRef.current,
+            llmEnabled: liveRef.current.llmEnabled,
+          })
+          if (decision.send !== null) sendTracked(decision.send)
+          if (decision.notice !== null) setNotice(decision.notice)
+          if (decision.retain !== null) retainTyped = decision.retain
         }
         // A compound that stopped mid-sequence leaves this set; reset it per
         // line so Terminal's observe effect resumes for later queued lines.

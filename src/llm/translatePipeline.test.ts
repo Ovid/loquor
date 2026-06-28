@@ -3,7 +3,9 @@ import {
   runClause,
   createGenerateRaw,
   createTranslate,
+  abstainPolicy,
   ModelLoadError,
+  WatchdogTimeout,
   containsGeorgian,
 } from './translatePipeline'
 import type {
@@ -380,6 +382,7 @@ function makeTranslate(opts: {
   educatedRef: { current: boolean }
   sendLine?: (text: string) => void
   sendCanonical?: (text: string) => void
+  recordEcho?: (canonical: string, source: string) => void
   echoLocal?: (text: string) => void
   watchdogMs?: number
   lex?: Lex
@@ -410,6 +413,7 @@ function makeTranslate(opts: {
     echoLocal: opts.echoLocal ?? (() => {}),
     sendLine: opts.sendLine ?? (() => {}),
     sendCanonical: opts.sendCanonical ?? (() => {}),
+    recordEcho: opts.recordEcho,
     awaitTurn: async () => ({ view: emptyView, reason: 'line' as const }),
     refs: {
       trackerRef: { current: new TextSceneTracker(TEST_VOCAB) },
@@ -852,6 +856,56 @@ describe('createTranslate grammar-only + demotion', () => {
     expect(await t('frobnicate the gadget')).toBeNull()
   })
 
+  // --- F-b decomposition safety net (characterization tests pinning invariants
+  // the rest of the suite cannot see: send ordering and the fromQueue return
+  // guard). Written BEFORE the god-function is decomposed. ---
+
+  it('F-b net: a translated send records the echo map BEFORE the send (F6 ordering)', async () => {
+    // sendTracked MUST call recordEcho before the (canonical) send: the VM runs
+    // the turn SYNCHRONOUSLY inside sendLine, so the canonical→source map has to
+    // be current when the Loud Room echo line is produced (translatePipeline.ts
+    // :622-635). The pipeline.uat F6 test pins the recorded CONTENTS; a reorder
+    // leaves the contents identical, so only an interleaving log catches it.
+    const engine = new FakeLlmEngine({ default: 'X' }) // direction stage — never reached
+    const events: string[] = []
+    const t = makeTranslate({
+      engine,
+      internalOn: on('fr', 'full'),
+      setNotice: vi.fn(),
+      demote: vi.fn(),
+      educatedRef: { current: false },
+      sendCanonical: (text: string) => events.push(`send:${text}`),
+      recordEcho: (canonical: string) => events.push(`record:${canonical}`),
+    })
+    await t('va au nord') // direction → 'north', translated → canonical send
+    expect(events).toEqual(['record:north', 'send:north'])
+  })
+
+  it('F-b net: a FROM-QUEUE abstain does NOT restore the queued line (the !fromQueue guard)', async () => {
+    // retainTyped (the translate() return value) restores a non-EN nothing-sent
+    // line to the input box (M8) — but ONLY the TYPED line, never a QUEUED one:
+    // the player has moved on, so restoring a queued line would clobber what they
+    // are now typing. The !fromQueue guards (translatePipeline.ts:1000/1092/1106)
+    // enforce it; no other test reads the return value with fromQueue===true.
+    const engine = new FakeLlmEngine({ default: '{"verb":"__UNKNOWN__"}' })
+    const setNotice = vi.fn()
+    const t = makeTranslate({
+      engine,
+      internalOn: on('fr', 'full'),
+      setNotice,
+      demote: vi.fn(),
+      educatedRef: { current: false },
+    })
+    // Line 1 (direction) sends and leaves retainTyped null; line 2 queues behind
+    // the in-flight drain and abstains (non-EN nothing-sent) — but FROM the queue.
+    const p1 = t('va au nord')
+    const p2 = t('frobnique le gadget')
+    const [r1, r2] = await Promise.all([p1, p2])
+    expect(setNotice).toHaveBeenCalledWith(couldntTranslate('fr')) // it DID abstain
+    expect(r1).toBeNull() // line-1's value survives; the queued abstain did not clobber it
+    expect(r2).toBeNull() // the queued call returns null (enqueued, not run inline)
+  })
+
   // Task 11: localized help is a line-level escape that answers via the notice
   // seam (the role=status aria-live region in Terminal) and reaches the game NOT
   // at all. English help is intercepted too — Zork has no native help to fall
@@ -1014,5 +1068,128 @@ describe('containsGeorgian (S1)', () => {
   })
   it('treats plain ASCII English as non-Georgian (raw-sends on a ka miss)', () => {
     expect(containsGeorgian('take lamp')).toBe(false)
+  })
+})
+
+// The pure stage-8 decision extracted from the two abstain sites (F-b). Pinning
+// it directly covers the EN-raw / ka-ASCII / non-EN matrix across every error
+// kind without driving the whole drain — the unit-level net for the shared
+// policy both runLine and the drain catch now call.
+describe('abstainPolicy (stage-8 shared decision, F-b)', () => {
+  const base = {
+    line: 'frobnique le gadget',
+    fromQueue: false,
+    grammarOnly: false,
+    educated: false,
+    llmEnabled: true,
+  }
+
+  it('en deliberate abstain: raw-sends, no notice, nothing to restore', () => {
+    expect(
+      abstainPolicy({ ...base, error: null, lang: 'en', line: 'frob it' }),
+    ).toEqual({ send: 'frob it', notice: null, retain: null, educate: false })
+  })
+
+  it('fr deliberate abstain (full): nothing sent, couldntTranslate, restores', () => {
+    expect(abstainPolicy({ ...base, error: null, lang: 'fr' })).toEqual({
+      send: null,
+      notice: couldntTranslate('fr'),
+      retain: 'frobnique le gadget',
+      educate: false,
+    })
+  })
+
+  it('a FROM-QUEUE abstain never restores the line (HOLE-3)', () => {
+    expect(
+      abstainPolicy({ ...base, error: null, lang: 'fr', fromQueue: true })
+        .retain,
+    ).toBeNull()
+  })
+
+  it('fr grammar-only first miss: educates once, restores', () => {
+    expect(
+      abstainPolicy({ ...base, error: null, lang: 'fr', grammarOnly: true }),
+    ).toEqual({
+      send: null,
+      notice: grammarOnlyFirstMiss('fr'),
+      retain: 'frobnique le gadget',
+      educate: true,
+    })
+  })
+
+  it('fr grammar-only first miss with the model HIDDEN: no pitch, no educate', () => {
+    expect(
+      abstainPolicy({
+        ...base,
+        error: null,
+        lang: 'fr',
+        grammarOnly: true,
+        llmEnabled: false,
+      }),
+    ).toMatchObject({ notice: couldntTranslate('fr'), educate: false })
+  })
+
+  it('ka grammar-only first miss STILL educates even with the model hidden (ka exception)', () => {
+    // A Georgian line (rawSends false) so it reaches the grammar branch; ka has
+    // no pitch but keeps its first-miss notice (CLAUDE.md ka rule).
+    expect(
+      abstainPolicy({
+        ...base,
+        error: null,
+        lang: 'ka',
+        line: 'ყვითელი',
+        grammarOnly: true,
+        llmEnabled: false,
+      }),
+    ).toMatchObject({ notice: grammarOnlyFirstMiss('ka'), educate: true })
+  })
+
+  it('ka English-ASCII miss raw-sends like en (§5.5), no restore', () => {
+    expect(
+      abstainPolicy({ ...base, error: null, lang: 'ka', line: 'take lamp' }),
+    ).toMatchObject({ send: 'take lamp', retain: null })
+  })
+
+  it('en timeout: raw-sends "sent as typed", no restore', () => {
+    const d = abstainPolicy({
+      ...base,
+      error: new WatchdogTimeout(),
+      lang: 'en',
+      line: 'frob it',
+    })
+    expect(d.send).toBe('frob it')
+    expect(d.notice).toMatch(/sent as typed/i)
+    expect(d.retain).toBeNull()
+  })
+
+  it('fr timeout vs generic error: distinct nothingSent variants, restores', () => {
+    expect(
+      abstainPolicy({ ...base, error: new WatchdogTimeout(), lang: 'fr' }),
+    ).toMatchObject({
+      send: null,
+      notice: nothingSent('fr', true),
+      retain: 'frobnique le gadget',
+    })
+    expect(
+      abstainPolicy({ ...base, error: new Error('boom'), lang: 'fr' }).notice,
+    ).toBe(nothingSent('fr', false))
+  })
+
+  it('ModelLoadError: en raw-sends, fr nothing-sent — both show modelDownloadFailed', () => {
+    expect(
+      abstainPolicy({
+        ...base,
+        error: new ModelLoadError(),
+        lang: 'en',
+        line: 'frob it',
+      }),
+    ).toMatchObject({ send: 'frob it', notice: modelDownloadFailed('en') })
+    expect(
+      abstainPolicy({ ...base, error: new ModelLoadError(), lang: 'fr' }),
+    ).toMatchObject({
+      send: null,
+      notice: modelDownloadFailed('fr'),
+      retain: 'frobnique le gadget',
+    })
   })
 })

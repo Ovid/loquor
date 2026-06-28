@@ -1998,6 +1998,49 @@ describe('input queue (NL v2 §11, F-A)', () => {
     expect(hook.result.current.notice).toMatch(/queue cleared/i)
   })
 
+  it('F-b net: a QUOTED single-command line registers the turn boundary too — a queued line sees its prompt and flushes', async () => {
+    // The test above proves the shared-turnBox handoff for a META single command
+    // (quit, routed through the clause loop). The QUOTED escape (stage 2) ALSO
+    // sends via sendTracked, so it must register turnBox.pending identically —
+    // else a queued line after a quoted line would read a stale view and fail to
+    // flush. Pins the non-meta single-command path of the handoff a decomposition
+    // could break with the whole suite still green (a quoted line given its own
+    // turnBox would skip the between-line await; the queued line would not flush).
+    const engine = new FakeLlmEngine({
+      cached: true,
+      default: '{"verb":"__UNKNOWN__"}',
+    })
+    const promptView = viewState(
+      'West of House',
+      ['Do you wish to leave the game? (Y is affirmative):'],
+      'go',
+    )
+    const resolvers: Array<(r: TurnResult) => void> = []
+    const sendLine = vi.fn((_text: string) => {
+      resolvers.splice(0).forEach(r => r({ view: promptView, reason: 'line' }))
+    })
+    const awaitTurn = () =>
+      new Promise<TurnResult>(res => {
+        resolvers.push(res)
+      })
+    const getContext = () => ({ location: 'West of House', recentOutput: '' })
+    const { hook } = setup({ engine, sendLine, awaitTurn, getContext })
+    await reachOn(hook)
+    let p!: Promise<string | null>
+    act(() => {
+      p = hook.result.current.translate('"go"') // quoted escape → 'go' raw via sendTracked
+      void hook.result.current.translate('north') // queued before the player saw the prompt
+    })
+    expect(hook.result.current.queued.map(q => q.text)).toEqual(['north'])
+    await act(async () => {
+      await p
+    })
+    // Only the quoted line reached the VM; 'north' saw the prompt and flushed.
+    expect(sendLine.mock.calls.map(c => c[0])).toEqual(['go'])
+    expect(hook.result.current.queued).toEqual([])
+    expect(hook.result.current.notice).toMatch(/queue cleared/i)
+  })
+
   it('a LONE queued line that flushes still shows the queue-cleared notice', async () => {
     // The flushed line itself was dropped input: even with nothing queued
     // BEHIND it, the player must be told why it vanished (it was shifted out

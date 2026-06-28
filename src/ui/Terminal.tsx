@@ -40,7 +40,7 @@ import { WebLlmEngine } from '../llm/engine.webllm'
 import { selectedModelId } from '../llm/modelSelection'
 import { EngineGate } from '../shared/engineGate'
 import { GENERATE_WATCHDOG_MS, LLM_ANNOUNCE_CLEAR_MS } from '../llm/config'
-import type { LoadProgress, ActiveLanguage } from '../llm/types'
+import type { LoadProgress, ActiveLanguage, LlmEngine } from '../llm/types'
 import { OUTPUT_ONLY_LANGS } from '../llm/types'
 import { createLogger } from '../logger'
 
@@ -54,6 +54,8 @@ export function Terminal({
   themeToggle,
   backgroundInert = false,
   announceClearMs = LLM_ANNOUNCE_CLEAR_MS,
+  engine: injectedEngine,
+  gate: injectedGate,
 }: {
   storyBytes: Uint8Array
   /** The current game's title — the game screen's heading for screen readers. */
@@ -71,6 +73,15 @@ export function Terminal({
    *  Injectable (mirrors useOutputTranslation's watchdogMs) so tests don't wait
    *  the full production delay. The M2 migration notice is not transient. */
   announceClearMs?: number
+  /** The LLM engine. Injectable (default-constructed when omitted) so tests can
+   *  drive Terminal with a FakeLlmEngine instead of prototype-spying the real
+   *  WebLlmEngine, and so the engine isn't hard-wired into the composition root
+   *  (F-d). Shared by the NL input + output-translation hooks via `gate`. */
+  engine?: LlmEngine
+  /** The priority mutex arbitrating the single engine between the NL input layer
+   *  and the output-translation fallback. Injected with `engine` (F-d); both
+   *  hooks must receive the SAME gate or input/output arbitration is lost. */
+  gate?: EngineGate
 }) {
   // Game-loop coordination lives in extracted hooks (F-17): the ZMachine
   // boot/dispose lifecycle and device-capability detection.
@@ -78,13 +89,17 @@ export function Terminal({
   const capability = useCapability()
   const viewRef = useRef<ViewState>(view)
   const inputRef = useRef<HTMLInputElement>(null)
-  // One stable LLM engine instance for this Terminal (created once, lazily). The
-  // model id honors a ?model=full / VITE_LLM_MODEL override (else the default),
-  // so the 8B multilingual model can be A/B tested without a rebuild.
-  const [llmEngine] = useState(() => new WebLlmEngine(selectedModelId()))
+  // One stable LLM engine instance for this Terminal (created once, lazily), or
+  // the injected one (tests / F-d). The model id honors a ?model=full /
+  // VITE_LLM_MODEL override (else the default), so the 8B multilingual model can
+  // be A/B tested without a rebuild.
+  const [llmEngine] = useState(
+    () => injectedEngine ?? new WebLlmEngine(selectedModelId()),
+  )
   // One gate arbitrating the single engine between the NL input layer and the
   // output-translation fallback (input preempts; output-translation spec §6).
-  const [gate] = useState(() => new EngineGate())
+  // Injected alongside the engine (F-d) or default-constructed.
+  const [gate] = useState(() => injectedGate ?? new EngineGate())
   // Canonical-word → player-word map, fed to the output overlay so the Loud Room
   // input-echo renders in the player's language (loudEcho / UAT F6). Each entry
   // is recorded as a clause is sent (recordEcho), so a compound's clauses each

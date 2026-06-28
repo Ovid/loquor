@@ -19,3 +19,15 @@ describe('OUTPUT_ONLY_LANGS (Phase 1: output corpus, no input support yet)', () 
       expect(OUTPUT_ONLY_LANGS.has(l), l).toBe(true)
   })
 })
+
+// Pin CORPUS_ONLY_LANGS membership DIRECTLY, not only via the superset loop
+// above (which passes vacuously if the set were ever empty). Guards the F-a
+// refactor that makes these sets derive from the lexicon membership arrays.
+describe('CORPUS_ONLY_LANGS (output: no LLM fallback)', () => {
+  it('contains ka and not the fully-supported input languages', () => {
+    expect(CORPUS_ONLY_LANGS.has('ka')).toBe(true)
+    expect(CORPUS_ONLY_LANGS.has('fr')).toBe(false)
+    expect(CORPUS_ONLY_LANGS.has('de')).toBe(false)
+    expect(CORPUS_ONLY_LANGS.has('es')).toBe(false)
+  })
+})

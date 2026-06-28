@@ -196,6 +196,7 @@ The architecture is genuinely well-layered. **madge reports zero circular depend
 - **Status:** Fixed
 - **Status reason:** `refusalApplies` (and its two private helpers `commandObjectWords`/`nounSurfaceWords`) moved into a new low-level module `src/llm/outputClassify.ts` that both layers depend DOWN onto. `scene/tracker.ts` now imports the predicate from `./outputClassify` instead of UP from `../inputTranslate` (the feature-envy back-edge is gone); `inputTranslate.ts`'s `clauseFailed` imports `commandObjectWords`/`refusalApplies` from the same module. Pure relocation, behavior-preserving — pinned by the existing `inputTranslate.test.ts` (refusal predicate) and `scene/tracker.test.ts` (165 tests green; the test's `refusalApplies` import was re-pointed to `./outputClassify`). madge still reports 0 cycles (outputClassify is a type-only-importing leaf; the move REMOVED an edge, it cannot add one).
 - **Status date:** 2026-06-28 10:42 UTC
+- **Status commit:** a90cc63
 
 ### [F-f] Global mutable state — logger ring + `window.*` globals
 
@@ -251,6 +252,7 @@ The architecture is genuinely well-layered. **madge reports zero circular depend
 - **Status:** Won't fix
 - **Status reason:** A content-equality dedup is net-negative here. Autosave fires once per turn boundary, and the written snapshot embeds the VM memory state (moves counter, etc.) which advances every turn — so turn-to-turn the blob is essentially always different and a dedup would hit ~0% of the time. To get that ~0% it would have to serialize+compare the whole blob on every turn (a synchronous main-thread cost) to skip a write that is already async, off the critical path, and bounded (`view.lines.slice(-SNAPSHOT_MAX_LINES)`). Genuinely-identical re-fires are already prevented upstream by the `reduce.ts` duplicate-turn guard (strength S-d). So the "optimization" adds cost to avoid a cost that doesn't exist. Decision ratified with Ovid 2026-06-28.
 - **Status date:** 2026-06-28 10:32 UTC
+- **Status commit:** eced9b0
 
 ### [F-l] Boot failure is logged but never surfaced to the player
 
@@ -262,6 +264,7 @@ The architecture is genuinely well-layered. **madge reports zero circular depend
 - **Status:** Fixed
 - **Status reason:** A boot failure now reaches the player instead of only the console. `useGameEngine` gained an optional `onBootError` callback (held in a ref so an unstable identity can't re-trigger boot) that fires alongside the existing `log.error('boot failed', …)`; `Terminal` exposes it as an `onBootFail` prop; `App` wires that to the SAME `loadError` surface a fetch failure already uses (`describeLoadError` → `Landing`'s `role="alert"` box) and resets `slug`/`bytes` to drop back to the landing. So a story that fetches OK but fails to boot (corrupt/unsupported file, glk-init throw) shows a readable message and a recoverable landing, not a blank/frozen terminal. Pinned by a new App integration test (long-but-invalid body → boots, fails, surfaces "could not be loaded" + returns to landing) and a Terminal unit test (`onBootFail` is called with the boot error); the pre-existing `Terminal.test.tsx:67` log-only test still holds (the console path is added to, not replaced).
 - **Status date:** 2026-06-28 10:38 UTC
+- **Status commit:** b30fc7d (+ 8044144 react-hooks/refs lint follow-up)
 
 ### [F-m] `orphanSettleMs` 30_000 inline magic, outside `config.ts`
 
@@ -273,6 +276,7 @@ The architecture is genuinely well-layered. **madge reports zero circular depend
 - **Status:** Fixed
 - **Status reason:** The orphan-settle bound now lives in `config.ts` as `ORPHAN_SETTLE_MS = 30_000` (beside the other pipeline watchdogs), and `orphanSettleMs` was made a REQUIRED field of `GuardedGenerateArgs` — exactly mirroring the sibling `watchdogMs`, which is already required and config-sourced at the call sites. The inline `args.orphanSettleMs ?? 30_000` magic default is gone from the shared helper; both production call sites (`translatePipeline.ts`, `fallbackResolve.ts`) now pass `ORPHAN_SETTLE_MS`. The shared helper deliberately does NOT import `llm/config` (keeps `src/shared` independent of the `llm` layer / S-c); the llm/translate-layer call sites do the import, as they already do for `watchdogMs`. Behavior-preserving (value unchanged); `guardedGenerate.test.ts` updated to pass the now-required arg (61 tests green across guardedGenerate/config/translatePipeline/fallbackResolve).
 - **Status date:** 2026-06-28 10:48 UTC
+- **Status commit:** 496a445
 
 ### [F-n] `LLM_ANNOUNCE_CLEAR_MS = 7000` UI tunable outside `config.ts`
 
@@ -292,6 +296,7 @@ The architecture is genuinely well-layered. **madge reports zero circular depend
 - **Status:** Fixed
 - **Status reason:** Both bare `.catch(() => {})` now `log.warn` the rejection (with a comment noting these only fire on a POST-probe rejection — `isCached()` already degrades a probe FAULT to `false` and warns internally per F-19 — so the worst case is a one-time activation/notice being skipped, but no longer silently). The `useModelDownload` site is unit-tested: the pre-existing "an isCached rejection is swallowed" test (which pinned the OLD silent-swallow contract and would otherwise have leaked the new warn) was updated to the new contract — it now asserts `log.warn('[nl] boot cache probe failed', …)` while still verifying the safe degrade (`phase:'off'`, `installed:false`, no throw). The `Terminal` M2 site is the symmetric one-line change but is NOT separately unit-tested: `Terminal` instantiates its own `WebLlmEngine` (not injected — that's F-d), and the test setup's empty-CacheStorage stub makes `isCached()` resolve to `false`, so the catch is inert across the suite (full Terminal suite green, no leak). Forcing it to reject would require the F-d engine-injection refactor.
 - **Status date:** 2026-06-28 10:51 UTC
+- **Status commit:** da211c6
 
 ### [F-p] WebLLM third-party code execution without integrity verification
 
@@ -311,6 +316,7 @@ The architecture is genuinely well-layered. **madge reports zero circular depend
 - **Status:** Fixed
 - **Status reason:** The `gate: gateArg ?? fallbackGate` self-provisioning is gone. `gate` is now a REQUIRED field of `UseNaturalLanguageArgs` (was `gate?`), the hook-local `useState(() => new EngineGate())` fallback is deleted, and the hook uses the injected `gate` directly. A future caller that forgets the shared gate is now a COMPILE error rather than a silent private gate that loses input/output arbitration with `useOutputTranslation`. Behavior-preserving — the one production caller (`Terminal`) already passes the shared gate (typecheck confirms). The hook's `EngineGate` import narrowed to `import type` (now type-only). Test call sites updated to supply a stable gate (the `setup`/`setupFr` helpers default one; the three inline `renderHook` builders create one stable instance each). Typecheck surfaced a 4th call site the initial grep missed (`pipeline.uat.test.tsx`) — exactly the silent-omission this fix converts into a compile error. 184 tests green across the NL/pipeline/Terminal suites; the EngineGate-integration test still pins shared-gate arbitration.
 - **Status date:** 2026-06-28 10:56 UTC
+- **Status commit:** d3f335b
 
 ## Coverage Checklist
 

@@ -245,6 +245,9 @@ The architecture is genuinely well-layered. **madge reports zero circular depend
 - **Explanation:** On every turn boundary, `save_allstate` rebuilds `view.lines.slice(-500)` and `autosave_write` `put`s the whole (VM snapshot + transcript tail) blob with no unchanged-check. Capped (`SNAPSHOT_MAX_LINES`, so no longer O(transcript)) but still ~O(500) per turn with no idempotent short-circuit. The transcript tail must ride along because the bridge co-owns UI-only `nl-source`/`nl-canonical` lines the VM's replay can't reproduce — intentional, but it's why the full tail is re-persisted.
 - **Evidence:** `src/glkote-react/bridge.ts:229-239`; `src/storage/dialog.ts:155-174`.
 - **Found by:** Integration & Data
+- **Status:** Won't fix
+- **Status reason:** A content-equality dedup is net-negative here. Autosave fires once per turn boundary, and the written snapshot embeds the VM memory state (moves counter, etc.) which advances every turn — so turn-to-turn the blob is essentially always different and a dedup would hit ~0% of the time. To get that ~0% it would have to serialize+compare the whole blob on every turn (a synchronous main-thread cost) to skip a write that is already async, off the critical path, and bounded (`view.lines.slice(-SNAPSHOT_MAX_LINES)`). Genuinely-identical re-fires are already prevented upstream by the `reduce.ts` duplicate-turn guard (strength S-d). So the "optimization" adds cost to avoid a cost that doesn't exist. Decision ratified with Ovid 2026-06-28.
+- **Status date:** 2026-06-28 10:32 UTC
 
 ### [F-l] Boot failure is logged but never surfaced to the player
 

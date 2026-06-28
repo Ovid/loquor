@@ -148,6 +148,92 @@ export class ModelLoadError extends Error {
   }
 }
 
+/** What an abstain resolves to: WHAT to do, not how. The caller performs the
+ * effects against its live refs — keeping the decision free of the closure's
+ * mutable state. */
+export interface AbstainDecision {
+  /** Raw line to send VERBATIM to the Z-parser, or null for no send. */
+  send: string | null
+  /** Notice to show (setNotice), or null for no notice. */
+  notice: string | null
+  /** Line to restore to the input field (retainTyped), or null. */
+  retain: string | null
+  /** Latch the grammar-only first-miss education flag (educatedRef). */
+  educate: boolean
+}
+
+/** Everything the abstain decision reads. */
+export interface AbstainContext {
+  /** The stop reason: null (a deliberate abstain), WatchdogTimeout,
+   * ModelLoadError, or another generate error. */
+  error: unknown
+  lang: ActiveLanguage
+  line: string
+  /** A queued line never restores to the field (the player has moved on). */
+  fromQueue: boolean
+  /** Stage 7 was skipped (model not loaded for this stint). */
+  grammarOnly: boolean
+  /** educatedRef.current — the first-miss notice fires once per grammar-only stint. */
+  educated: boolean
+  /** liveRef's LLM-feature preference — a hidden model omits the upgrade pitch. */
+  llmEnabled: boolean
+}
+
+/**
+ * STAGE 8 — the abstain DECISION (spec §4, UAT F-R), extracted pure so the two
+ * sites that abstain — `runLine`'s `done===0` fallthrough and the drain's
+ * per-line error catch — share ONE policy instead of each re-encoding the
+ * EN-raw / ka-ASCII / non-EN choice (F-b's named duplication). Takes the error
+ * OBJECT (not a boolean) so the ModelLoadError / WatchdogTimeout / generate-error
+ * three-way that drives distinct notices stays intact (S-j). Pure: returns a
+ * decision; the caller applies it (send / notice / retain / educate latch).
+ */
+export function abstainPolicy(c: AbstainContext): AbstainDecision {
+  const { error, lang, line, fromQueue, grammarOnly, educated, llmEnabled } = c
+  // en (and a ka English-ASCII miss, §5.5) raw-sends to the Z-parser, whose own
+  // error is useful; a non-EN / Georgian line raw-sent would only earn a useless
+  // "I don't know the word…" and burn a turn — so it abstains with a notice.
+  const rawSends = rawSendsToParser(lang, line)
+  let send: string | null = null
+  let notice: string | null = null
+  let educate = false
+  if (error !== null) {
+    // A translator FAILURE (not a deliberate abstain): don't blame the player's
+    // wording (Task 21 review). Checked first ([B]).
+    if (error instanceof ModelLoadError) {
+      // Clause-time load failure (the caller fires demote()): the shared
+      // basic-mode notice; EN still raw-sends the typed line.
+      notice = modelDownloadFailed(lang)
+      if (lang === 'en') send = line
+    } else {
+      // Timeout or engine fault: EN raw-sends "sent as typed"; non-EN sends
+      // nothing and shows a localized failure notice.
+      const timedOut = error instanceof WatchdogTimeout
+      if (lang === 'en') {
+        send = line
+        notice = sentAsTyped(timedOut)
+      } else {
+        notice = nothingSent(lang, timedOut)
+      }
+    }
+  } else if (rawSends) {
+    // Deliberate abstain, en / ka-ASCII: degrade to the raw Z-parser, never block.
+    send = line
+  } else if (grammarOnly && !educated && (llmEnabled || lang === 'ka')) {
+    // First grammar-only abstain this stint: connect the miss to the
+    // declined/absent upgrade (once). Suppressed when the LLM feature is HIDDEN
+    // (no upgrade to pitch) — except ka, whose first-miss notice carries no pitch.
+    educate = true
+    notice = grammarOnlyFirstMiss(lang)
+  } else {
+    notice = couldntTranslate(lang)
+  }
+  // Only the NOTICE branches retain the typed line; a raw send consumed it, and a
+  // queued line never restores (it would clobber what the player is now typing).
+  const retain = !fromQueue && !rawSends ? line : null
+  return { send, notice, retain, educate }
+}
+
 // MAX_CLAUSES / QUEUE_CAP / LOAD_WATCHDOG_MS now live in ./config (F-13).
 
 /** Which pipeline stage produced a clause's command (spec §4 stages 3–7). */
@@ -634,25 +720,6 @@ export function createTranslate(
       ;(canonical ? sendCanonical : sendLine)(text)
     }
 
-    // Shared abstain-on-error action (review S6): a translator failure (timeout
-    // or engine fault) on a line. EN raw-sends the typed line (the Z-parser's
-    // own error is useful) with a "sent as typed" notice; a non-EN line sends
-    // NOTHING — raw FR/DE/ES earns only a useless "I don't know the word…" and
-    // burns a game turn — and shows a notice instead. Used by both the in-runLine
-    // stage-8 path and the drain's per-line catch.
-    const abstainOnError = (
-      lang: ActiveLanguage,
-      line: string,
-      timedOut: boolean,
-    ) => {
-      if (lang === 'en') {
-        sendTracked(line)
-        setNotice(sentAsTyped(timedOut))
-      } else {
-        setNotice(nothingSent(lang, timedOut))
-      }
-    }
-
     // Run ONE LINE through the full pipeline (stages 1–8). Returns 'flush'
     // when the game raised an interactive prompt: queued lines were typed
     // BEFORE the player saw that question, so the drain must discard them
@@ -950,54 +1017,25 @@ export function createTranslate(
         log.error('translation failed:', stopError)
 
       if (done === 0) {
-        // STAGE 8 — abstain policy (spec §4, UAT F-R). English: the raw line
-        // goes to the Z-parser, whose own error message is genuinely useful.
-        // Non-English: raw French/German/Spanish would only earn a useless
-        // "I don't know the word …" AND burn a game turn — send NOTHING and
-        // show a styled notice instead. Engine errors are checked FIRST
-        // ([B]): EN still raw-sends, but a translator failure must not
-        // masquerade as a deliberate abstain — it gets the failure notice.
+        // STAGE 8 — abstain policy (spec §4, UAT F-R): the shared abstainPolicy
+        // decision drives the EN-raw / ka-ASCII / non-EN choice (one place, F-b);
+        // applied here against the live refs. See abstainPolicy's doc comment for
+        // the full rationale (engine-error-first, the §5.5 ka raw-send, the
+        // once-per-stint first-miss latch, and why a queued line never restores).
         lastCommandRef.current = null
-        if (stopError !== null) {
-          if (stopError instanceof ModelLoadError) {
-            // Clause-time load failure (demote already fired): the shared
-            // basic-mode notice; EN still raw-sends the typed line.
-            setNotice(modelDownloadFailed(activeLang))
-            if (activeLang === 'en') sendTracked(line)
-          } else {
-            // The translator broke (timeout/engine error) — don't blame the
-            // player's wording (Task 21 review).
-            abstainOnError(
-              activeLang,
-              line,
-              stopError instanceof WatchdogTimeout,
-            )
-          }
-        } else if (rawSendsToParser(activeLang, line)) {
-          // en, and (§5.5) a ka player's English (ASCII) line that missed the
-          // Georgian lexicon: raw-send to the Z-parser — degrade, never block. A
-          // ka line CONTAINING Georgian is excluded by rawSendsToParser and falls
-          // through to the abstain notice below.
-          sendTracked(line)
-        } else if (
-          grammarOnly &&
-          !educatedRef.current &&
-          (live.llmEnabled || activeLang === 'ka')
-        ) {
-          // First grammar-only abstain this stint: connect the miss to the
-          // declined/absent upgrade at the moment of confusion (once per stint).
-          // Suppressed when the LLM feature is HIDDEN (no upgrade to pitch) —
-          // except ka, whose first-miss notice carries no pitch anyway and stays
-          // the no-LLM language's chosen Georgian wording (CLAUDE.md ka rule).
-          educatedRef.current = true
-          setNotice(grammarOnlyFirstMiss(activeLang))
-        } else {
-          setNotice(couldntTranslate(activeLang))
-        }
-        // Only the NOTICE branches retain the typed line; the raw-send arms (en,
-        // and ka-ASCII via §5.5) consumed it — don't re-populate the input field.
-        const rawSent = rawSendsToParser(activeLang, line)
-        if (!fromQueue && !rawSent) retainTyped = line
+        const decision = abstainPolicy({
+          error: stopError,
+          lang: activeLang,
+          line,
+          fromQueue,
+          grammarOnly,
+          educated: educatedRef.current,
+          llmEnabled: live.llmEnabled,
+        })
+        if (decision.educate) educatedRef.current = true
+        if (decision.send !== null) sendTracked(decision.send)
+        if (decision.notice !== null) setNotice(decision.notice)
+        if (decision.retain !== null) retainTyped = decision.retain
       } else if (done < total) {
         // Truncated sequence → make it visible (decision 7); an engine
         // error labels the notice so it can't pass for a quiet stop ([B]).
@@ -1100,10 +1138,23 @@ export function createTranslate(
           if (!(err instanceof WatchdogTimeout))
             log.error('translation failed:', err)
           // F2/F-R: honor stage-8's abstain policy here too (this outer catch
-          // catches the total===1 rethrow that bypassed the in-runLine path).
-          abstainOnError(liveLang(), line, err instanceof WatchdogTimeout)
-          // Non-EN abstainOnError sends nothing → restore the typed line (M8).
-          if (!fromQueue && liveLang() !== 'en') retainTyped = line
+          // catches the total===1 rethrow that bypassed the in-runLine path) —
+          // the SAME shared decision runLine's stage 8 uses. A thrown error is
+          // never the grammar-only abstain path (grammar-only abstains in
+          // runClause without generating, so it cannot throw), hence grammarOnly:
+          // false; abstainPolicy ignores educated/llmEnabled on an error anyway.
+          const decision = abstainPolicy({
+            error: err,
+            lang: liveLang(),
+            line,
+            fromQueue,
+            grammarOnly: false,
+            educated: educatedRef.current,
+            llmEnabled: liveRef.current.llmEnabled,
+          })
+          if (decision.send !== null) sendTracked(decision.send)
+          if (decision.notice !== null) setNotice(decision.notice)
+          if (decision.retain !== null) retainTyped = decision.retain
         }
         // A compound that stopped mid-sequence leaves this set; reset it per
         // line so Terminal's observe effect resumes for later queued lines.

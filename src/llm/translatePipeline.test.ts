@@ -3,7 +3,9 @@ import {
   runClause,
   createGenerateRaw,
   createTranslate,
+  abstainPolicy,
   ModelLoadError,
+  WatchdogTimeout,
   containsGeorgian,
 } from './translatePipeline'
 import type {
@@ -1066,5 +1068,127 @@ describe('containsGeorgian (S1)', () => {
   })
   it('treats plain ASCII English as non-Georgian (raw-sends on a ka miss)', () => {
     expect(containsGeorgian('take lamp')).toBe(false)
+  })
+})
+
+// The pure stage-8 decision extracted from the two abstain sites (F-b). Pinning
+// it directly covers the EN-raw / ka-ASCII / non-EN matrix across every error
+// kind without driving the whole drain — the unit-level net for the shared
+// policy both runLine and the drain catch now call.
+describe('abstainPolicy (stage-8 shared decision, F-b)', () => {
+  const base = {
+    line: 'frobnique le gadget',
+    fromQueue: false,
+    grammarOnly: false,
+    educated: false,
+    llmEnabled: true,
+  }
+
+  it('en deliberate abstain: raw-sends, no notice, nothing to restore', () => {
+    expect(
+      abstainPolicy({ ...base, error: null, lang: 'en', line: 'frob it' }),
+    ).toEqual({ send: 'frob it', notice: null, retain: null, educate: false })
+  })
+
+  it('fr deliberate abstain (full): nothing sent, couldntTranslate, restores', () => {
+    expect(abstainPolicy({ ...base, error: null, lang: 'fr' })).toEqual({
+      send: null,
+      notice: couldntTranslate('fr'),
+      retain: 'frobnique le gadget',
+      educate: false,
+    })
+  })
+
+  it('a FROM-QUEUE abstain never restores the line (HOLE-3)', () => {
+    expect(
+      abstainPolicy({ ...base, error: null, lang: 'fr', fromQueue: true }).retain,
+    ).toBeNull()
+  })
+
+  it('fr grammar-only first miss: educates once, restores', () => {
+    expect(
+      abstainPolicy({ ...base, error: null, lang: 'fr', grammarOnly: true }),
+    ).toEqual({
+      send: null,
+      notice: grammarOnlyFirstMiss('fr'),
+      retain: 'frobnique le gadget',
+      educate: true,
+    })
+  })
+
+  it('fr grammar-only first miss with the model HIDDEN: no pitch, no educate', () => {
+    expect(
+      abstainPolicy({
+        ...base,
+        error: null,
+        lang: 'fr',
+        grammarOnly: true,
+        llmEnabled: false,
+      }),
+    ).toMatchObject({ notice: couldntTranslate('fr'), educate: false })
+  })
+
+  it('ka grammar-only first miss STILL educates even with the model hidden (ka exception)', () => {
+    // A Georgian line (rawSends false) so it reaches the grammar branch; ka has
+    // no pitch but keeps its first-miss notice (CLAUDE.md ka rule).
+    expect(
+      abstainPolicy({
+        ...base,
+        error: null,
+        lang: 'ka',
+        line: 'ყვითელი',
+        grammarOnly: true,
+        llmEnabled: false,
+      }),
+    ).toMatchObject({ notice: grammarOnlyFirstMiss('ka'), educate: true })
+  })
+
+  it('ka English-ASCII miss raw-sends like en (§5.5), no restore', () => {
+    expect(
+      abstainPolicy({ ...base, error: null, lang: 'ka', line: 'take lamp' }),
+    ).toMatchObject({ send: 'take lamp', retain: null })
+  })
+
+  it('en timeout: raw-sends "sent as typed", no restore', () => {
+    const d = abstainPolicy({
+      ...base,
+      error: new WatchdogTimeout(),
+      lang: 'en',
+      line: 'frob it',
+    })
+    expect(d.send).toBe('frob it')
+    expect(d.notice).toMatch(/sent as typed/i)
+    expect(d.retain).toBeNull()
+  })
+
+  it('fr timeout vs generic error: distinct nothingSent variants, restores', () => {
+    expect(
+      abstainPolicy({ ...base, error: new WatchdogTimeout(), lang: 'fr' }),
+    ).toMatchObject({
+      send: null,
+      notice: nothingSent('fr', true),
+      retain: 'frobnique le gadget',
+    })
+    expect(
+      abstainPolicy({ ...base, error: new Error('boom'), lang: 'fr' }).notice,
+    ).toBe(nothingSent('fr', false))
+  })
+
+  it('ModelLoadError: en raw-sends, fr nothing-sent — both show modelDownloadFailed', () => {
+    expect(
+      abstainPolicy({
+        ...base,
+        error: new ModelLoadError(),
+        lang: 'en',
+        line: 'frob it',
+      }),
+    ).toMatchObject({ send: 'frob it', notice: modelDownloadFailed('en') })
+    expect(
+      abstainPolicy({ ...base, error: new ModelLoadError(), lang: 'fr' }),
+    ).toMatchObject({
+      send: null,
+      notice: modelDownloadFailed('fr'),
+      retain: 'frobnique le gadget',
+    })
   })
 })

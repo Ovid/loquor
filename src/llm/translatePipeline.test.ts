@@ -1101,7 +1101,8 @@ describe('abstainPolicy (stage-8 shared decision, F-b)', () => {
 
   it('a FROM-QUEUE abstain never restores the line (HOLE-3)', () => {
     expect(
-      abstainPolicy({ ...base, error: null, lang: 'fr', fromQueue: true }).retain,
+      abstainPolicy({ ...base, error: null, lang: 'fr', fromQueue: true })
+        .retain,
     ).toBeNull()
   })
 

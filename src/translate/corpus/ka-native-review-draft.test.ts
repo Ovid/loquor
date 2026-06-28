@@ -36,7 +36,11 @@ const WINDOW = 8
 // 45 = 42 prior + 3 for the Phase-2 "You can't see any {obj} here!" draft (its
 // `out` line plus two Georgian-bearing comment lines); it is a marked draft,
 // asserted by its own markerGoverns test below.
-const PRE_SECTION_KA_GEORGIAN = 45
+// 47 = 45 + 2 for the UAT-completion (2026-06-28) load-too-heavy multi-object
+// failure templates; their Georgian `out` is reused VERBATIM from the shipping
+// standalone string pins (reviewed-by-reuse), mirroring the rug/case failure
+// templates already in this baseline — not new drafts.
+const PRE_SECTION_KA_GEORGIAN = 47
 
 const read = (rel: string): string[] =>
   readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8').split('\n')

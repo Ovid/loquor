@@ -245,6 +245,82 @@ describe('Georgian completion — Ulysses magic word (Finding)', () => {
   })
 })
 
+// Georgian DEATHLESS-COMPLETION run (notes/uat-georgian-completion.md,
+// 2026-06-28). The first `ka` run to reach a deathless 350/350. Each block pins a
+// deterministic input gap found on the way — a word the DISPLAY teaches (or a
+// natural synonym) that the parser then rejected. ka has NO input LLM, so each is
+// a hard dead-end until aliased (same trap class as stiletto/canary/lid/mailbox).
+describe('Georgian completion — display-taught / synonym input gaps', () => {
+  // The egg's contents list the bird as the vowel-final კანარა, but a player who
+  // knows it as კანარი (nominative -ი) abstained. Add the stripped stem კანარ to
+  // both clockwork-canary entries (mirrors the shared კანარა → 'canary').
+  it('take canary — nominative კანარი (→ კანარ)', () => {
+    expect(ka('აიღე კანარი')).toEqual({ kind: 'command', text: 'take canary' })
+  })
+
+  // The diamond machine's lid: the room prose calls it სახურავი, but only the
+  // machine itself (მანქანა) was a parser noun, so `გახსენი სახურავი` abstained —
+  // and the diamond (a 350-required treasure) is gated on opening that lid. Alias
+  // სახურავ onto the machine so the displayed word resolves (→ open/close machine).
+  it('open machine via the displayed lid word (გახსენი სახურავი)', () => {
+    expect(ka('გახსენი სახურავი')).toEqual({
+      kind: 'command',
+      text: 'open machine',
+    })
+  })
+  it('close machine via the displayed lid word (დახურე სახურავი)', () => {
+    expect(ka('დახურე სახურავი')).toEqual({
+      kind: 'command',
+      text: 'close machine',
+    })
+  })
+
+  // The endgame headline verb: only გადაკვეთე mapped to `cross`; the equally
+  // natural „step across" გადააბიჯე abstained, which would strand a prose-following
+  // player above Aragain Falls (the endgame becomes unreachable in ka). NB გადი is
+  // already `exit`, so it can't double as cross.
+  it('cross rainbow — გადააბიჯე synonym', () => {
+    expect(ka('გადააბიჯე ცისარტყელა')).toEqual({
+      kind: 'command',
+      text: 'cross rainbow',
+    })
+  })
+  it('cross rainbow — shipping გადაკვეთე still works (regression)', () => {
+    expect(ka('გადაკვეთე ცისარტყელა')).toEqual({
+      kind: 'command',
+      text: 'cross rainbow',
+    })
+  })
+
+  // The skull's displayed name is ბროლის თავის ქალა; bare ქალა and the full form
+  // resolve, but the middle form თავის ქალა (player drops just the ბროლის
+  // "crystal" adjective) abstained. Same middle-form family as mailbox/trap-door.
+  it('take skull via the middle form (აიღე თავის ქალა)', () => {
+    expect(ka('აიღე თავის ქალა')).toEqual({
+      kind: 'command',
+      text: 'take skull',
+    })
+  })
+
+  // The trap door's other natural name: ლუქი ("hatch"). The room prose teaches
+  // ხაფანგ-კარი (which resolves), but a player who reaches for the synonym ლუქი
+  // abstained. ლუქი → ლუქ (nominative -ი strip); aliased onto the trap door.
+  it('open trap door via the synonym ლუქი (→ ლუქ)', () => {
+    expect(ka('გააღე ლუქი')).toEqual({ kind: 'command', text: 'open trapdoor' })
+  })
+
+  // Meta words resolved upstream (KA_CORE.metaAliases), pinned at that layer:
+  // ნივთები ("things") — the natural alternative to ინვენტარი; and ულისე
+  // (Ulysses, Latin) — the cyclops scare-word's other accepted name (Zork accepts
+  // both ULYSSES and ODYSSEUS, gsyntax.zil:335), alongside the existing ოდისევსი.
+  it('ნივთები maps to inventory', () => {
+    expect(KA_CORE.metaAliases['ნივთები']).toBe('inventory')
+  })
+  it('ულისე maps to the ulysses scare-word', () => {
+    expect(KA_CORE.metaAliases['ულისე']).toBe('ulysses')
+  })
+})
+
 describe('Georgian UAT — meta verbs (finding-8)', () => {
   it('English meta verbs are recognized for any language (save/quit/score/restart)', () => {
     // 'i' and 'l' are in-world game shortcuts (inventory/look), NOT meta —

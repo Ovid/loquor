@@ -140,6 +140,11 @@ export const KA_CORE: CoreLexicon = {
     // (Bare descent is the direction 'down', owned by directions.ts.)
     ჩამოძვერი: 'climb down', // ← review: confirm ჩამოძვერი reads as "climb down"
     გადაკვეთე: 'cross',
+    // გადააბიჯე ("step across") — the other natural cross imperative; only
+    // გადაკვეთე mapped, so `გადააბიჯე ცისარტყელა` abstained at Aragain Falls,
+    // stranding a prose-following player above the falls (the endgame becomes
+    // unreachable in ka — no LLM net). UAT-completion Finding (cross rainbow).
+    გადააბიჯე: 'cross',
     გაუშვი: 'launch',
     // გაცურე ("sail/set off") — the natural word a player reaches for at the
     // Frigid River; გაუშვი already works but no one types it. UAT finding 7.
@@ -189,6 +194,9 @@ export const KA_CORE: CoreLexicon = {
     // Georgian meta words → raw English command. English meta verbs (i, l,
     // save, quit) STILL work via isMetaCommand, which runs BEFORE the lexicon.
     ინვენტარი: 'inventory',
+    // ნივთები ("things/items") — the natural alternative to the loanword
+    // ინვენტარი; it abstained (UAT-completion). Same upstream meta path.
+    ნივთები: 'inventory',
     შენახვა: 'save',
     აღდგენა: 'restore',
     გასვლა: 'quit',
@@ -199,5 +207,9 @@ export const KA_CORE: CoreLexicon = {
     // name resolves to the raw English `odysseus` rather than forcing the player
     // to type the Latin `Ulysses`. UAT-completion Finding (Ulysses).
     ოდისევსი: 'odysseus',
+    // ულისე (Ulysses, Latin) — the cyclops scare-word's other accepted name. Zork
+    // accepts both ODYSSEUS and ULYSSES (gsyntax.zil:335); ოდისევსი already maps,
+    // but a player who reaches for the Latin form abstained (UAT-completion).
+    ულისე: 'ulysses',
   },
 }

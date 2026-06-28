@@ -282,6 +282,48 @@ describe('Zork I × Georgian — parser implicit-instrument parenthetical (UAT-2
   })
 })
 
+// Georgian COMPLETION run (notes/uat-georgian-completion.md, 2026-06-28). Two
+// output leaks surfaced driving Zork I to a deathless 350 in real Georgian — both
+// runtime-composed lines the coverage/inventory gates can't see, so pin them or
+// they leak raw English (ka has NO LLM net).
+describe('Zork I × Georgian — completion-run output leaks (UAT-2026-06-28)', () => {
+  const c = compileCorpus(ZORK1_KA)
+
+  // Leak #1: typing bare `echo` in a LOUD-RUNS room (e.g. Deep Canyon) emits the
+  // literal sound-effect string "echo echo ..." (gverbs.zil:546/548 V-ECHO) — not
+  // the Loud Room acoustics line, so loudEcho.ts doesn't re-voice it. It had no
+  // corpus entry, so it leaked raw English for ka.
+  it('#1: bare-echo "echo echo ..." renders Georgian, no English leak', () => {
+    const out = matchLine(c, 'echo echo ...')
+    expect(out).not.toBeNull()
+    expect(out).not.toBe('echo echo ...')
+    expect(out).toMatch(/[Ⴀ-ჿ]/) // Georgian (Mkhedruli)
+    expect(out).not.toMatch(/[A-Za-z]/) // no echoed English
+  })
+
+  // Leak #2: `take all` over capacity (and wounded) printed each refusal as
+  // "<obj>: Your load is too heavy[, especially in light of your condition]." —
+  // the per-object "<obj>: " template existed for the SUCCESS reasons and the
+  // rug/case failures, but NOT for these two too-heavy reasons (fr/de/es had
+  // them). The standalone reasons were translated; only the multi-object prefix
+  // form leaked.
+  it('#2: "<obj>: Your load is too heavy." composes (take all)', () => {
+    expect(matchLine(c, 'sword: Your load is too heavy.')).toBe(
+      'მახვილი: შენი ტვირთი ძალიან მძიმეა.',
+    )
+  })
+  it('#2: "<obj>: …too heavy, especially in light of your condition." composes', () => {
+    expect(
+      matchLine(
+        c,
+        'brass lantern: Your load is too heavy, especially in light of your condition.',
+      ),
+    ).toBe(
+      'სპილენძის ფარანი: შენი ტვირთი ძალიან მძიმეა, განსაკუთრებით შენი მდგომარეობის გათვალისწინებით.',
+    )
+  })
+})
+
 describe('Zork I × Georgian — combat coverage (UAT-2026-06-24 follow-up)', () => {
   const c = compileCorpus(ZORK1_KA)
   // Mkhedruli (modern Georgian). The pins assert NOUN ROOTS, not full §4 case

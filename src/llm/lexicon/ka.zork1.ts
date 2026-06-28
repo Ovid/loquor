@@ -62,7 +62,10 @@ export const KA_ZORK1: NounLexicon = {
   bolt: ['ხრახნ'], // ხრახნი → ხრახნ
   'brass bell': ['სპილენძის ზარ', 'ზარ'], // ზარი → ზარ (bell)
   'brass lantern': ['სპილენძის ფარან', 'ფარან'], // ფარანი → ფარან; UAT trap (lamp/lantern)
-  'broken clockwork canary': ['გატეხილ მექანიკურ კანარა', 'კანარა'], // კანარა vowel-final
+  // +კანარ: the nominative კანარი a player who knows the bird by that name types
+  // (UAT-completion: the egg contents teach the vowel-final კანარა, but კანარი
+  // also abstained). Shared stem across both clockwork canaries → 'canary'.
+  'broken clockwork canary': ['გატეხილ მექანიკურ კანარა', 'კანარა', 'კანარ'], // კანარა vowel-final
   // jeweled = -იანი adjective (M2 opt b: corpus simplified off the -ით participle).
   // ablative 'კანარა კვერცხიდან' (take canary FROM egg): expandGeorgian splits
   // -დან but does NOT re-strip the stem's -ი, so the residue is 'კვერცხი' (not
@@ -86,7 +89,9 @@ export const KA_ZORK1: NounLexicon = {
   'clove of garlic': ['ნივრის კბილ', 'ნიორ'], // კბილი → კბილ; garlic ნიორი → ნიორ
   'control panel': ['სამართავ დაფა', 'დაფა'], // panel დაფა vowel-final
   crack: ['ნაპრალ'], // ნაპრალი → ნაპრალ
-  'crystal skull': ['ბროლის თავის ქალა', 'ქალა'], // skull თავის ქალა; ქალა vowel-final
+  // +თავის ქალა: the displayed-name middle form (player drops the leading ბროლის
+  // "crystal" adjective), same family as mailbox/trap-door (UAT-completion).
+  'crystal skull': ['ბროლის თავის ქალა', 'თავის ქალა', 'ქალა'], // skull თავის ქალა; ქალა vowel-final
   'crystal trident': ['ბროლის სამკაპა', 'სამკაპა'], // trident სამკაპა vowel-final
   cyclops: ['ციკლოპ'], // ციკლოპი → ციკლოპ
   dam: ['კაშხალ'], // კაშხალი → კაშხალ
@@ -94,7 +99,7 @@ export const KA_ZORK1: NounLexicon = {
   forest: ['ტყე'], // vowel-final (forest/trees)
   'glass bottle': ['შუშის ბოთლ', 'ბოთლ'], // ბოთლი → ბოთლ
   'gold coffin': ['ოქროს კუბო', 'კუბო'], // კუბო vowel-final (coffin)
-  'golden clockwork canary': ['ოქროს მექანიკურ კანარა', 'კანარა'], // კანარა vowel-final
+  'golden clockwork canary': ['ოქროს მექანიკურ კანარა', 'კანარა', 'კანარ'], // +კანარ (nominative კანარი)
   'granite wall': ['გრანიტის კედელ', 'კედელ'], // wall კედელი → კედელ
   grating: ['ცხაურ'], // ცხაური → ცხაურ (grate)
   'green bubble': ['მწვანე ბუშტ', 'ბუშტ'], // bubble ბუშტი → ბუშტ
@@ -129,7 +134,10 @@ export const KA_ZORK1: NounLexicon = {
   'leather bag of coins': ['მონეტების ტყავის ტომარა', 'მონეტებ', 'ტომარა'], // coins / bag
   lunch: ['სადილ'], // სადილი → სადილ (food/lunch)
   'lurking grue': ['ჩასაფრებულ გრუ', 'გრუ'], // grue გრუ (untranslatable monster)
-  machine: ['მანქანა'], // vowel-final (also the diamond-machine 'lid')
+  // +სახურავ: the room prose calls the diamond machine's lid სახურავი, but only
+  // მანქანა was a parser noun, so `open/close სახურავი` abstained — and the diamond
+  // (350-required) is gated on that lid. Alias the displayed word onto the machine.
+  machine: ['მანქანა', 'სახურავ'], // vowel-final (also the diamond-machine 'lid')
   'magic boat': ['ჯადოსნურ ნავ', 'ნავ'], // ნავი → ნავ (boat)
   matchbook: ['ასანთის კოლოფ', 'ასანთ'], // head-noun matches ასანთი → ასანთ
   mirror: ['სარკე'], // vowel-final
@@ -200,7 +208,9 @@ export const KA_ZORK1: NounLexicon = {
   // finding 4), AND the hyphen-free head noun (ხაფანგ). NOT resolved by a generic
   // modifier strip: dropping ხაფანგ → bare კარ mis-binds to the ambiguous door set
   // (trap door's salient word is ხაფანგ "trap", not the head კარ "door").
-  'trap door': ['საიდუმლო ხაფანგ კარ', 'ხაფანგ კარ', 'ხაფანგ'], // trap ხაფანგი → ხაფანგ
+  // +ლუქ ("hatch", nominative ლუქი): the synonym a player reaches for when the
+  // prose-taught ხაფანგ-კარი doesn't come to mind (UAT-completion, Session 1).
+  'trap door': ['საიდუმლო ხაფანგ კარ', 'ხაფანგ კარ', 'ხაფანგ', 'ლუქ'], // trap ხაფანგი → ხაფანგ
   tree: ['ხე'], // vowel-final
   troll: ['ტროლ'], // ტროლი → ტროლ
   'trophy case': ['ჯილდოების ვიტრინა', 'ვიტრინა'], // ვიტრინა vowel-final (case)

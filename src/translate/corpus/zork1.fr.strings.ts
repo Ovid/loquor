@@ -1002,6 +1002,8 @@ export const ZORK1_FR_STRINGS: Readonly<Record<string, string>> = {
     'Pourquoi ne pas simplement marcher comme les gens normaux ?',
   'The incantation echoes back faintly, but nothing else happens.':
     "L'incantation renvoie un faible écho, mais rien d'autre ne se produit.",
+  // Bare `echo` in a LOUD-RUNS room: literal sound-effect string (gverbs.zil V-ECHO).
+  'echo echo ...': 'écho écho ...',
   'You will be lost without me!': 'Vous serez perdu sans moi !',
   'Bizarre!': 'Bizarre !',
   "You can't fit through the crack.": 'Vous ne passez pas par la fissure.',

@@ -394,6 +394,19 @@ export const ZORK1_KA_TEMPLATES: readonly Template[] = [
   // ITAKE). The "<obj>:" label is the caseless nominative; the reason is reused
   // verbatim from its standalone string pin. UAT 2026-06-19: these leaked
   // English (the success analogs were templated, these reasons were not).
+  // The over-capacity refusals `take all` prints (gverbs.zil ITAKE). The success
+  // analogs + rug/case failures were templated; these two were not, so a `take
+  // all` while overloaded (or wounded — the "…condition" variant) leaked English
+  // for ka (UAT-completion leak #2). fr/de/es already had both. Reasons reused
+  // verbatim from their standalone string pins.
+  {
+    en: '{obj}: Your load is too heavy.',
+    out: '{obj.indef}: შენი ტვირთი ძალიან მძიმეა.',
+  },
+  {
+    en: '{obj}: Your load is too heavy, especially in light of your condition.',
+    out: '{obj.indef}: შენი ტვირთი ძალიან მძიმეა, განსაკუთრებით შენი მდგომარეობის გათვალისწინებით.',
+  },
   {
     en: '{obj}: The rug is extremely heavy and cannot be carried.',
     out: '{obj.indef}: ხალიჩა უაღრესად მძიმეა და მისი ზიდვა შეუძლებელია.',

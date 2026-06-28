@@ -56,6 +56,22 @@ describe('Spanish UAT — verbs', () => {
   })
 })
 
+describe('Spanish UAT — cyclops magic word', () => {
+  // The Cyclops scare-word: saying the hero's name makes him flee, clearing the
+  // only staircase up. Zork accepts both ULYSSES (a verbSynonym) and ODYSSEUS (a
+  // verbsOnly verb) — gsyntax.zil:334-335 / V-ODYSSEUS. fr already maps its name
+  // (fr.core.ts: ulysse→ulysses), but es had NO alias, so a Spanish player typing
+  // the natural "Ulises"/"Odiseo" missed to the LLM (which returns "look" and
+  // leaves the Cyclops blocking the stairs — the same failure fr.core documents).
+  // Mirrors the fr fix. (Agentic-review I1, 2026-06-28.)
+  it('"Ulises" → cyclops magic word "ulysses"', () => {
+    expect(es('Ulises')).toEqual({ kind: 'command', text: 'ulysses' })
+  })
+  it('"Odiseo" → cyclops magic word "odysseus"', () => {
+    expect(es('Odiseo')).toEqual({ kind: 'command', text: 'odysseus' })
+  })
+})
+
 describe('Spanish UAT — noun surfaces', () => {
   it('"calavera de cristal" → crystal skull (the modifier must not break it)', () => {
     expect(es('coge la calavera de cristal', inScope('crystal skull'))).toEqual(

@@ -104,6 +104,9 @@ function setup(over: Partial<Parameters<typeof useNaturalLanguage>[0]> = {}) {
   const sendCanonical = over.sendCanonical ?? wiredSendLine
   const engine =
     over.engine ?? new FakeLlmEngine({ default: '{"verb":"__UNKNOWN__"}' })
+  // gate is REQUIRED now (F-q); supply one stable instance unless a test passes
+  // its own (e.g. the EngineGate-integration test shares it with the output hook).
+  const gate = over.gate ?? new EngineGate()
   const hook = renderHook(() =>
     useNaturalLanguage({
       engine,
@@ -114,6 +117,7 @@ function setup(over: Partial<Parameters<typeof useNaturalLanguage>[0]> = {}) {
       awaitTurn: async () => ({ view: emptyView, reason: 'line' as const }),
       watchdogMs: 5000,
       signature: 'test-signature', // consumed by Task 21 (per-game lexicons)
+      gate,
       ...over,
       sendLine: wiredSendLine,
       sendCanonical,
@@ -584,6 +588,7 @@ describe('useNaturalLanguage', () => {
     // the wrong Phase-1 "type in English" tip on Zork I, and the once-per-language
     // latch is spent when the signature arrives. The fix defers the ka tip until
     // signature !== '', so once Zork I resolves the player gets the Phase-2 tip.
+    const gate = new EngineGate() // stable across rerenders (F-q: gate is required)
     const props = (signature: string) => ({
       engine: new FakeLlmEngine({ cached: true }),
       capability: capable,
@@ -595,6 +600,7 @@ describe('useNaturalLanguage', () => {
       awaitTurn: async () => ({ view: emptyView, reason: 'line' as const }),
       watchdogMs: 5000,
       signature,
+      gate,
     })
     const hook = renderHook(p => useNaturalLanguage(p), {
       initialProps: props(''), // signature not yet resolved
@@ -2158,6 +2164,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
     })
     const echoLocal = vi.fn()
     const sendLine = vi.fn()
+    const gate = new EngineGate() // stable across rerenders (F-q: gate is required)
     const props = (vocab: Vocab, signature: string) => ({
       engine,
       capability: capable,
@@ -2169,6 +2176,7 @@ describe('input queue (NL v2 §11, F-A)', () => {
       awaitTurn: async () => ({ view: emptyView, reason: 'line' as const }),
       watchdogMs: 5000,
       signature,
+      gate,
     })
     const hook = renderHook(p => useNaturalLanguage(p), {
       initialProps: props(TEST_VOCAB, 'sig-A'),

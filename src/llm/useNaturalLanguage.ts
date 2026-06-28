@@ -9,7 +9,7 @@ import type {
 } from './types'
 import { OUTPUT_ONLY_LANGS } from './types'
 import { helpResponse, helpResponseTypeEnglish } from './help'
-import { EngineGate } from '../shared/engineGate'
+import type { EngineGate } from '../shared/engineGate'
 import type { ViewState, TurnResult } from '../glkote-react/types'
 import type { Vocab } from './grammar/types'
 import type { SceneEvent } from './scene/types'
@@ -51,10 +51,12 @@ export interface UseNaturalLanguageArgs {
   /** Story signature of the running game — selects the per-game noun lexicon
    * for the active non-English language (spec §5.2). */
   signature: string
-  /** Shared engine gate (output-translation spec §6). Optional so existing
-   * tests need no change; Terminal passes ONE instance shared with the
-   * output-translation hook. Input work runs at 'input' priority. */
-  gate?: EngineGate
+  /** Shared engine gate (output-translation spec §6). REQUIRED: Terminal passes
+   * ONE instance shared with the output-translation hook so input/output
+   * arbitrate over the single engine (input work runs at 'input' priority).
+   * Required (not `?`) so a caller that forgets the shared gate is a compile
+   * error, not a silent private gate that loses arbitration (F-q). */
+  gate: EngineGate
   /** LLM-feature preference (default true so existing callers/tests are
    * unchanged). When false the effective model is forced to 'grammar' at every
    * read, so the input pipeline never reaches the LLM stage and the engine never
@@ -134,12 +136,9 @@ export function useNaturalLanguage(
     awaitTurn,
     watchdogMs,
     signature,
-    gate: gateArg,
+    gate: engineGate,
     llmEnabled = true,
   } = args
-  // One stable fallback gate when the caller doesn't supply a shared one.
-  const [fallbackGate] = useState(() => new EngineGate())
-  const engineGate = gateArg ?? fallbackGate
   const [pending, setPending] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [announce, setAnnounce] = useState<string | null>(null)

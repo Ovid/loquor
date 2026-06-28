@@ -308,6 +308,9 @@ The architecture is genuinely well-layered. **madge reports zero circular depend
 - **Explanation:** `const engineGate = gateArg ?? fallbackGate`, where `fallbackGate` is a hook-local `new EngineGate()`. A future caller that forgets to pass the _shared_ gate silently gets a private one and loses input/output arbitration with `useOutputTranslation`, with no type error. Low today — the one production caller wires it correctly.
 - **Evidence:** `src/llm/useNaturalLanguage.ts:140-142`.
 - **Found by:** Coupling & Dependencies
+- **Status:** Fixed
+- **Status reason:** The `gate: gateArg ?? fallbackGate` self-provisioning is gone. `gate` is now a REQUIRED field of `UseNaturalLanguageArgs` (was `gate?`), the hook-local `useState(() => new EngineGate())` fallback is deleted, and the hook uses the injected `gate` directly. A future caller that forgets the shared gate is now a COMPILE error rather than a silent private gate that loses input/output arbitration with `useOutputTranslation`. Behavior-preserving — the one production caller (`Terminal`) already passes the shared gate (typecheck confirms). The hook's `EngineGate` import narrowed to `import type` (now type-only). Test call sites updated to supply a stable gate (the `setup`/`setupFr` helpers default one; the three inline `renderHook` builders create one stable instance each). Typecheck surfaced a 4th call site the initial grep missed (`pipeline.uat.test.tsx`) — exactly the silent-omission this fix converts into a compile error. 184 tests green across the NL/pipeline/Terminal suites; the EngineGate-integration test still pins shared-gate arbitration.
+- **Status date:** 2026-06-28 10:56 UTC
 
 ## Coverage Checklist
 

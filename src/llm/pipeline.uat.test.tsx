@@ -80,6 +80,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { useNaturalLanguage } from './useNaturalLanguage'
+import { EngineGate } from '../shared/engineGate'
 import { FakeLlmEngine } from './engine.fake'
 import type {
   ActiveLanguage,
@@ -161,6 +162,7 @@ async function renderPipeline(opts: {
   const sent: string[] = []
   const recorded: Array<[string, string]> = []
   const echoLocal = vi.fn()
+  const gate = new EngineGate() // F-q: gate is required
   const hook = renderHook(() =>
     useNaturalLanguage({
       engine,
@@ -187,6 +189,7 @@ async function renderPipeline(opts: {
         (async () => ({ view: emptyView, reason: 'line' as const })),
       watchdogMs: 5000,
       signature: ZORK1_SIG,
+      gate,
     }),
   )
   // Wait for the async isCached() probe before setLanguage, or the call races

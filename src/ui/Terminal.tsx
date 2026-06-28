@@ -39,18 +39,12 @@ import { loudEchoToken } from '../translate/loudEcho'
 import { WebLlmEngine } from '../llm/engine.webllm'
 import { selectedModelId } from '../llm/modelSelection'
 import { EngineGate } from '../shared/engineGate'
-import { GENERATE_WATCHDOG_MS } from '../llm/config'
+import { GENERATE_WATCHDOG_MS, LLM_ANNOUNCE_CLEAR_MS } from '../llm/config'
 import type { LoadProgress, ActiveLanguage } from '../llm/types'
 import { OUTPUT_ONLY_LANGS } from '../llm/types'
 import { createLogger } from '../logger'
 
 const log = createLogger('ui')
-
-// How long a TRANSIENT LLM mode-change announcement ("model enabled/hidden")
-// stays before it auto-clears. It has done its job once announced/read, so it
-// shouldn't sit on screen forever. The M2 migration notice is NOT transient (its
-// "re-enable in Preferences" guidance must stay readable) and ignores this.
-const LLM_ANNOUNCE_CLEAR_MS = 7000
 
 export function Terminal({
   storyBytes,

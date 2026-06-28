@@ -289,6 +289,10 @@ The architecture is genuinely well-layered. **madge reports zero circular depend
 - **Explanation:** A named a11y announce-clear timeout lives inline in the component — the same _class_ of timing tunable F-13 explicitly pulled out, with no stated UI-vs-pipeline boundary to say whether it's intentional or a straggler.
 - **Evidence:** `src/ui/Terminal.tsx:53`.
 - **Found by:** Error Handling & Observability
+- **Status:** Fixed
+- **Status reason:** `LLM_ANNOUNCE_CLEAR_MS` moved out of `Terminal.tsx` into `llm/config.ts` (beside `GENERATE_WATCHDOG_MS`/`ORPHAN_SETTLE_MS`), and the flaw's actual complaint — the *missing* UI-vs-pipeline boundary — is now stated explicitly in `config.ts`'s header: a NAMED timing/announce tunable of the LLM feature lives in config even with a single consumer (the announce-clear is the same class of constant F-13/F-m centralized), while constants belonging to a DIFFERENT subsystem (capability thresholds, the missLog cap) deliberately stay in their own modules. Ovid chose move-and-broaden over keep-and-document; `config.ts` already held `GEORGIAN_STATUS_MARKER` (a UI display constant), so the scope was already broader than "input pipeline only." Behavior-preserving (value unchanged at 7000; the `announceClearMs` prop seam is untouched) — pinned by the existing `Terminal.test.tsx` auto-clear tests (40/40 green), typecheck + lint clean.
+- **Status date:** 2026-06-28 15:30 UTC
+- **Status commit:** (this commit)
 
 ### [F-o] Two bare `.catch(() => {})` on diagnostic async paths
 

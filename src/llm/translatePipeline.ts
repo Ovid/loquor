@@ -720,6 +720,67 @@ export function createTranslate(
       ;(canonical ? sendCanonical : sendLine)(text)
     }
 
+    // STAGE 1 (spec §4): the game is asking. The interpreter's yes/no
+    // confirmations (restart/quit/restore), the parser's disambiguation
+    // questions ("Which door…?"), and the parser's orphan prompts ("What do you
+    // want to put the coffin in?") are read as ordinary LINE input, so the
+    // player's reply answers the INTERPRETER/PARSER and must not be translated —
+    // else "Y" → "look" (restart never confirms) or "wooden door" gets mangled.
+    // Returns the line outcome when `recentOutput` IS such a prompt, else null
+    // (the caller proceeds to stages 2–8). A QUEUED line cannot be a reply — the
+    // player hadn't seen the question when they typed it — so it flushes.
+    const handlePromptReply = (
+      line: string,
+      fromQueue: boolean,
+      recentOutput: string,
+      activeLang: ActiveLanguage,
+      lex: Lex | null,
+    ): 'flush' | 'ok' | null => {
+      if (
+        !isConfirmationPrompt(recentOutput) &&
+        !isDisambiguationPrompt(recentOutput) &&
+        !isOrphanPrompt(recentOutput) // parser orphan — the reply answers the parser (review I1)
+      )
+        return null
+      lastCommandRef.current = null
+      if (fromQueue) return 'flush'
+      // On a yes/no confirmation, map the player's localized reflex reply
+      // ("j"/"ja"/"oui"/"sí") to the interpreter's literal "y"/"n" key — the
+      // localized prompt invited it but the interpreter only accepts Y (review I3).
+      if (isConfirmationPrompt(recentOutput)) {
+        sendTracked(confirmationReply(line, activeLang))
+        return 'ok'
+      }
+      // Disambiguation / orphan: the reply answers the PARSER with a NOUN
+      // ("yellow button" → "Which button?"). The output corpus renders the
+      // prompt in the player's language, so a non-English player answers in
+      // their language — which the English Z-parser can't read (I3). Resolve the
+      // reply through the noun lexicon (verbless path) and send the English noun.
+      // A QUOTED reply is the literal escape and skips resolution (decision 8);
+      // it raw-sends below (the decision-8 contract keeps the quotes).
+      const resolved =
+        !unquote(line) && lex?.nouns
+          ? resolveNounReply(line, lex.core, lex.nouns, vocab, tracker.scene())
+          : null
+      if (resolved) {
+        echoLocal(line) // a translated reply — echo the player's own words once
+        sendTracked(resolved, line, true)
+        return 'ok'
+      }
+      // Unresolved → mirror the stage-8 abstain policy: en (and ka's
+      // English-ASCII reply, §5.5) raw-send (Zork's parser reads English); a
+      // non-English reply with no resolution would only earn a useless English
+      // error and burn the turn, so abstain (leave the prompt open) and show a
+      // localized hint to answer with the full noun (I3, the "resolve + hint" call).
+      if (rawSendsToParser(activeLang, line)) {
+        sendTracked(line)
+        return 'ok'
+      }
+      setNotice(promptAnswerHint(activeLang))
+      retainTyped = line
+      return 'ok'
+    }
+
     // Run ONE LINE through the full pipeline (stages 1–8). Returns 'flush'
     // when the game raised an interactive prompt: queued lines were typed
     // BEFORE the player saw that question, so the drain must discard them
@@ -748,66 +809,18 @@ export function createTranslate(
       // (runClause skips the engine) and stage 8 educates / EN raw-sends.
       const grammarOnly =
         live.internal.phase === 'on' && live.internal.model === 'grammar'
-      // STAGE 1 (spec §4): the game is asking. The interpreter's yes/no
-      // confirmations (restart/quit/restore), the parser's disambiguation
-      // questions ("Which door…?"), and the parser's orphan prompts ("What do
-      // you want to put the coffin in?") are read as ordinary LINE input, so the
-      // player's reply answers the INTERPRETER/PARSER and must not be translated —
-      // else "Y" → "look" (restart never confirms) or "wooden door" gets
-      // mangled. Checked before the clause split so a reply containing "and"
-      // is never split either. A QUEUED line cannot be such a reply — the
-      // player hadn't seen the question when they typed it — so it signals a
-      // flush instead of answering.
+      // STAGE 1 (spec §4): a reply to an interpreter/parser prompt answers the
+      // game, not the translator — handlePromptReply owns that decision. Checked
+      // before the clause split so a reply containing "and" is never split.
       const recentOutput = (settled ?? getContext()).recentOutput
-      if (
-        isConfirmationPrompt(recentOutput) ||
-        isDisambiguationPrompt(recentOutput) ||
-        isOrphanPrompt(recentOutput) // parser orphan ("What do you want to …?") — the reply answers the parser (review I1)
-      ) {
-        lastCommandRef.current = null
-        if (fromQueue) return 'flush'
-        // On a yes/no confirmation, map the player's localized reflex reply
-        // ("j"/"ja"/"oui"/"sí") to the interpreter's literal "y"/"n" key — the
-        // localized prompt invited it but the interpreter only accepts Y (review I3).
-        if (isConfirmationPrompt(recentOutput)) {
-          sendTracked(confirmationReply(line, activeLang))
-          return 'ok'
-        }
-        // Disambiguation / orphan: the reply answers the PARSER with a NOUN
-        // ("yellow button" → "Which button?"). The output corpus renders the
-        // prompt in the player's language, so a non-English player answers in
-        // their language — which the English Z-parser can't read (I3). Resolve the
-        // reply through the noun lexicon (verbless path) and send the English noun.
-        // A QUOTED reply is the literal escape and skips resolution (decision 8);
-        // it raw-sends below (the decision-8 contract keeps the quotes).
-        const resolved =
-          !unquote(line) && lex?.nouns
-            ? resolveNounReply(
-                line,
-                lex.core,
-                lex.nouns,
-                vocab,
-                tracker.scene(),
-              )
-            : null
-        if (resolved) {
-          echoLocal(line) // a translated reply — echo the player's own words once
-          sendTracked(resolved, line, true)
-          return 'ok'
-        }
-        // Unresolved → mirror the stage-8 abstain policy: en (and ka's
-        // English-ASCII reply, §5.5) raw-send (Zork's parser reads English); a
-        // non-English reply with no resolution would only earn a useless English
-        // error and burn the turn, so abstain (leave the prompt open) and show a
-        // localized hint to answer with the full noun (I3, the "resolve + hint" call).
-        if (rawSendsToParser(activeLang, line)) {
-          sendTracked(line)
-          return 'ok'
-        }
-        setNotice(promptAnswerHint(activeLang))
-        retainTyped = line
-        return 'ok'
-      }
+      const replyOutcome = handlePromptReply(
+        line,
+        fromQueue,
+        recentOutput,
+        activeLang,
+        lex,
+      )
+      if (replyOutcome !== null) return replyOutcome
       // STAGE 2 (locked decision 8): a fully-quoted line ("…", «…», „…“, “…”)
       // is the escape hatch — send the unquoted text verbatim, bypassing every
       // translation stage. No echo, no latch: the player typed the command.

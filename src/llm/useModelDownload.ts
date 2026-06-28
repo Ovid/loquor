@@ -68,6 +68,10 @@ export interface ModelDownload {
   requestUpgrade: () => void
   /** Flip the active language full → grammar after a clause-time load failure. */
   demoteToGrammar: () => void
+  /** Delete the on-disk model cache (Preferences): frees disk and forces a fresh
+   * re-download. Clears `installed`; if a full model was active, drops to
+   * basic/grammar mode in the same language. No-op if the engine can't delete. */
+  deleteModel: () => void
 }
 
 export function useModelDownload(params: ModelDownloadParams): ModelDownload {
@@ -395,6 +399,23 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
     )
   }, [])
 
+  const deleteModel = useCallback(() => {
+    // deleteCache is optional (a capability); the affordance is only offered when
+    // a model is installed, which implies a real engine that has it.
+    const del = engine.deleteCache?.()
+    if (!del) return
+    void del.then(
+      () => {
+        setInstalled(false)
+        // If a full model was active, drop to basic mode in the SAME language
+        // (the weights are gone but the player keeps their language); a no-op
+        // when the layer is off or already grammar-only.
+        demoteToGrammar()
+      },
+      err => log.warn('model cache delete failed', err),
+    )
+  }, [engine, demoteToGrammar])
+
   return {
     internal,
     installed,
@@ -405,5 +426,6 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
     cancelDownload,
     requestUpgrade,
     demoteToGrammar,
+    deleteModel,
   }
 }

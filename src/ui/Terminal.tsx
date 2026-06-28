@@ -598,6 +598,7 @@ export function Terminal({
         debug={debug}
         llmEnabled={llmEnabled}
         lang={activeLang}
+        modelInstalled={nl.installed}
         onToggleDebug={toggleDebug}
         onToggleLlm={() => {
           const next = !llmEnabled
@@ -608,6 +609,7 @@ export function Terminal({
             transient: true,
           })
         }}
+        onDeleteModel={nl.deleteModel}
         onClose={() => setPrefsOpen(false)}
       />
     </div>

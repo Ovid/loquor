@@ -27,6 +27,13 @@ export class FakeLlmEngine implements LlmEngine {
     return this.opts.cached === true || this.loaded
   }
 
+  /** Faithful to WebLlmEngine.deleteCache: drop from the on-disk cache AND unload,
+   * so isCached()/isLoaded() both report false afterwards. */
+  async deleteCache(): Promise<void> {
+    this.opts.cached = false
+    await this.unload()
+  }
+
   async load(
     onProgress: (p: LoadProgress) => void,
     signal: AbortSignal,

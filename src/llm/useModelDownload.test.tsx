@@ -648,6 +648,7 @@ describe('cancelDownload', () => {
       unload: async () => {},
       isLoaded: () => false,
       isCached: async () => false,
+      deleteCache: async () => {},
       generate: async () => '',
       load: (_p, signal) =>
         new Promise<void>((_resolve, reject) => {
@@ -683,6 +684,7 @@ describe('cancelDownload', () => {
       unload: async () => {},
       isLoaded: () => false,
       isCached: async () => false,
+      deleteCache: async () => {},
       generate: async () => '',
       load: () =>
         new Promise<void>(resolve => {
@@ -869,5 +871,47 @@ describe('grammar-only fallback', () => {
         model: 'full',
       }),
     )
+  })
+})
+
+describe('deleteModel', () => {
+  it('deletes the on-disk cache and clears installed', async () => {
+    const engine = new FakeLlmEngine({ cached: true })
+    const del = vi.spyOn(engine, 'deleteCache')
+    const { hook } = setup({ engine }) // pref off → installed but layer off
+    await waitFor(() => expect(hook.result.current.installed).toBe(true))
+
+    await act(async () => {
+      hook.result.current.deleteModel()
+    })
+
+    expect(del).toHaveBeenCalled()
+    await waitFor(() => expect(hook.result.current.installed).toBe(false))
+  })
+
+  it('demotes an active full model to grammar (keeps the language, basic mode)', async () => {
+    writeNlPref({ language: 'fr' })
+    const engine = new FakeLlmEngine({ cached: true })
+    const { hook } = setup({ engine })
+    await waitFor(() =>
+      expect(hook.result.current.internal).toEqual({
+        phase: 'on',
+        language: 'fr',
+        model: 'full',
+      }),
+    )
+
+    await act(async () => {
+      hook.result.current.deleteModel()
+    })
+
+    await waitFor(() =>
+      expect(hook.result.current.internal).toEqual({
+        phase: 'on',
+        language: 'fr',
+        model: 'grammar',
+      }),
+    )
+    expect(hook.result.current.installed).toBe(false)
   })
 })

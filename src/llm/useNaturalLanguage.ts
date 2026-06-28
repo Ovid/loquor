@@ -78,6 +78,9 @@ export interface UseNaturalLanguage {
    * value can never render under another language. */
   announce: string | null
   modalOpen: boolean
+  /** Whether a model is present in the on-disk cache (in ANY phase). Drives the
+   * Preferences "Delete cached model" affordance. */
+  installed: boolean
   /** Pick a language ('off' disables the layer). Sticky via writeNlPref. */
   setLanguage: (lang: NlLanguage) => void
   requestDownload: () => void
@@ -85,6 +88,9 @@ export interface UseNaturalLanguage {
   requestUpgrade: () => void
   declineDownload: () => void
   cancelDownload: () => void
+  /** Delete the on-disk model cache (Preferences): frees disk + forces a fresh
+   * re-download; demotes an active full model to basic mode in the same language. */
+  deleteModel: () => void
   /** Resolves to the typed line when it was a non-English submission that sent
    * NOTHING (abstain/timeout/failure), so the caller can restore it to the
    * field instead of discarding it (M8); null when the line was consumed. */
@@ -192,6 +198,7 @@ export function useNaturalLanguage(
     cancelDownload,
     requestUpgrade,
     demoteToGrammar,
+    deleteModel,
   } = useModelDownload({ engine, hasVocab, setNotice, llmEnabled })
 
   // Own a scene tracker; rebuild + reset when the game (vocab) changes.
@@ -437,11 +444,13 @@ export function useNaturalLanguage(
     notice,
     announce,
     modalOpen,
+    installed,
     setLanguage,
     requestDownload,
     requestUpgrade,
     declineDownload,
     cancelDownload,
+    deleteModel,
     translate,
     queued,
     observe,

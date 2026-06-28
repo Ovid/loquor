@@ -19,6 +19,7 @@ function engineWith(generate: LlmEngine['generate']): LlmEngine {
     async isCached(): Promise<boolean> {
       return true
     },
+    async deleteCache(): Promise<void> {},
   }
 }
 

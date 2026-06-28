@@ -287,6 +287,18 @@
   font-size: 0.85em;
   color: var(--text-dim);
 }
+/* The destructive "Delete cached model" action, separated from the LLM section
+   so it reads as a distinct step. The label TEXT carries the destructive meaning
+   (not colour), per the colour-independence rule. The inline confirm stacks the
+   prompt above its buttons (column), not the .prefs-row default of a single row. */
+.prefs-delete {
+  margin-top: 14px;
+}
+.prefs-delete-confirm {
+  flex-direction: column;
+  align-items: stretch;
+  margin-top: 14px;
+}
 /* 'queued' chip on lines waiting for the translator (NL v2 §11). */
 .chip {
   margin-left: 8px;

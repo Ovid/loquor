@@ -315,6 +315,7 @@ describe('resolve — retry budget exhaustion (review S1)', () => {
       unload: async () => {},
       isLoaded: () => true,
       isCached: async () => true,
+      deleteCache: async () => {},
       generate: async () => {
         calls++
         if (calls === 1) throw new Error('transient hiccup')

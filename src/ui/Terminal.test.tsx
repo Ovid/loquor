@@ -1393,4 +1393,48 @@ describe('Terminal', () => {
       }
     })
   })
+
+  describe('Preferences — delete cached model', () => {
+    it('offers the delete action when a model is cached and deleting calls the engine', async () => {
+      localStorage.clear()
+      const engine = new FakeLlmEngine({ cached: true })
+      const del = vi.spyOn(engine, 'deleteCache')
+      render(
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+          engine={engine}
+          gate={new EngineGate()}
+        />,
+      )
+      await waitFor(
+        () =>
+          expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        { timeout: 8000 },
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Preferences' }))
+      // The model is on disk, so the delete affordance is offered…
+      const trigger = await screen.findByRole('button', {
+        name: PREFS_COPY.en.deleteLabel,
+      })
+      // …but takes two steps (no accidental discard of a multi-GB download).
+      fireEvent.click(trigger)
+      // The confirm fires deleteCache(), whose .then settles installed/state
+      // asynchronously — flush it inside act so no update escapes.
+      await act(async () => {
+        fireEvent.click(
+          screen.getByRole('button', { name: PREFS_COPY.en.deleteConfirm }),
+        )
+      })
+      expect(del).toHaveBeenCalled()
+      // The cache is gone, so the affordance withdraws.
+      await waitFor(() =>
+        expect(
+          screen.queryByRole('button', { name: PREFS_COPY.en.deleteLabel }),
+        ).toBeNull(),
+      )
+    })
+  })
 })

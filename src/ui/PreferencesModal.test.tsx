@@ -162,3 +162,116 @@ describe('PreferencesModal — LLM toggle', () => {
     }
   })
 })
+
+describe('PreferencesModal — delete cached model', () => {
+  const base = {
+    open: true as const,
+    debug: false,
+    onToggleDebug: noop,
+    onToggleLlm: noop,
+    onClose: noop,
+  }
+
+  it('offers no delete affordance when no model is cached', () => {
+    render(<PreferencesModal {...base} modelInstalled={false} />)
+    expect(
+      screen.queryByRole('button', { name: PREFS_COPY.en.deleteLabel }),
+    ).toBeNull()
+  })
+
+  it('shows the delete trigger when a model is cached', () => {
+    render(<PreferencesModal {...base} modelInstalled onDeleteModel={noop} />)
+    expect(
+      screen.getByRole('button', { name: PREFS_COPY.en.deleteLabel }),
+    ).toBeInTheDocument()
+    // The destructive action is NOT taken without confirmation.
+    expect(
+      screen.queryByRole('button', { name: PREFS_COPY.en.deleteConfirm }),
+    ).toBeNull()
+  })
+
+  it('reveals an inline confirm (prompt + confirm/cancel) on the first click', () => {
+    render(<PreferencesModal {...base} modelInstalled onDeleteModel={noop} />)
+    fireEvent.click(
+      screen.getByRole('button', { name: PREFS_COPY.en.deleteLabel }),
+    )
+    expect(screen.getByText(PREFS_COPY.en.deletePrompt)).toBeInTheDocument()
+    const confirm = screen.getByRole('button', {
+      name: PREFS_COPY.en.deleteConfirm,
+    })
+    // The consequence is announced to AT via the confirm button's description.
+    expect(confirm).toHaveAccessibleDescription(PREFS_COPY.en.deletePrompt)
+    expect(
+      screen.getByRole('button', { name: PREFS_COPY.en.deleteCancel }),
+    ).toBeInTheDocument()
+    // The bare trigger is replaced by the confirm, so a second action is required.
+    expect(
+      screen.queryByRole('button', { name: PREFS_COPY.en.deleteLabel }),
+    ).toBeNull()
+  })
+
+  it('calls onDeleteModel only after confirming', () => {
+    const onDeleteModel = vi.fn()
+    render(
+      <PreferencesModal
+        {...base}
+        modelInstalled
+        onDeleteModel={onDeleteModel}
+      />,
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: PREFS_COPY.en.deleteLabel }),
+    )
+    expect(onDeleteModel).not.toHaveBeenCalled()
+    fireEvent.click(
+      screen.getByRole('button', { name: PREFS_COPY.en.deleteConfirm }),
+    )
+    expect(onDeleteModel).toHaveBeenCalledTimes(1)
+  })
+
+  it('cancel dismisses the confirm without deleting', () => {
+    const onDeleteModel = vi.fn()
+    render(
+      <PreferencesModal
+        {...base}
+        modelInstalled
+        onDeleteModel={onDeleteModel}
+      />,
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: PREFS_COPY.en.deleteLabel }),
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: PREFS_COPY.en.deleteCancel }),
+    )
+    expect(onDeleteModel).not.toHaveBeenCalled()
+    // Back to the trigger.
+    expect(
+      screen.getByRole('button', { name: PREFS_COPY.en.deleteLabel }),
+    ).toBeInTheDocument()
+  })
+
+  it('localizes the delete trigger', () => {
+    render(
+      <PreferencesModal
+        {...base}
+        lang="fr"
+        modelInstalled
+        onDeleteModel={noop}
+      />,
+    )
+    expect(
+      screen.getByRole('button', { name: PREFS_COPY.fr.deleteLabel }),
+    ).toBeInTheDocument()
+  })
+
+  it('has delete copy for every NL language (incl. ka)', () => {
+    for (const lang of ['en', 'fr', 'de', 'es', 'ka'] as const) {
+      const c = PREFS_COPY[lang]
+      expect(c.deleteLabel).toBeTruthy()
+      expect(c.deletePrompt).toBeTruthy()
+      expect(c.deleteConfirm).toBeTruthy()
+      expect(c.deleteCancel).toBeTruthy()
+    }
+  })
+})

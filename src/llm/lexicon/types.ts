@@ -1,19 +1,27 @@
 // src/llm/lexicon/types.ts
 
-/** Languages with an INPUT lexicon (spec locked decision 1). Deliberately an
- * explicit union, NOT Exclude<NlLanguage, 'off'|'en'> — a picker language can
- * have a display corpus without an input lexicon (Phase 1 Georgian: 'ka' is in
- * NL_LANGUAGES but has no lexicon, so it must NOT be a LexLang). Phase 2 adds
- * 'ka' here when the Georgian input lexicon exists. */
-export type LexLang = 'fr' | 'de' | 'es'
+/** SINGLE SOURCE OF TRUTH for input-lexicon language membership (F-a). Both the
+ * `LexLang` TYPE below and the runtime language Sets (`OUTPUT_ONLY_LANGS` in
+ * llm/types.ts, `CORPUS_ONLY_LANGS` in translate/corpus/index.ts) derive from
+ * these `as const` arrays — so adding a language is one edit here, and the
+ * `language membership coherence` test in types.test.ts fails if anything is
+ * left unclassified. Deliberately explicit, NOT Exclude<NlLanguage,'off'|'en'>:
+ * a picker language can have a display corpus without an input lexicon. */
+export const LEX_LANGS = ['fr', 'de', 'es'] as const
 
-/** Languages with an INPUT lexicon. `ka` has one (Phase 2) but must NEVER key the
- *  LLM machinery. The LLM-keyed maps that are STRICT Record<LexLang,…> (so a `ka`
- *  entry is a type error) are `fallbackResolve` and the prompt's per-language
- *  tables; note that `FEWSHOTS` and notices' `ByLang` already widen to optional
- *  `ka` (review S3 — the guarantee is "ka is not REQUIRED in the LLM path", not
- *  "ka is structurally impossible everywhere"). Keep new LLM maps `Record<LexLang>`. */
-export type InputLexLang = LexLang | 'ka'
+/** Languages with a full LLM-backed INPUT lexicon (spec locked decision 1). */
+export type LexLang = (typeof LEX_LANGS)[number]
+
+/** Languages with an INPUT lexicon, INCLUDING the no-LLM ones. `ka` has one
+ *  (Phase 2) but must NEVER key the LLM machinery — that guarantee lives in the
+ *  TYPE: the strict `Record<LexLang,…>` maps (`fallbackResolve`, the prompt's
+ *  per-language tables) make a `ka` entry a compile error, because `ka ∈
+ *  InputLexLang` but `ka ∉ LexLang`. (`FEWSHOTS` / notices' `ByLang` widen to
+ *  optional `ka` — review S3: the guarantee is "ka is not REQUIRED in the LLM
+ *  path", not "structurally impossible everywhere".) Keep new LLM maps
+ *  `Record<LexLang>`. Derived from LEX_LANGS so it can't drift. */
+export const INPUT_LEX_LANGS = [...LEX_LANGS, 'ka'] as const
+export type InputLexLang = (typeof INPUT_LEX_LANGS)[number]
 
 /** German separable verb: leading verb + clause-final particle (spec §5.1). */
 export interface ParticleVerb {

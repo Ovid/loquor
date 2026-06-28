@@ -2,6 +2,7 @@
 // (src/llm/lexicon/index.ts). null means the output-translation hook is a
 // pure passthrough (spec §3) — en/off always, and any uncovered game/language.
 import type { NlLanguage } from '../../llm/types'
+import { INPUT_LEX_LANGS, LEX_LANGS } from '../../llm/lexicon/types'
 import type { TranslationCorpus } from '../types'
 import { ZORK1_SIG } from '../../llm/grammar/index'
 import { ZORK1_FR } from './zork1.fr'
@@ -11,8 +12,18 @@ import { ZORK1_KA } from './zork1.ka'
 
 /** Languages whose output is corpus-only: a miss degrades to English and is
  *  logged, never sent to the LLM fallback. Georgian — the small WebLLM models
- *  cannot produce correct Georgian, so a fallback would emit garbage (spec §3). */
-export const CORPUS_ONLY_LANGS: ReadonlySet<NlLanguage> = new Set(['ka'])
+ *  cannot produce correct Georgian, so a fallback would emit garbage (spec §3).
+ *
+ *  DERIVED (F-a) from the lexicon membership arrays, the SAME source as
+ *  OUTPUT_ONLY_LANGS, because today "has no LLM" is a single property (a model
+ *  that can't produce a language for OUTPUT also can't parse it for INPUT). Kept
+ *  as a SEPARATE export — distinct output-layer job, distinct consumers — so if
+ *  that coincidence ever breaks (an input-only or output-only-with-LLM language)
+ *  this one line diverges without touching the input set. The coherence test in
+ *  llm/types.test.ts pins the current equality and the ⊆ OUTPUT_ONLY invariant. */
+export const CORPUS_ONLY_LANGS: ReadonlySet<NlLanguage> = new Set(
+  INPUT_LEX_LANGS.filter(l => !(LEX_LANGS as readonly string[]).includes(l)),
+)
 
 const CORPORA: Readonly<
   Record<string, Partial<Record<string, TranslationCorpus>>>

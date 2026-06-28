@@ -208,7 +208,9 @@ export const KA_ZORK1: NounLexicon = {
   // finding 4), AND the hyphen-free head noun (ხაფანგ). NOT resolved by a generic
   // modifier strip: dropping ხაფანგ → bare კარ mis-binds to the ambiguous door set
   // (trap door's salient word is ხაფანგ "trap", not the head კარ "door").
-  'trap door': ['საიდუმლო ხაფანგ კარ', 'ხაფანგ კარ', 'ხაფანგ'], // trap ხაფანგი → ხაფანგ
+  // +ლუქ ("hatch", nominative ლუქი): the synonym a player reaches for when the
+  // prose-taught ხაფანგ-კარი doesn't come to mind (UAT-completion, Session 1).
+  'trap door': ['საიდუმლო ხაფანგ კარ', 'ხაფანგ კარ', 'ხაფანგ', 'ლუქ'], // trap ხაფანგი → ხაფანგ
   tree: ['ხე'], // vowel-final
   troll: ['ტროლ'], // ტროლი → ტროლ
   'trophy case': ['ჯილდოების ვიტრინა', 'ვიტრინა'], // ვიტრინა vowel-final (case)

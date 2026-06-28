@@ -302,6 +302,13 @@ describe('Georgian completion — display-taught / synonym input gaps', () => {
     })
   })
 
+  // The trap door's other natural name: ლუქი ("hatch"). The room prose teaches
+  // ხაფანგ-კარი (which resolves), but a player who reaches for the synonym ლუქი
+  // abstained. ლუქი → ლუქ (nominative -ი strip); aliased onto the trap door.
+  it('open trap door via the synonym ლუქი (→ ლუქ)', () => {
+    expect(ka('გააღე ლუქი')).toEqual({ kind: 'command', text: 'open trapdoor' })
+  })
+
   // Meta words resolved upstream (KA_CORE.metaAliases), pinned at that layer:
   // ნივთები ("things") — the natural alternative to ინვენტარი; and ულისე
   // (Ulysses, Latin) — the cyclops scare-word's other accepted name (Zork accepts

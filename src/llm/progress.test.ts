@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { pct, estimateRemainingSeconds, formatEta } from './progress'
+import {
+  pct,
+  estimateRemainingSeconds,
+  retainSamples,
+  formatEta,
+} from './progress'
 import type { ActiveLanguage } from './types'
 
 describe('pct', () => {
@@ -69,6 +74,26 @@ describe('estimateRemainingSeconds', () => {
     ).toBeNull()
   })
 
+  it('damps a recent burst instead of collapsing to it (smoothing)', () => {
+    // Steady ~1%/s for 45s, then a 30%-in-5s cache-hit burst. The un-smoothed
+    // recent-window slope crashes the ETA toward the burst rate (~7s); the
+    // time-weighted EMA over a longer horizon keeps it near the sustained rate.
+    // Default args (this pins the shipped smoothing behavior); band, not a point,
+    // so constant tuning doesn't break it.
+    const eta = estimateRemainingSeconds([
+      { pct: 0, t: 0 },
+      { pct: 10, t: 10_000 },
+      { pct: 20, t: 20_000 },
+      { pct: 30, t: 30_000 },
+      { pct: 40, t: 40_000 },
+      { pct: 45, t: 45_000 },
+      { pct: 75, t: 50_000 }, // burst: 30% in 5s
+    ])
+    expect(eta).not.toBeNull()
+    expect(eta as number).toBeGreaterThan(9)
+    expect(eta as number).toBeLessThan(20)
+  })
+
   it('returns null when stalled (no forward progress) or already done', () => {
     expect(
       estimateRemainingSeconds([
@@ -82,6 +107,37 @@ describe('estimateRemainingSeconds', () => {
         { pct: 100, t: 5_000 },
       ]),
     ).toBeNull()
+  })
+})
+
+describe('retainSamples', () => {
+  it('keeps only samples within the horizon of the latest, then caps the count', () => {
+    const s = [
+      { pct: 1, t: 0 }, // 100s before latest — dropped
+      { pct: 2, t: 50_000 }, // 50s before latest — outside a 40s horizon
+      { pct: 3, t: 70_000 }, // within 40s
+      { pct: 4, t: 100_000 }, // latest
+    ]
+    expect(retainSamples(s, 40_000, 100)).toEqual([
+      { pct: 3, t: 70_000 },
+      { pct: 4, t: 100_000 },
+    ])
+  })
+
+  it('caps the retained count so a fast callback rate cannot grow unbounded', () => {
+    // 500 samples spanning 5s (all within a 60s horizon) — the cap keeps the
+    // most recent `cap` of them, the memory backstop the old .slice(-60) was.
+    const many = Array.from({ length: 500 }, (_, i) => ({
+      pct: i / 10,
+      t: i * 10,
+    }))
+    const kept = retainSamples(many, 60_000, 300)
+    expect(kept).toHaveLength(300)
+    expect(kept[kept.length - 1]).toEqual({ pct: 49.9, t: 4990 })
+  })
+
+  it('returns an empty array unchanged', () => {
+    expect(retainSamples([], 60_000, 300)).toEqual([])
   })
 })
 

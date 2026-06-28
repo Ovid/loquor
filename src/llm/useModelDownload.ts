@@ -10,9 +10,19 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ActiveLanguage, LlmEngine, NlLanguage } from './types'
 import { OUTPUT_ONLY_LANGS } from './types'
 import { readNlPref, writeNlPref } from './nlpref'
-import { pct as toPct, estimateRemainingSeconds } from './progress'
+import {
+  pct as toPct,
+  estimateRemainingSeconds,
+  retainSamples,
+} from './progress'
 import type { ProgressSample } from './progress'
-import { DOWNLOAD_STALL_MS, DOWNLOAD_RETRY_MS } from './config'
+import {
+  DOWNLOAD_STALL_MS,
+  DOWNLOAD_RETRY_MS,
+  DL_ETA_WINDOW_MS,
+  DL_ETA_TAU_MS,
+  DL_SAMPLE_CAP,
+} from './config'
 import { modelDownloadFailed, modelDownloadStalled } from './notices'
 import { createLogger } from '../logger'
 
@@ -220,16 +230,27 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
         .load(p => {
           if (stale()) return
           armStall() // progress arrived — reset the no-progress timer
-          dlSamplesRef.current = [
-            ...dlSamplesRef.current,
-            { pct: toPct(p.loaded, p.total), t: Date.now() },
-          ].slice(-60)
+          // Retain samples by TIME (not a bare count) so a fast callback rate
+          // can't collapse the EMA's smoothing window — the cause of the ETA
+          // bounce. The count cap is only a memory backstop.
+          dlSamplesRef.current = retainSamples(
+            [
+              ...dlSamplesRef.current,
+              { pct: toPct(p.loaded, p.total), t: Date.now() },
+            ],
+            DL_ETA_WINDOW_MS,
+            DL_SAMPLE_CAP,
+          )
           setInternal({
             phase: 'downloading',
             language: pendingLangRef.current,
             loaded: p.loaded,
             total: p.total,
-            etaSeconds: estimateRemainingSeconds(dlSamplesRef.current),
+            etaSeconds: estimateRemainingSeconds(
+              dlSamplesRef.current,
+              DL_ETA_WINDOW_MS,
+              DL_ETA_TAU_MS,
+            ),
           })
         }, ac.signal)
         .then(() => {

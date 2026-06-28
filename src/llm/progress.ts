@@ -19,14 +19,42 @@ export interface ProgressSample {
 }
 
 /**
+ * Keep only the progress samples worth estimating from: those within `horizonMs`
+ * of the latest sample, then the most recent `cap` of those. Time-based, NOT a
+ * bare count cap — a count cap (the old `.slice(-60)`) silently collapses the
+ * estimator's smoothing window when WebLLM fires progress callbacks rapidly (60
+ * samples can span a few seconds, not the intended horizon), which is what made
+ * the ETA jump. The count `cap` is only a memory backstop for a pathological
+ * callback rate, set well above the horizon's expected sample count.
+ */
+export function retainSamples(
+  samples: ProgressSample[],
+  horizonMs: number,
+  cap: number,
+): ProgressSample[] {
+  if (samples.length === 0) return samples
+  const latestT = samples[samples.length - 1].t
+  return samples.filter(s => s.t >= latestT - horizonMs).slice(-cap)
+}
+
+/**
  * Estimate seconds remaining from progress samples, or null when there isn't
  * enough signal yet (fewer than two samples, no forward progress, or already
- * complete). Linear extrapolation over a RECENT window so a changing download
- * rate (slow ramp-up, then steady) adapts instead of being dragged by the start.
+ * complete).
+ *
+ * The rate is a TIME-WEIGHTED exponential moving average of the inter-sample
+ * rates across a recent window, not a single window slope. A multi-shard CDN
+ * download is bursty (per-shard speed, CDN throttling, gaps), so a raw slope
+ * faithfully reproduces that burstiness and the ETA bounces (28s → 2min → 12s).
+ * The EMA damps a single fast/slow burst while a longer `tauMs` memory still lets
+ * a sustained change through, and recent segments weigh more (so a genuine late
+ * slowdown is reflected). `windowMs` bounds how far back to look; `tauMs` is the
+ * smoothing time constant.
  */
 export function estimateRemainingSeconds(
   samples: ProgressSample[],
-  windowMs = 15_000,
+  windowMs = 60_000,
+  tauMs = 20_000,
 ): number | null {
   if (samples.length < 2) return null
   const latest = samples[samples.length - 1]
@@ -35,12 +63,22 @@ export function estimateRemainingSeconds(
   if (!Number.isFinite(latest.pct)) return null
   if (latest.pct <= 0 || latest.pct >= 100) return null
   const recent = samples.filter(s => s.t >= latest.t - windowMs)
-  const first = recent.length >= 2 ? recent[0] : samples[0]
-  const dPct = latest.pct - first.pct
-  const dT = latest.t - first.t
-  if (!Number.isFinite(dPct) || dPct <= 0 || dT <= 0) return null
+  // Time-weighted EMA over consecutive segments (oldest → newest). A non-finite
+  // or zero-/negative-time segment is skipped; a non-monotone blip clamps to 0
+  // rather than going negative.
+  let ema: number | null = null
+  for (let i = 1; i < recent.length; i++) {
+    const dT = recent[i].t - recent[i - 1].t
+    const dPct = recent[i].pct - recent[i - 1].pct
+    if (!(dT > 0) || !Number.isFinite(dPct)) continue
+    const inst = Math.max(0, dPct) / dT // %/ms
+    const alpha = 1 - Math.exp(-dT / tauMs)
+    ema = ema === null ? inst : ema + alpha * (inst - ema)
+  }
+  // No usable segment, or stalled (rate ≈ 0) → no estimate rather than Infinity.
+  if (ema === null || ema <= 0) return null
   const remainingPct = 100 - latest.pct
-  return Math.round((remainingPct / dPct) * dT) / 1000
+  return Math.round(remainingPct / ema) / 1000
 }
 
 // Localized ETA strings (review I4): the modal is localized EN/FR/DE/ES, so the

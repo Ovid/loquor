@@ -19,7 +19,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { BufferLine, StatusLine, ViewState } from '../glkote-react/types'
 import type { LlmEngine, NlLanguage } from '../llm/types'
-import type { LexLang } from '../llm/lexicon/types'
+import type { LexLang, InputLexLang } from '../llm/lexicon/types'
 import { EngineGate } from '../shared/engineGate'
 import type { TranslationCorpus } from './types'
 import { corpusFor, CORPUS_ONLY_LANGS } from './corpus/index'
@@ -37,9 +37,11 @@ import { installMissDump, logMiss } from './missLog'
 import { shimmerLabel } from './xlPrompt'
 import { createFallbackResolver, type OverlayState } from './fallbackResolve'
 
-/** The active OUTPUT language: the input-lexicon languages (LexLang) plus 'ka'
- * (Georgian — display corpus but no input lexicon; corpus-only output). */
-export type OutLang = LexLang | 'ka'
+/** The active OUTPUT language: the languages with an input lexicon, which is
+ * exactly the output-translatable set (LexLang + the no-LLM 'ka'). Aliased to
+ * `InputLexLang` (F-g) rather than re-spelling `LexLang | 'ka'` — they were
+ * structurally identical, so the dup could silently drift. */
+export type OutLang = InputLexLang
 
 export interface DisplayLine extends BufferLine {
   /** True while the LLM fallback is in flight (renders the shimmer). */

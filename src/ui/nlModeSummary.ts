@@ -1,5 +1,6 @@
 import { OUTPUT_ONLY_LANGS } from '../llm/types'
 import type { ActiveLanguage, NlState } from '../llm/types'
+import type { LexLang } from '../llm/lexicon/types'
 import { basicChip } from '../llm/notices'
 
 // Localized words for the readout's active-input chip. Only en/fr/de/es reach
@@ -7,13 +8,13 @@ import { basicChip } from '../llm/notices'
 // lang index is exact and needs no fallback. Mirrors the notices.ts byLang
 // pattern. `grammar` reuses basicChip so the readout and the status-bar chip
 // can't drift on the word for "basic mode".
-const FULL: Record<'en' | 'fr' | 'de' | 'es', string> = {
+const FULL: Record<'en' | LexLang, string> = {
   en: 'full',
   fr: 'complet',
   de: 'voll',
   es: 'completo',
 }
-const INPUT: Record<'en' | 'fr' | 'de' | 'es', string> = {
+const INPUT: Record<'en' | LexLang, string> = {
   en: 'input',
   fr: 'saisie',
   de: 'Eingabe',
@@ -51,7 +52,7 @@ export function nlModeSummary(state: NlState, llmEnabled = true): string {
       return 'downloading…'
     case 'on': {
       if (OUTPUT_ONLY_LANGS.has(state.language)) return '' // ka: title-only
-      const lang = state.language as 'en' | 'fr' | 'de' | 'es'
+      const lang = state.language as 'en' | LexLang
       // Feature hidden: no tier token / separator — the model concept is gone,
       // so report only what stays true (the localized input indicator).
       if (!llmEnabled) return INPUT[lang]

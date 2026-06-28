@@ -141,7 +141,10 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
           if (cached) setModalOpen(false)
         }
       })
-      .catch(() => {})
+      // isCached() degrades a probe FAULT to false internally; this only fires
+      // on a post-probe rejection (a throw in the .then). Surface it rather than
+      // swallow — worst case a one-time activation is skipped, but silently (F-o).
+      .catch(err => log.warn('boot cache probe failed', err))
     return () => {
       cancelled = true
     }

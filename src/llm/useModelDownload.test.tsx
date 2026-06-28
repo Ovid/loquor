@@ -95,7 +95,11 @@ describe('boot probe (isCached)', () => {
     expect(hook.result.current.installed).toBe(true)
   })
 
-  it('an isCached rejection is swallowed — installed:false, no throw', async () => {
+  it('a rejected isCached probe is logged (not swallowed) — installed:false, no throw (F-o)', async () => {
+    // isCached() degrades a probe FAULT to false internally, so the call-site
+    // catch only sees a post-probe rejection. It used to be dropped silently;
+    // F-o surfaces it via log.warn while still degrading safely (no throw).
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const engine: LlmEngine = {
       load: async () => {},
       unload: async () => {},
@@ -107,9 +111,14 @@ describe('boot probe (isCached)', () => {
     }
     const { hook } = setup({ engine })
     await waitFor(() =>
-      expect(hook.result.current.internal).toEqual({ phase: 'off' }),
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[nl] boot cache probe failed',
+        expect.anything(),
+      ),
     )
+    expect(hook.result.current.internal).toEqual({ phase: 'off' })
     expect(hook.result.current.installed).toBe(false)
+    warnSpy.mockRestore()
   })
 })
 

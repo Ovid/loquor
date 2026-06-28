@@ -1,7 +1,8 @@
-# Hand-authored documentation and project instructions — not auto-formatted.
+# Hand-authored Markdown (docs, reviews, notes, project instructions) — never
+# auto-formatted; Prettier's Markdown reflow fights hand-written prose. `docs/`
+# stays listed too, for its non-md walkthrough .txt files.
+*.md
 docs/
-README.md
-CLAUDE.md
 
 # Vendored, read-only references (also gitignored; belt-and-suspenders).
 ifvms.js/

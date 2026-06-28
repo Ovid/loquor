@@ -87,6 +87,15 @@ export default function App() {
           storyTitle={gameBySlug(slug)!.title}
           themeToggle={toggleEl}
           onChangeStory={() => setPicking(true)}
+          // A story can fetch OK yet fail to boot (corrupt/unsupported file, glk
+          // init throw). Surface it on the SAME loadError box a fetch failure
+          // uses and drop back to the landing, instead of leaving the player on
+          // a blank, frozen terminal (F-l). The hook already logged it.
+          onBootFail={err => {
+            setLoadError(describeLoadError(gameBySlug(slug)!.title, err))
+            setSlug(null)
+            setBytes(null)
+          }}
           // The change-story overlay covers the game → make it inert so a
           // virtual cursor can't wander behind the dialog (M9).
           backgroundInert={picking}

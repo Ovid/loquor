@@ -1,5 +1,6 @@
 // src/llm/types.ts
 import type { ViewState } from '../glkote-react/types'
+import { INPUT_LEX_LANGS, LEX_LANGS } from './lexicon/types'
 
 /** Picker languages. 'off' disables the NL layer (locked decision 3). */
 export const NL_LANGUAGES = ['off', 'en', 'fr', 'de', 'es', 'ka'] as const
@@ -10,16 +11,20 @@ export function isNlLanguage(v: unknown): v is NlLanguage {
   return (NL_LANGUAGES as readonly unknown[]).includes(v)
 }
 
-/** Languages with a DISPLAY corpus but no LLM INPUT support (review-fix C2).
- * Phase 2 (Georgian input) does NOT remove 'ka' from this set — 'ka' stays
- * here because it is still corpus-only output with no LLM fallback. Georgian
- * input activation on Zork I is tracked by `kaInputActive` / the `lex` memo
- * in useNaturalLanguage, NOT by removing 'ka' from this set. Consumers of
- * this set (WebLLM-modal suppression, screen-reader routing, title-only
- * display, picker copy, the types invariant test) all remain correct.
- * Distinct from translate/corpus/index.ts's CORPUS_ONLY_LANGS (output: no LLM
- * fallback) — same membership today, different jobs in different layers. */
-export const OUTPUT_ONLY_LANGS: ReadonlySet<NlLanguage> = new Set(['ka'])
+/** Languages with an input lexicon but no LLM INPUT support (review-fix C2).
+ * DERIVED (F-a) from the lexicon membership arrays — = INPUT_LEX_LANGS \
+ * LEX_LANGS = {ka} today — so it can never drift from the `LexLang` /
+ * `InputLexLang` types. Phase 2 (Georgian input) keeps 'ka' here: it has a
+ * lexicon now, but is still no-LLM. Georgian input activation on Zork I is
+ * tracked by `kaInputActive` / the `lex` memo in useNaturalLanguage, NOT by
+ * membership here. Consumers (WebLLM-modal suppression, screen-reader routing,
+ * title-only display, picker copy, the coherence test) all remain correct.
+ * Distinct JOB from translate/corpus/index.ts's CORPUS_ONLY_LANGS (output: no
+ * LLM fallback) — same membership today, different layers; both derive from the
+ * same arrays so they cannot silently disagree on which languages lack an LLM. */
+export const OUTPUT_ONLY_LANGS: ReadonlySet<NlLanguage> = new Set(
+  INPUT_LEX_LANGS.filter(l => !(LEX_LANGS as readonly string[]).includes(l)),
+)
 
 /** Device capability tier. `none` = NL not offered. */
 export type Tier = 'none' | 'small' | 'full'

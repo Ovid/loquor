@@ -115,6 +115,32 @@ describe('App', () => {
     errSpy.mockRestore()
   })
 
+  it('surfaces a load error (instead of a dead terminal) when the story boots but fails (F-l)', async () => {
+    // A body long enough to pass the length guard but not a valid story: fetch
+    // succeeds, so loadStory accepts it, but the VM fails to boot. Before F-l
+    // the player was left on a blank, frozen terminal with the error only in
+    // the console; now the boot failure rides the same loadError surface a
+    // fetch failure uses, and we return to the landing.
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        arrayBuffer: async () => new ArrayBuffer(64),
+      })),
+    )
+    render(<App />)
+    fireEvent.click(screen.getByText(/Light the lamp/))
+    await waitFor(() =>
+      expect(screen.getByText(/could not be loaded/i)).toBeInTheDocument(),
+    )
+    // Back on the landing, not stuck on a blank terminal.
+    expect(screen.getByText('Loquor')).toBeInTheDocument()
+    expect(errSpy).toHaveBeenCalledWith('[ui] boot failed', expect.anything())
+    errSpy.mockRestore()
+  })
+
   it('rejects a body too short to be a story file', async () => {
     // fetch can succeed (ok:true) yet return a truncated/garbage body; the
     // length guard must catch it before it reaches the VM.

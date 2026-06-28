@@ -13,6 +13,7 @@
 // (composed-lines.test.ts) re-verifies each `en` against the committed story
 // file in CI (skeleton fidelity), so a mis-transcribed skeleton fails the suite
 // rather than green-lighting a leak.
+import type { LexLang } from '../../llm/lexicon/types'
 
 /** How the gate generates fills for one slot. */
 export type Binding =
@@ -1108,7 +1109,7 @@ export const COMPOSED_FAMILIES: readonly Family[] = [
  *  template. EACH entry REQUIRES a non-empty `why` (the gate asserts it). `ka`
  *  is never exempt — it has no LLM net. Empty at seed. */
 export const EXEMPTIONS: Readonly<
-  Record<'fr' | 'de' | 'es', ReadonlyArray<{ en: string; why: string }>>
+  Record<LexLang, ReadonlyArray<{ en: string; why: string }>>
 > = {
   fr: [],
   de: [],

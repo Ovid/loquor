@@ -9,6 +9,7 @@ import type { LlmEngine } from '../llm/types'
 import type { LexLang } from '../llm/lexicon/types'
 import { EngineGate } from '../shared/engineGate'
 import { runGenerationGuarded } from '../shared/guardedGenerate'
+import { ORPHAN_SETTLE_MS } from '../llm/config'
 import { splitPromptResidue, type CompiledCorpus } from './match'
 import { normalize, untranslatable } from './normalize'
 import { cacheGet, cacheSet } from './fallbackCache'
@@ -220,6 +221,7 @@ export function createFallbackResolver(
           messages: xlPrompt(core, lang),
           grammar: null,
           watchdogMs,
+          orphanSettleMs: ORPHAN_SETTLE_MS,
           timeoutError: () => new ExpectedXlateStop('xlate watchdog'),
           acs: acsRef.current,
           onOrphanError: err =>

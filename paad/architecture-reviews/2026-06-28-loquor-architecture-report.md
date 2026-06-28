@@ -186,6 +186,10 @@ The architecture is genuinely well-layered. **madge reports zero circular depend
 - **Explanation:** `OutLang` is structurally identical to `InputLexLang` but declared in a different module; the output hook then re-derives `lexLang` at runtime via `CORPUS_ONLY_LANGS.has(...)`, encoding the same "`ka` has no LLM" fact in a type union *and* a runtime Set *and* per-call guards. Correct but low-cohesion belt-and-suspenders — a symptom of the missing language descriptor (F-a).
 - **Evidence:** `src/translate/useOutputTranslation.ts:42,135-148` (`OutLang`); `src/llm/lexicon/types.ts:8-16` (`LexLang`/`InputLexLang`).
 - **Found by:** Structure & Boundaries
+- **Status:** Fixed
+- **Status reason:** `OutLang` was `LexLang | 'ka'` — structurally identical to `InputLexLang` declared in another module, so the dup could drift. Replaced with `export type OutLang = InputLexLang` (pure-type alias, zero behavior change, typecheck-pinned). Combined with the F-a change (the runtime `ka`-membership fact now derives from the same `INPUT_LEX_LANGS` array), the "ka has no LLM" fact is no longer belt-and-suspendered across a type union AND a runtime Set AND a separate `OutLang` union. NB: the report's "runtime re-derivation of `lexLang` via `CORPUS_ONLY_LANGS.has(...)`" at `useOutputTranslation.ts:135-148` is intentionally KEPT — it narrows `OutLang→LexLang` for the LLM-fallback machinery (the place the `ka`-is-a-compile-error guarantee is enforced), so it's a deliberate type narrowing, not drift.
+- **Status date:** 2026-06-28 09:58 UTC
+- **Status commit:** (backfilled below)
 
 ### [F-h] Temporal coupling — boot `preload → prepare → init` ordering
 - **Category:** Flaw 27 — Temporal coupling (= Flaw 16 sync integration, deduped)

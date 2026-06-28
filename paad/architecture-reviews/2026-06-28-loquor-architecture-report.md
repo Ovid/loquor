@@ -213,6 +213,10 @@ The architecture is genuinely well-layered. **madge reports zero circular depend
 - **Explanation:** A module-level mutable `ring` array (reset by `clearLogs`) and `window.loquorLogs`/`loquorMisses` assigned at import time are the one true (non-`WeakMap`) mutable singleton. Bounded (cap 200) and copy-on-read, so the blast radius is small, but tests must remember to clear it and the `window` assignment runs at module load. (Same code is the S-k observability strength — both are true; it's a deliberate trade.)
 - **Evidence:** `src/logger.ts:77,88,90-92`; `src/translate/missLog.ts:80-83`.
 - **Found by:** Structure & Boundaries
+- **Status:** Won't fix
+- **Status reason:** Decided with Ovid 2026-06-28. This is the SAME code as strength **S-k** (the single-chokepoint observability sink) — the report itself states "both are true; it's a deliberate trade." The mutable singleton is the *price* of that strength: one module-level ring means `window.loquorLogs()` (and the documented telemetry-export upgrade path) can exist without threading a logger sink through every call site. Eliminating the global would mean dependency-injecting a sink everywhere or a React context for a backend-less app — strictly MORE complexity, and it would weaken S-k. The blast radius the flaw cites is already negligible by construction: the ring is bounded (cap 200) and copy-on-read (`recentLogs()` returns a slice, so no caller can mutate or watch it shift), and the one real friction — tests remembering to reset — is handled by the provided `clearLogs()`. `logger.ts` already documents the non-built upgrade path (`ponytail:` comment). Fixing would trade a working, documented, low-blast-radius observability strength for nothing the player or a maintainer gains. No code change.
+- **Status date:** 2026-06-28 15:48 UTC
+- **Status commit:** (no code change — decision recorded in report)
 
 ### [F-g] Three overlapping language sub-types (`LexLang`/`InputLexLang`/`OutLang`)
 
@@ -233,6 +237,10 @@ The architecture is genuinely well-layered. **madge reports zero circular depend
 - **Explanation:** `boot()` requires `dialog.preload(signature)` to complete before `vm.prepare()`/`Glk.init()`, because `ZVM.start()` reads autosave synchronously. Real, type-unexpressible temporal coupling — but confined to one method, documented, and defended by a loud runtime guard (`autosave_read` warns if the cache wasn't warmed). A refactor that reorders `Glk.init()` ahead of `preload()` would break it.
 - **Evidence:** `src/zmachine/engine.ts:109-158`; `src/storage/dialog.ts:121-154` (sync cache + guard).
 - **Found by:** Coupling & Dependencies + Integration & Data (cross-specialist; same sync-preload coupling)
+- **Status:** Won't fix
+- **Status reason:** Decided with Ovid 2026-06-28. The coupling is **imposed by an external API we don't control**: `ZVM.start()` (vendored `ifvms`) reads the autosave snapshot *synchronously*, so the snapshot MUST be warmed before `start()` — `preload → prepare → init` is forced by that sync read, not by our design. No refactor or type can express "warm the cache before an external library's synchronous precondition"; the ordering is inherent to integrating a sync-autosave VM. It is already mitigated proportionately: confined to one documented method (`boot()`), and defended by a LOUD runtime guard — `dialog.preload`'s `autosave_read` warns if the cache wasn't warmed (strength S-l), converting a mis-ordering from a silent failed-resume into an observable error. The only "fix" available — folding `preload` into `vm.prepare` so they can't be reordered — would push storage concerns into the VM-prepare step and merely relocate the coupling while coupling two more layers. Low impact, externally imposed, documented, and guarded: the current defense is the right answer. No code change.
+- **Status date:** 2026-06-28 15:48 UTC
+- **Status commit:** (no code change — decision recorded in report)
 
 ### [F-i] Leaky abstraction — `createFallbackResolver` shares the hook's mutable refs
 

@@ -193,6 +193,9 @@ The architecture is genuinely well-layered. **madge reports zero circular depend
 - **Explanation:** The scene reducer depends on a "what counts as a failed command" predicate housed in the input-parse module, creating a back-edge from the scene domain into the parsing module. The shared predicate is intentional, but its home belongs in a shared output-classification module both layers import.
 - **Evidence:** `src/llm/scene/tracker.ts:11,199` imports/uses `refusalApplies` defined at `src/llm/inputTranslate.ts:596`.
 - **Found by:** Structure & Boundaries
+- **Status:** Fixed
+- **Status reason:** `refusalApplies` (and its two private helpers `commandObjectWords`/`nounSurfaceWords`) moved into a new low-level module `src/llm/outputClassify.ts` that both layers depend DOWN onto. `scene/tracker.ts` now imports the predicate from `./outputClassify` instead of UP from `../inputTranslate` (the feature-envy back-edge is gone); `inputTranslate.ts`'s `clauseFailed` imports `commandObjectWords`/`refusalApplies` from the same module. Pure relocation, behavior-preserving — pinned by the existing `inputTranslate.test.ts` (refusal predicate) and `scene/tracker.test.ts` (165 tests green; the test's `refusalApplies` import was re-pointed to `./outputClassify`). madge still reports 0 cycles (outputClassify is a type-only-importing leaf; the move REMOVED an edge, it cannot add one).
+- **Status date:** 2026-06-28 10:42 UTC
 
 ### [F-f] Global mutable state — logger ring + `window.*` globals
 

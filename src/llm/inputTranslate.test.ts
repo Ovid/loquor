@@ -11,10 +11,10 @@ import {
   fillElidedVerbs,
   distributePrepTail,
   clauseFailed,
-  refusalApplies,
   unquote,
   isVocabPassthrough,
 } from './inputTranslate'
+import { refusalApplies } from './outputClassify'
 import { META_COMMANDS } from './meta'
 import { FR_CORE } from './lexicon/fr.core'
 import { ES_CORE } from './lexicon/es.core'

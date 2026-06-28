@@ -86,6 +86,15 @@ const GEORGIAN_RE = /[Ⴀ-ჿ]/
 export const containsGeorgian = (s: string) =>
   GEORGIAN_RE.test(s) || GEORGIAN_RE.test(s.toLowerCase())
 
+/** A line that goes VERBATIM to the Z-parser because the parser reads English:
+ *  an EN player always, and a `ka` player's plain-ASCII line that missed the
+ *  Georgian lexicon (§5.5 — degrade, never block). Centralizes the en/ka-ASCII
+ *  raw-send decision the pipeline made inline at three sites (F-c). A `ka` line
+ *  CONTAINING Georgian is NOT raw-sent (it would only earn a useless English
+ *  error and burn the turn) — that case abstains with a localized hint instead. */
+const rawSendsToParser = (lang: ActiveLanguage, line: string) =>
+  lang === 'en' || (lang === 'ka' && !containsGeorgian(line))
+
 /** EN-only "translator broke, so the raw line went to the Z-parser" notice.
  * Intentionally NOT in notices.ts (which is multilingual): it fires only in
  * English mode — a non-EN player abstains instead (`nothingSent`) — so there is
@@ -718,10 +727,7 @@ export function createTranslate(
         // non-English reply with no resolution would only earn a useless English
         // error and burn the turn, so abstain (leave the prompt open) and show a
         // localized hint to answer with the full noun (I3, the "resolve + hint" call).
-        if (
-          activeLang === 'en' ||
-          (activeLang === 'ka' && !containsGeorgian(line))
-        ) {
+        if (rawSendsToParser(activeLang, line)) {
           sendTracked(line)
           return 'ok'
         }
@@ -961,12 +967,11 @@ export function createTranslate(
               stopError instanceof WatchdogTimeout,
             )
           }
-        } else if (activeLang === 'en') {
-          sendTracked(line)
-        } else if (activeLang === 'ka' && !containsGeorgian(line)) {
-          // §5.5: a ka player's English (ASCII) line that missed the Georgian
-          // lexicon raw-sends exactly as en does — degrade, never block. Only a
-          // line containing Georgian falls through to the abstain notice below.
+        } else if (rawSendsToParser(activeLang, line)) {
+          // en, and (§5.5) a ka player's English (ASCII) line that missed the
+          // Georgian lexicon: raw-send to the Z-parser — degrade, never block. A
+          // ka line CONTAINING Georgian is excluded by rawSendsToParser and falls
+          // through to the abstain notice below.
           sendTracked(line)
         } else if (
           grammarOnly &&
@@ -985,9 +990,7 @@ export function createTranslate(
         }
         // Only the NOTICE branches retain the typed line; the raw-send arms (en,
         // and ka-ASCII via §5.5) consumed it — don't re-populate the input field.
-        const rawSent =
-          activeLang === 'en' ||
-          (activeLang === 'ka' && !containsGeorgian(line))
+        const rawSent = rawSendsToParser(activeLang, line)
         if (!fromQueue && !rawSent) retainTyped = line
       } else if (done < total) {
         // Truncated sequence → make it visible (decision 7); an engine

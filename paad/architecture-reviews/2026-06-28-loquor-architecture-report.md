@@ -289,6 +289,9 @@ The architecture is genuinely well-layered. **madge reports zero circular depend
 - **Explanation:** The `isCached()` probes in the cached-activation effect and the M2 migration both end in an empty catch that drops a post-probe rejection with no log — inconsistent with the "surface, don't swallow" convention applied everywhere else. Low blast radius (worst case: a one-time notice doesn't show).
 - **Evidence:** `src/llm/useModelDownload.ts:144`; `src/ui/Terminal.tsx:323`.
 - **Found by:** Error Handling & Observability
+- **Status:** Fixed
+- **Status reason:** Both bare `.catch(() => {})` now `log.warn` the rejection (with a comment noting these only fire on a POST-probe rejection — `isCached()` already degrades a probe FAULT to `false` and warns internally per F-19 — so the worst case is a one-time activation/notice being skipped, but no longer silently). The `useModelDownload` site is unit-tested: the pre-existing "an isCached rejection is swallowed" test (which pinned the OLD silent-swallow contract and would otherwise have leaked the new warn) was updated to the new contract — it now asserts `log.warn('[nl] boot cache probe failed', …)` while still verifying the safe degrade (`phase:'off'`, `installed:false`, no throw). The `Terminal` M2 site is the symmetric one-line change but is NOT separately unit-tested: `Terminal` instantiates its own `WebLlmEngine` (not injected — that's F-d), and the test setup's empty-CacheStorage stub makes `isCached()` resolve to `false`, so the catch is inert across the suite (full Terminal suite green, no leak). Forcing it to reject would require the F-d engine-injection refactor.
+- **Status date:** 2026-06-28 10:51 UTC
 
 ### [F-p] WebLLM third-party code execution without integrity verification
 

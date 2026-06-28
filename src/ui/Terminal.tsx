@@ -325,7 +325,10 @@ export function Terminal({
           // which is benign (it never blocks play).
         }
       })
-      .catch(() => {})
+      // isCached() degrades a probe FAULT to false internally; this only fires
+      // on a post-probe rejection (a throw in the .then). Surface it rather than
+      // swallow — worst case the one-time M2 notice doesn't show, but silently (F-o).
+      .catch(err => log.warn('llm-hidden migration probe failed', err))
     return () => {
       cancelled = true
     }

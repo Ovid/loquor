@@ -305,7 +305,7 @@ export const GEORGIAN_ACTIVATION_TIP_TYPE_ENGLISH =
  * activation announcement so the two can’t drift (spec Decision 6). The quoted
  * example stays literal English (the Z-parser receives the unquoted text
  * verbatim). NATIVE-REVIEW-DRAFT (ka §7). */
-export const GEORGIAN_ACTIVATION_TIP = `რჩევა: ბრძანებები აკრიფეთ ქართულად ${GEORGIAN_STATUS_MARKER}; ამოუცნობი ბრძანება გააგზავნეთ ზუსტად ინგლისურად ბრჭყალებში, მაგ. "wind up canary". დახმარებისთვის აკრიფეთ help.`
+export const GEORGIAN_ACTIVATION_TIP = `რჩევა: ბრძანებები აკრიფეთ ქართულად ${GEORGIAN_STATUS_MARKER}; ამოუცნობი ბრძანება გააგზავნეთ ზუსტად ინგლისურად ბრჭყალებში, მაგ. ${ESCAPE_EXAMPLE}. დახმარებისთვის აკრიფეთ help.`
 
 /** One-time escape-hatch nudge surfaced when a language is picked (P3). fr/de/es
  * point the player at the quoted-English fallback. For `ka`, the tip depends on

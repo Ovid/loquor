@@ -35,14 +35,14 @@ describe('localized help', () => {
   })
   it('es help names the quoted-English escape hatch + a specific example', () => {
     const block = helpResponse('es')
-    expect(block).toMatch(/"wind up canary"/)
+    expect(block).toMatch(/"open mailbox"/)
     expect(block.toLowerCase()).toContain('ayuda') // self-reference / meta list
   })
   it('fr/de help self-reference their own help word and the escape hatch', () => {
     expect(helpResponse('fr').toLowerCase()).toContain('aide')
-    expect(helpResponse('fr')).toMatch(/"wind up canary"/)
+    expect(helpResponse('fr')).toMatch(/"open mailbox"/)
     expect(helpResponse('de').toLowerCase()).toContain('hilfe')
-    expect(helpResponse('de')).toMatch(/"wind up canary"/)
+    expect(helpResponse('de')).toMatch(/"open mailbox"/)
   })
   it('fr/de/es name the real meta verbs a non-English player needs', () => {
     for (const lang of ['fr', 'de', 'es'] as const) {
@@ -73,7 +73,7 @@ describe('localized help', () => {
     ]) {
       expect(block).toContain(verb)
     }
-    expect(block).toMatch(/"wind up canary"/) // the quoted-escape example
+    expect(block).toMatch(/"open mailbox"/) // the quoted-escape example
     expect(block.toLowerCase()).toContain('help') // self-reference
   })
   it('ka help block describes Georgian input + the quoted escape', () => {

@@ -64,7 +64,7 @@ describe('ka input copy — new Phase-2 semantics (gate b)', () => {
   it('activation tip mentions Georgian input + the status marker + the quoted escape', () => {
     expect(GEORGIAN_ACTIVATION_TIP).toMatch(/ქართულ/)
     expect(GEORGIAN_ACTIVATION_TIP).toContain(GEORGIAN_STATUS_MARKER)
-    expect(GEORGIAN_ACTIVATION_TIP).toContain('"wind up canary"')
+    expect(GEORGIAN_ACTIVATION_TIP).toContain('"open mailbox"')
   })
   it('placeholder invites Georgian, not the old type-English-only copy', () => {
     expect(commandPlaceholder('ka')).toMatch(/ქართულ/)

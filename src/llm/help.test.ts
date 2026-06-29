@@ -76,6 +76,17 @@ describe('localized help', () => {
     expect(block).toMatch(/"open mailbox"/) // the quoted-escape example
     expect(block.toLowerCase()).toContain('help') // self-reference
   })
+  it('escape-hatch examples avoid puzzle spoilers', () => {
+    // The persistent hint must not give away puzzle solutions (songbird, thief,
+    // Loud Room, boat). Examples are benign, parser-valid commands instead.
+    for (const lang of ['en', 'fr', 'de', 'es', 'ka'] as const) {
+      const block = helpResponse(lang)
+      expect(block, `${lang} leaked a spoiler`).not.toMatch(
+        /wind up canary|kill thief|"echo"|enter boat/,
+      )
+      expect(block).toMatch(/"open mailbox"/)
+    }
+  })
   it('ka help block describes Georgian input + the quoted escape', () => {
     const h = helpResponse('ka')
     expect(h).toMatch(/ქართულ/) // tells the player to type in Georgian

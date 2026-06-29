@@ -46,7 +46,9 @@ export function isHelpTrigger(line: string, lang: NlLanguage): boolean {
 // ESCAPE_EXAMPLE is the canonical single example, reused by notices.ts's one-line
 // activation nudge so the two can't drift apart (S2).
 export const ESCAPE_EXAMPLE = '"open mailbox"'
-const ESCAPE_EXAMPLES = `${ESCAPE_EXAMPLE}, "enter boat", "echo", "kill thief with knife"`
+// Examples stay non-spoiler (benign opening commands, no puzzle solutions) yet
+// cover varied shapes: verb+object, a follow-on, an intransitive verb, movement.
+const ESCAPE_EXAMPLES = `${ESCAPE_EXAMPLE}, "read leaflet", "look", "go north"`
 
 /** The localized help block, surfaced via the existing aria-live notice seam. */
 export function helpResponse(lang: ActiveLanguage): string {

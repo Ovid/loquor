@@ -1154,15 +1154,12 @@ describe('room PSEUDO scenery passes the vocab gate (Zork I) — BUG G', () => {
 })
 
 describe('P3 signpost escape commands pass the vocab gate (Zork I)', () => {
-  it.each([
-    '"wind up canary"',
-    '"enter boat"',
-    '"launch"',
-    '"echo"',
-    '"kill thief with knife"',
-  ])('%s clears unquote → isVocabPassthrough', quoted => {
-    const inner = unquote(quoted)
-    expect(inner).not.toBeNull()
-    expect(isVocabPassthrough(inner!, ZORK1_VOCAB, null)).toBe(true)
-  })
+  it.each(['"open mailbox"', '"read leaflet"', '"look"', '"go north"'])(
+    '%s clears unquote → isVocabPassthrough',
+    quoted => {
+      const inner = unquote(quoted)
+      expect(inner).not.toBeNull()
+      expect(isVocabPassthrough(inner!, ZORK1_VOCAB, null)).toBe(true)
+    },
+  )
 })

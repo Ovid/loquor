@@ -123,10 +123,22 @@ export const KA_CORE: CoreLexicon = {
     მოხსენი: 'untie',
     გაბერე: 'inflate',
     დააქოქე: 'wind up',
+    // wind-up synonyms (G3): ამოქოქე ("wind out") / მოქოქე ("wind"), the natural
+    // forms a native speaker reaches for at the songbird; only დააქოქე mapped, so
+    // the bauble puzzle forced the `"wind up canary"` English escape. ka has no LLM
+    // net. notes/uat-georgian-playthrough.md.
+    ამოქოქე: 'wind up',
+    მოქოქე: 'wind up',
     დარეკე: 'ring',
     დაიქნიე: 'wave',
     მოისვი: 'rub',
     თხარე: 'dig',
+    // dig synonyms (G2, candidate hard blocker): the natural perfective გათხარე
+    // ("dig it up") / ამოთხარე ("dig out") abstained — only the bare თხარე mapped,
+    // with NO on-screen hint. The scarab (a 350-point-win treasure) is gated on
+    // dig, so a speaker who never guesses თხარე was stuck. notes/uat-georgian-playthrough.md.
+    გათხარე: 'dig',
+    ამოთხარე: 'dig',
     მოატრიალე: 'turn',
     დაატრიალე: 'turn',
     // climb / cross / launch / pray / wait

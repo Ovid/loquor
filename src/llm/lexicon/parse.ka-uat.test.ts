@@ -321,6 +321,83 @@ describe('Georgian completion — display-taught / synonym input gaps', () => {
   })
 })
 
+// Georgian NATIVE-SPEAKER feasibility run (notes/uat-georgian-playthrough.md,
+// 2026-06-29). A native speaker drove Zork I end-to-end typing only natural
+// Georgian (no glossary). Three input-side gaps surfaced — each a natural word a
+// real speaker reaches for that the lexicon didn't know. ka has NO input LLM, so
+// each was a hard miss (G2 gated a 350-required treasure with NO on-screen hint).
+describe('Georgian playthrough — natural-word input gaps (G1–G3)', () => {
+  // G2 (highest priority — candidate hard blocker): only the bare imperative
+  // თხარე mapped to `dig`. The natural perfective გათხარე ("dig it up") and
+  // ამოთხარე ("dig out") abstained — with NO on-screen hint, unlike the sceptre.
+  // The scarab (a 350-point-win treasure) is gated behind dig, so a speaker who
+  // never guesses the bare თხარე form is stuck. Added as `dig` synonyms.
+  it('dig sand — perfective გათხარე (with instrument)', () => {
+    expect(ka('გათხარე ქვიშა ნიჩაბით')).toEqual({
+      kind: 'command',
+      text: 'dig sand with shovel',
+    })
+  })
+  it('dig sand — ამოთხარე ("dig out") synonym', () => {
+    expect(ka('ამოთხარე ქვიშა ნიჩაბით')).toEqual({
+      kind: 'command',
+      text: 'dig sand with shovel',
+    })
+  })
+  it('dig sand — shipping თხარე still works (regression)', () => {
+    expect(ka('თხარე ქვიშა ნიჩაბით')).toEqual({
+      kind: 'command',
+      text: 'dig sand with shovel',
+    })
+  })
+
+  // G1 (friction, not a wall — the object's description shows სკიპტრა on screen):
+  // კვერთხი is the ordinary, arguably primary, native word for a sceptre/royal
+  // staff; the lexicon only knew the transliteration სკიპტრა. კვერთხი → კვერთხ
+  // (nominative -ი strip), added as a sceptre synonym.
+  it('take sceptre — natural კვერთხი (→ კვერთხ)', () => {
+    expect(ka('აიღე კვერთხი')).toEqual({
+      kind: 'command',
+      text: 'take sceptre',
+    })
+  })
+  it('wave sceptre — natural კვერთხი', () => {
+    expect(ka('დაიქნიე კვერთხი')).toEqual({
+      kind: 'command',
+      text: 'wave sceptre',
+    })
+  })
+  it('take sceptre — shipping სკიპტრა still works (regression)', () => {
+    expect(ka('აიღე სკიპტრა')).toEqual({
+      kind: 'command',
+      text: 'take sceptre',
+    })
+  })
+
+  // G3 (sign-posted — the footer/help hand the player the `"wind up canary"`
+  // English escape): only დააქოქე mapped to `wind up`. The natural ამოქოქე /
+  // მოქოქე abstained. Added so the songbird/bauble puzzle (a treasure) doesn't
+  // force English on a Georgian-only player.
+  it('wind up canary — ამოქოქე synonym', () => {
+    expect(ka('ამოქოქე კანარა')).toEqual({
+      kind: 'command',
+      text: 'wind up canary',
+    })
+  })
+  it('wind up canary — მოქოქე synonym', () => {
+    expect(ka('მოქოქე კანარა')).toEqual({
+      kind: 'command',
+      text: 'wind up canary',
+    })
+  })
+  it('wind up canary — shipping დააქოქე still works (regression)', () => {
+    expect(ka('დააქოქე კანარა')).toEqual({
+      kind: 'command',
+      text: 'wind up canary',
+    })
+  })
+})
+
 describe('Georgian UAT — meta verbs (finding-8)', () => {
   it('English meta verbs are recognized for any language (save/quit/score/restart)', () => {
     // 'i' and 'l' are in-world game shortcuts (inventory/look), NOT meta —

@@ -409,6 +409,14 @@ describe('Georgian UAT — meta verbs (finding-8)', () => {
     expect(KA_CORE.metaAliases['ინვენტარი']).toBe('inventory')
     expect(KA_CORE.metaAliases['გასვლა']).toBe('quit')
   })
+  // G1 (duplicate-hunt coverage gap): fr/de/es each map a native word to the
+  // `diagnose` meta verb; ka had none, so a Georgian player wanting the post-
+  // combat health report was forced to type English `diagnose`. ka has no LLM
+  // net, so the deterministic alias is its only non-English path. Parallel to
+  // fr `diagnostic` / es `diagnostico` (the Latinate noun).
+  it('G1: Georgian diagnose alias closes the fr/de/es parity gap', () => {
+    expect(KA_CORE.metaAliases['დიაგნოზი']).toBe('diagnose')
+  })
 })
 
 describe('Georgian reply path — instrumental orphan answer ("რით?")', () => {

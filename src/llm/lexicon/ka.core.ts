@@ -219,6 +219,12 @@ export const KA_CORE: CoreLexicon = {
     გასვლა: 'quit',
     ქულა: 'score',
     ყურება: 'look',
+    // დიაგნოზი (the medical loanword "diagnosis") → the `diagnose` health report.
+    // fr/de/es each map a native word (diagnostic/diagnose/diagnostico); ka had
+    // none, forcing a Georgian player to type English `diagnose`. ka has no LLM
+    // net, so this deterministic alias is its only non-English path (duplicate-
+    // hunt G1). NATIVE-REVIEW-DRAFT.
+    დიაგნოზი: 'diagnose',
     // ოდისევსი (Odysseus) — the cyclops scare-word. Zork accepts ODYSSEUS as a
     // synonym of ULYSSES (gsyntax.zil:335), so the natural Georgian mythological
     // name resolves to the raw English `odysseus` rather than forcing the player

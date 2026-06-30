@@ -67,18 +67,44 @@ describe('estimateRemainingSeconds', () => {
   // bounced 1min↔2min on adjacent readings; the cumulative average must trend
   // down — and be strictly monotonic once past the volatile early shards.
   const FETCH_TRACE: Array<[number, number]> = [
-    [0, 339715], [3, 368600], [6, 375692], [9, 376043], [12, 404585],
-    [15, 414115], [18, 414275], [21, 442632], [24, 454384], [27, 455159],
-    [30, 481138], [33, 492077], [47, 493047], [50, 493066], [53, 511836],
-    [55, 525603], [58, 528104], [61, 529396], [65, 545958], [68, 560364],
-    [71, 562534], [74, 563542], [77, 577979], [80, 595461], [83, 597549],
-    [86, 597921], [89, 606170], [92, 612351], [94, 616725], [97, 625331],
+    [0, 339715],
+    [3, 368600],
+    [6, 375692],
+    [9, 376043],
+    [12, 404585],
+    [15, 414115],
+    [18, 414275],
+    [21, 442632],
+    [24, 454384],
+    [27, 455159],
+    [30, 481138],
+    [33, 492077],
+    [47, 493047],
+    [50, 493066],
+    [53, 511836],
+    [55, 525603],
+    [58, 528104],
+    [61, 529396],
+    [65, 545958],
+    [68, 560364],
+    [71, 562534],
+    [74, 563542],
+    [77, 577979],
+    [80, 595461],
+    [83, 597549],
+    [86, 597921],
+    [89, 606170],
+    [92, 612351],
+    [94, 616725],
+    [97, 625331],
     [100, 634951],
   ]
 
   it('trends down across a real download trace (no bounce)', () => {
     const anchor = s(...FETCH_TRACE[0])
-    const etas = FETCH_TRACE.map(([p, t]) => estimateRemainingSeconds(anchor, s(p, t)))
+    const etas = FETCH_TRACE.map(([p, t]) =>
+      estimateRemainingSeconds(anchor, s(p, t)),
+    )
     // Every mid-download reading is a finite, positive estimate (first sample is
     // the anchor → null; 100% → null).
     for (const eta of etas.slice(1, -1)) {

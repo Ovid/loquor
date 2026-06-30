@@ -333,7 +333,8 @@ describe('useNaturalLanguage', () => {
       })
       const afterDrop = hook.result.current.state
       expect(afterDrop).toMatchObject({ phase: 'downloading', loaded: 10 })
-      if (afterDrop.phase !== 'downloading') throw new Error('expected downloading')
+      if (afterDrop.phase !== 'downloading')
+        throw new Error('expected downloading')
       expect(afterDrop.etaSeconds).toBeNull()
       // Next load-phase sample: 10%→50% over 1s ⇒ 50% left at 40%/s ≈ 1.25s,
       // measured from the NEW anchor — no fetch-phase contamination.

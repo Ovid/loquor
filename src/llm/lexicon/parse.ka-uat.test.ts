@@ -513,3 +513,23 @@ describe('Georgian F2 — dative -ს direct object', () => {
     expect(ka('აიღე ოქროს')).toEqual({ kind: 'command', text: 'take pot' })
   })
 })
+
+describe('Georgian UAT — raise basket synonym (G4)', () => {
+  // Coal-mine shaft basket. ასწიე ("lift") shipped and works; the prose-natural
+  // ამოწიე ("pull UP-and-out", the instinctive verb for hauling a basket up a
+  // deep shaft) abstained, with ka having no input-LLM net. notes/uat-georgian-playthrough.md.
+  // NB: the basket's vocab noun is "cage" in Zork I, so კალათა → cage; "raise cage"
+  // is the working command that hauled the basket up live.
+  it('raise basket — shipping ასწიე still works (regression)', () => {
+    expect(ka('ასწიე კალათა')).toEqual({
+      kind: 'command',
+      text: 'raise cage',
+    })
+  })
+  it('G4: raise basket — natural ამოწიე (pull up out of the shaft)', () => {
+    expect(ka('ამოწიე კალათა')).toEqual({
+      kind: 'command',
+      text: 'raise cage',
+    })
+  })
+})

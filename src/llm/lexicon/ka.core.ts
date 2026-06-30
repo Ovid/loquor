@@ -113,6 +113,11 @@ export const KA_CORE: CoreLexicon = {
     გამოქაჩე: 'pull',
     მოქაჩე: 'pull',
     ასწიე: 'raise',
+    // raise synonym (G4): ამოწიე ("draw UP-and-out", the instinctive verb for
+    // hauling the coal-mine basket up the shaft) abstained — only ასწიე ("lift")
+    // mapped. The diamond (a 350-point-win treasure) needs the basket raised, and
+    // ka has no input-LLM net. notes/uat-georgian-playthrough.md.
+    ამოწიე: 'raise',
     ჩაუშვი: 'lower',
     // tie / inflate / wind / ring / wave / rub / dig / turn
     მიაბი: 'tie',

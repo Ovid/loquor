@@ -95,6 +95,28 @@ describe('boot probe (isCached)', () => {
     expect(hook.result.current.installed).toBe(true)
   })
 
+  it('seeds the stored language synchronously (grammar) before the cache probe resolves — no boot flash', () => {
+    // The real isCached() is genuinely slow (dynamic import + CacheStorage), so
+    // seeding the active language only inside its .then left the game in English
+    // until the probe resolved — the flash. A never-resolving probe stands in for
+    // that slow path: the language must already be active (grammar mode) on the
+    // very first render, with no await. The probe still promotes it to full later.
+    writeNlPref({ language: 'fr' })
+    const engine: LlmEngine = {
+      load: async () => {},
+      unload: async () => {},
+      isLoaded: () => false,
+      isCached: () => new Promise<boolean>(() => {}), // never resolves
+      generate: async () => '',
+    }
+    const { hook } = setup({ engine })
+    expect(hook.result.current.internal).toEqual({
+      phase: 'on',
+      language: 'fr',
+      model: 'grammar',
+    })
+  })
+
   it('a rejected isCached probe is logged (not swallowed) — installed:false, no throw (F-o)', async () => {
     // isCached() degrades a probe FAULT to false internally, so the call-site
     // catch only sees a post-probe rejection. It used to be dropped silently;

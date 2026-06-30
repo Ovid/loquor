@@ -484,11 +484,14 @@ describe('useNaturalLanguage', () => {
   })
 
   it('decline keeps grammar-only active and only sets declined:true', async () => {
+    // Legacy v1 pref { enabled: true } maps to language 'en' (nlpref migration),
+    // so the hook now seeds on/grammar SYNCHRONOUSLY — no off→on flash. (This
+    // used to wait for the transient 'off' the async seed left; that transient is
+    // exactly the boot flash we removed.) Let the probe settle (not cached →
+    // installed:false) before acting.
     localStorage.setItem('loquor.nl', JSON.stringify({ enabled: true }))
-    const { hook } = setup() // not cached → stays off
-    await waitFor(() =>
-      expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
-    )
+    const { hook } = setup() // not cached
+    await waitFor(() => expect(hook.result.current.installed).toBe(false))
     act(() => hook.result.current.setLanguage('en')) // not installed → on/grammar + opens modal
     act(() => hook.result.current.declineDownload())
     // grammar-only stays active; declined only suppresses the auto-modal

@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState, useMemo } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useMemo,
+} from 'react'
 import type { ReactNode } from 'react'
 import type { ViewState } from '../glkote-react/types'
 import { StatusBar } from './StatusBar'
@@ -232,9 +239,12 @@ export function Terminal({
   // Routing the pick through nl.setLanguage makes the modal path behave exactly
   // like the in-game picker, which already works. backgroundInert is precisely the
   // change-story overlay (App passes `picking`), so its falling edge is the
-  // "returned from Change story" signal — no extra prop needed.
+  // "returned from Change story" signal — no extra prop needed. A LAYOUT effect
+  // (not a passive one) so the language is applied BEFORE the browser paints the
+  // revealed game: otherwise the player sees one frame of the old language before
+  // it flips (the re-entry half of the flash).
   const prevInertRef = useRef(backgroundInert)
-  useEffect(() => {
+  useLayoutEffect(() => {
     const returned = prevInertRef.current && !backgroundInert
     prevInertRef.current = backgroundInert
     if (!returned) return

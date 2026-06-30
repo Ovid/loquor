@@ -58,6 +58,12 @@ function glkapiDevEsm(): Plugin {
 //        pre-cover HF's LFS/Xet 302-redirect CDNs (cdn-lfs*, cas-bridge.*.hf.co).
 //  - worker-src 'self' blob:            — defensive; the main-thread engine
 //        shouldn't spawn a worker, but the runtime may use a blob worker.
+//  - font-src 'self' data:              — self-hosted woff2/woff subsets. The
+//        build inlines small ones (< assetsInlineLimit) as url(data:font;base64)
+//        in the bundled CSS, so data: is REQUIRED or those @font-face loads are
+//        blocked in production (e.g. the Cyrillic / Latin-Ext subsets), silently
+//        degrading to system fonts — a regression the F-p download checklist
+//        never exercises. data: fonts are same-document, not an exfil vector.
 //  - img-src 'self' data:               — favicon + any data: images.
 //  - object-src 'none'; base-uri 'self'; form-action 'none' — standard hardening.
 //
@@ -74,7 +80,7 @@ const CSP = [
   "script-src 'self' 'wasm-unsafe-eval'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
-  "font-src 'self'",
+  "font-src 'self' data:",
   "connect-src 'self' https://huggingface.co https://*.huggingface.co https://*.hf.co https://raw.githubusercontent.com",
   "worker-src 'self' blob:",
   "object-src 'none'",

@@ -548,6 +548,7 @@ describe('LLM fallback on live misses (spec §6)', () => {
       async isCached(): Promise<boolean> {
         return true
       }
+      async deleteCache(): Promise<void> {}
       async generate(): Promise<string> {
         this.calls++
         if (this.calls === 1) throw new Error('transient WebGPU hiccup')
@@ -794,6 +795,7 @@ describe('gate mutual exclusion on the watchdog path (review I2)', () => {
     async isCached(): Promise<boolean> {
       return true
     }
+    async deleteCache(): Promise<void> {}
     generate(
       _prompt: ChatMessages,
       _grammar: string | null,
@@ -825,6 +827,7 @@ describe('gate mutual exclusion on the watchdog path (review I2)', () => {
     async isCached(): Promise<boolean> {
       return true
     }
+    async deleteCache(): Promise<void> {}
     generate(
       _prompt: ChatMessages,
       _grammar: string | null,

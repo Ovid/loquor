@@ -12,6 +12,8 @@ import { readFileSync } from 'node:fs'
 import { Terminal } from './Terminal'
 import { helpResponse } from '../llm/help'
 import { WebLlmEngine } from '../llm/engine.webllm'
+import { FakeLlmEngine } from '../llm/engine.fake'
+import { EngineGate } from '../shared/engineGate'
 import { ZMachine } from '../zmachine/engine'
 import type { UseNaturalLanguage } from '../llm/useNaturalLanguage'
 import { PREFS_COPY } from './PreferencesModal'
@@ -1327,6 +1329,112 @@ describe('Terminal', () => {
       expect(
         screen.getByText(llmHiddenMigrationNotice('en')),
       ).toBeInTheDocument()
+    })
+  })
+
+  // F-d (narrow): the LLM engine + gate are injectable props (default-constructed
+  // when omitted), so a test can drive Terminal with a FakeLlmEngine instead of
+  // prototype-spying the real WebLlmEngine — and the F-o migration-probe catch
+  // (inert across the suite before, because the real isCached degrades faults to
+  // false internally) becomes assertable.
+  describe('F-d: injectable engine/gate seam', () => {
+    it('uses the INJECTED engine (and unloads it on unmount)', async () => {
+      const engine = new FakeLlmEngine()
+      const unload = vi.spyOn(engine, 'unload')
+      const { unmount } = render(
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+          engine={engine}
+          gate={new EngineGate()}
+        />,
+      )
+      await waitFor(
+        () =>
+          expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        { timeout: 8000 },
+      )
+      unmount()
+      // The INJECTED engine — not a default-constructed WebLlmEngine — receives
+      // the unmount unload, proving Terminal consumes the prop.
+      expect(unload).toHaveBeenCalled()
+    })
+
+    it('warns (does not swallow) when the M2 migration cache-probe rejects (F-o)', async () => {
+      // Clear storage so the feature reads default-OFF (the M2 effect runs) and
+      // the one-time seen-marker is unset.
+      localStorage.clear()
+      const engine = new FakeLlmEngine()
+      const err = new Error('probe boom')
+      vi.spyOn(engine, 'isCached').mockRejectedValue(err)
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      try {
+        render(
+          <Terminal
+            storyBytes={bytes}
+            storyTitle="Zork I"
+            onChangeStory={() => {}}
+            themeToggle={null}
+            engine={engine}
+            gate={new EngineGate()}
+          />,
+        )
+        // The post-probe rejection reaches the catch and is surfaced, not dropped.
+        await waitFor(() =>
+          expect(warn).toHaveBeenCalledWith(
+            '[ui] llm-hidden migration probe failed',
+            err,
+          ),
+        )
+      } finally {
+        warn.mockRestore()
+      }
+    })
+  })
+
+  describe('Preferences — delete cached model', () => {
+    it('offers the delete action when a model is cached and deleting calls the engine', async () => {
+      localStorage.clear()
+      const engine = new FakeLlmEngine({ cached: true })
+      const del = vi.spyOn(engine, 'deleteCache')
+      render(
+        <Terminal
+          storyBytes={bytes}
+          storyTitle="Zork I"
+          onChangeStory={() => {}}
+          themeToggle={null}
+          engine={engine}
+          gate={new EngineGate()}
+        />,
+      )
+      await waitFor(
+        () =>
+          expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        { timeout: 8000 },
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Preferences' }))
+      // The model is on disk, so the delete affordance is offered…
+      const trigger = await screen.findByRole('button', {
+        name: PREFS_COPY.en.deleteLabel,
+      })
+      // …but takes two steps (no accidental discard of a multi-GB download).
+      fireEvent.click(trigger)
+      // The confirm fires deleteCache(), whose .then settles installed/state
+      // asynchronously — flush it inside act so no update escapes.
+      await act(async () => {
+        fireEvent.click(
+          screen.getByRole('button', { name: PREFS_COPY.en.deleteConfirm }),
+        )
+      })
+      expect(del).toHaveBeenCalled()
+      // The cache is gone, so the affordance withdraws.
+      await waitFor(() =>
+        expect(
+          screen.queryByRole('button', { name: PREFS_COPY.en.deleteLabel }),
+        ).toBeNull(),
+      )
     })
   })
 })

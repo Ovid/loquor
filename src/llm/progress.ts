@@ -19,28 +19,36 @@ export interface ProgressSample {
 }
 
 /**
- * Estimate seconds remaining from progress samples, or null when there isn't
- * enough signal yet (fewer than two samples, no forward progress, or already
- * complete). Linear extrapolation over a RECENT window so a changing download
- * rate (slow ramp-up, then steady) adapts instead of being dragged by the start.
+ * Seconds remaining as a CUMULATIVE-AVERAGE rate over the current phase: from
+ * the phase's first sample `start` (the anchor) to the latest `cur`. Returns
+ * null when there isn't enough signal — no elapsed time, no forward progress, a
+ * non-finite sample, or already complete (review S7).
+ *
+ * Why cumulative-average and not a per-segment / EMA rate: a real WebLLM
+ * download fires progress callbacks in BURSTS (adjacent samples seen 19ms–28s
+ * apart on a captured 5-min trace) with BYTE-QUANTIZED percent, so a per-segment
+ * rate is an artifact of WHEN a callback fired, not true speed — it swings
+ * orders of magnitude between neighbours and the ETA bounces non-monotonically
+ * (1min↔2min) while percent climbs steadily. Averaging over the whole phase from
+ * a fixed anchor is inherently smooth and was monotonic across the back half of
+ * the real trace. The estimator stays stateless; the caller (useModelDownload)
+ * resets the anchor at each phase boundary — WebLLM restarts `progress` at 0 when
+ * it moves fetch→cache-load→GPU — so one phase's elapsed time never divides the
+ * next phase's progress (which would spike the ETA to ~30 min at the boundary).
+ * A backward `cur` (a reset that reaches the estimator un-anchored) yields null,
+ * never a negative estimate.
  */
 export function estimateRemainingSeconds(
-  samples: ProgressSample[],
-  windowMs = 15_000,
+  start: ProgressSample,
+  cur: ProgressSample,
 ): number | null {
-  if (samples.length < 2) return null
-  const latest = samples[samples.length - 1]
-  // A non-finite sample (WebLLM reporting non-numeric progress) must yield null,
-  // not propagate NaN into state (review S7).
-  if (!Number.isFinite(latest.pct)) return null
-  if (latest.pct <= 0 || latest.pct >= 100) return null
-  const recent = samples.filter(s => s.t >= latest.t - windowMs)
-  const first = recent.length >= 2 ? recent[0] : samples[0]
-  const dPct = latest.pct - first.pct
-  const dT = latest.t - first.t
-  if (!Number.isFinite(dPct) || dPct <= 0 || dT <= 0) return null
-  const remainingPct = 100 - latest.pct
-  return Math.round((remainingPct / dPct) * dT) / 1000
+  if (!Number.isFinite(start.pct) || !Number.isFinite(cur.pct)) return null
+  if (cur.pct <= 0 || cur.pct >= 100) return null
+  const dT = cur.t - start.t
+  const dPct = cur.pct - start.pct
+  if (!(dT > 0) || !(dPct > 0)) return null
+  const ratePerMs = dPct / dT // %/ms averaged over the phase so far
+  return Math.round((100 - cur.pct) / ratePerMs) / 1000
 }
 
 // Localized ETA strings (review I4): the modal is localized EN/FR/DE/ES, so the

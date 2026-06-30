@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import type { ActiveLanguage } from '../llm/types'
 import { Modal } from './Modal'
 
@@ -10,6 +11,13 @@ interface PrefsCopy {
   close: string
   /** aria-label for the status-bar ⚙ opener (Terminal reads this). */
   openLabel: string
+  /** "Delete cached model" trigger; shown only when a model is on disk. */
+  deleteLabel: string
+  /** Inline confirm prompt (states the consequence: a re-download is needed). */
+  deletePrompt: string
+  /** Confirm / cancel buttons for the two-step delete. */
+  deleteConfirm: string
+  deleteCancel: string
 }
 
 // PREFS_COPY and prefsOpenLabel are exported alongside the component so the
@@ -28,6 +36,11 @@ export const PREFS_COPY: Record<ActiveLanguage, PrefsCopy> = {
       'Adds an optional on-device model that understands more of what you type. Hidden by default.',
     close: 'Done',
     openLabel: 'Preferences',
+    deleteLabel: 'Delete cached model',
+    deletePrompt:
+      'Delete the downloaded model? You’ll re-download it to use it again.',
+    deleteConfirm: 'Delete model',
+    deleteCancel: 'Cancel',
   },
   fr: {
     heading: 'Préférences',
@@ -39,6 +52,11 @@ export const PREFS_COPY: Record<ActiveLanguage, PrefsCopy> = {
       'Ajoute un modèle optionnel, exécuté sur l’appareil, qui comprend mieux ce que vous tapez. Masqué par défaut.',
     close: 'Terminé',
     openLabel: 'Préférences',
+    deleteLabel: 'Supprimer le modèle téléchargé',
+    deletePrompt:
+      'Supprimer le modèle téléchargé ? Vous devrez le retélécharger pour l’utiliser à nouveau.',
+    deleteConfirm: 'Supprimer le modèle',
+    deleteCancel: 'Annuler',
   },
   de: {
     heading: 'Einstellungen',
@@ -50,6 +68,11 @@ export const PREFS_COPY: Record<ActiveLanguage, PrefsCopy> = {
       'Fügt ein optionales, auf dem Gerät laufendes Modell hinzu, das mehr von dem versteht, was Sie eingeben. Standardmäßig ausgeblendet.',
     close: 'Fertig',
     openLabel: 'Einstellungen',
+    deleteLabel: 'Heruntergeladenes Modell löschen',
+    deletePrompt:
+      'Das heruntergeladene Modell löschen? Sie müssen es erneut herunterladen, um es wieder zu verwenden.',
+    deleteConfirm: 'Modell löschen',
+    deleteCancel: 'Abbrechen',
   },
   es: {
     heading: 'Preferencias',
@@ -61,6 +84,11 @@ export const PREFS_COPY: Record<ActiveLanguage, PrefsCopy> = {
       'Añade un modelo opcional, ejecutado en el dispositivo, que entiende mejor lo que escribes. Oculto por defecto.',
     close: 'Hecho',
     openLabel: 'Preferencias',
+    deleteLabel: 'Eliminar el modelo descargado',
+    deletePrompt:
+      '¿Eliminar el modelo descargado? Tendrás que volver a descargarlo para usarlo de nuevo.',
+    deleteConfirm: 'Eliminar modelo',
+    deleteCancel: 'Cancelar',
   },
   // Georgian (ka) — player-visible: the status-bar ⚙ aria-label and the prefs
   // panel render in Georgian when Georgian is the active language. Draft pending
@@ -79,6 +107,15 @@ export const PREFS_COPY: Record<ActiveLanguage, PrefsCopy> = {
       'ამატებს არასავალდებულო მოდელს, რომელიც მოწყობილობაზევე მუშაობს და უკეთ იგებს თქვენს აკრეფილ ტექსტს. ნაგულისხმევად დამალულია.',
     close: 'მზადაა',
     openLabel: 'პარამეტრები',
+    // NATIVE-REVIEW-DRAFT (§8): ka is never offered the model (the download modal
+    // is suppressed), so `modelInstalled` is always false for ka and this delete
+    // row never renders — authored only because PrefsCopy requires it. Mkhedruli
+    // is unicameral.
+    deleteLabel: 'ჩამოტვირთული მოდელის წაშლა',
+    deletePrompt:
+      'წავშალო ჩამოტვირთული მოდელი? ხელახლა გამოსაყენებლად საჭირო იქნება მისი თავიდან ჩამოტვირთვა.',
+    deleteConfirm: 'მოდელის წაშლა',
+    deleteCancel: 'გაუქმება',
   },
 }
 
@@ -93,8 +130,10 @@ export function PreferencesModal({
   debug,
   llmEnabled = false,
   lang = 'en',
+  modelInstalled = false,
   onToggleDebug,
   onToggleLlm = () => {},
+  onDeleteModel = () => {},
   onClose,
 }: {
   open: boolean
@@ -103,8 +142,12 @@ export function PreferencesModal({
   llmEnabled?: boolean
   /** Active NL language — renders the panel chrome in this language. */
   lang?: ActiveLanguage
+  /** A model is present in the on-disk cache — gates the "Delete cached model" row. */
+  modelInstalled?: boolean
   onToggleDebug: () => void
   onToggleLlm?: () => void
+  /** Delete the on-disk model cache (frees disk; forces a fresh re-download). */
+  onDeleteModel?: () => void
   onClose: () => void
 }) {
   // The shared <Modal> owns the dialog a11y contract + focus trap (WCAG 2.4.3 /
@@ -112,12 +155,29 @@ export function PreferencesModal({
   // Escape closes.
   const copy = PREFS_COPY[lang]
 
+  // Two-step confirm for the destructive (but recoverable) delete.
+  const [confirming, setConfirming] = useState(false)
+  const confirmRef = useRef<HTMLButtonElement>(null)
+  // When the confirm appears, move focus onto it so a keyboard/SR user lands on
+  // the destructive action (its aria-describedby voices the consequence) rather
+  // than losing focus to <body> when the trigger unmounts.
+  useEffect(() => {
+    if (confirming) confirmRef.current?.focus()
+  }, [confirming])
+  // Closing the panel (Done / Escape) abandons an in-progress confirm, so a
+  // reopen always starts at step 1. (The delete row itself is gated on
+  // modelInstalled, so a stale confirm can't render after the model is gone.)
+  const handleClose = () => {
+    setConfirming(false)
+    onClose()
+  }
+
   return (
     <Modal
       open={open}
       titleId="prefs-modal-title"
       title={copy.heading}
-      onEscape={onClose}
+      onEscape={handleClose}
     >
       <label className="prefs-row">
         <input
@@ -143,8 +203,45 @@ export function PreferencesModal({
       <p id="prefs-llm-help" className="prefs-help">
         {copy.llmHelp}
       </p>
+      {modelInstalled &&
+        (confirming ? (
+          <div className="prefs-row prefs-delete-confirm">
+            <p id="prefs-delete-prompt" className="prefs-help">
+              {copy.deletePrompt}
+            </p>
+            <div className="modal-actions">
+              <button
+                ref={confirmRef}
+                className="sw"
+                type="button"
+                aria-describedby="prefs-delete-prompt"
+                onClick={() => {
+                  onDeleteModel()
+                  setConfirming(false)
+                }}
+              >
+                {copy.deleteConfirm}
+              </button>
+              <button
+                className="sw"
+                type="button"
+                onClick={() => setConfirming(false)}
+              >
+                {copy.deleteCancel}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            className="sw prefs-delete"
+            type="button"
+            onClick={() => setConfirming(true)}
+          >
+            {copy.deleteLabel}
+          </button>
+        ))}
       <div className="modal-actions">
-        <button className="sw" type="button" onClick={onClose}>
+        <button className="sw" type="button" onClick={handleClose}>
           {copy.close}
         </button>
       </div>

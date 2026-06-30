@@ -78,6 +78,14 @@ export interface LlmEngine {
    * model is cached must NOT be re-prompted. Distinct from isLoaded().
    */
   isCached(): Promise<boolean>
+  /**
+   * Remove the model from the on-disk cache (frees disk; the next use
+   * re-downloads) and unload it from memory, so isCached()/isLoaded() both report
+   * false afterwards. Lets the player reclaim space via Preferences. OPTIONAL — a
+   * capability, not every engine has a deletable local cache; callers offer the
+   * affordance only when it is present AND a model is actually cached.
+   */
+  deleteCache?(): Promise<void>
 }
 
 /** Result of mapping English → game action. */

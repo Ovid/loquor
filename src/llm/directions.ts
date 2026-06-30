@@ -10,6 +10,11 @@
 // Strip diacritics + lowercase + trailing punctuation so "Süd-Ost!" == "sud-ost".
 // Apostrophes (ASCII or typographic) become spaces so the French elided article
 // splits off: "l'est" → "l est" → LEAD strips "l" → "est" (review C2).
+//
+// Deliberately a SUBSET of lexicon/fold.ts's fold() — NOT reused on purpose. This
+// KEEPS hyphens (the resolver strips them via `.replace(/-/g,'')` below, joining
+// 'sud-est' → 'sudest'); fold() turns hyphens into spaces, which would break the
+// closed direction-word lookup. Keep the two separate (duplicate-hunt note).
 function normalize(input: string): string {
   return input
     .normalize('NFD')

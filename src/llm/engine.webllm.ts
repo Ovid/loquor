@@ -127,4 +127,17 @@ export class WebLlmEngine implements LlmEngine {
       return false
     }
   }
+
+  /**
+   * Remove this model's weights, WASM, and config from WebLLM's on-disk cache
+   * (frees disk; the next use re-downloads), then unload the in-memory engine so
+   * isLoaded()/isCached() both report false. Dynamic import for jsdom safety
+   * (mirrors isCached). Disk removal runs BEFORE unload so a delete failure
+   * leaves the still-usable loaded engine intact (the caller keeps `installed`).
+   */
+  async deleteCache(): Promise<void> {
+    const { deleteModelAllInfoInCache: del } = await import('@mlc-ai/web-llm')
+    await del(this.modelId)
+    await this.unload()
+  }
 }

@@ -648,6 +648,7 @@ describe('cancelDownload', () => {
       unload: async () => {},
       isLoaded: () => false,
       isCached: async () => false,
+      deleteCache: async () => {},
       generate: async () => '',
       load: (_p, signal) =>
         new Promise<void>((_resolve, reject) => {
@@ -683,6 +684,7 @@ describe('cancelDownload', () => {
       unload: async () => {},
       isLoaded: () => false,
       isCached: async () => false,
+      deleteCache: async () => {},
       generate: async () => '',
       load: () =>
         new Promise<void>(resolve => {
@@ -869,5 +871,94 @@ describe('grammar-only fallback', () => {
         model: 'full',
       }),
     )
+  })
+})
+
+describe('deleteModel', () => {
+  it('deletes the on-disk cache and clears installed', async () => {
+    const engine = new FakeLlmEngine({ cached: true })
+    const del = vi.spyOn(engine, 'deleteCache')
+    const { hook } = setup({ engine }) // pref off → installed but layer off
+    await waitFor(() => expect(hook.result.current.installed).toBe(true))
+
+    await act(async () => {
+      hook.result.current.deleteModel()
+    })
+
+    expect(del).toHaveBeenCalled()
+    await waitFor(() => expect(hook.result.current.installed).toBe(false))
+  })
+
+  it('demotes an active full model to grammar (keeps the language, basic mode)', async () => {
+    writeNlPref({ language: 'fr' })
+    const engine = new FakeLlmEngine({ cached: true })
+    const { hook } = setup({ engine })
+    await waitFor(() =>
+      expect(hook.result.current.internal).toEqual({
+        phase: 'on',
+        language: 'fr',
+        model: 'full',
+      }),
+    )
+
+    await act(async () => {
+      hook.result.current.deleteModel()
+    })
+
+    await waitFor(() =>
+      expect(hook.result.current.internal).toEqual({
+        phase: 'on',
+        language: 'fr',
+        model: 'grammar',
+      }),
+    )
+    expect(hook.result.current.installed).toBe(false)
+  })
+
+  it('deleting during an in-flight re-download does not resurrect the model ([C2])', async () => {
+    // The delete row stays live during a re-download of an already-cached model.
+    // This load ignores the abort signal and resolves LATE (after the delete) —
+    // its stale() guard must keep it from re-running setInstalled(true)/on:full
+    // over the now-wiped cache.
+    let resolveLoad!: () => void
+    const engine: LlmEngine = {
+      unload: async () => {},
+      isLoaded: () => false,
+      isCached: async () => true, // boot probe → installed
+      deleteCache: async () => {},
+      generate: async () => '',
+      load: () =>
+        new Promise<void>(resolve => {
+          resolveLoad = resolve
+        }),
+    }
+    const { hook } = setup({ engine })
+    await waitFor(() => expect(hook.result.current.installed).toBe(true))
+
+    // Into an in-flight re-download of the cached model (improve → download).
+    act(() => hook.result.current.setLanguage('fr')) // cached → on/full
+    act(() => hook.result.current.requestUpgrade()) // pendingLang=fr
+    act(() => hook.result.current.requestDownload()) // phase downloading
+    await waitFor(() =>
+      expect(hook.result.current.internal.phase).toBe('downloading'),
+    )
+
+    // Player deletes the cache while the load is still in flight.
+    await act(async () => {
+      hook.result.current.deleteModel()
+    })
+    expect(hook.result.current.installed).toBe(false)
+
+    // The superseded load now settles — the stale() guard must hold the line.
+    await act(async () => {
+      resolveLoad()
+      await Promise.resolve()
+    })
+    expect(hook.result.current.installed).toBe(false)
+    expect(hook.result.current.internal).toEqual({
+      phase: 'on',
+      language: 'fr',
+      model: 'grammar',
+    })
   })
 })

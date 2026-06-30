@@ -177,7 +177,11 @@ export const KA_ZORK1: NounLexicon = {
   sand: ['ქვიშა'], // vowel-final
   // sapphire-bearing -იანი adjective (M2 opt b: corpus simplified off the -ით form).
   'sapphire-encrusted bracelet': ['საფირონიან სამაჯურ', 'სამაჯურ'], // სამაჯური → სამაჯურ
-  sceptre: ['სკიპტრა'], // vowel-final
+  // +კვერთხ (G1): კვერთხი is the ordinary native word for a sceptre/royal staff —
+  // a speaker's first instinct — but the lexicon knew only the transliteration
+  // სკიპტრა (which the display shows, so G1 is recoverable, not a wall). კვერთხი →
+  // კვერთხ (nominative -ი strip). notes/uat-georgian-playthrough.md.
+  sceptre: ['სკიპტრა', 'კვერთხ'], // სკიპტრა vowel-final; კვერთხ ← კვერთხი
   screwdriver: ['სახრახნის'], // სახრახნისი → სახრახნის
   'set of teeth': ['კბილებ'], // კბილები → კბილებ (teeth)
   shovel: ['ნიჩაბ'], // ნიჩაბი → ნიჩაბ

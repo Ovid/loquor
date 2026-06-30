@@ -929,7 +929,7 @@ describe('createTranslate grammar-only + demotion', () => {
     // The drain clears the notice (setNotice(null)) before running the line, so
     // the help block is the LAST setNotice call — assert on that, not the count.
     const block = setNotice.mock.calls.at(-1)?.[0] as string
-    expect(block).toMatch(/"wind up canary"/)
+    expect(block).toMatch(/"open mailbox"/)
     expect(block.toLowerCase()).toContain('ayuda')
     expect(sendLine).not.toHaveBeenCalled() // no game command
     expect(sendCanonical).not.toHaveBeenCalled()

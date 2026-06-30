@@ -58,6 +58,10 @@ export interface ModelDownload {
   requestUpgrade: () => void
   /** Flip the active language full → grammar after a clause-time load failure. */
   demoteToGrammar: () => void
+  /** Delete the on-disk model cache (Preferences): frees disk and forces a fresh
+   * re-download. Clears `installed`; if a full model was active, drops to
+   * basic/grammar mode in the same language. No-op if the engine can't delete. */
+  deleteModel: () => void
 }
 
 export function useModelDownload(params: ModelDownloadParams): ModelDownload {
@@ -71,10 +75,16 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
   // tick; fires only on genuine silence. Held in a ref so cancelDownload can
   // clear it too.
   const stallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // (percent, time) samples for the active download, used to estimate the time
-  // remaining. Reset at the start of each requestDownload; sampled in its progress
-  // callback (a side-effect context — keeps the timing out of render).
-  const dlSamplesRef = useRef<ProgressSample[]>([])
+  // Phase anchor for the download ETA: the first progress sample of the current
+  // phase. WebLLM runs several phases (fetch params, load-from-cache, GPU), each
+  // RESTARTING progress at ~0; the ETA is a cumulative average from this anchor,
+  // re-anchored on a percent DROP so a finished phase's elapsed time never
+  // inflates the next phase's estimate. Null until the first sample of an attempt.
+  const phaseAnchorRef = useRef<ProgressSample | null>(null)
+  // The PREVIOUS sample's percent — a phase boundary is a drop from this (≈100 at
+  // a phase's end) to the next phase's fresh ~0, NOT a drop below the (low-pct)
+  // anchor. So the drop is detected against this, not the anchor.
+  const lastPctRef = useRef(0)
   // The language the player picked when the model wasn't cached yet — the
   // download modal flow activates THIS language once the load resolves.
   const pendingLangRef = useRef<ActiveLanguage>('en')
@@ -214,22 +224,33 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
     // supersede/cancel makes the next attempt stale() and is never retried.
     let retriesLeft = 1
     const attempt = () => {
-      dlSamplesRef.current = [] // fresh ETA samples per attempt
+      phaseAnchorRef.current = null // fresh ETA anchor per attempt
+      lastPctRef.current = 0
       armStall()
       engine
         .load(p => {
           if (stale()) return
           armStall() // progress arrived — reset the no-progress timer
-          dlSamplesRef.current = [
-            ...dlSamplesRef.current,
-            { pct: toPct(p.loaded, p.total), t: Date.now() },
-          ].slice(-60)
+          // Cumulative-average ETA from the phase anchor (see progress.ts). A
+          // percent DROP marks a new WebLLM phase (fetch→cache-load→GPU restarts
+          // progress at ~0); re-anchor so the finished phase's elapsed time
+          // doesn't inflate the new phase's estimate. The first sample of a phase
+          // is its own anchor, so it yields no ETA until the next sample.
+          const sample: ProgressSample = {
+            pct: toPct(p.loaded, p.total),
+            t: Date.now(),
+          }
+          const prev = phaseAnchorRef.current
+          const newPhase = prev === null || sample.pct < lastPctRef.current
+          const anchor = newPhase ? sample : prev
+          phaseAnchorRef.current = anchor
+          lastPctRef.current = sample.pct
           setInternal({
             phase: 'downloading',
             language: pendingLangRef.current,
             loaded: p.loaded,
             total: p.total,
-            etaSeconds: estimateRemainingSeconds(dlSamplesRef.current),
+            etaSeconds: estimateRemainingSeconds(anchor, sample),
           })
         }, ac.signal)
         .then(() => {
@@ -374,6 +395,35 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
     )
   }, [])
 
+  const deleteModel = useCallback(() => {
+    // deleteCache is optional (a capability); the affordance is only offered when
+    // a model is installed, which implies a real engine that has it.
+    const del = engine.deleteCache?.()
+    if (!del) return
+    // Abort any in-flight (re-)download BEFORE wiping the cache ([C2]). The delete
+    // row stays clickable during a re-download (installed is still true), and that
+    // load's stale() guard keys on abortRef/ac — which delete never touches — so
+    // an un-aborted load can resolve AFTER the wipe and re-run setInstalled(true)
+    // + on/full over a now-empty cache (installed/full but unusable until reload).
+    // abortInFlight aborts ac (and kills the stall timer) so the load goes stale.
+    abortInFlight()
+    void del.then(
+      () => {
+        setInstalled(false)
+        // Drop to basic mode in the SAME language (weights gone, language kept):
+        // covers a live full model (on/full → on/grammar) AND an in-flight
+        // download we just aborted (downloading → on/grammar — which the phase
+        // anchor would otherwise strand at 'downloading'); 'off' stays off.
+        setInternal(prev =>
+          prev.phase === 'off'
+            ? prev
+            : { phase: 'on', language: prev.language, model: 'grammar' },
+        )
+      },
+      err => log.warn('model cache delete failed', err),
+    )
+  }, [engine, abortInFlight])
+
   return {
     internal,
     installed,
@@ -384,5 +434,6 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
     cancelDownload,
     requestUpgrade,
     demoteToGrammar,
+    deleteModel,
   }
 }

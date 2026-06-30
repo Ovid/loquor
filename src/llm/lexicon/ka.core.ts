@@ -113,6 +113,11 @@ export const KA_CORE: CoreLexicon = {
     გამოქაჩე: 'pull',
     მოქაჩე: 'pull',
     ასწიე: 'raise',
+    // raise synonym (G4): ამოწიე ("draw UP-and-out", the instinctive verb for
+    // hauling the coal-mine basket up the shaft) abstained — only ასწიე ("lift")
+    // mapped. The diamond (a 350-point-win treasure) needs the basket raised, and
+    // ka has no input-LLM net. notes/uat-georgian-playthrough.md.
+    ამოწიე: 'raise',
     ჩაუშვი: 'lower',
     // tie / inflate / wind / ring / wave / rub / dig / turn
     მიაბი: 'tie',
@@ -123,10 +128,22 @@ export const KA_CORE: CoreLexicon = {
     მოხსენი: 'untie',
     გაბერე: 'inflate',
     დააქოქე: 'wind up',
+    // wind-up synonyms (G3): ამოქოქე ("wind out") / მოქოქე ("wind"), the natural
+    // forms a native speaker reaches for at the songbird; only დააქოქე mapped, so
+    // the bauble puzzle forced the `"wind up canary"` English escape. ka has no LLM
+    // net. notes/uat-georgian-playthrough.md.
+    ამოქოქე: 'wind up',
+    მოქოქე: 'wind up',
     დარეკე: 'ring',
     დაიქნიე: 'wave',
     მოისვი: 'rub',
     თხარე: 'dig',
+    // dig synonyms (G2, candidate hard blocker): the natural perfective გათხარე
+    // ("dig it up") / ამოთხარე ("dig out") abstained — only the bare თხარე mapped,
+    // with NO on-screen hint. The scarab (a 350-point-win treasure) is gated on
+    // dig, so a speaker who never guesses თხარე was stuck. notes/uat-georgian-playthrough.md.
+    გათხარე: 'dig',
+    ამოთხარე: 'dig',
     მოატრიალე: 'turn',
     დაატრიალე: 'turn',
     // climb / cross / launch / pray / wait
@@ -202,6 +219,12 @@ export const KA_CORE: CoreLexicon = {
     გასვლა: 'quit',
     ქულა: 'score',
     ყურება: 'look',
+    // დიაგნოზი (the medical loanword "diagnosis") → the `diagnose` health report.
+    // fr/de/es each map a native word (diagnostic/diagnose/diagnostico); ka had
+    // none, forcing a Georgian player to type English `diagnose`. ka has no LLM
+    // net, so this deterministic alias is its only non-English path (duplicate-
+    // hunt G1). NATIVE-REVIEW-DRAFT.
+    დიაგნოზი: 'diagnose',
     // ოდისევსი (Odysseus) — the cyclops scare-word. Zork accepts ODYSSEUS as a
     // synonym of ULYSSES (gsyntax.zil:335), so the natural Georgian mythological
     // name resolves to the raw English `odysseus` rather than forcing the player

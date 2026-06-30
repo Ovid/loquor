@@ -1,16 +1,23 @@
 /**
- * Central tunables for the natural-language input pipeline (F-13).
+ * Central tunables for the natural-language feature — the input pipeline (F-13)
+ * and the related UI timing it drives.
  *
  * These watchdogs and safety caps were previously scattered across three layers
  * — the generate watchdog in the UI (`src/ui/Terminal.tsx`), the load watchdog /
  * clause / queue caps in `translatePipeline.ts`, and the prompt context cap in
- * `prompt.ts`. Collecting them here gives one place to tune the pipeline's
- * timing and bounds, and in particular lifts the generate watchdog out of the
- * UI layer where it did not belong.
+ * `prompt.ts`. Collecting them here gives one place to tune the feature's timing
+ * and bounds, and in particular lifts the generate watchdog out of the UI layer
+ * where it did not belong.
  *
- * Out of scope by design (cohesive with a single consumer, not cross-cutting
- * sprawl): the capability-detection buffer thresholds stay in `capability.ts`,
- * and the output-translation miss-log ring-buffer cap stays in `missLog.ts`.
+ * The UI-vs-pipeline boundary (F-n): a NAMED timing/announce tunable of the LLM
+ * feature lives here even when it has a single consumer — `LLM_ANNOUNCE_CLEAR_MS`
+ * (the UI a11y announce-clear) is the same class of timing constant F-13
+ * centralized, so it sits beside the watchdogs rather than inline in
+ * `Terminal.tsx` (this file already holds `GEORGIAN_STATUS_MARKER`, a UI display
+ * constant, for the same "one place to tune" reason). Out of scope by design are
+ * constants that belong to a DIFFERENT subsystem, not the LLM feature: the
+ * capability-detection buffer thresholds stay in `capability.ts`, and the
+ * output-translation miss-log ring-buffer cap stays in `missLog.ts`.
  */
 
 /**
@@ -59,6 +66,17 @@ export const DOWNLOAD_RETRY_MS = 2000
  * `llm/config` import (keeps `src/shared` independent of the `llm` layer).
  */
 export const ORPHAN_SETTLE_MS = 30_000
+
+/**
+ * How long a TRANSIENT LLM mode-change announcement ("model enabled/hidden")
+ * stays before it auto-clears. It has done its job once announced/read, so it
+ * shouldn't sit on screen forever. The M2 migration notice is NOT transient (its
+ * "re-enable in Preferences" guidance must stay readable) and ignores this.
+ * UI a11y timing, not pipeline generation — see the file header's boundary note
+ * (F-n); injectable via `Terminal`'s `announceClearMs` prop so tests don't wait
+ * the full delay.
+ */
+export const LLM_ANNOUNCE_CLEAR_MS = 7000
 
 /** Safety cap: at most this many clauses run per compound input (locked decision 6). */
 export const MAX_CLAUSES = 8

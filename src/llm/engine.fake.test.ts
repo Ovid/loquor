@@ -69,4 +69,16 @@ describe('FakeLlmEngine', () => {
     expect(eng.isLoaded()).toBe(false)
     expect(await eng.isCached()).toBe(true)
   })
+
+  it('deleteCache clears both the on-disk cache and the loaded state', async () => {
+    const eng = new FakeLlmEngine({ cached: true })
+    await eng.load(() => {}, new AbortController().signal)
+    expect(eng.isLoaded()).toBe(true)
+    expect(await eng.isCached()).toBe(true)
+
+    await eng.deleteCache()
+
+    expect(eng.isLoaded()).toBe(false)
+    expect(await eng.isCached()).toBe(false)
+  })
 })

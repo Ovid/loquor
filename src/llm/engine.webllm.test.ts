@@ -4,7 +4,7 @@
 // never clobber the active one. The web-llm module is mocked so each create
 // resolves under test control.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { hasModelInCache } from '@mlc-ai/web-llm'
+import { hasModelInCache, deleteModelAllInfoInCache } from '@mlc-ai/web-llm'
 import { WebLlmEngine } from './engine.webllm'
 
 interface FakeMlcEngine {
@@ -39,6 +39,7 @@ vi.mock('@mlc-ai/web-llm', () => ({
       }),
   ),
   hasModelInCache: vi.fn(async () => false),
+  deleteModelAllInfoInCache: vi.fn(async () => {}),
 }))
 
 const tick = () => new Promise<void>(r => setTimeout(r, 0))
@@ -176,5 +177,30 @@ describe('WebLlmEngine.isCached (on-disk cache probe)', () => {
     } finally {
       warn.mockRestore()
     }
+  })
+})
+
+describe('WebLlmEngine.deleteCache', () => {
+  it('removes the model from the on-disk cache and unloads it', async () => {
+    const e = new WebLlmEngine('m')
+    const p = e.load(() => {}, new AbortController().signal)
+    await tick()
+    resolveCreate[0]()
+    await p
+    expect(e.isLoaded()).toBe(true)
+    const eng = engines[0]
+
+    await e.deleteCache()
+
+    expect(vi.mocked(deleteModelAllInfoInCache)).toHaveBeenCalledWith('m')
+    expect(eng.unload).toHaveBeenCalled() // dropped from memory too
+    expect(e.isLoaded()).toBe(false)
+  })
+
+  it('still removes the on-disk cache when nothing is loaded (no throw)', async () => {
+    const e = new WebLlmEngine('m')
+    await e.deleteCache()
+    expect(vi.mocked(deleteModelAllInfoInCache)).toHaveBeenCalledWith('m')
+    expect(e.isLoaded()).toBe(false)
   })
 })

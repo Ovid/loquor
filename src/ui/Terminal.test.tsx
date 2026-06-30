@@ -1461,7 +1461,9 @@ describe('Terminal', () => {
         engine,
         gate: new EngineGate(),
       }
-      const { rerender } = render(<Terminal {...props} backgroundInert={false} />)
+      const { rerender } = render(
+        <Terminal {...props} backgroundInert={false} />,
+      )
       await waitFor(
         () =>
           expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),

@@ -11,25 +11,30 @@ export function useTheme() {
     // try/catch ([K]): with cookies blocked, window.localStorage ITSELF
     // throws — an unguarded read here crashes the app at mount.
     try {
-      return localStorage.getItem(KEY) === 'light' ? 'light' : 'dark'
+      return localStorage.getItem(KEY) === 'dark' ? 'dark' : 'light'
     } catch {
-      return 'dark'
+      return 'light'
     }
   })
 
+  // Apply the theme to the DOM. Deliberately does NOT write localStorage:
+  // persisting on mount would freeze the current default into storage on a
+  // visitor's first load, so a later change to the default (e.g. dark→light)
+  // could never reach anyone who'd already opened the app. Persistence happens
+  // only on an explicit toggle, below.
   useEffect(() => {
-    if (theme === 'light') document.body.dataset.theme = 'light'
+    if (theme === 'dark') document.body.dataset.theme = 'dark'
     else delete document.body.dataset.theme
+  }, [theme])
+
+  const toggle = useCallback(() => {
+    const next: Theme = theme === 'light' ? 'dark' : 'light'
     try {
-      localStorage.setItem(KEY, theme)
+      localStorage.setItem(KEY, next)
     } catch {
       // Blocked/quota'd storage — the theme still applies, it just won't stick.
     }
+    setTheme(next)
   }, [theme])
-
-  const toggle = useCallback(
-    () => setTheme(t => (t === 'light' ? 'dark' : 'light')),
-    [],
-  )
   return { theme, toggle }
 }

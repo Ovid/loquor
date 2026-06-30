@@ -10,6 +10,12 @@
 // ß is replaced AFTER toLowerCase so ẞ (U+1E9E, which lowercases to ß) is
 // covered too; NFD does not decompose ß, so this must be explicit. Same shape
 // for the œ/æ ligatures (Œ/Æ are covered via lowercasing).
+//
+// SIBLING (do NOT merge): directions.ts has its own private `normalize()` — a
+// deliberate SUBSET of this. It omits hyphen→space (and the ß/œ/æ folds) because
+// the direction resolver REMOVES hyphens entirely afterward ('sud-est' → 'sudest',
+// not 'sud est'). Folding directions through here instead would space-substitute
+// hyphens and break that closed-set lookup. The overlap is intentional, not drift.
 export function fold(s: string): string {
   return s
     .normalize('NFD')

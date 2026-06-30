@@ -9,10 +9,7 @@ import type {
 } from './types'
 import { emptySceneState } from './types'
 import { refusalApplies } from '../outputClassify'
-
-function esc(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
+import { escapeRegExp } from '../../shared/regex'
 
 /** Synonyms shared by 2+ distinct objects (e.g. "window" owned by both
  * KITCHEN-WINDOW and BOARDED-WINDOW). Too generic to pin to one canonical:
@@ -84,7 +81,7 @@ function mentions(text: string, vocab: Vocab, sup: Set<string>): string[] {
   type Hit = { start: number; end: number; canonical: string }
   const hits: Hit[] = []
   for (const { phrase, canonical } of surfaceForms(vocab.nouns)) {
-    const re = new RegExp(`\\b${esc(phrase)}\\b`, 'g')
+    const re = new RegExp(`\\b${escapeRegExp(phrase)}\\b`, 'g')
     let m: RegExpExecArray | null
     while ((m = re.exec(lower)) !== null)
       hits.push({ start: m.index, end: m.index + phrase.length, canonical })

@@ -4,6 +4,7 @@
 // listing templates "A {obj}" / "An {obj}" → capitalized {obj.indef} are
 // appended at compile time so each inventory/contents BufferLine composes.
 import type { ObjectForms, Template, TranslationCorpus } from './types'
+import { escapeRegExp } from '../shared/regex'
 
 interface CompiledTemplate {
   re: RegExp
@@ -26,10 +27,6 @@ export interface CompiledCorpus {
 // ("the A, the B, the C, or the D?"). {obj2}/{obj3}/{obj4} are the 2nd–4th
 // occurrences (a slot may still appear at most once each).
 const SLOT = /\{(obj[234]?|num2?|raw|verb)\}/g
-
-function escapeRe(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
 
 /** Capitalize the first LETTER, skipping leading punctuation, so a cap:true
  * line that opens with «¡»/«¿» capitalizes the word and not the inverted mark
@@ -65,7 +62,7 @@ export function compileCorpus(corpus: TranslationCorpus): CompiledCorpus {
   const names = Object.keys(corpus.objects).sort(
     (a, b) => b.length - a.length || a.localeCompare(b),
   )
-  const objAlt = names.length > 0 ? names.map(escapeRe).join('|') : '(?!)' // never-match when empty
+  const objAlt = names.length > 0 ? names.map(escapeRegExp).join('|') : '(?!)' // never-match when empty
 
   const compile = (t: Template): CompiledTemplate => {
     // OUT_REF consumes only {obj[234]?.form}/{num2?}/{raw}. Any OTHER token left
@@ -95,7 +92,7 @@ export function compileCorpus(corpus: TranslationCorpus): CompiledCorpus {
     for (const m of t.en.matchAll(SLOT)) {
       const lit = t.en.slice(last, m.index)
       literal += lit.length
-      src += escapeRe(lit)
+      src += escapeRegExp(lit)
       const slot = m[1]
       if (seen.has(slot))
         throw new Error(
@@ -118,7 +115,7 @@ export function compileCorpus(corpus: TranslationCorpus): CompiledCorpus {
     }
     const tail = t.en.slice(last)
     literal += tail.length
-    src += escapeRe(tail) + '$'
+    src += escapeRegExp(tail) + '$'
     return {
       re: new RegExp(src),
       out: t.out,

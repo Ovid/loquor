@@ -56,8 +56,12 @@ function glkapiDevEsm(): Plugin {
 //  - connect-src                        — same-origin (story-file fetches) plus
 //        the documented egress: HF weights + GitHub-raw WASM. The wildcards
 //        pre-cover HF's LFS/Xet 302-redirect CDNs (cdn-lfs*, cas-bridge.*.hf.co).
-//  - worker-src 'self' blob:            — defensive; the main-thread engine
-//        shouldn't spawn a worker, but the runtime may use a blob worker.
+//  - worker-src 'self'                  — the main-thread CreateMLCEngine path
+//        spawns no worker: the production bundle has ZERO `new Worker` /
+//        createObjectURL (the unused WebWorker/ServiceWorker engine classes
+//        tree-shake away), so blob: only widened an XSS pivot for dead code.
+//        Re-add blob: if a web-llm bump moves inference to a blob worker — the
+//        console names the CSP violation.
 //  - font-src 'self' data:              — self-hosted woff2/woff subsets. The
 //        build inlines small ones (< assetsInlineLimit) as url(data:font;base64)
 //        in the bundled CSS, so data: is REQUIRED or those @font-face loads are
@@ -82,7 +86,7 @@ const CSP = [
   "img-src 'self' data:",
   "font-src 'self' data:",
   "connect-src 'self' https://huggingface.co https://*.huggingface.co https://*.hf.co https://raw.githubusercontent.com",
-  "worker-src 'self' blob:",
+  "worker-src 'self'",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'none'",

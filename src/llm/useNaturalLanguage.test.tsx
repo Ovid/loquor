@@ -898,7 +898,15 @@ describe('useNaturalLanguage', () => {
       load: () => new Promise<void>(() => {}), // stalls forever
     }
     const { hook, sendLine } = setup({ engine: stalledEngine })
-    await waitFor(() => expect(hook.result.current.state.phase).toBe('on'))
+    // Wait for the boot probe to PROMOTE the sync-seeded on/grammar to on/full —
+    // not just for phase 'on'. The synchronous seed activates the stored 'en'
+    // immediately in grammar mode, so a bare phase==='on' gate resolves before
+    // the probe runs and `translate` would raw-send in grammar (no lazy load, no
+    // stall) — the test needs the cached full model so the load can stall.
+    await waitFor(() => {
+      const s = hook.result.current.state
+      expect(s.phase === 'on' && s.model === 'full').toBe(true)
+    })
     vi.useFakeTimers()
     let p!: Promise<string | null>
     act(() => {

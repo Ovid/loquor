@@ -400,17 +400,29 @@ export function useModelDownload(params: ModelDownloadParams): ModelDownload {
     // a model is installed, which implies a real engine that has it.
     const del = engine.deleteCache?.()
     if (!del) return
+    // Abort any in-flight (re-)download BEFORE wiping the cache ([C2]). The delete
+    // row stays clickable during a re-download (installed is still true), and that
+    // load's stale() guard keys on abortRef/ac — which delete never touches — so
+    // an un-aborted load can resolve AFTER the wipe and re-run setInstalled(true)
+    // + on/full over a now-empty cache (installed/full but unusable until reload).
+    // abortInFlight aborts ac (and kills the stall timer) so the load goes stale.
+    abortInFlight()
     void del.then(
       () => {
         setInstalled(false)
-        // If a full model was active, drop to basic mode in the SAME language
-        // (the weights are gone but the player keeps their language); a no-op
-        // when the layer is off or already grammar-only.
-        demoteToGrammar()
+        // Drop to basic mode in the SAME language (weights gone, language kept):
+        // covers a live full model (on/full → on/grammar) AND an in-flight
+        // download we just aborted (downloading → on/grammar — which the phase
+        // anchor would otherwise strand at 'downloading'); 'off' stays off.
+        setInternal(prev =>
+          prev.phase === 'off'
+            ? prev
+            : { phase: 'on', language: prev.language, model: 'grammar' },
+        )
       },
       err => log.warn('model cache delete failed', err),
     )
-  }, [engine, demoteToGrammar])
+  }, [engine, abortInFlight])
 
   return {
     internal,

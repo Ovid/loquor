@@ -17,6 +17,8 @@ import { EngineGate } from '../shared/engineGate'
 import { ZMachine } from '../zmachine/engine'
 import type { UseNaturalLanguage } from '../llm/useNaturalLanguage'
 import { PREFS_COPY } from './PreferencesModal'
+import { LANDING_STRINGS } from './landingStrings'
+import { writeNlPref } from '../llm/nlpref'
 import { llmModeChange, llmHiddenMigrationNotice } from '../llm/notices'
 import { LS_KEYS } from '../storageKeys'
 
@@ -1434,6 +1436,54 @@ describe('Terminal', () => {
         expect(
           screen.queryByRole('button', { name: PREFS_COPY.en.deleteLabel }),
         ).toBeNull(),
+      )
+    })
+  })
+
+  describe('Change-story overlay language sync', () => {
+    afterEach(() => localStorage.removeItem(LS_KEYS.nlPref))
+
+    it('adopts the language chosen in the Change story overlay when it closes', async () => {
+      // Repro: play in English, open "Change story" (backgroundInert=true), pick
+      // a language in the modal — which only persists to nlpref, the modal being
+      // a sibling with no handle on this running hook — then return
+      // (backgroundInert true→false). The running game must adopt the new
+      // language. Before the fix it kept English: internal.language is seeded
+      // once at mount and the modal never told the live hook (and re-entering the
+      // same story doesn't even reboot — App.enter early-returns).
+      writeNlPref({ language: 'en' })
+      const engine = new FakeLlmEngine()
+      const props = {
+        storyBytes: bytes,
+        storyTitle: 'Zork I',
+        onChangeStory: () => {},
+        themeToggle: null,
+        engine,
+        gate: new EngineGate(),
+      }
+      const { rerender } = render(
+        <Terminal {...props} backgroundInert={false} />,
+      )
+      await waitFor(
+        () =>
+          expect(screen.getAllByText('West of House')[0]).toBeInTheDocument(),
+        { timeout: 8000 },
+      )
+      expect(
+        screen.getByText(LANDING_STRINGS.en.changeStory),
+      ).toBeInTheDocument()
+
+      // The change-story overlay opens over the running game…
+      rerender(<Terminal {...props} backgroundInert={true} />)
+      // …the player picks French in the modal (Landing persists it to nlpref)…
+      writeNlPref({ language: 'fr' })
+      // …and returns to the game.
+      rerender(<Terminal {...props} backgroundInert={false} />)
+
+      await waitFor(() =>
+        expect(
+          screen.getByText(LANDING_STRINGS.fr.changeStory),
+        ).toBeInTheDocument(),
       )
     })
   })

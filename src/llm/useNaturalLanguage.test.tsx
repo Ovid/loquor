@@ -484,11 +484,14 @@ describe('useNaturalLanguage', () => {
   })
 
   it('decline keeps grammar-only active and only sets declined:true', async () => {
+    // Legacy v1 pref { enabled: true } maps to language 'en' (nlpref migration),
+    // so the hook now seeds on/grammar SYNCHRONOUSLY — no off→on flash. (This
+    // used to wait for the transient 'off' the async seed left; that transient is
+    // exactly the boot flash we removed.) Let the probe settle (not cached →
+    // installed:false) before acting.
     localStorage.setItem('loquor.nl', JSON.stringify({ enabled: true }))
-    const { hook } = setup() // not cached → stays off
-    await waitFor(() =>
-      expect(hook.result.current.state).toMatchObject({ phase: 'off' }),
-    )
+    const { hook } = setup() // not cached
+    await waitFor(() => expect(hook.result.current.installed).toBe(false))
     act(() => hook.result.current.setLanguage('en')) // not installed → on/grammar + opens modal
     act(() => hook.result.current.declineDownload())
     // grammar-only stays active; declined only suppresses the auto-modal
@@ -895,7 +898,15 @@ describe('useNaturalLanguage', () => {
       load: () => new Promise<void>(() => {}), // stalls forever
     }
     const { hook, sendLine } = setup({ engine: stalledEngine })
-    await waitFor(() => expect(hook.result.current.state.phase).toBe('on'))
+    // Wait for the boot probe to PROMOTE the sync-seeded on/grammar to on/full —
+    // not just for phase 'on'. The synchronous seed activates the stored 'en'
+    // immediately in grammar mode, so a bare phase==='on' gate resolves before
+    // the probe runs and `translate` would raw-send in grammar (no lazy load, no
+    // stall) — the test needs the cached full model so the load can stall.
+    await waitFor(() => {
+      const s = hook.result.current.state
+      expect(s.phase === 'on' && s.model === 'full').toBe(true)
+    })
     vi.useFakeTimers()
     let p!: Promise<string | null>
     act(() => {

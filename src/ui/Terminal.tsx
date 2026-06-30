@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState, useMemo } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useMemo,
+} from 'react'
 import type { ReactNode } from 'react'
 import type { ViewState } from '../glkote-react/types'
 import { StatusBar } from './StatusBar'
@@ -221,6 +228,29 @@ export function Terminal({
   const kaActive = kaInputActive(outLang, signature)
   const kaRawSend = outLang === 'ka' && !kaActive // ka on a no-lexicon game
   const nlInputOn = nlOn && (outLang !== 'ka' || kaActive)
+
+  // When the player returns from the "Change story" overlay (backgroundInert goes
+  // true→false), adopt whatever language they picked there. That overlay (Landing)
+  // is a SIBLING with no handle on this running hook, so it can only persist the
+  // choice to nlpref — and the boot probe that seeds the active language reads
+  // nlpref just ONCE at mount. Without this, a language picked in the modal is
+  // orphaned: the game keeps its old language and the in-game picker shows it, and
+  // re-entering the SAME story doesn't even reboot (App.enter early-returns).
+  // Routing the pick through nl.setLanguage makes the modal path behave exactly
+  // like the in-game picker, which already works. backgroundInert is precisely the
+  // change-story overlay (App passes `picking`), so its falling edge is the
+  // "returned from Change story" signal — no extra prop needed. A LAYOUT effect
+  // (not a passive one) so the language is applied BEFORE the browser paints the
+  // revealed game: otherwise the player sees one frame of the old language before
+  // it flips (the re-entry half of the flash).
+  const prevInertRef = useRef(backgroundInert)
+  useLayoutEffect(() => {
+    const returned = prevInertRef.current && !backgroundInert
+    prevInertRef.current = backgroundInert
+    if (!returned) return
+    const chosen = readNlPref().language
+    if (chosen !== outLang) nl.setLanguage(chosen)
+  }, [backgroundInert, outLang, nl])
 
   // Output translation (display overlay — spec §3): the language the player
   // picked drives the overlay (including output-only languages); passthrough

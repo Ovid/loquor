@@ -67,7 +67,18 @@ export interface ModelDownload {
 export function useModelDownload(params: ModelDownloadParams): ModelDownload {
   const { engine, hasVocab, setNotice, llmEnabled = true } = params
 
-  const [internal, setInternal] = useState<Internal>({ phase: 'off' })
+  // Seed the active language SYNCHRONOUSLY from the stored pref so a returning
+  // player's language is live on the very first render — no English flash while
+  // the genuinely-slow on-disk cache probe (dynamic import + CacheStorage) runs.
+  // Start in grammar mode (works with no model); the probe below promotes it to
+  // 'full' if the model is in fact cached. A stored 'off' — including brand-new
+  // players, whose absent pref reads back as the 'off' default — stays off.
+  const [internal, setInternal] = useState<Internal>(() => {
+    const lang = readNlPref().language
+    return lang === 'off'
+      ? { phase: 'off' }
+      : { phase: 'on', language: lang, model: 'grammar' }
+  })
   const [installed, setInstalled] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
